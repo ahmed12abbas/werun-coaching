@@ -58,7 +58,7 @@ The connect button is a bonus, not the product. Without it the page still gives:
 ## Weekly workflow
 
 1. Open the site with no `#` on the end — that's the **builder**. It opens on the
-   standing **Tuesday | WeRUN** session.
+   standing **Monday | WeRUN** session.
 2. Adjust name, date, note and steps. **Add repeat set** handles the reps.
 3. **Copy link**, paste into WhatsApp.
 4. Next week, open the plain URL again. Links you already sent keep working.

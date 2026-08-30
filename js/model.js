@@ -115,27 +115,28 @@ function blankStep(type) {
   };
 }
 
-/** The club's standing Tuesday session. */
+/** The club's standing Monday session: a 1-6 minute ladder at 5 K pace. */
 function defaultWorkout() {
+  // Each rung is [work seconds, the recovery that follows it].
+  const ladder = [[60, 60], [120, 60], [180, 90], [240, 120], [300, 120], [360, 120]];
+  const blocks = [
+    Object.assign(blankStep("warmup"), { seconds: 600 }),
+    Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills + strides" }),
+  ];
+  for (const rung of ladder) {
+    blocks.push(
+      Object.assign(blankStep("work"), { durType: "time", seconds: rung[0], note: "@5 K pace" })
+    );
+    blocks.push(Object.assign(blankStep("rest"), { seconds: rung[1] }));
+  }
+  blocks.push(Object.assign(blankStep("cooldown"), { seconds: 600 }));
   return {
-    name: "Tuesday | WeRUN",
+    name: "Monday | WeRUN",
     date: "",
     coach: "",
-    note: "W12 Intervals",
+    note: "Ladder Intervals",
     units: CONFIG.units === "mi" ? "mi" : "km",
-    blocks: [
-      Object.assign(blankStep("warmup"), { durType: "open", estSeconds: 900 }),
-      Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills" }),
-      {
-        kind: "repeat",
-        reps: 15,
-        steps: [
-          Object.assign(blankStep("work"), { meters: 100, note: "@mile pace" }),
-          Object.assign(blankStep("rest"), { seconds: 60 }),
-        ],
-      },
-      Object.assign(blankStep("cooldown"), { durType: "open", estSeconds: 900 }),
-    ],
+    blocks: blocks,
   };
 }
 
