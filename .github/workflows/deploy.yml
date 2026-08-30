@@ -1,10 +1,13 @@
 name: Deploy to Cloudflare Pages
 
 # Cloudflare's own Git integration needs its GitHub App installed on the
-# account, and the `werun` project was created as a Direct Upload — which
-# Cloudflare will not convert. This does the same job from the other side:
-# every push to main redeploys werun.pages.dev, and the project (and its
-# URL) stays exactly as it is.
+# account, which is a dashboard-only OAuth step. This does the same job from
+# the other side: every push to main uploads the site to the `weruncoaching`
+# Pages project as a Direct Upload, so the URL stays exactly as it is.
+#
+# The project lives in the account named by CLOUDFLARE_ACCOUNT_ID. It is
+# deliberately NOT called `werun` — that name belongs to a project in a
+# different Cloudflare account, and *.pages.dev names are globally unique.
 
 on:
   push:
@@ -68,7 +71,7 @@ jobs:
           cp -r js assets _site/
           find _site -type f | sort
 
-      # The `werun` project lives in whichever account CLOUDFLARE_ACCOUNT_ID
+      # The `weruncoaching` project lives in whichever account CLOUDFLARE_ACCOUNT_ID
       # points at. If it is not there yet, create it as a Direct Upload project
       # so the deploy step below has something to upload into.
       - name: Ensure the Pages project exists
@@ -79,9 +82,9 @@ jobs:
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects"
           code=$(curl -sS -o /tmp/look.json -w '%{http_code}' \
-            -H "Authorization: Bearer $TOKEN" "$api/werun")
+            -H "Authorization: Bearer $TOKEN" "$api/weruncoaching")
           if [ "$code" = "200" ]; then
-            echo "Project 'werun' already exists in this account."
+            echo "Project 'weruncoaching' already exists in this account."
             jq -r '.result.subdomain' /tmp/look.json
             exit 0
           fi
@@ -90,7 +93,7 @@ jobs:
           curl -sS -X POST -o /tmp/new.json -w 'create HTTP %{http_code}\n' \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            --data '{"name":"werun","production_branch":"main"}' "$api"
+            --data '{"name":"weruncoaching","production_branch":"main"}' "$api"
           if [ "$(jq -r '.success' /tmp/new.json)" != "true" ]; then
             echo "::error::Could not create the Pages project:"
             jq -r '.errors' /tmp/new.json
@@ -102,4 +105,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy _site --project-name werun --branch main --commit-dirty=true
+          command: pages deploy _site --project-name weruncoaching --branch main --commit-dirty=true
