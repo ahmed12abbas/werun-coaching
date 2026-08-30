@@ -56,7 +56,6 @@
 [dir="rtl"] .tag{font-size:12px;padding:3px 10px;line-height:1.6}
 [dir="rtl"] .rep-label{font-size:13px}
 [dir="rtl"] .num{font-size:1.08em}
-[dir="rtl"] .brand-sub{font-size:15px;letter-spacing:.02em;padding-top:0}
 [dir="rtl"] label{letter-spacing:0}
 
 *{box-sizing:border-box}
@@ -85,8 +84,9 @@ h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppe
   font-family:"Teko",var(--display);font-weight:700;font-size:23px;line-height:.82;
   color:var(--brand);text-transform:uppercase;letter-spacing:.01em;
 }
-.brand-sub{font-family:var(--display);font-size:19px;font-weight:500;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--muted);align-self:center;padding-top:3px}
+/* Part of the logo lockup, so it stays Teko and identical in both languages. */
+.brand-sub{font-family:"Teko",-apple-system,"Segoe UI",sans-serif;font-size:19px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted);align-self:center;padding-top:3px}
 .brand-tools{margin-inline-start:auto;display:flex;gap:6px;align-items:center}
 
 /* ---- surfaces ---- */

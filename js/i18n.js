@@ -184,7 +184,8 @@ const STRINGS = {
 
   ar: {
     dir: "rtl",
-    coaching: "تدريب",
+    // The wordmark reads the same in both languages — it is part of the logo lockup.
+    coaching: "Coaching",
     newSession: "جلسة جديدة",
     langLabel: "English",
     themeLight: "الوضع الفاتح",

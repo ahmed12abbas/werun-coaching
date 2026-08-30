@@ -118,19 +118,40 @@ you hand out.
 
 `git push` and Pages rebuilds from `main` on its own. Nothing else to do.
 
-### 2. Cloudflare Pages — one command
+### 2. Cloudflare Pages — automatic, via GitHub Actions
 
-The project is a **direct upload**, not git-connected, so a push to GitHub does
-*not* update it. After pushing, run:
+`.github/workflows/deploy.yml` redeploys `werun.pages.dev` on every push to `main`.
+It assembles a folder holding only `index.html`, `js/` and `assets/` and uploads
+that, so the worker source and this readme never end up on the site.
+
+**It needs one secret before it can run.** `CLOUDFLARE_ACCOUNT_ID` is already set;
+add the token:
+
+1. Create a token at <https://dash.cloudflare.com/profile/api-tokens> using the
+   **Edit Cloudflare Workers** template (it covers Pages).
+2. `gh secret set CLOUDFLARE_API_TOKEN`
+3. Push anything, or run it by hand from the repo's **Actions** tab.
+
+<details>
+<summary>Why not Cloudflare's own Git integration?</summary>
+
+Because `werun` was created as a **Direct Upload** project and Cloudflare will not
+convert one — the API answers `8000069: You cannot update the source object in a
+Direct Uploads project`. Creating a fresh git-connected project fails too, with
+`8000011`, because the Cloudflare Pages GitHub App is not installed on the account;
+installing it is a dashboard-only OAuth step.
+
+Using the native integration would mean **deleting the `werun` project and
+recreating it** under the same name to keep the URL, after installing the app from
+**Workers & Pages → Create → Pages → Connect to Git**. The site is briefly
+unreachable while that happens. The Action above avoids all of it.
+</details>
+
+To deploy by hand at any time:
 
 ```bash
-npx wrangler pages deploy . --project-name werun --branch main --commit-dirty=true
+npx wrangler pages deploy <folder> --project-name werun --branch main --commit-dirty=true
 ```
-
-Run it from a folder holding only `index.html`, `js/` and `assets/` — pointing it at
-the repo root would upload `garmin-mcp/.venv` too. To make deploys automatic instead,
-connect the project to the GitHub repo in the Cloudflare dashboard
-(**Workers & Pages → werun → Settings → Builds**) and this step disappears.
 
 ### 3. One-tap delivery — the Worker (optional)
 

@@ -1,0 +1,52 @@
+name: Deploy to Cloudflare Pages
+
+# Cloudflare's own Git integration needs its GitHub App installed on the
+# account, and the `werun` project was created as a Direct Upload — which
+# Cloudflare will not convert. This does the same job from the other side:
+# every push to main redeploys werun.pages.dev, and the project (and its
+# URL) stays exactly as it is.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the Cloudflare token is set
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. Create a token with the"\
+                 "'Edit Cloudflare Workers' template at"\
+                 "https://dash.cloudflare.com/profile/api-tokens then run:"\
+                 "gh secret set CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+
+      # Only the site itself goes up — never the repo root, which carries the
+      # worker source and the readme.
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r js assets _site/
+          find _site -type f | sort
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy _site --project-name werun --branch main --commit-dirty=true
