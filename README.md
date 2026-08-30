@@ -1,6 +1,7 @@
 # WE RUN Coaching
 
-**Live: <https://werun.pages.dev>** — this is the link to hand out.
+**Live: <https://weruncoaching.pages.dev>** — this is the link to hand out.
+Older mirror: <https://werun.pages.dev> (a different Cloudflare account; only updates by hand).
 Mirror on GitHub Pages: <https://ahmed12abbas.github.io/werun-coaching/>
 
 One link per week's session. The coach builds it, pastes it in the group chat, and
@@ -120,17 +121,20 @@ you hand out.
 
 ### 2. Cloudflare Pages — automatic, via GitHub Actions
 
-`.github/workflows/deploy.yml` redeploys `werun.pages.dev` on every push to `main`.
+`.github/workflows/deploy.yml` redeploys `weruncoaching.pages.dev` on every push to `main`.
 It assembles a folder holding only `index.html`, `js/` and `assets/` and uploads
 that, so the worker source and this readme never end up on the site.
 
-**It needs one secret before it can run.** `CLOUDFLARE_ACCOUNT_ID` is already set;
-add the token:
+Both secrets (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) are set and the
+deploy is green. If the token ever needs replacing:
 
-1. Create a token at <https://dash.cloudflare.com/profile/api-tokens> using the
-   **Edit Cloudflare Workers** template (it covers Pages).
-2. `gh secret set CLOUDFLARE_API_TOKEN`
-3. Push anything, or run it by hand from the repo's **Actions** tab.
+1. Create one at <https://dash.cloudflare.com/profile/api-tokens> — Custom token,
+   permission **Account → Cloudflare Pages → Edit**. Tokens are `cfut_`-prefixed
+   and ~53 characters now.
+2. Save it to a file and pipe it in — pasting into gh's hidden prompt truncates:
+   `Get-Content token.txt | gh secret set CLOUDFLARE_API_TOKEN` (then delete the
+   file).
+3. Push anything, or run the workflow by hand from the repo's **Actions** tab.
 
 <details>
 <summary>Why not Cloudflare's own Git integration?</summary>
