@@ -2,6 +2,9 @@
 
 /* =========================================================================
    WE RUN Coaching — the athlete-facing viewer and the coach-facing builder.
+
+   All user-facing text goes through t() (js/i18n.js). Sentences that need
+   emphasis are written once with **bold** markers and rendered by rich().
    ========================================================================= */
 
 /* ===================== shared pieces ==================================== */
@@ -13,10 +16,10 @@ function stepRow(s, units) {
   const meta = s.note
     ? s.note
     : target
-      ? "Target " + target
+      ? t("targetIs") + target
       : s.durType === "open"
-        ? "Press lap to continue"
-        : "No target — easy";
+        ? t("pressLap")
+        : t("noTargetEasy");
   return el(
     "div",
     { class: "tl-item" },
@@ -24,9 +27,9 @@ function stepRow(s, units) {
     el(
       "div",
       { class: "tl-body" },
-      el("div", { class: "tl-title" }, (s.label || k.label) + " — " + stepAmount(s, units)),
+      el("div", { class: "tl-title" }, (s.label || kindLabel(s.type)) + " — " + stepAmount(s, units)),
       el("div", { class: "tl-meta" }, meta),
-      s.note && target ? el("div", { class: "tl-meta" }, "Target " + target) : null
+      s.note && target ? el("div", { class: "tl-meta" }, t("targetIs") + target) : null
     )
   );
 }
@@ -35,7 +38,7 @@ function timeline(w) {
   const box = el("div", {});
   for (const b of w.blocks) {
     if (b.kind === "repeat") {
-      const g = el("div", { class: "rep-group" }, el("div", { class: "rep-label" }, b.reps + " × repeat"));
+      const g = el("div", { class: "rep-group" }, el("div", { class: "rep-label" }, b.reps + " " + t("repeatX")));
       for (const s of b.steps) g.append(stepRow(s, w.units));
       box.append(g);
     } else {
@@ -65,32 +68,39 @@ function acc(iconHtml, title, subtitle, body, open) {
   );
 }
 
-/** The step-by-step table an athlete copies into the watch's workout editor. */
+/**
+ * The step table an athlete copies into the watch's workout editor.
+ * Garmin's own UI words stay in English alongside the translation, because
+ * that's what the athlete has to find on screen.
+ */
 function garminSteps(w) {
   const list = el("ol", { class: "steps" });
+  const stepName = (type) =>
+    I18N.lang === "en" ? KINDS[type].gc : kindLabel(type) + " (" + KINDS[type].gc + ")";
+
   const line = (s) => {
-    const k = KINDS[s.type];
-    const t = stepTarget(s, w.units);
+    const target = stepTarget(s, w.units);
     const bits = [
-      el("b", {}, k.gc),
+      el("b", {}, stepName(s.type)),
       " → ",
-      s.durType === "distance" ? "Distance " : s.durType === "time" ? "Duration " : "",
+      s.durType === "distance" ? t("gcDistance") : s.durType === "time" ? t("gcDuration") : "",
       el("span", { class: "mono" }, stepAmount(s, w.units)),
     ];
-    if (t) bits.push(", target ", el("span", { class: "mono" }, t));
-    if (s.note) bits.push(", note ", el("span", { class: "mono" }, "“" + s.note + "”"));
+    if (target) bits.push(t("gcTargetWord"), el("span", { class: "mono" }, target));
+    if (s.note) bits.push(t("gcNoteWord"), el("span", { class: "mono" }, "“" + s.note + "”"));
     return bits;
   };
+
   for (const b of w.blocks) {
     if (b.kind === "repeat") {
       const sub = el("ol", { class: "steps", style: "margin-top:6px" });
       for (const s of b.steps) sub.append(el("li", {}, line(s)));
       list.append(
         el("li", {}, [
-          el("b", {}, "Repeat"),
+          el("b", {}, t("gcRepeat")),
           " → ",
-          el("span", { class: "mono" }, b.reps + " times"),
-          ", containing:",
+          el("span", { class: "mono" }, b.reps + " " + t("gcTimes")),
+          t("gcContaining"),
           sub,
         ])
       );
@@ -110,15 +120,15 @@ function fitButton(w, label) {
       onclick: () => {
         try {
           downloadBytes(buildFitFile(w), fitName, "application/vnd.ant.fit");
-          toast("Downloaded " + fitName);
+          toast(t("downloaded") + fitName);
         } catch (e) {
-          toast("Could not build the file");
+          toast(t("fitFailed"));
           console.error(e);
         }
       },
     },
     el("span", { html: ICON.down }),
-    (label || "Download") + " " + fitName
+    (label || t("download")) + " " + fitName
   );
 }
 
@@ -143,8 +153,8 @@ function connectCard(w) {
       el(
         "div",
         {},
-        el("div", { class: "acc-t" }, "Send it to my watch"),
-        el("div", { class: "acc-s" }, "One tap, no typing — after you approve it once")
+        el("div", { class: "acc-t" }, t("cTitle")),
+        el("div", { class: "acc-s" }, t("cSub"))
       )
     ),
     body
@@ -157,84 +167,31 @@ function connectCard(w) {
 
   /* --- not linked yet --------------------------------------------------- */
   function askToLink(msg) {
+    const club = CONFIG.clubName;
     show([
       msg ? el("div", { class: "status" }, el("span", { class: "dot err" }), msg) : null,
-      el(
-        "p",
-        { class: "small muted" },
-        "Garmin has no way to accept a workout from a link directly, so ",
-        el("b", {}, "intervals.icu"),
-        " does it for us — it's free, it's an official Garmin partner, and it uploads planned " +
-          "sessions into Garmin Connect for you."
-      ),
+      el("p", { class: "small muted" }, rich(t("cWhy"))),
       el(
         "ol",
         { class: "steps small" },
-        el("li", {}, "Tap the button — intervals.icu asks you to approve ", el("b", {}, CONFIG.clubName), "."),
-        el("li", {}, "Over there, link your Garmin account once and tick ", el("b", {}, "Upload planned workouts"), "."),
-        el("li", {}, "Come back here and every future session is one tap.")
+        el("li", {}, rich(t("cStep1", { club: club }))),
+        el("li", {}, rich(t("cStep2"))),
+        el("li", {}, rich(t("cStep3")))
       ),
       el(
         "button",
         { class: "btn primary block lg", onclick: () => Connect.begin() },
         el("span", { html: ICON.send }),
-        "Connect my watch"
+        t("cConnect")
       ),
-      el(
-        "div",
-        { class: "callout" },
-        el("span", { html: ICON.shield, style: "display:none" }),
-        "You approve this on intervals.icu's own page. ",
-        el("b", {}, CONFIG.clubName),
-        " never sees your Garmin or intervals.icu password, and can only add sessions to your calendar."
-      ),
+      el("div", { class: "callout" }, rich(t("cPrivacy", { club: club }))),
     ]);
   }
 
   /* --- linked, ready to send ------------------------------------------- */
   function ready(me) {
     const dateInput = el("input", { type: "date", value: w.date || todayISO() });
-    const btn = el(
-      "button",
-      { class: "btn primary block lg" },
-      el("span", { html: ICON.send }),
-      "Send to my watch"
-    );
-    btn.addEventListener("click", async () => {
-      btn.disabled = true;
-      btn.textContent = "";
-      btn.append(el("span", { class: "spin" }), document.createTextNode("Sending…"));
-      try {
-        await Connect.push(w, dateInput.value);
-        show([
-          el(
-            "div",
-            { class: "status" },
-            el("span", { class: "dot ok" }),
-            el("span", {}, "Sent — it's on your calendar for " + prettyDate(dateInput.value) + ".")
-          ),
-          el(
-            "p",
-            { class: "small muted" },
-            "It reaches Garmin Connect within a few minutes. Open Garmin Connect (or wait for the " +
-              "watch to sync) and you'll find it under ",
-            el("b", {}, "Training"),
-            " on the day. On the watch: ",
-            el("b", {}, "Run → Training → Workouts"),
-            "."
-          ),
-          el("button", { class: "btn block", onclick: () => ready(me) }, "Send again / pick another day"),
-        ]);
-        toast("Session sent to your watch");
-      } catch (e) {
-        btn.disabled = false;
-        btn.textContent = "";
-        btn.append(el("span", { html: ICON.send }), document.createTextNode("Try again"));
-        show([el("div", { class: "status" }, el("span", { class: "dot err" }), e.message), dateRow, btn, unlink]);
-      }
-    });
-
-    const dateRow = el("div", {}, el("label", {}, "Put it on"), dateInput);
+    const dateRow = el("div", {}, el("label", {}, t("cPutItOn")), dateInput);
     const unlink = el(
       "button",
       {
@@ -244,10 +201,36 @@ function connectCard(w) {
           askToLink(null);
         },
       },
-      "Not me — disconnect"
+      t("cDisconnect")
     );
 
-    const who = me && me.athlete ? me.athlete : "your intervals.icu account";
+    const btn = el("button", { class: "btn primary block lg" }, el("span", { html: ICON.send }), t("cSend"));
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "";
+      btn.append(el("span", { class: "spin" }), document.createTextNode(t("cSending")));
+      try {
+        await Connect.push(w, dateInput.value);
+        show([
+          el(
+            "div",
+            { class: "status" },
+            el("span", { class: "dot ok" }),
+            el("span", {}, t("cSentMsg", { date: prettyDate(dateInput.value) }))
+          ),
+          el("p", { class: "small muted" }, rich(t("cSentHow"))),
+          el("button", { class: "btn block", onclick: () => ready(me) }, t("cSendAgain")),
+        ]);
+        toast(t("cSentToast"));
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "";
+        btn.append(el("span", { html: ICON.send }), document.createTextNode(t("cTryAgain")));
+        show([el("div", { class: "status" }, el("span", { class: "dot err" }), e.message), dateRow, btn, unlink]);
+      }
+    });
+
+    const who = me && me.athlete ? me.athlete : t("cYourAccount");
     const warn =
       me && me.garminLinked === false
         ? el(
@@ -257,15 +240,19 @@ function connectCard(w) {
             el(
               "span",
               {},
-              "Connected, but Garmin upload is off. Open ",
-              el("a", { href: "https://intervals.icu/settings", target: "_blank", rel: "noopener" }, "intervals.icu settings"),
-              " and tick “Upload planned workouts”, or the session will sit on the calendar only."
+              t("cGarminOffPre"),
+              el(
+                "a",
+                { href: "https://intervals.icu/settings", target: "_blank", rel: "noopener" },
+                t("cGarminOffLink")
+              ),
+              t("cGarminOffPost")
             )
           )
         : null;
 
     show([
-      el("div", { class: "status" }, el("span", { class: "dot ok" }), "Connected as " + who),
+      el("div", { class: "status" }, el("span", { class: "dot ok" }), t("cConnectedAs") + who),
       warn,
       dateRow,
       btn,
@@ -277,7 +264,7 @@ function connectCard(w) {
   if (!Connect.isLinked()) {
     askToLink(null);
   } else {
-    show(el("div", { class: "status" }, el("span", { class: "spin" }), "Checking your connection…"));
+    show(el("div", { class: "status" }, el("span", { class: "spin" }), t("cChecking")));
     Connect.status()
       .then((me) => ready(me))
       .catch((e) => askToLink(e.message));
@@ -290,47 +277,43 @@ function connectCard(w) {
 
 const DEVICE_KEY = "werun.device";
 
-function renderViewer(app, w) {
+function renderViewer(app, w, rerender) {
   const est = estimate(w);
   const approx = est.exact ? "" : "~";
 
-  app.append(brandBar(el("a", { class: "btn sm", href: location.pathname }, "New session")));
+  app.append(brandBar(null, rerender));
 
   /* --- session card ----------------------------------------------------- */
   app.append(
     el(
       "div",
       { class: "card pad stack" },
-      el(
-        "div",
-        {},
-        el("h1", {}, w.name),
-        w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null
-      ),
+      el("div", {}, el("h1", {}, w.name), w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null),
       el(
         "div",
         { class: "chips" },
         el("span", { class: "chip" }, el("b", { class: "num" }, approx + fmtDuration(est.seconds))),
         est.workMeters
-          ? el("span", { class: "chip" }, el("b", { class: "num" }, fmtDistance(est.workMeters, w.units)), "hard")
+          ? el("span", { class: "chip" }, el("b", { class: "num" }, fmtDistance(est.workMeters, w.units)), t("hard"))
           : null,
-        el("span", { class: "chip" }, el("b", { class: "num" }, String(est.steps)), "steps")
+        el("span", { class: "chip" }, el("b", { class: "num" }, String(est.steps)), t("stepsCount"))
       ),
       w.note ? el("div", { class: "note" }, w.note) : null,
       el("div", { class: "divider" }),
       timeline(w),
-      w.coach ? el("p", { class: "small muted" }, "Set by " + w.coach) : null
+      w.coach ? el("p", { class: "small muted" }, t("setBy") + w.coach) : null
     )
   );
 
   /* --- device choice ----------------------------------------------------- */
-  app.append(el("h3", { style: "margin:26px 0 4px" }, "Get it on your watch"));
+  app.append(el("h3", { style: "margin:26px 0 4px" }, t("getItOn")));
 
   let device = "garmin";
   try {
     device = localStorage.getItem(DEVICE_KEY) || "garmin";
   } catch (e) {}
 
+  const picker = el("div", { class: "picker" });
   const panel = el("div", { class: "stack", style: "margin-top:14px" });
 
   const pickBtn = (id, iconHtml, title, sub) =>
@@ -353,12 +336,11 @@ function renderViewer(app, w) {
       el("span", { class: "s" }, sub)
     );
 
-  const picker = el("div", { class: "picker" });
   function drawPicker() {
     picker.textContent = "";
     picker.append(
-      pickBtn("garmin", ICON.garmin, "Garmin", "Forerunner, Fenix, Venu…"),
-      pickBtn("apple", ICON.apple, "Apple Watch", "watchOS 9 or newer")
+      pickBtn("garmin", ICON.garmin, t("garmin"), t("garminSub")),
+      pickBtn("apple", ICON.apple, t("apple"), t("appleSub"))
     );
   }
   drawPicker();
@@ -368,7 +350,7 @@ function renderViewer(app, w) {
     panel.textContent = "";
     if (device === "garmin") drawGarmin();
     else drawApple();
-    panel.append(textCard(w));
+    panel.append(textCard());
   }
 
   /* --- Garmin ------------------------------------------------------------ */
@@ -378,65 +360,43 @@ function renderViewer(app, w) {
     panel.append(
       acc(
         ICON.garmin,
-        "Type it into Garmin Connect",
-        "About a minute — every number is worked out below",
+        t("rTypeIn"),
+        t("rTypeInSub"),
         [
-          el(
-            "p",
-            { class: "small muted" },
-            "Garmin can't import a workout from a link, so this one is typed in. Nothing to work out — just copy the rows."
-          ),
+          el("p", { class: "small muted" }, t("rTypeInLead")),
           el(
             "ol",
             { class: "steps" },
-            el("li", {}, "Open ", el("b", {}, "Garmin Connect"), " → ", el("b", {}, "More"), " → ", el("b", {}, "Training & Planning"), " → ", el("b", {}, "Workouts")),
-            el("li", {}, el("b", {}, "Create a Workout"), " → ", el("b", {}, "Run")),
+            el("li", {}, rich(t("gcStep1"))),
+            el("li", {}, rich(t("gcStep2"))),
             el(
               "li",
               {},
-              "Name it ",
+              t("gcStep3") + " ",
               el("span", { class: "mono" }, "“" + w.name + "”"),
               " ",
-              el("button", { class: "btn icon", onclick: () => copyText(w.name, "Name copied") }, "copy")
+              el("button", { class: "btn icon", onclick: () => copyText(w.name, t("nameCopied")) }, t("copy"))
             ),
-            el("li", {}, "Add these steps:", el("div", { style: "margin-top:8px" }, garminSteps(w)))
+            el("li", {}, t("gcStep4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
           ),
-          el(
-            "p",
-            { class: "small muted" },
-            "For a ",
-            el("b", {}, "lap button"),
-            " step pick “Lap Button Press” as the end condition — the ~time is only Garmin's estimate and won't stop the step."
-          ),
-          el(
-            "p",
-            { class: "small muted" },
-            "Save it, then hit ",
-            el("b", {}, "Send to Device"),
-            " (or just sync). On the watch: ",
-            el("b", {}, "Run → Training → Workouts"),
-            "."
-          ),
+          el("p", { class: "small muted" }, rich(t("gcLap"))),
+          el("p", { class: "small muted" }, rich(t("gcSave"))),
         ],
         !Connect.isEnabled()
       )
     );
 
     panel.append(
-      acc(ICON.cable, "Copy a file over USB", "No typing, but you need a computer and the cable", [
-        el(
-          "p",
-          { class: "small muted" },
-          "Garmin Connect itself can't import workout files — this puts one straight on the watch instead."
-        ),
+      acc(ICON.cable, t("rUsb"), t("rUsbSub"), [
+        el("p", { class: "small muted" }, t("rUsbLead")),
         fitButton(w),
         el(
           "ol",
           { class: "steps" },
-          el("li", {}, "Plug the watch into a computer with its cable."),
-          el("li", {}, "Open the ", el("b", {}, "GARMIN"), " drive → ", el("b", {}, "GARMIN"), " folder → ", el("b", {}, "NewFiles"), " (create it if it isn't there)."),
-          el("li", {}, "Copy the file into it, then eject and unplug."),
-          el("li", {}, "On the watch: ", el("b", {}, "Run → Training → Workouts"), ".")
+          el("li", {}, rich(t("usb1"))),
+          el("li", {}, rich(t("usb2"))),
+          el("li", {}, rich(t("usb3"))),
+          el("li", {}, rich(t("usb4")))
         ),
       ])
     );
@@ -444,62 +404,39 @@ function renderViewer(app, w) {
 
   /* --- Apple ------------------------------------------------------------- */
   function drawApple() {
-    panel.append(
-      el(
-        "div",
-        { class: "callout" },
-        "Apple has no way to send a workout to a watch from the web — not from us, not from anyone. ",
-        "The Workout app builds custom sessions on the watch itself, so this one is tapped in once."
-      )
-    );
+    panel.append(el("div", { class: "callout" }, t("rAppleWarn")));
 
     panel.append(
       acc(
         ICON.apple,
-        "Build it in the Workout app",
-        "watchOS 9 or newer — it saves, so you only do this once",
+        t("rApple"),
+        t("rAppleSub"),
         [
           el(
             "ol",
             { class: "steps" },
-            el("li", {}, "On the watch open ", el("b", {}, "Workout"), " → the ", el("b", {}, "•••"), " on ", el("b", {}, "Outdoor Run")),
-            el("li", {}, el("b", {}, "Create Workout"), " → ", el("b", {}, "Custom")),
-            el("li", {}, "Add a warm-up, then ", el("b", {}, "Add Interval Block"), " for the reps, then the cool-down."),
-            el("li", {}, "The numbers:", el("div", { style: "margin-top:8px" }, garminSteps(w)))
+            el("li", {}, rich(t("ap1"))),
+            el("li", {}, rich(t("ap2"))),
+            el("li", {}, rich(t("ap3"))),
+            el("li", {}, t("ap4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
           ),
-          el(
-            "p",
-            { class: "small muted" },
-            "Pace targets go in as ",
-            el("b", {}, "Pace"),
-            " goals on each work step. Recoveries are ",
-            el("b", {}, "Time"),
-            " goals."
-          ),
+          el("p", { class: "small muted" }, rich(t("apPace"))),
         ],
         true
       )
     );
 
     panel.append(
-      acc(ICON.down, "Or use an app that imports", "WorkOutDoors and similar read the file below", [
-        el(
-          "p",
-          { class: "small muted" },
-          "If you'd rather not tap it out, apps like ",
-          el("b", {}, "WorkOutDoors"),
-          " or ",
-          el("b", {}, "Intervals.icu"),
-          " take a structured workout on iPhone and run it on the watch."
-        ),
-        fitButton(w, "Download"),
+      acc(ICON.down, t("rAppleImport"), t("rAppleImportSub"), [
+        el("p", { class: "small muted" }, rich(t("apImportLead"))),
+        fitButton(w),
       ])
     );
   }
 
   /* --- always available -------------------------------------------------- */
-  function textCard(w) {
-    return acc(ICON.chat, "Just the text", "For your notes or the group chat", [
+  function textCard() {
+    return acc(ICON.chat, t("rText"), t("rTextSub"), [
       el(
         "pre",
         {
@@ -510,9 +447,9 @@ function renderViewer(app, w) {
       ),
       el(
         "button",
-        { class: "btn block", onclick: () => copyText(asText(w), "Session copied") },
+        { class: "btn block", onclick: () => copyText(asText(w), t("sessionCopied")) },
         el("span", { html: ICON.copy }),
-        "Copy session text"
+        t("copySessionText")
       ),
     ]);
   }
@@ -538,26 +475,26 @@ function renderViewer(app, w) {
                 /* cancelled */
               }
             }
-            copyText(location.href, "Link copied");
+            copyText(location.href, t("linkCopied"));
           },
         },
         el("span", { html: ICON.link }),
-        "Share this session"
+        t("shareSession")
       )
     )
   );
 
   app.append(
-    el("footer", {}, "WE RUN Coaching · ", el("a", { href: location.pathname }, "build your own session"))
+    el("footer", {}, "WE RUN Coaching · ", el("a", { href: location.pathname }, t("footerBuild")))
   );
 }
 
 /* ===================== BUILDER (what the coach uses) ===================== */
 
-function renderBuilder(app, w) {
-  const rerender = () => {
+function renderBuilder(app, w, rerender) {
+  const redraw = () => {
     app.textContent = "";
-    renderBuilder(app, w);
+    renderBuilder(app, w, rerender);
   };
 
   const outputs = {};
@@ -568,22 +505,18 @@ function renderBuilder(app, w) {
     const approx = est.exact ? "" : "~";
     outputs.summary.textContent =
       approx + fmtDuration(est.seconds) +
-      (est.workMeters ? " · " + fmtDistance(est.workMeters, w.units) + " hard" : "") +
-      " · " + est.steps + " steps";
-    outputs.len.textContent = url.length + " characters";
+      (est.workMeters ? " · " + fmtDistance(est.workMeters, w.units) + " " + t("hard") : "") +
+      " · " + est.steps + " " + t("stepsCount");
+    outputs.len.textContent = url.length + " " + t("chars");
   }
 
-  app.append(brandBar());
+  app.append(brandBar(null, rerender));
   app.append(
     el(
       "div",
       { style: "margin-bottom:18px" },
-      el("h1", {}, "This week's session"),
-      el(
-        "p",
-        { class: "muted small", style: "margin-top:6px" },
-        "Build it once, send one link. Anyone who opens it can get it onto a Garmin or Apple Watch."
-      )
+      el("h1", {}, t("buildTitle")),
+      el("p", { class: "muted small", style: "margin-top:6px" }, t("buildLead"))
     )
   );
 
@@ -608,17 +541,17 @@ function renderBuilder(app, w) {
     el(
       "div",
       { class: "card pad stack" },
-      field("Session name", bind("name", { placeholder: "Tuesday | WeRUN" })),
+      field(t("fName"), bind("name", { placeholder: t("fNamePh") })),
       el(
         "div",
         { class: "grid2" },
-        field("Date (optional)", bind("date", { type: "date" })),
-        field("Coach / club (optional)", bind("coach", { placeholder: "Coach Ahmed" }))
+        field(t("fDate"), bind("date", { type: "date" })),
+        field(t("fCoach"), bind("coach", { placeholder: t("fCoachPh") }))
       ),
       field(
-        "Note to the group (optional)",
+        t("fNote"),
         el("textarea", {
-          placeholder: "Meet 6:30pm at the track. Bring water.",
+          placeholder: t("fNotePh"),
           oninput: (e) => {
             w.note = e.target.value;
             refresh();
@@ -626,7 +559,7 @@ function renderBuilder(app, w) {
         })
       ),
       field(
-        "Pace units",
+        t("fUnits"),
         el(
           "div",
           { class: "seg" },
@@ -638,10 +571,10 @@ function renderBuilder(app, w) {
                 "aria-pressed": w.units === u ? "true" : "false",
                 onclick: () => {
                   w.units = u;
-                  rerender();
+                  redraw();
                 },
               },
-              "min / " + u
+              u === "km" ? t("unitKm") : t("unitMi")
             )
           )
         )
@@ -651,10 +584,10 @@ function renderBuilder(app, w) {
   $("textarea", app).value = w.note || "";
 
   /* --- blocks ------------------------------------------------------------ */
-  app.append(el("h3", { style: "margin:26px 0 10px" }, "Steps"));
+  app.append(el("h3", { style: "margin:26px 0 10px" }, t("steps")));
 
   const list = el("div", {});
-  w.blocks.forEach((b, i) => list.append(blockEditor(b, i, w, rerender, refresh)));
+  w.blocks.forEach((b, i) => list.append(blockEditor(b, i, w, redraw, refresh)));
   app.append(list);
 
   app.append(
@@ -667,11 +600,11 @@ function renderBuilder(app, w) {
           class: "btn grow",
           onclick: () => {
             w.blocks.push(blankStep("work"));
-            rerender();
+            redraw();
           },
         },
         el("span", { html: ICON.plus }),
-        "Add step"
+        t("addStep")
       ),
       el(
         "button",
@@ -686,11 +619,11 @@ function renderBuilder(app, w) {
                 blankStep("recovery"),
               ],
             });
-            rerender();
+            redraw();
           },
         },
         el("span", { html: ICON.plus }),
-        "Add repeat set"
+        t("addRepeat")
       )
     )
   );
@@ -704,24 +637,17 @@ function renderBuilder(app, w) {
     el(
       "div",
       { class: "card pad stack", style: "margin-top:26px" },
-      el("h2", {}, "Your shareable link"),
-      el(
-        "p",
-        { class: "small muted" },
-        "The session is encoded in the link itself — nothing is uploaded, and old links keep working forever."
-      ),
+      el("h2", {}, t("yourLink")),
+      el("p", { class: "small muted" }, t("linkLead")),
       el("div", { class: "linkbox" }, outputs.url),
       el(
         "div",
         { class: "row-wrap" },
         el(
           "button",
-          {
-            class: "btn primary grow",
-            onclick: () => copyText(shareUrl(w), "Link copied — paste it in the group"),
-          },
+          { class: "btn primary grow", onclick: () => copyText(shareUrl(w), t("linkCopied")) },
           el("span", { html: ICON.link }),
-          "Copy link"
+          t("copyLink")
         ),
         el(
           "a",
@@ -733,7 +659,7 @@ function renderBuilder(app, w) {
               location.hash = "w=" + encodeWorkout(w);
             },
           },
-          "Preview it"
+          t("previewIt")
         )
       ),
       el("div", { class: "row-wrap small muted" }, outputs.summary, el("span", {}, "·"), outputs.len)
@@ -741,41 +667,35 @@ function renderBuilder(app, w) {
   );
 
   app.append(
-    el(
-      "footer",
-      {},
-      Connect.isEnabled()
-        ? "Athletes who connect once get every future session with a single tap."
-        : "One-tap delivery is switched off — see the README to turn it on."
-    )
+    el("footer", {}, Connect.isEnabled() ? t("connectFooterOn") : t("connectFooterOff"))
   );
 
   refresh();
 }
 
 /** One editable block: either a single step or a repeat set. */
-function blockEditor(b, index, w, rerender, refresh) {
+function blockEditor(b, index, w, redraw, refresh) {
   const move = (dir) => {
     const j = index + dir;
     if (j < 0 || j >= w.blocks.length) return;
     const tmp = w.blocks[index];
     w.blocks[index] = w.blocks[j];
     w.blocks[j] = tmp;
-    rerender();
+    redraw();
   };
   const controls = el(
     "div",
-    { class: "row", style: "margin-left:auto;gap:4px" },
-    el("button", { class: "btn icon", title: "Move up", onclick: () => move(-1) }, "↑"),
-    el("button", { class: "btn icon", title: "Move down", onclick: () => move(1) }, "↓"),
+    { class: "row push", style: "gap:4px" },
+    el("button", { class: "btn icon", title: t("eUp"), onclick: () => move(-1) }, "↑"),
+    el("button", { class: "btn icon", title: t("eDown"), onclick: () => move(1) }, "↓"),
     el(
       "button",
       {
         class: "btn icon",
-        title: "Remove",
+        title: t("eRemove"),
         onclick: () => {
           w.blocks.splice(index, 1);
-          rerender();
+          redraw();
         },
       },
       "✕"
@@ -786,10 +706,10 @@ function blockEditor(b, index, w, rerender, refresh) {
     const inner = el("div", { class: "rep-inner" });
     b.steps.forEach((s, i) =>
       inner.append(
-        stepEditor(s, w, rerender, refresh, () => {
+        stepEditor(s, w, redraw, refresh, () => {
           b.steps.splice(i, 1);
           if (!b.steps.length) w.blocks.splice(index, 1);
-          rerender();
+          redraw();
         })
       )
     );
@@ -799,7 +719,7 @@ function blockEditor(b, index, w, rerender, refresh) {
       el(
         "div",
         { class: "blk-head" },
-        el("span", { class: "tag", style: "background:var(--repeat)" }, "Repeat"),
+        el("span", { class: "tag", style: "background:var(--repeat)" }, t("eRepeat")),
         el("input", {
           type: "number",
           min: "1",
@@ -811,7 +731,7 @@ function blockEditor(b, index, w, rerender, refresh) {
             refresh();
           },
         }),
-        el("span", { class: "small muted" }, "times"),
+        el("span", { class: "small muted" }, t("eTimes")),
         controls
       ),
       inner,
@@ -822,19 +742,19 @@ function blockEditor(b, index, w, rerender, refresh) {
           style: "margin-top:10px",
           onclick: () => {
             b.steps.push(blankStep("work"));
-            rerender();
+            redraw();
           },
         },
-        "+ step inside"
+        t("eStepInside")
       )
     );
   }
 
-  return stepEditor(b, w, rerender, refresh, null, controls);
+  return stepEditor(b, w, redraw, refresh, null, controls);
 }
 
 /** Editor for a single step. */
-function stepEditor(s, w, rerender, refresh, onRemove, controls) {
+function stepEditor(s, w, redraw, refresh, onRemove, controls) {
   const k = KINDS[s.type];
 
   const kindSel = el(
@@ -842,10 +762,10 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
     {
       onchange: (e) => {
         s.type = e.target.value;
-        rerender();
+        redraw();
       },
     },
-    ...KIND_ORDER.map((key) => el("option", { value: key, selected: key === s.type }, KINDS[key].label))
+    ...KIND_ORDER.map((key) => el("option", { value: key, selected: key === s.type }, kindLabel(key)))
   );
 
   /* duration */
@@ -854,12 +774,12 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
     {
       onchange: (e) => {
         s.durType = e.target.value;
-        rerender();
+        redraw();
       },
     },
-    el("option", { value: "distance", selected: s.durType === "distance" }, "Distance"),
-    el("option", { value: "time", selected: s.durType === "time" }, "Time"),
-    el("option", { value: "open", selected: s.durType === "open" }, "Lap button")
+    el("option", { value: "distance", selected: s.durType === "distance" }, t("eDistance")),
+    el("option", { value: "time", selected: s.durType === "time" }, t("eTime")),
+    el("option", { value: "open", selected: s.durType === "open" }, t("eLap"))
   );
 
   let durInput;
@@ -868,6 +788,7 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
       value: fmtClock(s.seconds),
       placeholder: "mm:ss",
       inputmode: "numeric",
+      dir: "ltr",
       oninput: (e) => {
         const v = parseClock(e.target.value);
         if (v != null) s.seconds = v;
@@ -881,6 +802,7 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
       min: "10",
       step: "10",
       value: Math.round(s.meters),
+      dir: "ltr",
       oninput: (e) => {
         s.meters = Math.max(1, parseFloat(e.target.value) || 0);
         refresh();
@@ -893,6 +815,7 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
       value: s.estSeconds ? fmtClock(s.estSeconds) : "",
       placeholder: "~ mm:ss",
       inputmode: "numeric",
+      dir: "ltr",
       oninput: (e) => {
         const v = e.target.value.trim();
         const parsed = v ? parseClock(v) : 0;
@@ -916,12 +839,12 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
             : v === "hr"
               ? { kind: "hr", low: 150, high: 165 }
               : { kind: "none" };
-        rerender();
+        redraw();
       },
     },
-    el("option", { value: "none", selected: tgtKind === "none" }, "No target"),
-    el("option", { value: "pace", selected: tgtKind === "pace" }, "Pace"),
-    el("option", { value: "hr", selected: tgtKind === "hr" }, "Heart rate")
+    el("option", { value: "none", selected: tgtKind === "none" }, t("eNoTarget")),
+    el("option", { value: "pace", selected: tgtKind === "pace" }, t("ePace")),
+    el("option", { value: "hr", selected: tgtKind === "hr" }, t("eHr"))
   );
 
   const targetFields = [];
@@ -935,6 +858,7 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
           value: fmtClock(s.target[which]),
           placeholder: "mm:ss",
           inputmode: "numeric",
+          dir: "ltr",
           oninput: (e) => {
             const v = parseClock(e.target.value);
             if (v != null) s.target[which] = v;
@@ -943,7 +867,10 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
           },
         })
       );
-    targetFields.push(mk("fast", "Fastest /" + w.units), mk("slow", "Slowest /" + w.units));
+    targetFields.push(
+      mk("fast", t("eFastest") + unitLabel(w.units)),
+      mk("slow", t("eSlowest") + unitLabel(w.units))
+    );
   } else if (tgtKind === "hr") {
     const mk = (which, label) =>
       el(
@@ -955,13 +882,14 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
           min: "60",
           max: "230",
           value: s.target[which],
+          dir: "ltr",
           oninput: (e) => {
             s.target[which] = parseInt(e.target.value, 10) || 0;
             refresh();
           },
         })
       );
-    targetFields.push(mk("low", "Low bpm"), mk("high", "High bpm"));
+    targetFields.push(mk("low", t("eLowBpm")), mk("high", t("eHighBpm")));
   }
 
   return el(
@@ -970,39 +898,35 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
     el(
       "div",
       { class: "blk-head" },
-      el("span", { class: "tag", style: "background:" + k.color }, k.label),
+      el("span", { class: "tag", style: "background:" + k.color }, kindLabel(s.type)),
       controls ||
         (onRemove
-          ? el(
-              "div",
-              { class: "row", style: "margin-left:auto" },
-              el("button", { class: "btn icon", onclick: onRemove }, "✕")
-            )
+          ? el("div", { class: "row push" }, el("button", { class: "btn icon", onclick: onRemove }, "✕"))
           : null)
     ),
     el(
       "div",
       { class: "grid3" },
-      el("div", {}, el("label", {}, "Type"), kindSel),
-      el("div", {}, el("label", {}, "Ends on"), durSel),
+      el("div", {}, el("label", {}, t("eType")), kindSel),
+      el("div", {}, el("label", {}, t("eEnds")), durSel),
       el(
         "div",
         {},
-        el("label", {}, s.durType === "distance" ? "Metres" : s.durType === "open" ? "Est. length" : "Length"),
+        el("label", {}, s.durType === "distance" ? t("eMetres") : s.durType === "open" ? t("eEstLength") : t("eLength")),
         durInput
       )
     ),
-    el("div", { class: "grid3", style: "margin-top:8px" }, el("div", {}, el("label", {}, "Target"), tgtSel), ...targetFields),
+    el("div", { class: "grid3", style: "margin-top:8px" }, el("div", {}, el("label", {}, t("eTarget")), tgtSel), ...targetFields),
     el(
       "div",
       { class: "grid2", style: "margin-top:8px" },
       el(
         "div",
         {},
-        el("label", {}, "Step name"),
+        el("label", {}, t("eStepName")),
         el("input", {
           value: s.label || "",
-          placeholder: k.label,
+          placeholder: kindLabel(s.type),
           oninput: (e) => {
             s.label = e.target.value;
             refresh();
@@ -1012,10 +936,10 @@ function stepEditor(s, w, rerender, refresh, onRemove, controls) {
       el(
         "div",
         {},
-        el("label", {}, "Note"),
+        el("label", {}, t("eNote")),
         el("input", {
           value: s.note || "",
-          placeholder: "ABC drills, @mile pace…",
+          placeholder: t("eNotePh"),
           oninput: (e) => {
             s.note = e.target.value;
             refresh();

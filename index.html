@@ -1,25 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>WE RUN Coaching</title>
 <meta name="description" content="This week's WE RUN session — straight to your Garmin or Apple Watch.">
-<meta name="theme-color" content="#7C4DE8">
+<meta name="theme-color" content="#8851F4">
 <meta property="og:title" content="WE RUN Coaching">
 <meta property="og:description" content="This week's session, straight to your watch.">
 <meta property="og:type" content="website">
 <link rel="icon" href="assets/favicon.svg">
-<link rel="apple-touch-icon" href="assets/favicon.svg">
+<link rel="apple-touch-icon" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+/* ---- light is the base; both dark blocks below must stay in step -------- */
 :root{
-  /* WE RUN brand */
-  --brand:#7C4DE8; --brand-ink:#ffffff; --brand-deep:#5B32BC; --brand-soft:#F2ECFE;
+  --brand:#8851F4; --brand-ink:#ffffff; --brand-deep:#5B32BC; --brand-soft:#F2ECFE;
   --bg:#f7f7fa; --card:#ffffff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
-  --warmup:#e8a33d; --work:#7C4DE8; --recovery:#3b82f6; --cooldown:#10b981; --repeat:#7C4DE8;
+  --warmup:#e8a33d; --work:#8851F4; --recovery:#3b82f6; --cooldown:#10b981; --repeat:#8851F4;
   --rest:#8b8aa1; --other:#6b7280;
   --ok:#0f9d58; --warn:#d97706; --err:#dc2626;
   --radius:16px; --shadow:0 1px 2px rgba(20,18,28,.05),0 10px 30px rgba(20,18,28,.07);
@@ -27,13 +27,38 @@
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 @media (prefers-color-scheme:dark){
-  :root{
-    --brand:#9B78F5; --brand-ink:#1b1030; --brand-deep:#B79BF8; --brand-soft:#241a3d;
+  :root:not([data-theme="light"]){
+    --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
     --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
-    --work:#9B78F5; --repeat:#9B78F5;
+    --work:#A47CF8; --repeat:#A47CF8;
     --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
   }
 }
+:root[data-theme="dark"]{
+  --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
+  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+  --work:#A47CF8; --repeat:#A47CF8;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+}
+
+/* ---- Arabic: Teko has no Arabic glyphs, so Cairo carries the display face */
+[dir="rtl"]{
+  --display:"Cairo",-apple-system,"Segoe UI",Tahoma,sans-serif;
+  --body:"Cairo",-apple-system,"Segoe UI",Tahoma,sans-serif;
+}
+[dir="rtl"] h1{font-size:29px;letter-spacing:0;line-height:1.3}
+[dir="rtl"] h2{font-size:21px;line-height:1.3}
+[dir="rtl"] h3{font-size:15px;letter-spacing:.02em}
+[dir="rtl"] .tl-title{font-size:17px;line-height:1.4}
+[dir="rtl"] .acc-t{font-size:16px;line-height:1.4}
+[dir="rtl"] .pick .t{font-size:17px}
+[dir="rtl"] .btn.lg{font-size:16px;letter-spacing:0}
+[dir="rtl"] .tag{font-size:12px;padding:3px 10px;line-height:1.6}
+[dir="rtl"] .rep-label{font-size:13px}
+[dir="rtl"] .num{font-size:1.08em}
+[dir="rtl"] .brand-sub{font-size:15px;letter-spacing:.02em;padding-top:0}
+[dir="rtl"] label{letter-spacing:0}
+
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -57,11 +82,12 @@ h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppe
 .brand{display:flex;align-items:center;gap:11px;margin-bottom:20px}
 .brand-logo{height:42px;width:auto;display:block;flex:none}
 .brand-fallback{
-  font-family:var(--display);font-weight:700;font-size:23px;line-height:.82;
+  font-family:"Teko",var(--display);font-weight:700;font-size:23px;line-height:.82;
   color:var(--brand);text-transform:uppercase;letter-spacing:.01em;
 }
 .brand-sub{font-family:var(--display);font-size:19px;font-weight:500;letter-spacing:.14em;
   text-transform:uppercase;color:var(--muted);align-self:center;padding-top:3px}
+.brand-tools{margin-inline-start:auto;display:flex;gap:6px;align-items:center}
 
 /* ---- surfaces ---- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
@@ -93,6 +119,13 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .btn svg{width:18px;height:18px;flex:none}
 .btn.lg{padding:14px 18px;font-family:var(--display);font-size:22px;font-weight:600;
   text-transform:uppercase;letter-spacing:.04em}
+/* header toggles */
+.tool{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--line);
+  background:var(--card);border-radius:10px;cursor:pointer;color:var(--muted);flex:none}
+.tool:hover{color:var(--fg)}
+.tool svg{width:18px;height:18px}
+.tool.text{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;width:auto;padding:0 10px}
+[dir="rtl"] .tool.text{font-size:13px}
 .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
 .seg button{flex:1;border:0;background:transparent;padding:10px 6px;font-weight:650;font-size:14px;
   cursor:pointer;color:var(--muted)}
@@ -118,8 +151,9 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 @media (max-width:430px){.grid3{grid-template-columns:1fr 1fr}}
 @media (max-width:360px){.grid2,.grid3{grid-template-columns:1fr}}
-.rep-inner{border-left:3px solid var(--repeat);padding-left:10px;margin-top:10px}
+.rep-inner{border-inline-start:3px solid var(--repeat);padding-inline-start:10px;margin-top:10px}
 .rep-inner>.blk{background:var(--card)}
+.push{margin-inline-start:auto}
 
 /* ---- timeline ---- */
 .tl-item{display:flex;gap:12px;align-items:stretch}
@@ -129,7 +163,7 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .tl-title{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;line-height:1.1}
 .tl-meta{font-size:13.5px;color:var(--muted);margin-top:1px}
 .rep-group{border:1px dashed var(--line);border-radius:13px;padding:4px 12px;margin:12px 0;position:relative}
-.rep-label{position:absolute;top:-11px;left:12px;background:var(--card);padding:0 8px;
+.rep-label{position:absolute;top:-11px;inset-inline-start:12px;background:var(--card);padding:0 8px;
   font-family:var(--display);font-size:17px;font-weight:600;color:var(--repeat);letter-spacing:.06em}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:var(--bg);border:1px solid var(--line);border-radius:999px;
@@ -141,24 +175,26 @@ details.acc+details.acc{margin-top:10px}
 details.acc>summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;
   align-items:center;gap:12px;font-weight:650}
 details.acc>summary::-webkit-details-marker{display:none}
-details.acc>summary .caret{margin-left:auto;color:var(--muted);transition:transform .18s ease}
+details.acc>summary .caret{margin-inline-start:auto;color:var(--muted);transition:transform .18s ease}
 details.acc[open]>summary .caret{transform:rotate(90deg)}
+[dir="rtl"] details.acc>summary .caret{transform:scaleX(-1)}
+[dir="rtl"] details.acc[open]>summary .caret{transform:scaleX(-1) rotate(-90deg)}
 .acc-t{font-family:var(--display);font-size:21px;font-weight:600;text-transform:uppercase;line-height:1.05}
 .acc-s{font-size:12.5px;color:var(--muted);line-height:1.3}
 .acc-body{padding:0 16px 16px;border-top:1px solid var(--line);padding-top:14px}
 .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;
   background:var(--brand-soft);color:var(--brand)}
 .ic svg{width:20px;height:20px}
-ol.steps{margin:0;padding-left:20px}
+ol.steps{margin:0;padding-inline-start:20px}
 ol.steps li{margin-bottom:9px}
 ol.steps li:last-child{margin-bottom:0}
 kbd{background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;
   padding:1px 6px;font:inherit;font-size:13px;font-weight:600}
 .note{background:var(--brand-soft);border-radius:12px;padding:12px 14px;font-size:14px}
-.callout{border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;
+.callout{border:1px solid var(--line);border-inline-start:3px solid var(--brand);border-radius:10px;
   padding:11px 13px;font-size:13.5px;background:var(--bg)}
 .linkbox{display:flex;gap:8px}
-.linkbox input{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.linkbox input{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;direction:ltr;text-align:left}
 
 /* ---- connect status ---- */
 .status{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:10px 12px;
@@ -182,6 +218,7 @@ footer a{color:inherit}
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/fit.js"></script>
 <script src="js/brand.js"></script>
 <script src="js/model.js"></script>

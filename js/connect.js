@@ -104,7 +104,7 @@ const Connect = {
     }
     if (res.status === 401) {
       Connect.forget();
-      throw new Error("Your link to intervals.icu expired — tap Connect again.");
+      throw new Error(t("cExpired"));
     }
     if (!res.ok) throw new Error((body && body.error) || "Request failed (" + res.status + ")");
     return body;
@@ -182,7 +182,7 @@ function toIntervalsText(w) {
       bits.push(t.low + "-" + t.high + "bpm");
     }
 
-    const name = s.label || KINDS[s.type].label;
+    const name = s.label || KINDS[s.type].gc;
     lines.push(indent + "- " + bits.join(" ") + " " + name + (s.note ? " (" + s.note + ")" : ""));
   };
 

@@ -50,46 +50,52 @@ function fmtClock(sec) {
 
 function fmtDuration(sec) {
   sec = Math.round(sec);
-  if (sec < 120) return sec + " sec";                       // coaches say "90 sec", not "1:30"
-  if (sec < 600) return sec % 60 === 0 ? sec / 60 + " min" : fmtClock(sec) + " min";
-  if (sec < 3600) return Math.round(sec / 60) + " min";     // long enough that seconds are noise
-  return Math.floor(sec / 3600) + "h " + pad2(Math.round((sec % 3600) / 60));
+  if (sec < 120) return sec + t("uSec");                       // coaches say "90 sec", not "1:30"
+  if (sec < 600) return sec % 60 === 0 ? sec / 60 + t("uMin") : fmtClock(sec) + t("uMin");
+  if (sec < 3600) return Math.round(sec / 60) + t("uMin");     // long enough that seconds are noise
+  return Math.floor(sec / 3600) + t("uHour") + pad2(Math.round((sec % 3600) / 60));
 }
 
 function fmtDistance(m, units) {
   if (units === "mi") {
     const mi = m / METERS.mi;
-    return mi < 0.25 ? Math.round(m) + " m" : +mi.toFixed(2) + " mi";
+    return mi < 0.25 ? Math.round(m) + t("uM") : +mi.toFixed(2) + t("uMi");
   }
-  return m < 1000 ? Math.round(m) + " m" : +(m / 1000).toFixed(2) + " km";
+  return m < 1000 ? Math.round(m) + t("uM") : +(m / 1000).toFixed(2) + t("uKm");
 }
 
-const fmtPace = (sec, units) => fmtClock(sec) + " /" + units;
+const fmtPace = (sec, units) => fmtClock(sec) + " /" + unitLabel(units);
 
 /** Human phrase for a step's length, e.g. "400 m", "90 sec", "lap button". */
 function stepAmount(s, units) {
   if (s.durType === "distance") return fmtDistance(s.meters, units);
   if (s.durType === "time") return fmtDuration(s.seconds);
   // Lap-button steps have no fixed length; the coach's estimate is only a hint.
-  return s.estSeconds ? "lap button, ~" + fmtDuration(s.estSeconds) : "lap button";
+  return s.estSeconds ? t("uLapEst") + fmtDuration(s.estSeconds) : t("uLap");
 }
 
 /** Human phrase for a step's target, e.g. "3:30-3:45 /km"; "" when open. */
 function stepTarget(s, units) {
-  const t = s.target;
-  if (!t || t.kind === "none") return "";
-  if (t.kind === "pace") {
-    return t.fast === t.slow
-      ? fmtPace(t.fast, units)
-      : fmtClock(t.fast) + "-" + fmtClock(t.slow) + " /" + units;
+  const g = s.target;
+  if (!g || g.kind === "none") return "";
+  if (g.kind === "pace") {
+    return g.fast === g.slow
+      ? fmtPace(g.fast, units)
+      : fmtClock(g.fast) + "-" + fmtClock(g.slow) + " /" + unitLabel(units);
   }
-  return t.low === t.high ? t.low + " bpm" : t.low + "-" + t.high + " bpm";
+  return g.low === g.high ? g.low + t("uBpm") : g.low + "-" + g.high + t("uBpm");
+}
+
+/** "km" / "كم" — the bare unit, for pace strings like "3:45 /km". */
+function unitLabel(units) {
+  return (units === "mi" ? t("uMi") : t("uKm")).trim();
 }
 
 function prettyDate(iso) {
   const d = new Date(iso + "T00:00:00");
   if (isNaN(d)) return iso;
-  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const locale = I18N.lang === "ar" ? "ar" : undefined;
+  return d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 }
 
 /* ---------- model --------------------------------------------------------- */
@@ -278,7 +284,7 @@ function asText(w) {
     const k = KINDS[s.type];
     const t = stepTarget(s, w.units);
     return (
-      (prefix || "") + (s.label || k.label) + " - " + stepAmount(s, w.units) +
+      (prefix || "") + (s.label || kindLabel(s.type)) + " - " + stepAmount(s, w.units) +
       (t ? " @ " + t : "") + (s.note ? " (" + s.note + ")" : "")
     );
   };
@@ -293,8 +299,8 @@ function asText(w) {
   const est = estimate(w);
   lines.push("");
   lines.push(
-    "About " + fmtDuration(est.seconds) +
-      (est.workMeters ? ", " + fmtDistance(est.workMeters, w.units) + " of it hard" : "")
+    t("txtAbout") + fmtDuration(est.seconds) +
+      (est.workMeters ? ", " + fmtDistance(est.workMeters, w.units) + t("txtHard") : "")
   );
   if (w.note) {
     lines.push("");

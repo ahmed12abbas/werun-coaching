@@ -27,6 +27,19 @@ function el(tag, attrs) {
   return n;
 }
 
+/**
+ * Turn "tap **Save** now" into text nodes with a real <b> in the middle, so
+ * translators write one sentence instead of a pile of concatenated fragments.
+ */
+function rich(text) {
+  const out = [];
+  String(text).split(/\*\*/).forEach((part, i) => {
+    if (!part) return;
+    out.push(i % 2 ? el("b", {}, part) : document.createTextNode(part));
+  });
+  return out;
+}
+
 const icon = (paths, cls) =>
   '<svg class="' + (cls || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
   'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + paths + "</svg>";
@@ -45,6 +58,8 @@ const ICON = {
   chat: icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.4A8 8 0 1 1 21 12Z"/>'),
   check: icon('<path d="M4 12.5 9.5 18 20 6.5"/>'),
   shield: icon('<path d="M12 3 5 6v6c0 4.2 2.9 7.9 7 9 4.1-1.1 7-4.8 7-9V6l-7-3Z"/><path d="M9 12.2l2 2 4-4.2"/>'),
+  sun: icon('<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'),
+  moon: icon('<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>'),
 };
 
 /**
@@ -72,13 +87,53 @@ function logoNode(height) {
   return el("div", { class: "row", style: "gap:10px" }, img, fallback);
 }
 
+/**
+ * Theme and language toggles. Both re-render the page rather than trying to
+ * patch it in place — the whole view is cheap to rebuild and this way there
+ * is only one code path that produces the UI.
+ */
+function toolButtons(rerender) {
+  const dark = Theme.current() === "dark";
+  return el(
+    "div",
+    { class: "brand-tools" },
+    el(
+      "button",
+      {
+        class: "tool",
+        title: dark ? t("themeLight") : t("themeDark"),
+        "aria-label": dark ? t("themeLight") : t("themeDark"),
+        html: dark ? ICON.sun : ICON.moon,
+        onclick: () => {
+          Theme.toggle();
+          rerender();
+        },
+      }
+    ),
+    el(
+      "button",
+      {
+        class: "tool text",
+        title: t("langLabel"),
+        "aria-label": t("langLabel"),
+        onclick: () => {
+          I18N.toggle();
+          rerender();
+        },
+      },
+      t("langLabel")
+    )
+  );
+}
+
 /** Header used on every screen. `right` is an optional trailing node. */
-function brandBar(right) {
+function brandBar(right, rerender) {
   return el(
     "div",
     { class: "brand" },
     logoNode(42),
-    el("div", { class: "brand-sub" }, "Coaching"),
-    right ? el("div", { style: "margin-left:auto" }, right) : null
+    el("div", { class: "brand-sub" }, t("coaching")),
+    rerender ? toolButtons(rerender) : null,
+    right ? el("div", { class: rerender ? "" : "push" }, right) : null
   );
 }
