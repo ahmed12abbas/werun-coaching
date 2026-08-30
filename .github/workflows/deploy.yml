@@ -36,6 +36,29 @@ jobs:
             exit 1
           fi
 
+      # TEMPORARY: works out why the API keeps answering 9106. Prints only the
+      # length and character-class of the secrets, never their values.
+      - name: Diagnose the credentials (temporary)
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "token length:   ${#TOKEN}  (a Cloudflare API token is 40)"
+          if printf '%s' "$TOKEN" | grep -qE '^[A-Za-z0-9_-]{40}$'; then
+            echo "token shape:    ok"
+          else
+            echo "token shape:    UNEXPECTED - not 40 url-safe chars"
+          fi
+          echo "account length: ${#ACCOUNT}  (an account id is 32)"
+          if printf '%s' "$ACCOUNT" | grep -qE '^[0-9a-f]{32}$'; then
+            echo "account shape:  ok"
+          else
+            echo "account shape:  UNEXPECTED - not 32 hex chars"
+          fi
+          echo "--- GET /user/tokens/verify ---"
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify | jq . || true
+
       # Only the site itself goes up — never the repo root, which carries the
       # worker source and the readme.
       - name: Assemble the site
