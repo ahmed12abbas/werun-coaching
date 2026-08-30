@@ -1,0 +1,13 @@
+# The coach's own-account Garmin tooling stays local: it talks to Garmin's
+# private endpoints with a personal token store, and none of it belongs in a
+# public repo.
+garmin-mcp/
+
+# Local preview only
+.claude/
+.mcp.json
+
+node_modules/
+.wrangler/
+.DS_Store
+Thumbs.db

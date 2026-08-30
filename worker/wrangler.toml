@@ -1,0 +1,20 @@
+name = "werun-connect"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+# Your intervals.icu OAuth client id (from /settings/apps -> Manage App).
+# The *secret* does not go here — it is set with:
+#   npx wrangler secret put INTERVALS_CLIENT_SECRET
+INTERVALS_CLIENT_ID = ""
+
+# Origins allowed to call the API. Set this to your Pages/GitHub Pages URL
+# once you know it, e.g. "https://werun.pages.dev".
+ALLOWED_ORIGINS = "*"
+
+# Holds OAuth state (10 min) and athlete access tokens.
+# Create it with:  npx wrangler kv namespace create LINKS
+# then paste the id below.
+[[kv_namespaces]]
+binding = "LINKS"
+id = ""
