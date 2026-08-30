@@ -11,3 +11,7 @@ node_modules/
 .wrangler/
 .DS_Store
 Thumbs.db
+
+# Playwright MCP scratch output
+.playwright-mcp/
+*.playwright.png

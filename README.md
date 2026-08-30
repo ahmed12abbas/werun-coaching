@@ -1,11 +1,15 @@
 # WE RUN Coaching
 
+**Live: <https://werun.pages.dev>** — this is the link to hand out.
+Mirror on GitHub Pages: <https://ahmed12abbas.github.io/werun-coaching/>
+
 One link per week's session. The coach builds it, pastes it in the group chat, and
 anyone who opens it gets it onto their Garmin or Apple Watch — with a one-tap
 "send it to my watch" for athletes who connect once.
 
 The session is encoded into the link itself, so there is no database and old links
-keep working forever.
+keep working forever. English and Arabic, light and dark, chosen from the header
+and remembered per device.
 
 ---
 
@@ -77,9 +81,10 @@ Links run roughly 250–450 characters — fine for WhatsApp, Telegram, SMS.
 
 | File | What it does |
 |---|---|
-| `index.html` | Markup shell and all the CSS (light + dark, Teko + WE RUN purple) |
+| `index.html` | Markup shell and all the CSS (light + dark, LTR + RTL, Teko + WE RUN purple) |
 | `js/config.js` | **The only file you edit after deploying** |
-| `js/brand.js` | Logo and icons |
+| `js/i18n.js` | English and Arabic strings, the theme and language switches |
+| `js/brand.js` | Logo, icons, header toggles |
 | `js/model.js` | Session model, formatters, link encoding |
 | `js/connect.js` | The one-tap delivery client |
 | `js/views.js` | Builder and athlete viewer |
@@ -88,23 +93,44 @@ Links run roughly 250–450 characters — fine for WhatsApp, Telegram, SMS.
 | `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 
-Brand colour lives in one place: `--brand` at the top of `index.html`.
+Brand colour lives in one place: `--brand` at the top of `index.html`. It's
+`#8851F4`, sampled from the logo itself.
+
+### Language
+
+Both languages live in `js/i18n.js` as one flat table each. Sentences that need
+emphasis are written once with `**bold**` markers and rendered by `rich()`, so a
+translator edits whole sentences rather than glued-together fragments.
+
+Teko has no Arabic glyphs, so Arabic display text uses **Cairo** — set under
+`[dir="rtl"]` in `index.html`. English typography is untouched. Garmin's own English
+UI words (`Run`, `Warm Up`, `Send to Device`) stay in English inside the step tables
+even in Arabic, because that is what the athlete has to find on screen.
 
 ---
 
 ## Deploying
 
-### 1. The site — GitHub Pages
+Both are already live. GitHub is the source of truth; Cloudflare serves the link
+you hand out.
 
-Push this repo, then **Settings → Pages → deploy from `main` / root**. You get
-`https://<user>.github.io/<repo>/`.
+### 1. GitHub Pages — automatic
 
-### 2. The link — Cloudflare Pages
+`git push` and Pages rebuilds from `main` on its own. Nothing else to do.
 
-Cloudflare Pages → **Create a project → Connect to Git** → pick this repo. Build
-command: none. Output directory: `/`. That gives you `https://<project>.pages.dev`,
-and a custom domain if you have one. GitHub stays the source of truth; Cloudflare
-serves the link you actually hand out.
+### 2. Cloudflare Pages — one command
+
+The project is a **direct upload**, not git-connected, so a push to GitHub does
+*not* update it. After pushing, run:
+
+```bash
+npx wrangler pages deploy . --project-name werun --branch main --commit-dirty=true
+```
+
+Run it from a folder holding only `index.html`, `js/` and `assets/` — pointing it at
+the repo root would upload `garmin-mcp/.venv` too. To make deploys automatic instead,
+connect the project to the GitHub repo in the Cloudflare dashboard
+(**Workers & Pages → werun → Settings → Builds**) and this step disappears.
 
 ### 3. One-tap delivery — the Worker (optional)
 
