@@ -57,13 +57,26 @@ The connect button is a bonus, not the product. Without it the page still gives:
 
 ## Weekly workflow
 
-1. Open the site with no `#` on the end — that's the **builder**. It opens on the
-   standing **Monday | WeRUN** session.
-2. Adjust name, date, note and steps. **Add repeat set** handles the reps.
-3. **Copy link**, paste into WhatsApp.
-4. Next week, open the plain URL again. Links you already sent keep working.
+1. Open the site with no `#` on the end — that's the **builder**. It opens on
+   **Monday | WeRUN**.
+2. Pick the day under **Standing sessions**. Once you edit anything the picker
+   lets go, and swapping back asks first so a session is never lost to a stray tap.
+3. Adjust name, date, note and steps. **Add repeat set** handles the reps.
+4. **Copy link**, paste into WhatsApp.
+5. Next week, open the plain URL again. Links you already sent keep working.
 
 Links run roughly 250–450 characters — fine for WhatsApp, Telegram, SMS.
+
+### The standing sessions
+
+| Day | Session |
+|---|---|
+| **Monday** | 10 min warm up, drills, a 1-2-3-4-5-6 min ladder at 5 K pace, 10 min cool down |
+| **Thursday** | Hill repeats — 12 x 200 m, jog back down, everything but the reps on the lap button |
+
+They live in `SESSIONS` at the top of `js/model.js`. Adding a day is a builder
+function and one line in that list; the picker, the i18n labels and the swap
+prompt all follow from it.
 
 ### Step fields
 

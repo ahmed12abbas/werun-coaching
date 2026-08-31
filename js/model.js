@@ -115,8 +115,23 @@ function blankStep(type) {
   };
 }
 
-/** The club's standing Monday session: a 1-6 minute ladder at 5 K pace. */
-function defaultWorkout() {
+/* ---------- the club's standing sessions ----------------------------------
+   The builder opens on the first one; the picker at the top of it swaps
+   between them. Adding a day means writing a builder function and adding a
+   line to SESSIONS — nothing else knows how many there are.
+   ------------------------------------------------------------------------- */
+
+const sessionShell = (name, note, blocks) => ({
+  name: name,
+  date: "",
+  coach: "",
+  note: note,
+  units: CONFIG.units === "mi" ? "mi" : "km",
+  blocks: blocks,
+});
+
+/** Monday: a 1-6 minute ladder at 5 K pace. */
+function mondayLadder() {
   // Each rung is [work seconds, the recovery that follows it].
   const ladder = [[60, 60], [120, 60], [180, 90], [240, 120], [300, 120], [360, 120]];
   const blocks = [
@@ -130,14 +145,42 @@ function defaultWorkout() {
     blocks.push(Object.assign(blankStep("rest"), { seconds: rung[1] }));
   }
   blocks.push(Object.assign(blankStep("cooldown"), { seconds: 600 }));
-  return {
-    name: "Monday | WeRUN",
-    date: "",
-    coach: "",
-    note: "Ladder Intervals",
-    units: CONFIG.units === "mi" ? "mi" : "km",
-    blocks: blocks,
-  };
+  return sessionShell("Monday | WeRUN", "Ladder Intervals", blocks);
+}
+
+/**
+ * Thursday: 12 x 200 m hill repeats. Everything except the reps themselves
+ * ends on the lap button, because a hill is only as long as it is — the
+ * 10 min is the coach's estimate, not something that stops the step.
+ */
+function thursdayHills() {
+  return sessionShell("Thursday | WeRUN", "Hill Repeats", [
+    Object.assign(blankStep("warmup"), { durType: "open", estSeconds: 600 }),
+    Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills + strides" }),
+    {
+      kind: "repeat",
+      reps: 12,
+      steps: [
+        Object.assign(blankStep("work"), { meters: 200, label: "Hill" }),
+        Object.assign(blankStep("recovery"), { durType: "open", note: "walk/jog down" }),
+      ],
+    },
+    Object.assign(blankStep("cooldown"), { durType: "open", estSeconds: 600 }),
+  ]);
+}
+
+// Order is the order of the picker buttons. `day` is an i18n key so the
+// picker reads in Arabic too; the session's own name is the coach's to edit.
+const SESSIONS = [
+  { id: "monday", day: "sMonday", build: mondayLadder },
+  { id: "thursday", day: "sThursday", build: thursdayHills },
+];
+
+/** What the builder opens on with no link and no edits yet. */
+function defaultWorkout() {
+  const w = SESSIONS[0].build();
+  w.preset = SESSIONS[0].id;
+  return w;
 }
 
 /**

@@ -23,6 +23,10 @@ const STRINGS = {
     /* builder */
     buildTitle: "This week's session",
     buildLead: "Build it once, send one link. Anyone who opens it can get it onto a Garmin or Apple Watch.",
+    sessions: "Standing sessions",
+    sMonday: "Monday",
+    sThursday: "Thursday",
+    swapWarn: "Replace what you have built with the standing {day} session?",
     fName: "Session name",
     fNamePh: "Monday | WeRUN",
     fDate: "Date (optional)",
@@ -193,6 +197,10 @@ const STRINGS = {
 
     buildTitle: "جلسة هذا الأسبوع",
     buildLead: "ابنِها مرة واحدة وأرسل رابطًا واحدًا. من يفتحه ينقلها إلى ساعة جارمن أو آبل.",
+    sessions: "الجلسات الثابتة",
+    sMonday: "الاثنين",
+    sThursday: "الخميس",
+    swapWarn: "هل تريد استبدال ما بنيته بجلسة {day} الثابتة؟",
     fName: "اسم الجلسة",
     fNamePh: "الاثنين | WeRUN",
     fDate: "التاريخ (اختياري)",
