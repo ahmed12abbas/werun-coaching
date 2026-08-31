@@ -40,11 +40,13 @@ jobs:
           fi
 
       # Only the site itself goes up — never the repo root, which carries the
-      # worker source and the readme.
+      # worker source and the readme. _worker.js is a reserved name: Pages runs
+      # it in front of the static files instead of serving it, which is what
+      # keeps the share counter and the password check off the wire.
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp index.html admin.html _worker.js _site/
           cp -r js assets _site/
           find _site -type f | sort
 

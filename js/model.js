@@ -640,6 +640,28 @@ function shareUrl(w) {
   return location.origin + location.pathname + "#w=" + encodeWorkout(w);
 }
 
+/**
+ * Tell the coach's dashboard that this session was shared onwards.
+ *
+ * Fire and forget, and deliberately impossible to fail loudly: sharing is the
+ * point of the page and a counter must never get in the way of it. Only the
+ * session name goes up, and the server keeps just the day of the week it names.
+ * keepalive lets the request outlive the navigation a share sheet can trigger
+ * on a phone.
+ */
+function countShare(w) {
+  try {
+    fetch("/api/share", {
+      method: "POST",
+      keepalive: true,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: w.name }),
+    }).catch(() => {});
+  } catch (e) {
+    /* offline, blocked, no fetch — the share itself carries on regardless */
+  }
+}
+
 /* ---------- plain-text version (for WhatsApp / the group chat) ------------- */
 
 function asText(w) {

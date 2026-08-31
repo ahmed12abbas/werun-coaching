@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Share stats · WE RUN</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#8851F4">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* This page is deliberately standalone: the athlete-facing CSS all lives
+   inline in index.html, and a coach's dashboard is not worth destabilising
+   the page the club actually uses. The tokens below are copied from it so
+   the two look like one site. */
+:root{
+  --brand:#8851F4; --brand-ink:#fff; --brand-soft:#F2ECFE;
+  --bg:#f7f7fa; --card:#fff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
+  --err:#dc2626; --radius:16px;
+  --shadow:0 1px 2px rgba(20,18,28,.05),0 10px 30px rgba(20,18,28,.07);
+  --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --brand:#A47CF8; --brand-ink:#1b1030; --brand-soft:#241a3d;
+  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+h1{font-family:var(--display);font-size:40px;font-weight:600;letter-spacing:.01em;
+  text-transform:uppercase;margin:0 0 4px;line-height:1}
+h2{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:.02em;
+  text-transform:uppercase;margin:0 0 10px;line-height:1.1}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin-top:18px}
+label{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input{width:100%;padding:12px 13px;font:inherit;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:12px}
+input:focus{outline:2px solid var(--brand);outline-offset:1px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+  color:var(--fg);font:inherit;font-weight:650;cursor:pointer}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn:disabled{opacity:.55;cursor:progress}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>div{flex:1 1 200px}
+.err{color:var(--err);font-weight:600;margin-top:10px}
+.scroll{overflow-x:auto;margin-top:4px}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+.wk{font-weight:700}
+.wk small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.zero{color:var(--muted)}
+.tot{font-weight:700}
+.bar{height:8px;border-radius:99px;background:var(--brand);min-width:3px}
+.barcell{width:34%}
+.barwrap{background:var(--line);border-radius:99px;overflow:hidden}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.tile{background:var(--brand-soft);border-radius:13px;padding:14px 16px}
+.tile .n{font-family:var(--display);font-size:38px;line-height:1;font-weight:600}
+.tile .l{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin-top:4px}
+footer{margin-top:30px;font-size:13px;color:var(--muted)}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Share stats</h1>
+  <p class="muted small" style="margin:0">
+    How many times athletes tapped <b>Share this session</b>, by ISO week.
+  </p>
+  <div id="app"></div>
+  <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
+</div>
+
+<script>
+"use strict";
+
+var app = document.getElementById("app");
+var DAY_LABEL = {
+  monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
+  friday: "Fri", saturday: "Sat", sunday: "Sun", other: "Other"
+};
+
+/* The password is only ever held here, in memory, for as long as this tab
+   stays on the page. Nothing goes into storage, so a reload asks again --
+   the right trade for a laptop a club shares. */
+var password = null;
+
+function el(tag, attrs) {
+  var n = document.createElement(tag);
+  attrs = attrs || {};
+  for (var k in attrs) {
+    if (k === "class") n.className = attrs[k];
+    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+    else n.setAttribute(k, attrs[k]);
+  }
+  for (var i = 2; i < arguments.length; i++) {
+    var c = arguments[i];
+    if (c == null) continue;
+    if (Array.isArray(c)) { for (var j = 0; j < c.length; j++) if (c[j] != null) n.append(c[j]); }
+    else n.append(c);
+  }
+  return n;
+}
+
+function renderLogin(message) {
+  app.textContent = "";
+  var input = el("input", {
+    type: "password",
+    autocomplete: "current-password",
+    placeholder: "Password",
+    onkeydown: function (e) { if (e.key === "Enter") go(); }
+  });
+  var btn = el("button", { class: "btn primary", onclick: function () { go(); } }, "Show stats");
+
+  function go() {
+    if (!input.value) return;
+    btn.disabled = true;
+    load(input.value)["catch"](function (e) {
+      renderLogin(e.message);
+      var next = app.querySelector("input");
+      if (next) next.focus();
+    });
+  }
+
+  app.append(
+    el("div", { class: "card" },
+      el("div", { class: "row" },
+        el("div", {}, el("label", {}, "Coach password"), input),
+        el("div", { style: "flex:0 0 auto" }, btn)
+      ),
+      message ? el("p", { class: "err" }, message) : null
+    )
+  );
+  input.focus();
+}
+
+function load(pw) {
+  return fetch("/api/stats", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: pw })
+  }).then(function (res) {
+    if (res.status === 401) throw new Error("That password is not right.");
+    if (res.status === 503) {
+      throw new Error(
+        "No password is set on the site yet, so the dashboard stays locked. " +
+        "Set ADMIN_PASSWORD on the Pages project -- see the README."
+      );
+    }
+    if (!res.ok) throw new Error("The server answered " + res.status + ". Try again in a moment.");
+    return res.json();
+  }).then(function (data) {
+    password = pw;
+    renderStats(data);
+  });
+}
+
+function renderStats(data) {
+  app.textContent = "";
+  var weeks = data.weeks || [];
+
+  if (data.warning === "no-store") {
+    app.append(el("div", { class: "card" },
+      el("h2", {}, "Nothing is being recorded yet"),
+      el("p", { class: "muted small", style: "margin:0" },
+        "The password is right, but no KV namespace is bound to the site, so taps " +
+        "are not being counted. Bind one called STATS -- see the README.")
+    ));
+    return;
+  }
+
+  if (!weeks.length) {
+    app.append(el("div", { class: "card" },
+      el("h2", {}, "No taps yet"),
+      el("p", { class: "muted small", style: "margin:0" },
+        "Counting is live. This fills in the first time an athlete taps " +
+        "Share this session.")
+    ));
+    app.append(controls());
+    return;
+  }
+
+  // Only show a day column once it has actually been used.
+  var used = (data.days || []).concat("other").filter(function (d) {
+    return weeks.some(function (w) { return (w.counts || {})[d]; });
+  });
+  var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
+
+  var latest = weeks[0];
+  app.append(
+    el("div", { class: "card" },
+      el("h2", {}, "Latest week · " + latest.week),
+      el("div", { class: "tiles" },
+        used.map(function (d) {
+          return el("div", { class: "tile" },
+            el("div", { class: "n" }, String((latest.counts || {})[d] || 0)),
+            el("div", { class: "l" }, DAY_LABEL[d] || d));
+        }),
+        el("div", { class: "tile" },
+          el("div", { class: "n" }, String(latest.total)),
+          el("div", { class: "l" }, "Total"))
+      )
+    )
+  );
+
+  var head = el("tr", {}, el("th", {}, "Week"),
+    used.map(function (d) { return el("th", {}, DAY_LABEL[d] || d); }),
+    el("th", {}, "Total"), el("th", { class: "barcell" }, ""));
+
+  var body = el("tbody", {});
+  weeks.forEach(function (w) {
+    var counts = w.counts || {};
+    body.append(el("tr", {},
+      el("td", { class: "wk" }, w.week, el("small", {}, "from " + (w.start || "?"))),
+      used.map(function (d) {
+        var n = counts[d] || 0;
+        return el("td", { class: n ? "" : "zero" }, String(n));
+      }),
+      el("td", { class: "tot" }, String(w.total)),
+      el("td", { class: "barcell" },
+        el("div", { class: "barwrap" },
+          el("div", { class: "bar", style: "width:" + Math.round((w.total / peak) * 100) + "%" })))
+    ));
+  });
+
+  app.append(
+    el("div", { class: "card" },
+      el("h2", {}, "Every week"),
+      el("div", { class: "scroll" }, el("table", {}, el("thead", {}, head), body))
+    )
+  );
+  app.append(controls());
+}
+
+function controls() {
+  var refresh = el("button", { class: "btn", onclick: function () {
+    refresh.disabled = true;
+    load(password)["catch"](function (err) { renderLogin(err.message); });
+  } }, "Refresh");
+
+  return el("div", { class: "row", style: "margin-top:16px" },
+    el("div", { style: "flex:0 0 auto" }, refresh),
+    el("div", { style: "flex:0 0 auto" },
+      el("button", { class: "btn", onclick: function () { password = null; renderLogin(null); } },
+        "Lock")),
+    el("div", { class: "muted small" },
+      "Counts every tap, including repeat taps by the same athlete."));
+}
+
+renderLogin(null);
+</script>
+</body>
+</html>

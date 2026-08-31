@@ -466,6 +466,7 @@ function renderViewer(app, w, rerender) {
         {
           class: "btn grow",
           onclick: async () => {
+            countShare(w);
             const data = { title: w.name, text: asText(w), url: location.href };
             if (navigator.share) {
               try {

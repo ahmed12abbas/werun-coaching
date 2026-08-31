@@ -3,6 +3,8 @@
 **Live: <https://weruncoaching.pages.dev>** — this is the link to hand out.
 Older mirror: <https://werun.pages.dev> (a different Cloudflare account; only updates by hand).
 Mirror on GitHub Pages: <https://ahmed12abbas.github.io/werun-coaching/>
+(static only — the share counter and `/admin` need Cloudflare, so they work on
+the Pages URL above and nowhere else).
 
 One link per week's session. The coach builds it, pastes it in the group chat, and
 anyone who opens it gets it onto their Garmin or Apple Watch — with a one-tap
@@ -91,6 +93,63 @@ prompt all follow from it.
 
 ---
 
+## Counting shares
+
+`/admin` on the live site shows how many times athletes tapped **Share this
+session**, week by week, split by the day the session is named after:
+
+| | Mon | Thu | Total |
+|---|---|---|---|
+| **2026-W36** *from 2026-08-31* | 14 | 9 | 23 |
+| **2026-W35** *from 2026-08-24* | 11 | 12 | 23 |
+
+Weeks are ISO weeks, so they start on Monday and a week's Monday and Thursday
+sessions land on the same row. The day comes from the session's *name* — a
+session called `Thursday | WeRUN` counts as Thursday, in English or Arabic —
+so renaming a session changes which column it lands in, and a name with no day
+in it is counted under **Other**.
+
+It counts taps, not people: the same athlete tapping twice counts twice.
+Nothing else is recorded — no IP, no identity, not even which session — so
+there is nothing in the store worth protecting.
+
+`_worker.js` is the server side. Pages treats that filename as reserved and
+runs it in front of the static files instead of serving it, which is what keeps
+the password check off the wire. It answers two routes:
+
+| Route | |
+|---|---|
+| `POST /api/share` | public; the viewer's share button calls it and ignores the answer |
+| `POST /api/stats` | the dashboard's only data source; needs the password |
+
+The password is checked in the Worker against a secret, never in JavaScript the
+site serves, and travels in the POST body so it never lands in a URL or an
+access log. The dashboard holds it in memory only — a reload asks again.
+
+### Switching it on
+
+Both live on the `weruncoaching` Pages project and neither is in this repo.
+Until they are set the site is completely unaffected: sharing still works, it
+just is not counted, and `/admin` stays locked rather than falling open.
+
+1. **Somewhere to keep the counts.** Create a KV namespace and bind it to the
+   Pages project as **`STATS`** — Cloudflare dashboard → *Workers & Pages* →
+   `weruncoaching` → *Settings* → *Bindings* → *KV namespace*. Or:
+
+```bash
+npx wrangler kv namespace create werun-stats
+```
+
+2. **The password.** On the same Settings page add an environment variable
+   named **`ADMIN_PASSWORD`**, set it to the password you want, and click
+   *Encrypt* so it is stored as a secret. Set it for **Production**.
+
+3. Redeploy (any push to `main`, or *Retry deployment*) so the running Worker
+   picks the bindings up, then open `/admin`.
+
+To change the password later, edit that one variable — nothing needs
+redeploying twice and no code changes.
+
 ## Files
 
 | File | What it does |
@@ -104,6 +163,8 @@ prompt all follow from it.
 | `js/views.js` | Builder and athlete viewer |
 | `js/boot.js` | Entry point — builder vs viewer |
 | `js/fit.js` | Binary `.FIT` workout encoder |
+| `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
+| `_worker.js` | Server side of the share counter; reserved name, never served |
 | `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 

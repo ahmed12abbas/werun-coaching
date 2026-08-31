@@ -15,3 +15,6 @@ Thumbs.db
 # Playwright MCP scratch output
 .playwright-mcp/
 *.playwright.png
+
+# Assembled by the deploy workflow (and by hand when testing wrangler pages dev)
+_site/
