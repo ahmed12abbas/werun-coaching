@@ -178,13 +178,30 @@ async function stats(request, env) {
   return json({ weeks: weeks, days: DAYS });
 }
 
+/* ---------- TEMPORARY: GET /api/_diag -------------------------------------
+   Reports which bindings the running Worker can actually see, so a missing
+   one can be told apart from a misnamed one. Names only — never a value.
+   Delete this and its route once the dashboard is green.
+   ------------------------------------------------------------------------- */
+
+function diag(request, env) {
+  return json({
+    sees: Object.keys(env).sort(),
+    hasAdminPassword: Boolean(env.ADMIN_PASSWORD),
+    hasStats: Boolean(env.STATS),
+    host: new URL(request.url).host,
+  });
+}
+
 /* ---------- routing ------------------------------------------------------- */
 
 const ROUTES = { "/api/share": share, "/api/stats": stats };
+const GETTABLE = { "/api/_diag": diag }; // temporary, see above
 
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
+    if (GETTABLE[pathname]) return GETTABLE[pathname](request, env);
     const handler = ROUTES[pathname];
     if (!handler) return env.ASSETS.fetch(request); // every real page and file
     if (request.method !== "POST") {
