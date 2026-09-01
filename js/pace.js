@@ -133,7 +133,11 @@ const paceInUnits = (secPerKm, units) => (units === "mi" ? secPerKm * (METERS.mi
    speed of the track really carries the meaning.
    ------------------------------------------------------------------------- */
 
-// [slowest mile on this rung, the glyphs, which way they are drawn]
+// [5 K time this rung stops at, the glyphs, which way they are drawn]
+//
+// Keyed on the 5 K, because that is the time the club quotes at each other. The
+// racing pair carries everything from 25 minutes on, which is most of the
+// group; the ladder above it is for the sharp end.
 //
 // Emoji are drawn in profile facing left — the car, the animals and the runners
 // alike, on Apple and on Segoe. -1 means "mirror this to face forwards", which
@@ -142,16 +146,16 @@ const paceInUnits = (secPerKm, units) => (units === "mi" ? secPerKm * (METERS.mi
 // right-facing glyph joins the list it will need it.
 // prettier-ignore
 const PACE_SPRITES = [
-  [360, ["\u{1F3CE}️"], -1], // 6:00 mile or quicker — F1 car
-  [435, ["\u{1F406}"], -1],            // 7:15 — cheetah
-  [510, ["\u{1F40E}"], -1],            // 8:30 — horse
-  [600, ["\u{1F407}"], -1],            // 10:00 — rabbit
-  // The last rung is a pair, racing each other down the track.
+  [19 * 60, ["\u{1F3CE}️"], -1], // under a 19:00 5 K — F1 car
+  [21 * 60, ["\u{1F406}"], -1],            // cheetah
+  [23 * 60, ["\u{1F40E}"], -1],            // horse
+  [25 * 60, ["\u{1F407}"], -1],            // rabbit
+  // From 25 minutes on it is a pair, racing each other down the track.
   [Infinity, ["\u{1F3C3}‍♂️", "\u{1F3C3}‍♀️"], -1],
 ];
 
-function spriteFor(mileSeconds) {
-  for (const s of PACE_SPRITES) if (mileSeconds <= s[0]) return s;
+function spriteFor(fiveKSeconds) {
+  for (const s of PACE_SPRITES) if (fiveKSeconds < s[0]) return s;
   return PACE_SPRITES[PACE_SPRITES.length - 1];
 }
 
@@ -412,7 +416,7 @@ function paceCalculator(units) {
     // Off the drift's own period, so the two never fall into step.
     track.style.setProperty("--jostle", (1.35 + effort * 0.9).toFixed(2) + "s");
 
-    const look = spriteFor(row.mile);
+    const look = spriteFor(row.paces[0] * 5);
     const key = look[1].join("");
     if (key !== spriteKey) {
       spriteKey = key;

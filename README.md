@@ -98,11 +98,20 @@ Underneath it something runs: a road that scrolls under a sprite, so the loop
 never seams. The sprite bobs, and surges forward and back along the middle of
 the track with the speed lines riding behind it. All three speeds come off the
 chart row — a 5:00 mile runs about three and a half times quicker than a 12:00
-one — and the sprite itself steps up an F1 car / cheetah / horse / rabbit /
-runner ladder (`PACE_SPRITES`).
+one — and the sprite itself steps up a ladder (`PACE_SPRITES`), keyed on the
+5 K because that is the time the club quotes at each other:
 
-The slowest rung is two runners rather than one, racing each other: they jostle
-past each other and bob out of phase, so neither stays in front.
+| 5 K | |
+|---|---|
+| under 19:00 | 🏎️ |
+| under 21:00 | 🐆 |
+| under 23:00 | 🐎 |
+| under 25:00 | 🐇 |
+| 25:00 and over | 🏃‍♂️ 🏃‍♀️ |
+
+From 25 minutes on — which is most of the group — it is two runners rather than
+one, racing each other: they jostle past each other and bob out of phase, so
+neither stays in front. The rungs above it are for the sharp end.
 
 Emoji are drawn in profile facing **left** — the car, the animals and the
 runners alike — so the track mirrors all of them to run forwards, and flips that
