@@ -133,16 +133,13 @@ const paceInUnits = (secPerKm, units) => (units === "mi" ? secPerKm * (METERS.mi
    speed of the track really carries the meaning.
    ------------------------------------------------------------------------- */
 
-// Emoji don't agree on which way they face. Every vendor draws the car and the
-// animals facing left, but the runners are split: Apple draws them facing left
-// like everything else, Segoe and Noto draw them facing right. Nothing in the
-// page can measure a glyph's orientation, so this is the one place the platform
-// gets asked.
-const APPLE_EMOJI = /iPhone|iPad|iPod|Macintosh|Mac OS X/.test(navigator.userAgent || "");
-
 // [slowest mile on this rung, the glyphs, which way they are drawn]
-// -1 marks the ones that have to be mirrored to be running forwards; the track
-// flips that again for Arabic.
+//
+// Emoji are drawn in profile facing left — the car, the animals and the runners
+// alike, on Apple and on Segoe. -1 means "mirror this to face forwards", which
+// is every glyph in the ladder today; the field stays because it is the one
+// thing about these that cannot be worked out from the page, and the day a
+// right-facing glyph joins the list it will need it.
 // prettier-ignore
 const PACE_SPRITES = [
   [360, ["\u{1F3CE}️"], -1], // 6:00 mile or quicker — F1 car
@@ -150,7 +147,7 @@ const PACE_SPRITES = [
   [510, ["\u{1F40E}"], -1],            // 8:30 — horse
   [600, ["\u{1F407}"], -1],            // 10:00 — rabbit
   // The last rung is a pair, racing each other down the track.
-  [Infinity, ["\u{1F3C3}‍♂️", "\u{1F3C3}‍♀️"], APPLE_EMOJI ? -1 : 1],
+  [Infinity, ["\u{1F3C3}‍♂️", "\u{1F3C3}‍♀️"], -1],
 ];
 
 function spriteFor(mileSeconds) {

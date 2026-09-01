@@ -104,14 +104,14 @@ runner ladder (`PACE_SPRITES`).
 The slowest rung is two runners rather than one, racing each other: they jostle
 past each other and bob out of phase, so neither stays in front.
 
-Emoji don't agree on which way they face. Every vendor draws the car and the
-animals facing left, but the runners are split — Apple draws them facing left
-like everything else, Segoe and Noto draw them facing right. Nothing in the page
-can measure a glyph's orientation, so `APPLE_EMOJI` is the one place the
-platform gets asked, and it only decides that one rung. The third value in each
-`PACE_SPRITES` row is `-1` for glyphs that have to be mirrored to run forwards,
-and Arabic flips that again. The whole thing holds still for anyone who has
-asked for reduced motion.
+Emoji are drawn in profile facing **left** — the car, the animals and the
+runners alike — so the track mirrors all of them to run forwards, and flips that
+again for Arabic. That is what the third value in each `PACE_SPRITES` row is:
+`-1` means "mirror this one". It is `-1` for everything in the ladder today, and
+it stays a per-glyph field because a glyph's orientation is the one thing about
+these that cannot be worked out from the page — check it at a large size before
+adding a rung, not at 27px. The whole thing holds still for anyone who has asked
+for reduced motion.
 
 The numbers are the club's printed chart, not a formula — it lives as
 `PACE_PRINTED` at the top of `js/pace.js`, one row per mile time, written in
