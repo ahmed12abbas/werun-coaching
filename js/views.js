@@ -541,7 +541,13 @@ function renderViewer(app, w, rerender) {
   );
 
   app.append(
-    el("footer", {}, "WE RUN Coaching · ", el("a", { href: location.pathname }, t("footerBuild")))
+    el(
+      "footer",
+      {},
+      socialRow(),
+      "WE RUN Coaching · ",
+      el("a", { href: location.pathname }, t("footerBuild"))
+    )
   );
 }
 
@@ -772,7 +778,7 @@ function renderBuilder(app, w, rerender) {
   );
 
   app.append(
-    el("footer", {}, Connect.isEnabled() ? t("connectFooterOn") : t("connectFooterOff"))
+    el("footer", {}, socialRow(), Connect.isEnabled() ? t("connectFooterOn") : t("connectFooterOff"))
   );
 
   paint();

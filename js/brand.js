@@ -65,6 +65,73 @@ const ICON = {
 };
 
 /**
+ * The club's own accounts, in the order they sit on linktr.ee/werun. Each one
+ * carries its own inner svg markup rather than a bare path: Instagram reads
+ * better drawn as its three shapes, while TikTok, X and Strava are single
+ * filled glyphs. All are 24x24 so the footer can scale them in one place.
+ */
+const SOCIAL = [
+  {
+    id: "telegram",
+    label: "Telegram",
+    href: "https://t.me/+KkMBwM-UijliZGM0",
+    svg: '<path d="M23.91 3.79 20.3 20.84c-.25 1.21-.98 1.5-2 .94l-5.5-4.07-2.66 2.57c-.3.3-.55.56-1.1.56-.72 0-.6-.28-.84-.96L6.3 13.7l-5.45-1.7c-1.18-.36-1.19-1.16.26-1.75l21.26-8.2c.97-.45 1.9.23 1.54 1.73z"/>',
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    href: "https://www.instagram.com/werun.sa/",
+    svg:
+      '<rect x="2.9" y="2.9" width="18.2" height="18.2" rx="5.2" fill="none" stroke="currentColor" stroke-width="2"/>' +
+      '<circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/>' +
+      '<circle cx="17.2" cy="6.8" r="1.35"/>',
+  },
+  {
+    id: "tiktok",
+    label: "TikTok",
+    href: "https://www.tiktok.com/@werun.sa",
+    svg:
+      '<path d="M12.53.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>',
+  },
+  {
+    id: "x",
+    label: "X",
+    href: "https://twitter.com/WeRunksa",
+    svg:
+      '<path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93zm-1.29 19.49h2.04L6.49 3.24H4.3z"/>',
+  },
+  {
+    id: "strava",
+    label: "Strava",
+    href: "https://www.strava.com/clubs/1184584",
+    svg:
+      '<path d="M15.39 17.94l-2.09-4.11h-3.07L15.39 24l5.15-10.17h-3.07m-7.01-5.6l2.84 5.6h4.17L10.46 0l-7 13.83h4.17"/>',
+  },
+];
+
+/**
+ * The row of round social buttons that sits above the footer line. Opens in a
+ * new tab because the session link is usually the thing someone came for.
+ */
+function socialRow() {
+  return el(
+    "nav",
+    { class: "socials", "aria-label": t("socialsLabel") },
+    SOCIAL.map((s) =>
+      el("a", {
+        class: "social",
+        href: s.href,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        "aria-label": s.label,
+        title: s.label,
+        html: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + s.svg + "</svg>",
+      })
+    )
+  );
+}
+
+/**
  * The WE RUN mark. Uses assets/logo.png when it's there and quietly falls
  * back to a Teko wordmark when it isn't, so the page never renders broken.
  */
