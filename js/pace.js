@@ -449,12 +449,11 @@ function paceCalculator(units) {
   buildRoller();
   draw(false);
 
-  let open = !!saved;
-  if (!open) panel.classList.add("hidden");
-  // The panel is in the document by the time this runs, and only then will the
-  // columns accept a scroll position. A timer rather than a frame, because a
-  // backgrounded tab still runs timers and can sit on frames indefinitely.
-  else setTimeout(sync, 0);
+  // Always folded away on open. The session is what the link is for, and the
+  // calculator is a detour off it — their saved time is still in the roller
+  // waiting for them, it just doesn't push the session down the page to say so.
+  let open = false;
+  panel.classList.add("hidden");
 
   const button = el(
     "button",
