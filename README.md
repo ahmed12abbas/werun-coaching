@@ -88,7 +88,10 @@ back 5 K, 10 K, tempo, half, marathon and recovery pace. Switching between the
 two keeps their effort — the chart already knows what a 9:30 mile is worth over
 5 K. What they set is remembered on their phone, so it is waiting in the roller
 next time — but the card always opens folded away, because the session is what
-the link is for and the calculator is a detour off it.
+the link is for and the calculator is a detour off it. While it is folded away a
+glow laps the button's rim to say there is something there; it stops once the
+panel is open. That is an oversized conic gradient spinning behind the button
+with the middle covered back over, so only the edge of it shows.
 
 The roller is a scroll-snapping column, which is the one picker that works the
 same with a thumb, a wheel and the arrow keys. Item height lives in three

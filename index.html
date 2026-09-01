@@ -174,8 +174,20 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
    phone rather than squeezing the session name. */
 .sess-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .sess-head .grow{flex:1 1 200px}
-.pace-toggle{flex:none;margin-inline-start:auto}
+.pace-toggle{flex:none;margin-inline-start:auto;position:relative;overflow:hidden}
 .pace-toggle[aria-expanded="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
+/* A comet lap of the rim: an oversized conic gradient spinning behind the
+   button, with the middle covered back over so only the edge of it shows.
+   It runs while the panel is shut and stops the moment it is open. */
+.pace-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
+  background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
+  filter:blur(1.5px);animation:paceSpin 2.4s linear infinite}
+.pace-toggle::after{content:"";position:absolute;inset:1.6px;border-radius:7px;background:var(--card)}
+.pace-toggle[aria-expanded="true"]::after{background:var(--brand-soft)}
+.pace-toggle[aria-expanded="true"] .pace-glow{display:none}
+.pace-face{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px}
+@keyframes paceSpin{to{rotate:360deg}}
+@media (prefers-reduced-motion:reduce){.pace-glow{animation:none;opacity:.6}}
 .pacebox{background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:13px}
 .pace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:430px){.pace-grid{grid-template-columns:repeat(2,1fr)}}

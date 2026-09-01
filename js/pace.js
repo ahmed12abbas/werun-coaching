@@ -467,8 +467,10 @@ function paceCalculator(units) {
         if (open) sync();
       },
     },
-    el("span", { html: ICON.timer }),
-    t("pcOpen")
+    // The glow chases round the rim while the panel is shut, to say there is
+    // something here worth opening. It stops once you have opened it.
+    el("span", { class: "pace-glow", "aria-hidden": "true" }),
+    el("span", { class: "pace-face" }, el("span", { html: ICON.timer }), t("pcOpen"))
   );
 
   return { button: button, panel: panel };
