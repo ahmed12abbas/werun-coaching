@@ -355,6 +355,7 @@ function renderViewer(app, w, rerender) {
     picker.textContent = "";
     picker.append(
       pickBtn("garmin", ICON.garmin, t("garmin"), t("garminSub")),
+      pickBtn("coros", ICON.coros, t("coros"), t("corosSub")),
       pickBtn("apple", ICON.apple, t("apple"), t("appleSub"))
     );
   }
@@ -364,6 +365,7 @@ function renderViewer(app, w, rerender) {
   function drawPanel() {
     panel.textContent = "";
     if (device === "garmin") drawGarmin();
+    else if (device === "coros") drawCoros();
     else drawApple();
     panel.append(textCard());
   }
@@ -413,6 +415,44 @@ function renderViewer(app, w, rerender) {
           el("li", {}, rich(t("usb3"))),
           el("li", {}, rich(t("usb4")))
         ),
+      ])
+    );
+  }
+
+  /* --- COROS ------------------------------------------------------------- */
+  function drawCoros() {
+    panel.append(el("div", { class: "callout" }, t("rCorosWarn")));
+
+    panel.append(
+      acc(
+        ICON.coros,
+        t("rCoros"),
+        t("rCorosSub"),
+        [
+          el(
+            "ol",
+            { class: "steps" },
+            el("li", {}, rich(t("co1"))),
+            el(
+              "li",
+              {},
+              t("co2") + " ",
+              el("span", { class: "mono" }, "\u201C" + w.name + "\u201D"),
+              " ",
+              el("button", { class: "btn icon", onclick: () => copyText(w.name, t("nameCopied")) }, t("copy"))
+            ),
+            el("li", {}, rich(t("co3"))),
+            el("li", {}, t("co4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
+          ),
+          el("p", { class: "small muted" }, rich(t("coPace"))),
+        ],
+        true
+      )
+    );
+
+    panel.append(
+      acc(ICON.link, t("rCorosTp"), t("rCorosTpSub"), [
+        el("p", { class: "small muted" }, rich(t("coTpLead"))),
       ])
     );
   }
