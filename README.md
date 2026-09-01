@@ -80,6 +80,47 @@ They live in `SESSIONS` at the top of `js/model.js`. Adding a day is a builder
 function and one line in that list; the picker, the i18n labels and the swap
 prompt all follow from it.
 
+### The pace calculator
+
+Next to the session title, athletes get **Pace calculator**: they spin a
+mm:ss roller to either their best mile time or their best 5 K time and it gives
+back 5 K, 10 K, tempo, half, marathon and recovery pace. Switching between the
+two keeps their effort — the chart already knows what a 9:30 mile is worth over
+5 K. What they set is remembered on their phone, so on the next session the card
+is already open with their own numbers in it.
+
+The roller is a scroll-snapping column, which is the one picker that works the
+same with a thumb, a wheel and the arrow keys. Item height lives in three
+places — `.roll li`, the `ul` padding either side of it, and `ROLL_ITEM` in
+`js/pace.js`. They are one number: change it in all three or the snap drifts.
+
+Underneath it something runs: a road that scrolls under a sprite, so the loop
+never seams. The sprite bobs, and surges forward and back along the middle of
+the track with the speed lines riding behind it. All three speeds come off the
+chart row — a 5:00 mile runs about three and a half times quicker than a 12:00
+one — and the sprite itself steps up an F1 car / cheetah / horse / rabbit /
+runner ladder (`PACE_SPRITES`).
+
+Emoji don't agree on which way they face: the car and the animals are drawn
+facing left, the runner faces right. The third value in each `PACE_SPRITES` row
+is `-1` for the ones that have to be mirrored to run forwards, and Arabic flips
+that again so everything still faces the way it is travelling. The whole thing
+holds still for anyone who has asked for reduced motion.
+
+The numbers are the club's printed chart, not a formula — it lives as
+`PACE_CHART` at the top of `js/pace.js`, one row per mile time, written in
+`mm:ss` exactly as the chart reads. Times between two rows are interpolated;
+times off either end are pulled back onto the nearest row and say so. Paces are
+stored per kilometre and shown per mile when the session is in miles.
+
+The roller only offers whole minutes the chart covers (5–12 for a mile, 17–39
+for a 5 K), so the only way off the end of it is the seconds — 12:30 lands on
+the 12:00 row, and the card says it did.
+
+To change the chart, edit those rows. Keep every column increasing down the
+page — the 5 K column is read backwards to turn a 5 K time into a mile time,
+which only works while it is in order.
+
 ### Step fields
 
 | Field | Notes |
@@ -159,6 +200,7 @@ redeploying twice and no code changes.
 | `js/i18n.js` | English and Arabic strings, the theme and language switches |
 | `js/brand.js` | Logo, icons, header toggles |
 | `js/model.js` | Session model, formatters, link encoding |
+| `js/pace.js` | The club's pace chart and the calculator beside the session title |
 | `js/connect.js` | The one-tap delivery client |
 | `js/views.js` | Builder and athlete viewer |
 | `js/boot.js` | Entry point — builder vs viewer |

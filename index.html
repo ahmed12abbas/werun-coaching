@@ -169,6 +169,81 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .chip{background:var(--bg);border:1px solid var(--line);border-radius:999px;
   padding:4px 12px 3px;font-size:13px;font-weight:600;display:inline-flex;align-items:baseline;gap:5px}
 
+/* ---- pace calculator ---- */
+/* The title keeps the width it needs; the toggle drops below it on a narrow
+   phone rather than squeezing the session name. */
+.sess-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.sess-head .grow{flex:1 1 200px}
+.pace-toggle{flex:none;margin-inline-start:auto}
+.pace-toggle[aria-expanded="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
+.pacebox{background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:13px}
+.pace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:430px){.pace-grid{grid-template-columns:repeat(2,1fr)}}
+.pace-cell{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:8px 10px;text-align:center}
+.pace-cell .k{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.pace-cell .v{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.1;letter-spacing:.01em}
+.pace-cell .u{font-size:11.5px;color:var(--muted);line-height:1}
+[dir="rtl"] .pace-cell .v{font-size:21px}
+
+/* ---- the mm:ss roller ----
+   Three rows tall, so the item height, the list padding and ROLL_ITEM in
+   js/pace.js are one number: change it in all three or the snap drifts. */
+.roller{position:relative;display:flex;align-items:center;justify-content:center;
+  direction:ltr; /* a clock reads left-to-right in both languages */
+  background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.roller::before{content:"";position:absolute;inset-inline:8px;top:44px;height:44px;
+  background:var(--brand-soft);border:1px solid var(--brand);border-radius:10px;pointer-events:none}
+.roller::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(var(--card),transparent 36%,transparent 64%,var(--card))}
+.roll{position:relative;z-index:1;height:132px;width:76px;overflow-y:auto;
+  scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  touch-action:pan-y;cursor:ns-resize}
+.roll:focus{outline:none}
+.roll:focus-visible{outline:2px solid var(--brand);outline-offset:-3px;border-radius:10px}
+.roll::-webkit-scrollbar{display:none}
+.roll ul{margin:0;padding:44px 0;list-style:none}
+.roll li{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;
+  font-family:"Teko",var(--display);font-size:31px;font-weight:600;color:var(--muted);opacity:.5;
+  font-variant-numeric:tabular-nums;user-select:none;
+  transition:opacity .15s ease,color .15s ease,transform .15s ease}
+.roll li.on{opacity:1;color:var(--fg);transform:scale(1.06)}
+.roll-sep{position:relative;z-index:1;font-family:"Teko",var(--display);font-size:28px;
+  font-weight:600;color:var(--muted);padding-bottom:5px}
+
+/* ---- and the thing that runs when you spin it ----
+   Nothing moves across the box: the road scrolls underneath a sprite that
+   stays put, so there is no seam when the loop comes round again. */
+.track{position:relative;height:54px;border-radius:12px;overflow:hidden;
+  background:var(--brand-soft);--road:.6s;--bob:.34s;--drift:1.4s;
+  box-shadow:inset 0 0 0 0 var(--brand);transition:box-shadow .2s ease}
+.track.boost{box-shadow:inset 0 0 0 2px var(--brand)}
+.track-road{position:absolute;inset-inline:0;bottom:11px;height:3px;
+  background:repeating-linear-gradient(90deg,var(--brand) 0 15px,transparent 15px 32px);
+  opacity:.4;animation:road var(--road) linear infinite}
+@keyframes road{to{background-position-x:-32px}}
+[dir="rtl"] .track-road{animation-name:roadRtl}
+@keyframes roadRtl{to{background-position-x:32px}}
+/* Sprite and speed lines ride on one layer that surges up and back the track.
+   The sweep is symmetrical, so it needs no right-to-left twin. */
+.track-runner{position:absolute;inset:0;animation:drift var(--drift) ease-in-out infinite alternate}
+@keyframes drift{from{transform:translateX(-12%)}to{transform:translateX(12%)}}
+/* --face is -1 for the glyphs drawn facing backwards; Arabic flips it again. */
+.track-sprite{position:absolute;bottom:9px;inset-inline-start:40%;font-size:27px;line-height:1;
+  transform:scaleX(var(--face,1))}
+[dir="rtl"] .track-sprite{transform:scaleX(calc(var(--face,1) * -1))}
+.track-sprite span{display:block;animation:bob var(--bob) ease-in-out infinite alternate}
+@keyframes bob{from{transform:translateY(1px) rotate(-4deg)}to{transform:translateY(-6px) rotate(4deg)}}
+.track-lines{position:absolute;bottom:18px;inset-inline-start:calc(40% - 32px);width:28px;height:16px}
+.track-lines i{position:absolute;inset-inline-start:0;height:2px;border-radius:2px;
+  background:var(--brand);animation:whoosh var(--road) linear infinite}
+@keyframes whoosh{from{transform:translateX(6px);opacity:.55}to{transform:translateX(-26px);opacity:0}}
+[dir="rtl"] .track-lines i{animation-name:whooshRtl}
+@keyframes whooshRtl{from{transform:translateX(-6px);opacity:.55}to{transform:translateX(26px);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .track-road,.track-runner,.track-sprite span{animation:none}
+  .track-lines{display:none}
+}
+
 /* ---- accordions ---- */
 details.acc{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
 details.acc+details.acc{margin-top:10px}
@@ -222,6 +297,7 @@ footer a{color:inherit}
 <script src="js/fit.js"></script>
 <script src="js/brand.js"></script>
 <script src="js/model.js"></script>
+<script src="js/pace.js"></script>
 <script src="js/connect.js"></script>
 <script src="js/views.js"></script>
 <script src="js/boot.js"></script>

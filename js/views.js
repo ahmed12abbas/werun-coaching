@@ -284,11 +284,26 @@ function renderViewer(app, w, rerender) {
   app.append(brandBar(null, rerender));
 
   /* --- session card ----------------------------------------------------- */
+  // The calculator lives beside the title: the paces it gives are the targets
+  // for the very steps listed underneath it.
+  const pace = paceCalculator(w.units);
+
   app.append(
     el(
       "div",
       { class: "card pad stack" },
-      el("div", {}, el("h1", {}, w.name), w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null),
+      el(
+        "div",
+        { class: "sess-head" },
+        el(
+          "div",
+          { class: "grow" },
+          el("h1", {}, w.name),
+          w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null
+        ),
+        pace.button
+      ),
+      pace.panel,
       el(
         "div",
         { class: "chips" },

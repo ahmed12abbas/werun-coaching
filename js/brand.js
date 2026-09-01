@@ -56,6 +56,7 @@ const ICON = {
   caret: icon('<path d="M9 18l6-6-6-6"/>', "caret"),
   plus: icon('<path d="M12 5v14M5 12h14"/>'),
   chat: icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.4A8 8 0 1 1 21 12Z"/>'),
+  timer: icon('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8"/><path d="M9.5 2.5h5"/><path d="M18.8 6.6l1.3-1.3"/>'),
   check: icon('<path d="M4 12.5 9.5 18 20 6.5"/>'),
   shield: icon('<path d="M12 3 5 6v6c0 4.2 2.9 7.9 7 9 4.1-1.1 7-4.8 7-9V6l-7-3Z"/><path d="M9 12.2l2 2 4-4.2"/>'),
   sun: icon('<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'),
