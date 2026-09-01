@@ -27,6 +27,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A stale ?v= stamp is invisible until a returning visitor runs old
+      # javascript against new html, so the stamps are checked here rather than
+      # trusted. The script is idempotent: if it changes anything, index.html
+      # went out without being stamped.
+      - name: Check the cache-busting stamps are current
+        run: |
+          node tools/version-assets.js
+          if ! git diff --quiet -- index.html; then
+            echo "::error::index.html script tags are stamped with stale hashes."\
+                 "Run 'node tools/version-assets.js' and commit the result."
+            git --no-pager diff -- index.html
+            exit 1
+          fi
+          echo "Stamps are current."
+
       - name: Check the Cloudflare token is set
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
