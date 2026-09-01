@@ -214,7 +214,7 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
    Nothing moves across the box: the road scrolls underneath a sprite that
    stays put, so there is no seam when the loop comes round again. */
 .track{position:relative;height:54px;border-radius:12px;overflow:hidden;
-  background:var(--brand-soft);--road:.6s;--bob:.34s;--drift:1.4s;
+  background:var(--brand-soft);--road:.6s;--bob:.34s;--drift:1.4s;--jostle:1.7s;
   box-shadow:inset 0 0 0 0 var(--brand);transition:box-shadow .2s ease}
 .track.boost{box-shadow:inset 0 0 0 2px var(--brand)}
 .track-road{position:absolute;inset-inline:0;bottom:11px;height:3px;
@@ -227,12 +227,18 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
    The sweep is symmetrical, so it needs no right-to-left twin. */
 .track-runner{position:absolute;inset:0;animation:drift var(--drift) ease-in-out infinite alternate}
 @keyframes drift{from{transform:translateX(-12%)}to{transform:translateX(12%)}}
-/* --face is -1 for the glyphs drawn facing backwards; Arabic flips it again. */
+/* --face is -1 for the glyphs drawn facing backwards; Arabic flips it again.
+   The last rung holds two runners: .runner jostles them past each other, the
+   span inside bobs, and the two are out of phase so nobody stays in front. */
 .track-sprite{position:absolute;bottom:9px;inset-inline-start:40%;font-size:27px;line-height:1;
-  transform:scaleX(var(--face,1))}
+  display:flex;align-items:flex-end;gap:2px;transform:scaleX(var(--face,1))}
 [dir="rtl"] .track-sprite{transform:scaleX(calc(var(--face,1) * -1))}
-.track-sprite span{display:block;animation:bob var(--bob) ease-in-out infinite alternate}
+.track-sprite .runner{display:block;animation:jostle var(--jostle) ease-in-out infinite alternate}
+.track-sprite .runner:nth-child(2){animation-delay:calc(var(--jostle) * -.63)}
+.track-sprite .runner>span{display:block;animation:bob var(--bob) ease-in-out infinite alternate}
+.track-sprite .runner:nth-child(2)>span{animation-delay:calc(var(--bob) * -.5)}
 @keyframes bob{from{transform:translateY(1px) rotate(-4deg)}to{transform:translateY(-6px) rotate(4deg)}}
+@keyframes jostle{from{transform:translateX(-6px)}to{transform:translateX(6px)}}
 .track-lines{position:absolute;bottom:18px;inset-inline-start:calc(40% - 32px);width:28px;height:16px}
 .track-lines i{position:absolute;inset-inline-start:0;height:2px;border-radius:2px;
   background:var(--brand);animation:whoosh var(--road) linear infinite}
@@ -240,7 +246,7 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 [dir="rtl"] .track-lines i{animation-name:whooshRtl}
 @keyframes whooshRtl{from{transform:translateX(-6px);opacity:.55}to{transform:translateX(26px);opacity:0}}
 @media (prefers-reduced-motion:reduce){
-  .track-road,.track-runner,.track-sprite span{animation:none}
+  .track-road,.track-runner,.track-sprite .runner,.track-sprite .runner>span{animation:none}
   .track-lines{display:none}
 }
 

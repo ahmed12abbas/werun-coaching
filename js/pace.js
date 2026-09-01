@@ -13,7 +13,7 @@
 
 /* mile | 5K | 10K | Tempo | HM | Marathon | Recovery  — paces are min/km */
 // prettier-ignore
-const PACE_CHART = [
+const PACE_PRINTED = [
   ["5:00",  "3:25", "3:34", "3:46", "3:43", "3:53", "4:20"],
   ["5:30",  "3:43", "3:53", "4:05", "4:00", "4:14", "4:42"],
   ["6:00",  "4:02", "4:11", "4:25", "4:30", "4:36", "5:04"],
@@ -33,6 +33,46 @@ const PACE_CHART = [
 
 // Column order is the chart's own, left to right.
 const PACE_KEYS = ["pc5k", "pc10k", "pcTempo", "pcHm", "pcMar", "pcRec"];
+
+// Where the coach's printed numbers actually stop. Rows outside this are ours,
+// not theirs, and the card says so.
+const PACE_PRINTED_RANGE = [PACE_PRINTED[0].mile, PACE_PRINTED[PACE_PRINTED.length - 1].mile];
+
+/**
+ * The printed chart runs 5:00 to 12:00 for the mile — a 17:05 to 39:20 5 K —
+ * which leaves out both the front of the club and everyone still working up to
+ * their first hour. This carries each column on past either end at the average
+ * gradient it holds across the printed rows, anchored on the end row so the
+ * extension joins it without a step. The printed rows themselves are never
+ * touched.
+ */
+function extendChart(printed, fromMile, toMile, step) {
+  const first = printed[0];
+  const last = printed[printed.length - 1];
+  const slope = first.paces.map((v, i) => (last.paces[i] - v) / (last.mile - first.mile));
+
+  // Recovery climbs more gently across the printed rows than marathon does, so
+  // carried far enough the two swap over and the chart starts claiming an easy
+  // run is harder than race pace. Columns are printed fastest to slowest, so
+  // holding each slope to at least the one before it keeps that order however
+  // far the extension runs. Only recovery is actually raised by this.
+  for (let i = 1; i < slope.length; i++) slope[i] = Math.max(slope[i], slope[i - 1]);
+
+  const carry = (row, mile) => ({
+    mile: mile,
+    paces: row.paces.map((v, i) => v + slope[i] * (mile - row.mile)),
+  });
+
+  const out = [];
+  for (let m = fromMile; m < first.mile; m += step) out.push(carry(first, m));
+  out.push.apply(out, printed);
+  for (let m = last.mile + step; m <= toMile; m += step) out.push(carry(last, m));
+  return out;
+}
+
+// 4:00 to 20:00 for the mile covers a 16:00 5 K at one end and an hour at the
+// other, with room to spare either side of what the rollers offer.
+const PACE_CHART = extendChart(PACE_PRINTED, 4 * 60, 20 * 60, 30);
 
 const PACE_RANGE = {
   mile: [PACE_CHART[0].mile, PACE_CHART[PACE_CHART.length - 1].mile],
@@ -63,6 +103,9 @@ function pacesForMile(mileSeconds) {
   return {
     mile: mile,
     clamped: Math.abs(mile - mileSeconds) > 0.5,
+    // Past where the coach's chart is printed, so these are carried on from it
+    // rather than read off it.
+    extended: mile < PACE_PRINTED_RANGE[0] || mile > PACE_PRINTED_RANGE[1],
     paces: a.paces.map((v, j) => v + (b.paces[j] - v) * f),
   };
 }
@@ -90,18 +133,24 @@ const paceInUnits = (secPerKm, units) => (units === "mi" ? secPerKm * (METERS.mi
    speed of the track really carries the meaning.
    ------------------------------------------------------------------------- */
 
-// [slowest mile on this rung, the glyph, which way it is drawn]
-//
-// Emoji don't agree on which way they face: the car and the animals are all
-// drawn facing left, the runner faces right. -1 marks the ones that have to be
-// mirrored to be running forwards, and the track flips that again for Arabic.
+// Emoji don't agree on which way they face. Every vendor draws the car and the
+// animals facing left, but the runners are split: Apple draws them facing left
+// like everything else, Segoe and Noto draw them facing right. Nothing in the
+// page can measure a glyph's orientation, so this is the one place the platform
+// gets asked.
+const APPLE_EMOJI = /iPhone|iPad|iPod|Macintosh|Mac OS X/.test(navigator.userAgent || "");
+
+// [slowest mile on this rung, the glyphs, which way they are drawn]
+// -1 marks the ones that have to be mirrored to be running forwards; the track
+// flips that again for Arabic.
 // prettier-ignore
 const PACE_SPRITES = [
-  [360, "\u{1F3CE}️", -1], // 6:00 mile or quicker — F1 car
-  [435, "\u{1F406}", -1],       // 7:15 — cheetah
-  [510, "\u{1F40E}", -1],       // 8:30 — horse
-  [600, "\u{1F407}", -1],       // 10:00 — rabbit
-  [Infinity, "\u{1F3C3}", 1],   // runner
+  [360, ["\u{1F3CE}️"], -1], // 6:00 mile or quicker — F1 car
+  [435, ["\u{1F406}"], -1],            // 7:15 — cheetah
+  [510, ["\u{1F40E}"], -1],            // 8:30 — horse
+  [600, ["\u{1F407}"], -1],            // 10:00 — rabbit
+  // The last rung is a pair, racing each other down the track.
+  [Infinity, ["\u{1F3C3}‍♂️", "\u{1F3C3}‍♀️"], APPLE_EMOJI ? -1 : 1],
 ];
 
 function spriteFor(mileSeconds) {
@@ -109,9 +158,17 @@ function spriteFor(mileSeconds) {
   return PACE_SPRITES[PACE_SPRITES.length - 1];
 }
 
-/** 0 at the fast end of the chart, 1 at the slow end. */
+/**
+ * 0 at the fast end of the printed chart, 1 at the slow end — the extended rows
+ * pin to whichever end they ran off, so the track keeps the spread it was tuned
+ * to instead of stretching it over an hour-long 5 K.
+ */
 const paceEffort = (mileSeconds) =>
-  clampNum((mileSeconds - PACE_RANGE.mile[0]) / (PACE_RANGE.mile[1] - PACE_RANGE.mile[0]), 0, 1);
+  clampNum(
+    (mileSeconds - PACE_PRINTED_RANGE[0]) / (PACE_PRINTED_RANGE[1] - PACE_PRINTED_RANGE[0]),
+    0,
+    1
+  );
 
 /* ---------- the roller ----------------------------------------------------
    A scroll-snapping column, which is the one picker that works the same with
@@ -143,7 +200,6 @@ function rollerColumn(values, label, onPick) {
   );
 
   let index = 0;
-  let quiet = false; // a scroll we caused ourselves must not echo back out
   let settle = null;
 
   function publish() {
@@ -156,17 +212,16 @@ function rollerColumn(values, label, onPick) {
     const next = clampNum(i, 0, values.length - 1);
     const moved = next !== index;
     index = next;
-    quiet = true;
     col.scrollTop = index * ROLL_ITEM;
-    requestAnimationFrame(() => {
-      quiet = false;
-    });
     publish();
     return moved;
   }
 
+  // Scrolls we caused ourselves come back through here too. They settle on the
+  // value that is already set, and the caller drops those — which is a lot
+  // safer than a flag that has to be cleared, since anything that stopped it
+  // being cleared would wedge the column for good.
   col.addEventListener("scroll", () => {
-    if (quiet) return;
     const i = clampNum(Math.round(col.scrollTop / ROLL_ITEM), 0, values.length - 1);
     if (i !== index) {
       index = i;
@@ -197,9 +252,10 @@ function rollerColumn(values, label, onPick) {
 /* ---------- the card ------------------------------------------------------ */
 
 const PACE_KEY = "werun.pace";
-// Whole minutes on the roller. Seconds past the chart's last row are allowed
-// through and land on the nearest row, which the card says out loud.
-const PACE_ROLL = { mile: [5, 12], k5: [17, 39] };
+// Whole minutes on the roller. The two ranges are the same span of running seen
+// from either end — a 16:00 5 K is about a 4:40 mile, an hour is about 18:30 —
+// so switching between them lands somewhere the other roller can actually hold.
+const PACE_ROLL = { mile: [4, 19], k5: [16, 60] };
 const PACE_DEFAULT = { mile: 8 * 60, k5: 25 * 60 };
 
 const clampToMode = (seconds, mode) =>
@@ -243,8 +299,8 @@ function paceCalculator(units) {
   const results = el("div", {});
   const hint = el("p", { class: "small muted" });
 
-  const sprite = el("span", {});
-  const spriteBox = el("div", { class: "track-sprite" }, sprite);
+  const spriteBox = el("div", { class: "track-sprite" });
+  let spriteKey = ""; // rebuilding the nodes would restart the bob mid-stride
   const track = el(
     "div",
     { class: "track", "aria-hidden": "true" },
@@ -301,7 +357,9 @@ function paceCalculator(units) {
 
   function buildRoller() {
     const picked = () => {
-      value = clampToMode(cols.min.value() * 60 + cols.sec.value(), mode);
+      const next = clampToMode(cols.min.value() * 60 + cols.sec.value(), mode);
+      if (next === value) return; // a scroll that settled where it already was
+      value = next;
       savePaceEntry(mode, value);
       draw(true);
     };
@@ -344,7 +402,7 @@ function paceCalculator(units) {
     // The other half of the pair, so the athlete can sanity-check the answer
     // against a race they have actually run.
     hint.textContent =
-      ((back ? back.clamped : row.clamped) ? t("pcOutside") + " " : "") +
+      (row.extended ? t("pcExtended") + " " : "") +
       (mode === "mile"
         ? t("pcThatIs5k", { time: fmtClock(row.paces[0] * 5) })
         : t("pcThatIsMile", { time: fmtClock(row.mile) }));
@@ -354,8 +412,20 @@ function paceCalculator(units) {
     track.style.setProperty("--road", (0.26 + effort * 0.66).toFixed(2) + "s");
     track.style.setProperty("--bob", (0.2 + effort * 0.3).toFixed(2) + "s");
     track.style.setProperty("--drift", (0.9 + effort * 1.3).toFixed(2) + "s");
+    // Off the drift's own period, so the two never fall into step.
+    track.style.setProperty("--jostle", (1.35 + effort * 0.9).toFixed(2) + "s");
+
     const look = spriteFor(row.mile);
-    sprite.textContent = look[1];
+    const key = look[1].join("");
+    if (key !== spriteKey) {
+      spriteKey = key;
+      spriteBox.textContent = "";
+      // .runner carries the jostle, the span inside it carries the bob — two
+      // transforms that would otherwise fight over the same element.
+      for (const glyph of look[1]) {
+        spriteBox.append(el("span", { class: "runner" }, el("span", {}, glyph)));
+      }
+    }
     spriteBox.style.setProperty("--face", String(look[2]));
     if (boost) {
       track.classList.add("boost");
@@ -380,9 +450,10 @@ function paceCalculator(units) {
 
   let open = !!saved;
   if (!open) panel.classList.add("hidden");
-  // The panel is in the document by the next frame, and only then will the
-  // columns accept a scroll position.
-  else requestAnimationFrame(sync);
+  // The panel is in the document by the time this runs, and only then will the
+  // columns accept a scroll position. A timer rather than a frame, because a
+  // backgrounded tab still runs timers and can sit on frames indefinitely.
+  else setTimeout(sync, 0);
 
   const button = el(
     "button",

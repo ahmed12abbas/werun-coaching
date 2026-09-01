@@ -101,21 +101,40 @@ chart row — a 5:00 mile runs about three and a half times quicker than a 12:00
 one — and the sprite itself steps up an F1 car / cheetah / horse / rabbit /
 runner ladder (`PACE_SPRITES`).
 
-Emoji don't agree on which way they face: the car and the animals are drawn
-facing left, the runner faces right. The third value in each `PACE_SPRITES` row
-is `-1` for the ones that have to be mirrored to run forwards, and Arabic flips
-that again so everything still faces the way it is travelling. The whole thing
-holds still for anyone who has asked for reduced motion.
+The slowest rung is two runners rather than one, racing each other: they jostle
+past each other and bob out of phase, so neither stays in front.
+
+Emoji don't agree on which way they face. Every vendor draws the car and the
+animals facing left, but the runners are split — Apple draws them facing left
+like everything else, Segoe and Noto draw them facing right. Nothing in the page
+can measure a glyph's orientation, so `APPLE_EMOJI` is the one place the
+platform gets asked, and it only decides that one rung. The third value in each
+`PACE_SPRITES` row is `-1` for glyphs that have to be mirrored to run forwards,
+and Arabic flips that again. The whole thing holds still for anyone who has
+asked for reduced motion.
 
 The numbers are the club's printed chart, not a formula — it lives as
-`PACE_CHART` at the top of `js/pace.js`, one row per mile time, written in
-`mm:ss` exactly as the chart reads. Times between two rows are interpolated;
-times off either end are pulled back onto the nearest row and say so. Paces are
-stored per kilometre and shown per mile when the session is in miles.
+`PACE_PRINTED` at the top of `js/pace.js`, one row per mile time, written in
+`mm:ss` exactly as the chart reads. Times between two rows are interpolated.
+Paces are stored per kilometre and shown per mile when the session is in miles.
 
-The roller only offers whole minutes the chart covers (5–12 for a mile, 17–39
-for a 5 K), so the only way off the end of it is the seconds — 12:30 lands on
-the 12:00 row, and the card says it did.
+The printed chart runs 5:00 to 12:00 for the mile — a 17:05 to 39:20 5 K — which
+leaves out both the front of the club and everyone still working up to their
+first hour. `extendChart()` carries each column on past either end at the
+average gradient it holds across the printed rows, anchored on the end row so
+there is no step at the seam, giving a chart from a 4:00 mile to a 20:00 one.
+**The printed rows themselves are never touched**, and anything outside them
+says so on the card rather than passing itself off as the coach's number.
+
+One wrinkle worth knowing if you edit the chart: recovery climbs more gently
+across the printed rows than marathon does, so carried far enough the two swap
+over and the chart starts claiming an easy run is harder than race pace. The
+extension holds each column's slope to at least the one before it, which keeps
+the fastest-to-slowest order however far it runs.
+
+The rollers offer 4–19 minutes for a mile and 16–60 for a 5 K. Those are the
+same span of running seen from either end, so switching between them always
+lands somewhere the other roller can hold.
 
 To change the chart, edit those rows. Keep every column increasing down the
 page — the 5 K column is read backwards to turn a 5 K time into a mile time,
