@@ -20,6 +20,11 @@ name: Set up the Cloudflare bindings
 
 on:
   workflow_dispatch:
+    inputs:
+      namespace_id:
+        description: "KV namespace id — skips the KV lookup, for a Pages-only token"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -35,6 +40,7 @@ jobs:
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       PROJECT: weruncoaching
       KV_TITLE: werun-stats
+      NS_INPUT: ${{ inputs.namespace_id }}
       SITE: https://weruncoaching.pages.dev
 
     steps:
@@ -87,7 +93,9 @@ jobs:
             echo "::error::The token cannot read the '$PROJECT' Pages project (HTTP $pages)."\
                  "A 404 means CLOUDFLARE_ACCOUNT_ID points at the wrong account."
           fi
-          if [ "$kv" != "200" ]; then
+          if [ -n "${NS_INPUT}" ]; then
+            echo "A namespace id was given on the run, so the KV API is not needed."
+          elif [ "$kv" != "200" ]; then
             ok=no
             echo "::error::The token cannot reach Workers KV (HTTP $kv). Cloudflare answers"\
                  "401 code 10000 when a token has no grant for a resource class at all, and"\
@@ -103,6 +111,12 @@ jobs:
         id: kv
         run: |
           set -euo pipefail
+          if [ -n "${NS_INPUT}" ]; then
+            echo "Using the namespace id given on the run: ${NS_INPUT}"
+            echo "id=${NS_INPUT}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/storage/kv/namespaces"
 
           code=$(curl -sS -o /tmp/list.json -w '%{http_code}' \
