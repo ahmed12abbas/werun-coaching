@@ -166,6 +166,32 @@ which only works while it is in order.
 
 ---
 
+## What the chips add up
+
+The session card shows `~20 min · ~8.1 km · 2.4 km hard · 27 steps`.
+
+**Hard** is only the running the coach measured out -- `work` steps given a
+distance. It is the number a coach quotes: "12 x 200".
+
+**Total** adds the ground covered easily on top:
+
+| Step | Counted as |
+|---|---|
+| Warm up / cool down with a time or an estimate | that time at **six minutes per kilometre** |
+| A recovery inside a repeat | the same distance as the rep it follows |
+| Any warm up, cool down or recovery given a distance | that distance |
+| Rest, Other | nothing -- standing around is not distance |
+
+So a ten-minute warm up is 1.67 km, and jogging back down after each of
+twelve 200 m hills is another 2.4 km. Both carry a `~` and are rounded to one
+decimal: six minutes per kilometre is a rule of thumb, not a measurement, and
+`8.13 km` would claim a precision it has not got.
+
+The **time** deliberately does not follow. It still counts only what a coach
+actually typed -- the estimates on lap-button steps and the lengths of timed
+ones -- because nothing in a session says how fast the reps are run, and a
+guessed total would read as authoritative.
+
 ## Counting shares
 
 `/admin` on the live site shows how many times athletes tapped **Share this

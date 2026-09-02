@@ -64,6 +64,17 @@ function fmtDistance(m, units) {
   return m < 1000 ? Math.round(m) + t("uM") : +(m / 1000).toFixed(2) + t("uKm");
 }
 
+/**
+ * A distance that came out of an estimate rather than a measurement. One
+ * decimal only: 8.13 km would claim a precision a six-minute-kilometre rule
+ * of thumb has not got.
+ */
+function fmtDistanceRough(meters, units) {
+  const per = METERS[units];
+  if (meters < per) return fmtDistance(meters, units); // still in metres
+  return +(meters / per).toFixed(1) + t(units === "mi" ? "uMi" : "uKm");
+}
+
 const fmtPace = (sec, units) => fmtClock(sec) + " /" + unitLabel(units);
 
 /** Human phrase for a step's length, e.g. "400 m", "90 sec", "lap button". */
@@ -186,23 +197,64 @@ function defaultWorkout() {
   return w;
 }
 
+/* Easy running converts at a flat six minutes per kilometre. It is a coach's
+   rule of thumb rather than a measurement, so every distance derived from it
+   is shown with a ~. */
+const EASY_SEC_PER_KM = 360;
+
+const easyMetersFor = (seconds) => ((seconds || 0) / EASY_SEC_PER_KM) * 1000;
+
+/**
+ * The distance a recovery step inside a repeat should be credited with: an
+ * athlete walking or jogging back down covers whatever the running step just
+ * covered. The nearest running step above it wins, so a block with two
+ * different reps credits each recovery with the one it actually follows.
+ */
+function runDistanceFor(steps, i) {
+  const isRun = (s) => s.type === "work" && s.durType === "distance";
+  for (let k = i - 1; k >= 0; k--) if (isRun(steps[k])) return steps[k].meters;
+  // A recovery written before the rep it belongs to still belongs to it.
+  for (const s of steps) if (isRun(s)) return s.meters;
+  return 0;
+}
+
 /**
  * Rough session totals.
  *   seconds     — total session time. `exact` is false when a step's length
  *                 had to be guessed from a pace, or is open-ended.
  *   workMeters  — distance of the hard running only, which is the number a
  *                 coach actually quotes ("6 x 400").
+ *   easyMeters  — everything else covered on foot: the warm up and cool down
+ *                 at EASY_SEC_PER_KM, and each recovery credited with the rep
+ *                 it follows. Rest and Other cover no ground by definition.
+ *   totalMeters — the two together, which is the distance an athlete would
+ *                 say they ran.
  *   steps       — steps as the athlete experiences them, repeats expanded.
  */
 function estimate(w) {
   const unit = METERS[w.units];
   let seconds = 0;
   let workMeters = 0;
+  let easyMeters = 0;
   let steps = 0;
   let exact = true;
-  const add = (s, times) => {
+
+  /** Ground covered by a step that is not the hard running. */
+  const easyOf = (s, inherited) => {
+    // Standing around is not distance, and Other is too vague to guess at.
+    if (s.type === "work" || s.type === "rest" || s.type === "other") return 0;
+    if (s.durType === "distance") return s.meters;
+    if (s.durType === "time") return easyMetersFor(s.seconds);
+    // Lap button: a recovery matches the rep it follows, and anything else
+    // is only as good as the estimate the coach typed.
+    if (s.type === "recovery" && inherited) return inherited;
+    return easyMetersFor(s.estSeconds);
+  };
+
+  const add = (s, times, inherited) => {
     steps += times;
     if (s.type === "work" && s.durType === "distance") workMeters += s.meters * times;
+    else easyMeters += easyOf(s, inherited) * times;
 
     if (s.durType === "time") {
       seconds += s.seconds * times;
@@ -218,13 +270,24 @@ function estimate(w) {
       exact = false;
     }
   };
-  for (const b of w.blocks) {
-    if (b.kind === "repeat") for (const s of b.steps) add(s, b.reps);
-    else add(b, 1);
-  }
-  return { seconds: seconds, workMeters: workMeters, steps: steps, exact: exact };
-}
 
+  for (const b of w.blocks) {
+    if (b.kind === "repeat") {
+      b.steps.forEach((s, i) => add(s, b.reps, runDistanceFor(b.steps, i)));
+    } else {
+      add(b, 1, 0);
+    }
+  }
+
+  return {
+    seconds: seconds,
+    workMeters: workMeters,
+    easyMeters: easyMeters,
+    totalMeters: workMeters + easyMeters,
+    steps: steps,
+    exact: exact,
+  };
+}
 /** Steps as the athlete experiences them, repeats expanded. */
 function flatSteps(w) {
   const out = [];
@@ -692,6 +755,8 @@ function asText(w) {
   lines.push("");
   lines.push(
     t("txtAbout") + fmtDuration(est.seconds) +
+      // "of it hard" needs the total in front of it to refer to.
+      (est.easyMeters ? ", ~" + fmtDistanceRough(est.totalMeters, w.units) : "") +
       (est.workMeters ? ", " + fmtDistance(est.workMeters, w.units) + t("txtHard") : "")
   );
   if (w.note) {

@@ -316,6 +316,11 @@ function renderViewer(app, w, rerender) {
         "div",
         { class: "chips" },
         el("span", { class: "chip" }, el("b", { class: "num" }, approx + fmtDuration(est.seconds))),
+        // The whole distance first, then how much of it is the hard work.
+        // Always a ~: the easy half is a six-minute-kilometre rule of thumb.
+        est.easyMeters
+          ? el("span", { class: "chip" }, el("b", { class: "num" }, "~" + fmtDistanceRough(est.totalMeters, w.units)))
+          : null,
         est.workMeters
           ? el("span", { class: "chip" }, el("b", { class: "num" }, fmtDistance(est.workMeters, w.units)), t("hard"))
           : null,
@@ -586,6 +591,7 @@ function renderBuilder(app, w, rerender) {
     const approx = est.exact ? "" : "~";
     outputs.summary.textContent =
       approx + fmtDuration(est.seconds) +
+      (est.easyMeters ? " · ~" + fmtDistanceRough(est.totalMeters, w.units) : "") +
       (est.workMeters ? " · " + fmtDistance(est.workMeters, w.units) + " " + t("hard") : "") +
       " · " + est.steps + " " + t("stepsCount");
     outputs.len.textContent = url.length + " " + t("chars");
