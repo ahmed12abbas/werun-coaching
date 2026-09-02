@@ -223,6 +223,65 @@ npx wrangler kv namespace create werun-stats
 To change the password later, edit that one variable — nothing needs
 redeploying twice and no code changes.
 
+---
+
+## Coach Tips
+
+Beside the session title, the club logo springs in with a light bulb popping
+into its corner, and a comet laps the rim the opposite way round to the pace
+button's. Tapping it opens a speech cloud holding an article a coach has written — form, fuelling, what to think about on tonight's reps.
+
+**The link to give the coach who writes them: `/tips` on the live site**, plus
+the password. It needs no account and no Cloudflare login — she opens the link,
+types the password, writes, and saves.
+
+She can keep as many articles as she likes; exactly one is marked **live**, and
+that is the only one athletes ever see. The others stay drafts on the
+password-gated side — `GET /api/tips` answers with the live article alone, so
+an unfinished piece cannot be read off the API before she puts it up.
+
+Each article has an English and an Arabic half, and the cloud shows whichever
+matches the athlete's language toggle. If one half is left empty, the other is
+shown in its place rather than an empty bubble.
+
+### Writing an article
+
+There is no markup to learn. The editor previews the result live, beside the
+box, in both languages:
+
+| What she types | What athletes get |
+|---|---|
+| a blank line | a new paragraph |
+| a line starting with `-` | a bullet |
+| `**five seconds slower**` | **five seconds slower** |
+
+A block counts as a list only when *every* line in it is a bullet, so a dash
+used mid-sentence stays part of the sentence. Nothing else is interpreted:
+the article is built out of text nodes, so it can emphasise a phrase but can
+never put markup into the page.
+
+**Until something is marked live the button does not appear at all.** Athletes
+never meet a logo that opens an empty cloud — which is also what happens on the
+GitHub Pages mirror, where no Worker answers `/api/tips`.
+
+### Switching it on
+
+Nothing extra to create: the articles live in the **same `STATS` KV namespace**
+as the share counts, under their own key, so if `/admin` works then `/tips`
+works.
+
+The password is **`TIPS_PASSWORD`** if it is set, otherwise `ADMIN_PASSWORD`.
+Set the separate one — same Settings page, same *Encrypt* button — when the
+coach who writes the articles should not also hold the key to the share
+dashboard. Either way the check happens in the Worker, never in JavaScript the
+site serves, and the editor holds the password in memory only, so a reload asks
+again.
+
+| Route | |
+|---|---|
+| `GET /api/tips` | public; the live article, both languages, and nothing else |
+| `POST /api/tips-admin` | the editor's only data source; needs the password |
+
 ## Files
 
 | File | What it does |
@@ -237,8 +296,10 @@ redeploying twice and no code changes.
 | `js/views.js` | Builder and athlete viewer |
 | `js/boot.js` | Entry point — builder vs viewer |
 | `js/fit.js` | Binary `.FIT` workout encoder |
+| `js/tips.js` | Coach Tips: the logo pop and the cloud it opens |
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
-| `_worker.js` | Server side of the share counter; reserved name, never served |
+| `tips.html` | The article editor at `/tips` — standalone, its own CSS |
+| `_worker.js` | Server side of the share counter and Coach Tips; reserved name, never served |
 | `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 

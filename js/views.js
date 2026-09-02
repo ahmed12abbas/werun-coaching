@@ -288,6 +288,11 @@ function renderViewer(app, w, rerender) {
   // for the very steps listed underneath it.
   const pace = paceCalculator(w.units);
 
+  // Coach Tips sits between the session name and the calculator: her
+  // words about the running, next to the numbers for it. Both the button and
+  // the cloud stay out of the page entirely unless she has an article live.
+  const corner = tipsCorner();
+
   app.append(
     el(
       "div",
@@ -301,8 +306,11 @@ function renderViewer(app, w, rerender) {
           el("h1", {}, w.name),
           w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null
         ),
+        corner.button,
         pace.button
       ),
+      corner.cloud,
+      corner.scrim,
       pace.panel,
       el(
         "div",

@@ -21,6 +21,14 @@
 /** The single KV key everything lives under. See readDoc() for the shape. */
 const DOC_KEY = "share-hits";
 
+/** The coach corner articles, in the same namespace. See readTips() for the shape. */
+const TIPS_KEY = "tips-doc";
+
+/* Bounds on what the editor may store. Generous for a coach writing a few
+   paragraphs, small enough that one KV value cannot grow into the value size
+   limit or make the public read slow. */
+const TIP_MAX = { articles: 60, title: 140, body: 9000 };
+
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 // The club names sessions "Monday | WeRUN". Coaches edit those names, so match
@@ -178,6 +186,104 @@ async function stats(request, env) {
   return json({ weeks: weeks, days: DAYS });
 }
 
+/* ---------- the coach's corner -------------------------------------------
+   One KV value holds every article the coach has written plus which one is
+   currently live:
+
+     { v: 1, liveId: "k3f9…", articles: [ { id, updated, en:{…}, ar:{…} } ] }
+
+   Keeping the drafts server-side rather than only the live one is the whole
+   point of the editor: a coach can rotate an old article back in front of
+   athletes without typing it again.
+   ------------------------------------------------------------------------- */
+
+async function readTips(kv) {
+  const doc = await kv.get(TIPS_KEY, "json");
+  if (!doc || typeof doc !== "object" || !Array.isArray(doc.articles)) {
+    return { v: 1, liveId: null, articles: [] };
+  }
+  return { v: 1, liveId: doc.liveId || null, articles: doc.articles };
+}
+
+/** Trim one language's half of an article to something safe to store. */
+function cleanSide(side) {
+  const s = side && typeof side === "object" ? side : {};
+  return {
+    title: String(s.title || "").trim().slice(0, TIP_MAX.title),
+    // Tabs and stray \r from a paste out of Word would survive into the
+    // paragraph splitter and show up as blank lines on the page.
+    body: String(s.body || "").replace(/\r\n?/g, "\n").replace(/\t/g, " ").trim().slice(0, TIP_MAX.body),
+  };
+}
+
+function cleanArticle(raw) {
+  const a = raw && typeof raw === "object" ? raw : {};
+  const id = /^[A-Za-z0-9_-]{1,40}$/.test(String(a.id || "")) ? String(a.id) : null;
+  return {
+    id: id || "a" + Math.random().toString(36).slice(2, 10),
+    updated: new Date().toISOString(),
+    en: cleanSide(a.en),
+    ar: cleanSide(a.ar),
+  };
+}
+
+/* ---------- GET /api/tips ------------------------------------------------ */
+
+/*
+ * Public, and deliberately narrow: it answers with the one live article and
+ * nothing else. The drafts the coach is still working on never leave the
+ * password-gated side, so an unfinished article cannot be read off the API
+ * before she puts it live.
+ */
+async function tips(request, env) {
+  if (!env.STATS) return json({ article: null });
+
+  const doc = await readTips(env.STATS);
+  const live = doc.articles.find((a) => a && a.id === doc.liveId) || null;
+  if (!live) return json({ article: null });
+
+  return json({ article: { id: live.id, updated: live.updated, en: live.en, ar: live.ar } });
+}
+
+/* ---------- POST /api/tips-admin ----------------------------------------- */
+
+/*
+ * The editor behind /tips. Same shape as /api/stats — password in the body,
+ * checked here against a secret the site never ships — but its own secret, so
+ * the coach who writes the articles need not be handed the key to the share
+ * dashboard. TIPS_PASSWORD if it is set, otherwise ADMIN_PASSWORD, so the page
+ * works the moment it deploys and can be split off later without a migration.
+ */
+async function tipsAdmin(request, env) {
+  const secret = env.TIPS_PASSWORD || env.ADMIN_PASSWORD;
+  if (!secret) return json({ error: "not-configured" }, 503);
+
+  const body = await readBody(request);
+  if (!(await safeEqual(String((body && body.password) || ""), secret))) {
+    return json({ error: "bad-password" }, 401);
+  }
+
+  if (!env.STATS) return json({ liveId: null, articles: [], warning: "no-store" });
+
+  // No `save` key means "just let me in and show me what is there".
+  if (!body.save || typeof body.save !== "object") {
+    const doc = await readTips(env.STATS);
+    return json({ liveId: doc.liveId, articles: doc.articles });
+  }
+
+  const incoming = Array.isArray(body.save.articles) ? body.save.articles : [];
+  if (incoming.length > TIP_MAX.articles) return json({ error: "too-many" }, 400);
+
+  // The editor sends the whole collection every save, so what comes back from
+  // a reload is exactly what the coach was last looking at — no merge to get
+  // wrong, and a deleted article stays deleted.
+  const articles = incoming.map(cleanArticle).filter((a) => a.en.title || a.ar.title);
+  const liveId = articles.some((a) => a.id === body.save.liveId) ? body.save.liveId : null;
+
+  await env.STATS.put(TIPS_KEY, JSON.stringify({ v: 1, liveId: liveId, articles: articles }));
+  return json({ liveId: liveId, articles: articles, saved: true });
+}
+
 /* ---------- TEMPORARY: GET /api/_diag -------------------------------------
    Reports which bindings the running Worker can actually see, so a missing
    one can be told apart from a misnamed one. Names only — never a value.
@@ -195,8 +301,8 @@ function diag(request, env) {
 
 /* ---------- routing ------------------------------------------------------- */
 
-const ROUTES = { "/api/share": share, "/api/stats": stats };
-const GETTABLE = { "/api/_diag": diag }; // temporary, see above
+const ROUTES = { "/api/share": share, "/api/stats": stats, "/api/tips-admin": tipsAdmin };
+const GETTABLE = { "/api/_diag": diag, "/api/tips": tips };
 
 export default {
   async fetch(request, env) {

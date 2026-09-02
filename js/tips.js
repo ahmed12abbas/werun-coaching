@@ -1,0 +1,219 @@
+"use strict";
+
+/* =========================================================================
+   WE RUN Coaching — Coach Tips.
+
+   The club logo pops in beside the session title; tapping it opens a speech
+   cloud holding whatever article the coach has put live at /tips.
+
+   The article is fetched once per page load from /api/tips and the button
+   only appears once one has come back, so on the static mirror — where no
+   Worker answers — athletes never meet a button that cannot open.
+   ========================================================================= */
+
+const TIPS_ENDPOINT = "/api/tips";
+
+/* One fetch per page load, shared by every render. The language toggle
+   rebuilds the whole viewer, and re-asking the network each time an athlete
+   flipped to Arabic and back would be a request for nothing. */
+let TIPS_PROMISE = null;
+
+function loadTip() {
+  if (TIPS_PROMISE) return TIPS_PROMISE;
+  TIPS_PROMISE = fetch(TIPS_ENDPOINT, { headers: { accept: "application/json" } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => (d && d.article) || null)
+    .catch(() => null); // offline, blocked, or no Worker: the session still works
+  return TIPS_PROMISE;
+}
+
+/**
+ * The coach writes plainly in a textarea: a blank line starts a paragraph, a
+ * line opening with "-" is a bullet. Everything is built as text nodes through
+ * rich(), which only ever produces <b>, so an article can emphasise a phrase
+ * but cannot put markup into the page.
+ */
+function tipParagraphs(text) {
+  const out = [];
+  for (const block of String(text || "").split(/\n\s*\n/)) {
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) continue;
+
+    // A block is a list only when every line in it is a bullet, so a dash
+    // used mid-sentence stays part of the sentence.
+    if (lines.every((l) => /^[-•*]\s+/.test(l))) {
+      const ul = el("ul", { class: "cloud-list" });
+      for (const l of lines) ul.append(el("li", {}, rich(l.replace(/^[-•*]\s+/, ""))));
+      out.push(ul);
+    } else {
+      out.push(el("p", {}, rich(lines.join(" "))));
+    }
+  }
+  return out;
+}
+
+/** The half of the article to show, falling back to the other language. */
+function tipSide(article, lang) {
+  const want = article[lang] || {};
+  if (want.title || want.body) return want;
+  return article[lang === "ar" ? "en" : "ar"] || {};
+}
+
+/**
+ * The logo mark that pops. Rebuilt here in markup rather than played as a
+ * video or a canvas so it costs a few hundred bytes, inherits the page's own
+ * theme, and stops dead under prefers-reduced-motion.
+ */
+function tipMark() {
+  const bulb = el(
+    "span",
+    { class: "tips-bulb" },
+    [-52, -26, 0, 26, 52].map((a) => el("i", { class: "ray", style: "--a:" + a + "deg" })),
+    el("i", { class: "glass" }),
+    el("i", { class: "shine" }),
+    el("i", { class: "cap" })
+  );
+
+  const logo = el("img", {
+    class: "tips-logo",
+    src: "assets/logo.png",
+    alt: "",
+    // The pop is the point; a broken image icon springing in is not.
+    onerror: function () {
+      logo.remove();
+    },
+  });
+
+  return el(
+    "span",
+    { class: "tips-mark", "aria-hidden": "true" },
+    el("i", { class: "tips-burst" }),
+    logo,
+    bulb
+  );
+}
+
+/**
+ * The button and the cloud it opens.
+ *
+ * Both start hidden and the button reveals itself only if the coach has an
+ * article live. The caller places the three nodes: button beside the session
+ * title, cloud under the session head, scrim anywhere (it is fixed, and only
+ * ever visible behind the phone sheet).
+ */
+function tipsCorner() {
+  let article = null;
+  let open = false;
+  let popTimer = null;
+
+  const kicker = el("span", { class: "cloud-kicker" }, t("tipsKicker"));
+  const title = el("h2", { class: "cloud-title" });
+  const body = el("div", { class: "cloud-body" });
+
+  const closeBtn = el(
+    "button",
+    { class: "cloud-x", type: "button", "aria-label": t("tipsClose"), onclick: () => setOpen(false) },
+    "✕"
+  );
+
+  const cloud = el(
+    "div",
+    { class: "cloud hidden", role: "dialog", "aria-label": t("tipsKicker"), tabindex: "-1" },
+    el("span", { class: "cloud-tail", "aria-hidden": "true" }),
+    el(
+      "div",
+      { class: "cloud-inner" },
+      el("div", { class: "cloud-head" }, kicker, closeBtn),
+      title,
+      body
+    )
+  );
+
+  const scrim = el("div", { class: "cloud-scrim hidden", onclick: () => setOpen(false) });
+
+  const button = el(
+    "button",
+    {
+      class: "btn sm tips-toggle hidden",
+      type: "button",
+      "aria-expanded": "false",
+      onclick: () => setOpen(!open),
+      // Replaying the pop on hover is the desktop half of the invitation the
+      // first pop makes; a phone gets it on tap instead.
+      onmouseenter: () => pop(),
+    },
+    // The comet laps the rim while the cloud is shut, the same invitation the
+    // pace button makes — the other way round, so the pair reads as two things
+    // rather than one repeated twice.
+    el("span", { class: "tips-glow", "aria-hidden": "true" }),
+    tipMark(),
+    el("span", { class: "tips-face" }, t("tipsOpen"))
+  );
+
+  /** Run the pop once. Restarting means dropping the class for a frame. */
+  function pop() {
+    if (open) return; // nothing to invite once the cloud is already up
+    button.classList.remove("pop");
+    void button.offsetWidth; // force the removal to land before it goes back
+    button.classList.add("pop");
+    clearTimeout(popTimer);
+    popTimer = setTimeout(() => button.classList.remove("pop"), 2200);
+  }
+
+  function fill() {
+    const side = tipSide(article, (typeof I18N !== "undefined" && I18N.lang) || "en");
+    title.textContent = side.title || "";
+    body.textContent = "";
+    // Node.append() would stringify an array; el() is the only helper here
+    // that spreads one.
+    for (const node of tipParagraphs(side.body)) body.append(node);
+  }
+
+  /**
+   * Point the tail at the button. The cloud is the width of the card while
+   * the button sits wherever the title left room for it, so the only honest
+   * answer is a measured one — and it has to be taken again when a resize
+   * wraps the button onto its own line.
+   */
+  function aimTail() {
+    if (!open) return;
+    const b = button.getBoundingClientRect();
+    const c = cloud.getBoundingClientRect();
+    if (!c.width) return;
+    const x = b.left + b.width / 2 - c.left;
+    // Never onto the rounded corners, where a tail reads as a glitch.
+    cloud.style.setProperty("--tail", Math.max(20, Math.min(c.width - 20, x)) + "px");
+  }
+
+  function setOpen(next) {
+    open = next;
+    cloud.classList.toggle("hidden", !open);
+    scrim.classList.toggle("hidden", !open);
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    // Only the phone sheet actually locks the page; the class is free on
+    // desktop, where the cloud sits in the flow and scrolls with everything.
+    document.documentElement.classList.toggle("cloud-open", open);
+    if (open) {
+      button.classList.remove("pop");
+      aimTail();
+      cloud.focus();
+    }
+  }
+
+  window.addEventListener("resize", aimTail);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && open) setOpen(false);
+  });
+
+  loadTip().then((found) => {
+    if (!found) return; // nothing live: the button never appears at all
+    article = found;
+    fill();
+    if (!title.textContent) return; // live but empty in both languages
+    button.classList.remove("hidden");
+    pop();
+  });
+
+  return { button: button, cloud: cloud, scrim: scrim };
+}

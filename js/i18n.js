@@ -78,6 +78,11 @@ const STRINGS = {
     eDown: "Move down",
     eRemove: "Remove",
 
+    /* coach tips */
+    tipsOpen: "Coach Tips",
+    tipsKicker: "Coach Tips",
+    tipsClose: "Close",
+
     /* viewer */
     getItOn: "Get it on your watch",
     garmin: "Garmin",
@@ -283,6 +288,11 @@ const STRINGS = {
     eUp: "لأعلى",
     eDown: "لأسفل",
     eRemove: "حذف",
+
+    /* coach tips */
+    tipsOpen: "نصائح الكوتش",
+    tipsKicker: "نصائح الكوتش",
+    tipsClose: "إغلاق",
 
     getItOn: "انقلها إلى ساعتك",
     garmin: "جارمن",

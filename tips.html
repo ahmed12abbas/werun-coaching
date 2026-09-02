@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coach Tips · WE RUN</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#8851F4">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Standalone for the same reason admin.html is: the athlete-facing CSS lives
+   inline in index.html, and a coach's editor is not worth destabilising the
+   page the club actually uses. The tokens are copied from it so the two look
+   like one site. */
+:root{
+  --brand:#8851F4; --brand-ink:#fff; --brand-soft:#F2ECFE;
+  --bg:#f7f7fa; --card:#fff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
+  --ok:#0f9d58; --err:#dc2626; --radius:16px;
+  --shadow:0 1px 2px rgba(20,18,28,.05),0 10px 30px rgba(20,18,28,.07);
+  --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --brand:#A47CF8; --brand-ink:#1b1030; --brand-soft:#241a3d;
+  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:28px 18px 140px}
+h1{font-family:var(--display);font-size:40px;font-weight:600;letter-spacing:.01em;
+  text-transform:uppercase;margin:0 0 4px;line-height:1}
+h2{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:.02em;
+  text-transform:uppercase;margin:0;line-height:1.1}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin-top:18px}
+.card.live{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand),var(--shadow)}
+label{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input,textarea{width:100%;padding:12px 13px;font:inherit;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:12px}
+textarea{min-height:190px;resize:vertical;line-height:1.6}
+input:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+  color:var(--fg);font:inherit;font-weight:650;cursor:pointer}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.sm{padding:7px 12px;font-size:13.5px;border-radius:10px}
+.btn.danger{color:var(--err)}
+.btn:disabled{opacity:.55;cursor:progress}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>div{flex:1 1 200px}
+.err{color:var(--err);font-weight:600;margin-top:10px}
+.ok{color:var(--ok);font-weight:650}
+a{color:var(--brand)}
+
+.head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.head .grow{flex:1 1 180px;min-width:0}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.pair{grid-template-columns:1fr}}
+.side+.side{margin-top:0}
+.side .f+.f{margin-top:12px}
+.flag{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);font-size:20px;
+  font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px}
+.ar textarea,.ar input{direction:rtl;text-align:right}
+
+/* "Show this one to athletes" — a radio, because exactly one article is live. */
+/* It is a <label>, so the uppercase/muted treatment every other label on
+   the page gets has to be undone here — this one is a control, not a caption. */
+.livepick{display:inline-flex;align-items:center;gap:8px;flex:none;font-size:13.5px;
+  font-weight:650;padding:8px 13px;border:1px solid var(--line);border-radius:999px;cursor:pointer;
+  text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:0}
+.livepick input{width:auto;padding:0;margin:0;accent-color:var(--brand)}
+.livepick.on{background:var(--brand-soft);border-color:var(--brand)}
+.badge{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--brand);background:var(--brand-soft);border-radius:999px;padding:3px 10px;flex:none}
+
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+.hint code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.prev{margin-top:12px;border:1px dashed var(--line);border-radius:13px;padding:14px 16px;background:var(--bg)}
+.prev h3{font-family:var(--display);font-size:26px;font-weight:600;text-transform:uppercase;
+  line-height:1.05;margin:0 0 8px}
+.prev p{margin:0 0 9px;font-size:14.5px;line-height:1.6}
+.prev ul{margin:0 0 9px;padding-inline-start:20px;font-size:14.5px}
+.prev p:last-child,.prev ul:last-child{margin-bottom:0}
+.prev .cap{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px}
+
+/* The save bar follows the coach down a long article rather than making her
+   scroll back to the top to keep her work. */
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  padding:12px 18px calc(12px + env(safe-area-inset-bottom));z-index:5;
+  box-shadow:0 -6px 24px rgba(20,18,28,.08)}
+.bar .in{max-width:960px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar .msg{flex:1 1 140px;font-size:13.5px}
+footer{margin-top:30px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Coach Tips</h1>
+  <p class="muted small" style="margin:0">
+    What athletes read when they tap the logo beside the session. Keep as many
+    articles here as you like — the one marked <b>live</b> is the one they see.
+  </p>
+  <div id="app"></div>
+  <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
+</div>
+
+<script>
+"use strict";
+
+var app = document.getElementById("app");
+
+/* Held in memory only, for as long as this tab stays on the page — a reload
+   asks again. Same trade as the share dashboard: club laptops get shared. */
+var password = null;
+
+var state = { liveId: null, articles: [] };
+var dirty = false;
+
+function el(tag, attrs) {
+  var n = document.createElement(tag);
+  attrs = attrs || {};
+  for (var k in attrs) {
+    if (attrs[k] == null || attrs[k] === false) continue;
+    if (k === "class") n.className = attrs[k];
+    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+    else n.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+  }
+  for (var i = 2; i < arguments.length; i++) {
+    var c = arguments[i];
+    if (c == null || c === false) continue;
+    if (Array.isArray(c)) { for (var j = 0; j < c.length; j++) if (c[j] != null) n.append(c[j]); }
+    else n.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return n;
+}
+
+function post(payload) {
+  return fetch("/api/tips-admin", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(function (res) {
+    if (res.status === 401) throw new Error("That password is not right.");
+    if (res.status === 503) {
+      throw new Error(
+        "No password is set on the site yet, so the editor stays locked. Set " +
+        "TIPS_PASSWORD (or ADMIN_PASSWORD) on the Pages project — see the README."
+      );
+    }
+    if (!res.ok) throw new Error("The server answered " + res.status + ". Try again in a moment.");
+    return res.json();
+  });
+}
+
+/* ---------- login --------------------------------------------------------- */
+
+function renderLogin(message) {
+  app.textContent = "";
+  var input = el("input", {
+    type: "password",
+    autocomplete: "current-password",
+    placeholder: "Password",
+    onkeydown: function (e) { if (e.key === "Enter") go(); }
+  });
+  var btn = el("button", { class: "btn primary", onclick: function () { go(); } }, "Open the editor");
+
+  function go() {
+    if (!input.value) return;
+    btn.disabled = true;
+    post({ password: input.value })
+      .then(function (data) {
+        password = input.value;
+        state = { liveId: data.liveId || null, articles: data.articles || [] };
+        dirty = false;
+        render(data.warning === "no-store" ? "warn-no-store" : null);
+      })
+      ["catch"](function (e) {
+        renderLogin(e.message);
+        var next = app.querySelector("input");
+        if (next) next.focus();
+      });
+  }
+
+  app.append(
+    el("div", { class: "card" },
+      el("div", { class: "row" },
+        el("div", {}, el("label", {}, "Coach password"), input),
+        el("div", { style: "flex:0 0 auto" }, btn)
+      ),
+      message ? el("p", { class: "err" }, message) : null
+    )
+  );
+  input.focus();
+}
+
+/* ---------- the preview ---------------------------------------------------
+   The same two rules js/tips.js applies on the athlete's screen — a blank
+   line starts a paragraph, a line opening with "-" is a bullet — so what she
+   sees here is what they get. Kept as its own small copy rather than loading
+   the site's javascript, which expects the whole i18n/brand stack behind it.
+   If those rules change there, change them here too.
+   ------------------------------------------------------------------------- */
+
+function bold(text, into) {
+  String(text).split("**").forEach(function (part, i) {
+    if (!part) return;
+    into.append(i % 2 ? el("b", {}, part) : document.createTextNode(part));
+  });
+}
+
+function previewNodes(body) {
+  var out = [];
+  String(body || "").split(/\n\s*\n/).forEach(function (block) {
+    var lines = block.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    if (!lines.length) return;
+    var allBullets = lines.every(function (l) { return /^[-•*]\s+/.test(l); });
+    if (allBullets) {
+      var ul = el("ul", {});
+      lines.forEach(function (l) {
+        var li = el("li", {});
+        bold(l.replace(/^[-•*]\s+/, ""), li);
+        ul.append(li);
+      });
+      out.push(ul);
+    } else {
+      var p = el("p", {});
+      bold(lines.join(" "), p);
+      out.push(p);
+    }
+  });
+  return out;
+}
+
+/* ---------- the editor ----------------------------------------------------- */
+
+function field(labelText, node, hint) {
+  return el("div", { class: "f" }, el("label", {}, labelText), node,
+    hint ? el("p", { class: "hint" }, hint) : null);
+}
+
+function sideEditor(article, lang, onChange) {
+  var side = article[lang] = article[lang] || { title: "", body: "" };
+  var isAr = lang === "ar";
+
+  var title = el("input", {
+    type: "text",
+    maxlength: "140",
+    placeholder: isAr ? "عنوان المقال" : "Why the last rep is the one that counts",
+    value: side.title || "",
+    oninput: function () { side.title = title.value; onChange(); }
+  });
+
+  var body = el("textarea", {
+    maxlength: "9000",
+    placeholder: isAr
+      ? "اكتبي المقال هنا…"
+      : "Write it the way you would say it.\n\nLeave a blank line between paragraphs.\n\n- start a line with a dash for a bullet\n- and another",
+    oninput: function () { side.body = body.value; onChange(); }
+  });
+  body.value = side.body || "";
+
+  var preview = el("div", { class: "prev" + (isAr ? " ar" : "") });
+  if (isAr) preview.setAttribute("dir", "rtl");
+
+  function drawPreview() {
+    preview.textContent = "";
+    preview.append(el("div", { class: "cap" }, isAr ? "معاينة" : "Preview"));
+    if (side.title) preview.append(el("h3", {}, side.title));
+    var nodes = previewNodes(side.body);
+    if (!nodes.length && !side.title) {
+      preview.append(el("p", { class: "muted" },
+        isAr ? "لا شيء بعد." : "Nothing here yet."));
+    }
+    nodes.forEach(function (n) { preview.append(n); });
+  }
+
+  var box = el("div", { class: "side" + (isAr ? " ar" : "") },
+    el("div", { class: "flag" }, isAr ? "العربية" : "English"),
+    field(isAr ? "العنوان" : "Title", title),
+    field(isAr ? "المقال" : "Article", body,
+      isAr ? null : "Blank line = new paragraph. A line starting with - is a bullet. **Stars** make a phrase bold."),
+    preview
+  );
+
+  drawPreview();
+  title.addEventListener("input", drawPreview);
+  body.addEventListener("input", drawPreview);
+  return box;
+}
+
+function articleCard(article, index) {
+  var isLive = state.liveId === article.id;
+
+  var radio = el("input", {
+    type: "radio",
+    name: "live",
+    checked: isLive,
+    onchange: function () { state.liveId = article.id; touch(); render(); }
+  });
+  var pick = el("label", { class: "livepick" + (isLive ? " on" : "") }, radio,
+    isLive ? "Live — athletes see this" : "Show this one");
+
+  var head = el("div", { class: "head" },
+    el("h2", { class: "grow" }, "Article " + (index + 1)),
+    isLive ? el("span", { class: "badge" }, "Live") : null,
+    pick,
+    el("button", {
+      class: "btn sm danger", type: "button",
+      onclick: function () {
+        var name = (article.en && article.en.title) || (article.ar && article.ar.title) || "this article";
+        if (!confirm("Delete “" + name + "”? This cannot be undone once you save.")) return;
+        state.articles.splice(index, 1);
+        if (state.liveId === article.id) state.liveId = null;
+        touch();
+        render();
+      }
+    }, "Delete")
+  );
+
+  return el("div", { class: "card" + (isLive ? " live" : "") },
+    head,
+    el("div", { class: "pair" },
+      sideEditor(article, "en", touch),
+      sideEditor(article, "ar", touch)
+    )
+  );
+}
+
+function touch() {
+  if (dirty) return;
+  dirty = true;
+  var msg = document.getElementById("savemsg");
+  if (msg) { msg.className = "msg muted"; msg.textContent = "Unsaved changes."; }
+}
+
+function newId() {
+  return "a" + Math.random().toString(36).slice(2, 10);
+}
+
+function render(warning) {
+  app.textContent = "";
+
+  if (warning === "warn-no-store") {
+    app.append(el("div", { class: "card" },
+      el("h2", {}, "Nothing can be saved yet"),
+      el("p", { class: "muted small", style: "margin:8px 0 0" },
+        "The password is right, but no KV namespace is bound to the site, so " +
+        "there is nowhere to keep articles. Bind one called STATS — see the README.")
+    ));
+    return;
+  }
+
+  if (!state.articles.length) {
+    app.append(el("div", { class: "card" },
+      el("h2", {}, "No articles yet"),
+      el("p", { class: "muted small", style: "margin:8px 0 14px" },
+        "Write one and mark it live. Until something is live, the logo button " +
+        "stays off the session page entirely — athletes never see an empty pop-up."),
+      el("button", { class: "btn primary", onclick: addOne }, "Write the first one")
+    ));
+    app.append(saveBar());
+    return;
+  }
+
+  state.articles.forEach(function (a, i) { app.append(articleCard(a, i)); });
+
+  app.append(el("div", { style: "margin-top:18px" },
+    el("button", { class: "btn", onclick: addOne }, "+ Add another article")));
+
+  if (!state.liveId) {
+    app.append(el("p", { class: "err" },
+      "Nothing is marked live, so the logo button is hidden on the session page."));
+  }
+
+  app.append(saveBar());
+}
+
+function addOne() {
+  var a = { id: newId(), en: { title: "", body: "" }, ar: { title: "", body: "" } };
+  state.articles.push(a);
+  if (!state.liveId) state.liveId = a.id; // the first one written is the one they want live
+  touch();
+  render();
+  // Straight into the new card rather than making her hunt for it.
+  var cards = app.querySelectorAll(".card");
+  var last = cards[cards.length - 1];
+  var first = last && last.querySelector("input[type=text]");
+  if (first) { first.focus(); last.scrollIntoView({ block: "center", behavior: "smooth" }); }
+}
+
+function saveBar() {
+  var msg = el("div", { class: "msg muted", id: "savemsg" },
+    dirty ? "Unsaved changes." : "Everything is saved.");
+
+  var save = el("button", { class: "btn primary", onclick: function () {
+    save.disabled = true;
+    msg.className = "msg muted";
+    msg.textContent = "Saving…";
+    post({ password: password, save: { liveId: state.liveId, articles: state.articles } })
+      .then(function (data) {
+        // Take the server's copy back: it has trimmed the text and settled the
+        // ids, so what is on screen is exactly what athletes will be served.
+        state = { liveId: data.liveId || null, articles: data.articles || [] };
+        dirty = false;
+        render();
+        var m = document.getElementById("savemsg");
+        if (m) { m.className = "msg ok"; m.textContent = "Saved. Athletes see it on their next open."; }
+      })
+      ["catch"](function (e) {
+        save.disabled = false;
+        msg.className = "msg err";
+        msg.textContent = e.message;
+      });
+  } }, "Save");
+
+  return el("div", { class: "bar" },
+    el("div", { class: "in" },
+      msg,
+      el("button", { class: "btn", onclick: function () {
+        if (dirty && !confirm("Leave without saving? Your changes are lost.")) return;
+        password = null; state = { liveId: null, articles: [] }; dirty = false;
+        renderLogin(null);
+      } }, "Lock"),
+      save
+    ));
+}
+
+window.addEventListener("beforeunload", function (e) {
+  if (!dirty) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+renderLogin(null);
+</script>
+</body>
+</html>
