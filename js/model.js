@@ -144,7 +144,7 @@ function mondayIntervals() {
       reps: 12,
       steps: [
         Object.assign(blankStep("work"), { meters: 500, note: "@5 K pace" }),
-        Object.assign(blankStep("rest"), { seconds: 120 }),
+        Object.assign(blankStep("rest"), { seconds: 120, note: "jog/walk" }),
       ],
     },
     Object.assign(blankStep("cooldown"), { durType: "open", estSeconds: 900, note: "15 min" }),
