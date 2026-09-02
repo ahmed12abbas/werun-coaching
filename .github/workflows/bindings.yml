@@ -222,9 +222,10 @@ jobs:
       - name: Redeploy so the Worker picks them up
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh workflow run "Deploy to Cloudflare Pages" --ref main
+          gh workflow run "Deploy to Cloudflare Pages" --ref main --repo "$REPO"
           echo "Deploy dispatched."
 
       - name: Wait for the site to report itself unlocked
