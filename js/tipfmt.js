@@ -75,13 +75,13 @@ var TIP_SIGN = {
     en: "C.Hadeel Ashour (UESCA certified running coach)",
     ar: "ك. هديل عاشور (UESCA certified running coach)",
   },
-  // Instagram as its three shapes, the same glyph the club footer uses.
+  // An arrow rather than a platform logo: it says "this goes somewhere"
+  // without stamping Instagram’s brand across the club’s own page. Mirrored
+  // in RTL by the pages that render it.
   icon:
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
-    '<rect x="2.9" y="2.9" width="18.2" height="18.2" rx="5.2" fill="none" ' +
-    'stroke="currentColor" stroke-width="2"/>' +
-    '<circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/>' +
-    '<circle cx="17.2" cy="6.8" r="1.35"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M4 12h13M12 6l6 6-6 6"/></svg>',
 };
 
 /** The byline for a language, falling back to English. */

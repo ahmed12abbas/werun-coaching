@@ -96,6 +96,8 @@ a{color:var(--brand)}
 .sign:hover{text-decoration:underline}
 .sign-ic{display:inline-flex;flex:none}
 .sign svg{width:16px;height:16px;display:block}
+/* The arrow points the way the language reads. */
+[dir="rtl"] .sign svg{transform:scaleX(-1)}
 .prev .cap{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--muted);margin-bottom:8px}
 
@@ -120,7 +122,7 @@ footer{margin-top:30px;font-size:13px;color:var(--muted)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/tipfmt.js?v=744a09a4"></script>
+<script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
 

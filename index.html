@@ -291,17 +291,16 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .tips-mark,.tips-face{position:relative;z-index:1}
 .tips-face{font-size:13.5px;font-weight:650}
 .tips-mark{display:block;width:30px;height:25px;flex:none}
-/* Below this the two buttons no longer fit on one row, and a stacked pair
-   pushes the session itself down the page. The mark alone is enough — it is
-   the club logo, and it is the thing that moved to get looked at. The label
-   stays for screen readers rather than being dropped. */
+/* Below this the pair no longer fits a row at full size. Shrink the button
+   rather than dropping its label: the mark on its own left athletes with no
+   idea what it opened. */
 @media (max-width:430px){
   /* Give the session name the whole line so the two buttons land side by side
      underneath it, rather than one of them riding up beside the title. */
   .sess-head .grow{flex-basis:100%}
-  .btn.tips-toggle{padding:6px 10px}
-  .tips-face{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
-    clip-path:inset(50%);white-space:nowrap}
+  .btn.tips-toggle{padding:5px 10px 5px 8px;gap:7px}
+  [dir="rtl"] .btn.tips-toggle{padding:5px 8px 5px 10px}
+  .tips-face{font-size:12.5px;white-space:nowrap}
 }
 .tips-logo{position:absolute;inset-inline-start:0;top:50%;translate:0 -50%;width:26px;height:26px;
   object-fit:contain}
@@ -374,6 +373,14 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .cloud-sign:hover{text-decoration:underline}
 .cloud-sign-ic{display:inline-flex;flex:none}
 .cloud-sign svg{width:16px;height:16px;display:block}
+/* The arrow points the way the language reads. */
+[dir="rtl"] .cloud-sign svg{transform:scaleX(-1)}
+/* Pinned to the cloud, not the scroller, so it stays put while the article
+   moves under it. Only painted while there is something left to scroll to. */
+.cloud::after{content:"";position:absolute;inset-inline:1px;bottom:1px;height:38px;
+  border-radius:0 0 17px 17px;pointer-events:none;opacity:0;transition:opacity .15s ease;
+  background:linear-gradient(to top,var(--card) 28%,transparent)}
+.cloud.more::after{opacity:1}
 @keyframes cloudIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
 
 .cloud-scrim{display:none;position:fixed;inset:0;background:rgba(10,8,18,.5);z-index:40;
@@ -386,6 +393,7 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
     border-radius:20px 20px 0 0;border-bottom:0;
     animation:sheetIn .26s cubic-bezier(.22,1,.36,1) both}
   .cloud-tail{display:none}
+  .cloud::after{border-radius:0}
   /* The grab handle that says this came up from the bottom. */
   .cloud::before{content:"";display:block;width:38px;height:4px;border-radius:99px;
     background:var(--line);margin:10px auto 0}
@@ -460,8 +468,8 @@ footer a{color:inherit}
 <script src="js/fit.js?v=b04dac88"></script>
 <script src="js/brand.js?v=02347c92"></script>
 <script src="js/model.js?v=39a5ec9a"></script>
-<script src="js/tipfmt.js?v=744a09a4"></script>
-<script src="js/tips.js?v=98befb54"></script>
+<script src="js/tipfmt.js?v=6b754eff"></script>
+<script src="js/tips.js?v=6d08eb56"></script>
 <script src="js/pace.js?v=b48b397d"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
 <script src="js/views.js?v=aa47d7d4"></script>

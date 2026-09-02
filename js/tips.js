@@ -138,18 +138,20 @@ function tipsCorner() {
     "✕"
   );
 
+  const inner = el(
+    "div",
+    { class: "cloud-inner", onscroll: () => syncFade() },
+    el("div", { class: "cloud-head" }, kicker, closeBtn),
+    title,
+    body,
+    sign
+  );
+
   const cloud = el(
     "div",
     { class: "cloud hidden", role: "dialog", "aria-label": t("tipsKicker"), tabindex: "-1" },
     el("span", { class: "cloud-tail", "aria-hidden": "true" }),
-    el(
-      "div",
-      { class: "cloud-inner" },
-      el("div", { class: "cloud-head" }, kicker, closeBtn),
-      title,
-      body,
-      sign
-    )
+    inner
   );
 
   const scrim = el("div", { class: "cloud-scrim hidden", onclick: () => setOpen(false) });
@@ -198,6 +200,17 @@ function tipsCorner() {
   }
 
   /**
+   * The article scrolls inside the cloud, and a line cut off by the bottom
+   * edge reads as a rendering fault rather than "there is more below". Fade
+   * that edge while there is more, and drop it the moment there is not, so
+   * the last line of a short article is never dimmed for nothing.
+   */
+  function syncFade() {
+    const more = inner.scrollHeight - inner.scrollTop - inner.clientHeight > 2;
+    cloud.classList.toggle("more", more);
+  }
+
+  /**
    * Point the tail at the button. The cloud is the width of the card while
    * the button sits wherever the title left room for it, so the only honest
    * answer is a measured one — and it has to be taken again when a resize
@@ -224,11 +237,15 @@ function tipsCorner() {
     if (open) {
       button.classList.remove("pop");
       aimTail();
+      syncFade();
       cloud.focus();
     }
   }
 
-  window.addEventListener("resize", aimTail);
+  window.addEventListener("resize", () => {
+    aimTail();
+    syncFade();
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && open) setOpen(false);
