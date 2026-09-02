@@ -421,10 +421,12 @@ remove it is a promise the club cannot keep.
 
 Notes live in the **same `STATS` KV namespace** as everything else, under their
 own key, newest first, capped at 400. `/api/feedback` is the only route on the
-site that takes writing from someone who was never given a password, so it also
-takes one submission a minute from an address — enforced with eight bytes of a
-salted hash under a key that deletes itself after sixty seconds, never the
-address itself.
+site that takes writing from someone who was never given a password, so it also caps
+one address at six notes a minute — enough that a whole group rating together
+after a session comes through, since they all share one router or one carrier,
+and few enough that a script gets nowhere. It is counted against eight bytes of
+a salted hash of the address plus the minute, under a key that deletes itself
+after sixty seconds; the address itself is never stored.
 
 ## Files
 

@@ -168,28 +168,43 @@ async function share(request, env) {
 
 /* ---------- POST /api/feedback -------------------------------------------- */
 
+/* Six notes a minute from one address, which is a script and not a run club.
+   A whole group rating at once after a session comes through one router or one
+   carrier, so a limit of one would silence everybody but the fastest thumb —
+   the failure that matters here is a real note refused, not a junk one let in.
+   The item cap is what actually bounds a determined attacker. */
+const FB_PER_MINUTE = 6;
+
 /**
- * One submission a minute from the same address.
+ * Have they been at it?
  *
- * What gets stored is eight bytes of a salted hash of the address, under a key
- * that deletes itself after sixty seconds — never the address, never anything
- * that outlives the minute it is guarding, and never anything joined to the
- * note itself. KV is eventually consistent, so a determined pair of requests
- * at two edges can slip through together: this is a brake on someone leaning
- * on the button, not a lock, and the item cap is what actually bounds how bad
- * a bad day can get.
+ * What gets stored is eight bytes of a salted hash of the address and the
+ * minute it belongs to, under a key that deletes itself after sixty seconds —
+ * never the address, never anything that outlives the minute it is guarding,
+ * and never anything joined to the note itself. Bucketing by the clock minute
+ * rather than sliding the window means a busy address is clear again at the
+ * top of the next minute instead of being held down by its own retries.
+ *
+ * KV is eventually consistent, so requests landing at two edges together can
+ * both read a stale count: a brake on someone leaning on the button, not a
+ * lock.
  */
 async function tooOften(request, env) {
   const ip = request.headers.get("cf-connecting-ip");
   if (!ip) return false; // nothing to go on: let it through rather than block everybody
+  const minute = Math.floor(Date.now() / 60000);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("werun-fb:" + ip));
   const key =
     "fb-rl:" +
     Array.from(new Uint8Array(digest).slice(0, 8))
       .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  if (await env.STATS.get(key)) return true;
-  await env.STATS.put(key, "1", { expirationTtl: 60 }); // KV's own floor
+      .join("") +
+    ":" +
+    minute;
+
+  const seen = Number(await env.STATS.get(key)) || 0;
+  if (seen >= FB_PER_MINUTE) return true;
+  await env.STATS.put(key, String(seen + 1), { expirationTtl: 60 }); // KV's own floor
   return false;
 }
 
