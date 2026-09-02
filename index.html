@@ -451,19 +451,30 @@ kbd{background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;bo
 footer{margin-top:34px;text-align:center;font-size:12.5px;color:var(--muted)}
 footer a{color:inherit}
 
-/* ---- the foot: their say, with the share link beside it ----
-   The rating box takes the width and the share link moves to the side, which
-   is the only arrangement where the box reads as the invitation and not as
-   an afterthought under the button. On a phone there are no sides, so the
-   side column goes back on top: the share link is what most athletes came
-   down here for and it should not sit under a form to reach it. */
-.foot-row{display:flex;gap:14px;align-items:flex-start;margin-top:22px;flex-wrap:wrap}
-.foot-side{flex:0 0 216px;display:flex;flex-direction:column;gap:12px}
-.foot-side .socials{margin:0}
-.rate{flex:1 1 320px;min-width:0}
+/* ---- the foot: their say, the share link, the socials ----
+   One grid, three areas, two arrangements. Wide: the rating box takes the
+   width with the link and the socials in a column beside it, which is the
+   only arrangement where the box reads as the invitation and not as an
+   afterthought under a button. The third row is empty and takes all the
+   slack, so the link and the socials sit at the top of that column instead
+   of drifting down the middle of it.
+
+   On a phone there is no beside. The link goes first — it is what most
+   athletes came down here for and it should not sit behind a form — and the
+   socials go last, which is where someone finished with this session goes
+   next. */
+.foot-row{display:grid;gap:14px;margin-top:22px;
+  grid-template-columns:1fr 216px;grid-template-rows:auto auto 1fr;
+  grid-template-areas:"rate share" "rate socials" "rate .";}
+.rate{grid-area:rate;min-width:0}
+.share-cta{grid-area:share;align-self:start;
+  background:var(--brand-soft);border-color:transparent;color:var(--brand)}
+.share-cta:hover{background:var(--brand);color:var(--brand-ink)}
+.share-cta svg{width:21px;height:21px}
+.foot-row .socials{grid-area:socials;align-self:start;margin:0}
 @media (max-width:640px){
-  .foot-side{flex:1 1 100%;order:-1}
-  .rate{flex:1 1 100%}
+  .foot-row{grid-template-columns:1fr;grid-template-rows:auto auto auto;
+    grid-template-areas:"share" "rate" "socials";}
 }
 
 /* ---- five stars ---- */
@@ -477,8 +488,7 @@ footer a{color:inherit}
 /* The one thing the card actually asks for, saying so without a word. */
 .stars.asking{animation:nudge .38s ease}
 @keyframes nudge{20%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
-.rate-title{margin:0 0 6px}
-.rate-lead{margin:0 0 14px;font-size:14px;line-height:1.5;color:var(--muted)}
+.rate-title{margin:0 0 14px}
 .rate-err{color:var(--err);font-weight:650;margin:0}
 .rate-done{text-align:center;padding:6px 0 2px;animation:landed .4s ease both}
 .rate-hearts{font-size:34px;line-height:1}
@@ -503,17 +513,17 @@ footer a{color:inherit}
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
 <script src="js/config.js?v=48a8f24f"></script>
-<script src="js/i18n.js?v=512bee1a"></script>
+<script src="js/i18n.js?v=fdd628f0"></script>
 <script src="js/fit.js?v=b04dac88"></script>
 <script src="js/brand.js?v=037798cf"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/sfx.js?v=12910669"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/rate.js?v=2f819464"></script>
+<script src="js/rate.js?v=419ccd4d"></script>
 <script src="js/tips.js?v=7238e345"></script>
 <script src="js/pace.js?v=83734ba1"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
-<script src="js/views.js?v=bdaf3af4"></script>
+<script src="js/views.js?v=6705ffb4"></script>
 <script src="js/boot.js?v=e2d4d456"></script>
 </body>
 </html>

@@ -534,7 +534,7 @@ function renderViewer(app, w, rerender) {
   const share = el(
     "button",
     {
-      class: "btn block",
+      class: "btn lg block share-cta",
       onclick: async () => {
         countShare(w);
         const data = { title: w.name, text: asText(w), url: location.href };
@@ -553,18 +553,13 @@ function renderViewer(app, w, rerender) {
     t("shareSession")
   );
 
-  // The rating box takes the width; the share link and the club's socials
-  // move to a column beside it. An athlete reaching the foot of the session
-  // has just finished reading it, which is the one moment they have an
-  // opinion to give — so that is what gets the room.
-  app.append(
-    el(
-      "div",
-      { class: "foot-row" },
-      feedbackCard(w),
-      el("div", { class: "foot-side" }, share, socialRow())
-    )
-  );
+  // Three things, one grid, two arrangements — see .foot-row in index.html.
+  // On a wide screen the rating box takes the width and the share link sits
+  // beside it, because an athlete reaching the foot of the session has just
+  // finished reading it and that is the one moment they have an opinion to
+  // give. On a phone they stack: link, box, then the club's socials right at
+  // the end, which is where someone who is done with this session goes next.
+  app.append(el("div", { class: "foot-row" }, feedbackCard(w), share, socialRow()));
 
   app.append(
     el(

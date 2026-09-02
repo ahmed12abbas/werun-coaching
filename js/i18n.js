@@ -105,8 +105,6 @@ const STRINGS = {
 
     /* the athlete's say — the rating box beside the share link */
     fbTitle: "How was it?",
-    fbLead:
-      "TEAM WE RUN would love to know how your experience was — and what we can do to improve it.",
     fbRating: "Your rating",
     fbStar: "{n} out of 5",
     fbName: "Your name",
@@ -119,7 +117,7 @@ const STRINGS = {
     fbFailed: "That didn't send. Try again in a moment.",
     fbTooOften: "That one is already with us. Give it a minute before the next.",
     fbThanks: "Thank you — the team reads every one of these.",
-    fbTag: "#togetherwerun 💜🤍",
+    fbTag: "#togetherwerun",
 
     /* pace calculator */
     pcOpen: "Pace calculator",
@@ -332,7 +330,6 @@ const STRINGS = {
     copy: "نسخ",
 
     fbTitle: "كيف كانت تجربتك؟",
-    fbLead: "فريق وي رَن يودّ أن يعرف كيف كانت تجربتك معنا، وما الذي نقدر نحسّنه.",
     fbRating: "تقييمك",
     fbStar: "{n} من ٥",
     fbName: "اسمك",
@@ -345,7 +342,7 @@ const STRINGS = {
     fbFailed: "ما وصل الإرسال. جرّب بعد لحظات.",
     fbTooOften: "وصلنا تقييمك للتو. أعطنا دقيقة قبل التالي.",
     fbThanks: "شكرًا لك — الفريق يقرأ كل رسالة تصله.",
-    fbTag: "#togetherwerun 💜🤍",
+    fbTag: "#togetherwerun",
 
     pcOpen: "حاسبة البيس",
     pcMile: "أفضل ميل",

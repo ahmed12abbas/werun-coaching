@@ -168,11 +168,13 @@ function feedbackCard(w) {
     err
   );
 
+  // The title asks the question and the stars answer it. There was a line of
+  // explanation under the heading and it earned nothing: an athlete who has
+  // reached the foot of the session already knows what five stars are for.
   const card = el(
     "div",
     { class: "card pad rate" },
     el("h2", { class: "rate-title" }, t("fbTitle")),
-    el("p", { class: "rate-lead" }, t("fbLead")),
     form
   );
 
@@ -190,7 +192,6 @@ function feedbackCard(w) {
    */
   function thanks() {
     form.remove();
-    card.querySelector(".rate-lead").remove();
     card.querySelector(".rate-title").remove();
     card.classList.add("done");
     card.append(
