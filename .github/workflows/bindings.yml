@@ -104,8 +104,8 @@ jobs:
             echo "::error::The token cannot read the '$PROJECT' Pages project (HTTP $pages)."\
                  "A 404 means CLOUDFLARE_ACCOUNT_ID points at the wrong account."
           fi
-          if [ -n "${NS_INPUT}" ]; then
-            echo "A namespace id was given on the run, so the KV API is not needed."
+          if [ -n "${NS_INPUT}" ] || [ "${UNBIND}" = "true" ]; then
+            echo "Not looking anything up on this run, so the KV API is not needed."
           elif [ "$kv" != "200" ]; then
             ok=no
             echo "::error::The token cannot reach Workers KV (HTTP $kv). Cloudflare answers"\
