@@ -222,11 +222,22 @@ npx wrangler kv namespace create werun-stats
 
 ### Or do it without the dashboard
 
-The Cloudflare login that owns this project is a separate one — GitHub SSO
-lands on the other account, which has no `weruncoaching` project — so the
-steps above are not always reachable. `.github/workflows/bindings.yml` does
-the same two things over the API instead, using the `CLOUDFLARE_API_TOKEN`
-the deploy already has.
+There are two Cloudflare accounts, and it matters which one you are in:
+
+| Login | Account | Holds |
+|---|---|---|
+| `ahmedabbas_12@outlook.com` — *Continue with GitHub* | `86fef310…` | **`weruncoaching`** (this site), its `werun-stats` KV |
+| `ahmed12abbas93@gmail.com` | `769aedce…` | `werun`, `werun-5k-test`, an unrelated `werun-stats` KV |
+
+A KV namespace only works for the project if it lives in the **same account**.
+Binding one from the gmail account to `weruncoaching` looks fine at bind time
+and then fails every deploy at publish with *KV namespace not found* — that
+happened on 2026-09-02 and is why the workflow below has an `unbind_kv` input.
+
+`.github/workflows/bindings.yml` does the two dashboard steps over the API
+instead, using the `CLOUDFLARE_API_TOKEN` the deploy already has. It takes an
+optional `namespace_id` — hand it one and it skips the KV API entirely, which
+is how a Pages-only token still gets the job done.
 
 1. Set the password as a repo secret. From a file, not a console paste —
    pasting has silently truncated a secret in this repo before:
