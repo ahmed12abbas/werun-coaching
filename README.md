@@ -220,6 +220,37 @@ npx wrangler kv namespace create werun-stats
 3. Redeploy (any push to `main`, or *Retry deployment*) so the running Worker
    picks the bindings up, then open `/admin`.
 
+### Or do it without the dashboard
+
+The Cloudflare login that owns this project is a separate one — GitHub SSO
+lands on the other account, which has no `weruncoaching` project — so the
+steps above are not always reachable. `.github/workflows/bindings.yml` does
+the same two things over the API instead, using the `CLOUDFLARE_API_TOKEN`
+the deploy already has.
+
+1. Set the password as a repo secret. From a file, not a console paste —
+   pasting has silently truncated a secret in this repo before:
+
+```bash
+Get-Content pw.txt | gh secret set TIPS_PASSWORD
+```
+
+2. Run **Set up the Cloudflare bindings** from the Actions tab. It finds or
+   creates the `werun-stats` namespace, binds it as `STATS`, sets the
+   password as a `secret_text` variable, redeploys so the running Worker
+   picks the bindings up, and then polls the live site until it stops
+   answering `not-configured`.
+
+It is manual-trigger only, because it writes account configuration rather
+than site content, and safe to run again — the namespace is looked up by
+title before it is created, and the PATCH names only the keys it sets.
+Add `ADMIN_PASSWORD` as a second repo secret to unlock `/admin` in the same
+run. Neither value is printed: both are masked, and the request body goes
+to a file rather than an echoed command line.
+
+The token needs **Workers KV Storage: Edit** as well as **Pages: Edit**. If
+it was minted Pages-only the KV step fails with a 403 and says so.
+
 To change the password later, edit that one variable — nothing needs
 redeploying twice and no code changes.
 
@@ -300,6 +331,7 @@ again.
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
 | `_worker.js` | Server side of the share counter and Coach Tips; reserved name, never served |
+| `.github/workflows/bindings.yml` | One-shot: sets the KV and password bindings over the API |
 | `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 

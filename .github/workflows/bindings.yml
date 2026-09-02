@@ -1,0 +1,182 @@
+name: Set up the Cloudflare bindings
+
+# Manual only, and deliberately so: this writes *account* configuration — a KV
+# namespace and the password the Worker checks against — not site content. It
+# is the scripted version of the dashboard steps in the README, for when the
+# Cloudflare login that owns the project is not to hand.
+#
+# It is safe to run more than once. The namespace is looked up by title before
+# it is created, and the PATCH names only the two keys it sets, so re-running
+# re-points the same binding rather than stacking a second one.
+#
+# Before the first run, set the password as a repo secret — from a file, not a
+# console paste, which has truncated before:
+#
+#   Get-Content pw.txt | gh secret set TIPS_PASSWORD
+#
+# ADMIN_PASSWORD is optional and unlocks /admin the same way. Neither value is
+# ever printed: both are masked in the log, and the request body is written to
+# a file rather than an echoed command line.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # to kick the deploy that makes the new bindings live
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    env:
+      TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TIPS_PASSWORD: ${{ secrets.TIPS_PASSWORD }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      PROJECT: weruncoaching
+      KV_TITLE: werun-stats
+      SITE: https://weruncoaching.pages.dev
+
+    steps:
+      # Masking before anything else runs: a secret that reaches the log once
+      # is burned, and this workflow exists because that already happened to a
+      # token in this repo.
+      - name: Mask the secrets
+        run: |
+          set -euo pipefail
+          [ -n "${TIPS_PASSWORD}" ] && echo "::add-mask::${TIPS_PASSWORD}" || true
+          [ -n "${ADMIN_PASSWORD}" ] && echo "::add-mask::${ADMIN_PASSWORD}" || true
+          echo "done"
+
+      - name: Check what we have to work with
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -z "${TOKEN}" ]   && missing="$missing CLOUDFLARE_API_TOKEN" || true
+          [ -z "${ACCOUNT}" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID" || true
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repo secret(s):$missing"
+            exit 1
+          fi
+          if [ -z "${TIPS_PASSWORD}" ] && [ -z "${ADMIN_PASSWORD}" ]; then
+            echo "::error::Set TIPS_PASSWORD (or ADMIN_PASSWORD) as a repo secret first."\
+                 "The Worker locks both /tips and /admin until one of them exists."
+            exit 1
+          fi
+          echo "TIPS_PASSWORD set:  $([ -n "${TIPS_PASSWORD}" ] && echo yes || echo no)"
+          echo "ADMIN_PASSWORD set: $([ -n "${ADMIN_PASSWORD}" ] && echo yes || echo no)"
+
+      # The token needs Workers KV Storage:Edit for this and Pages:Edit for the
+      # step after. If it was minted Pages-only, this is where that shows up.
+      - name: Find or create the KV namespace
+        id: kv
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/storage/kv/namespaces"
+
+          code=$(curl -sS -o /tmp/list.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$api?per_page=100")
+          if [ "$code" != "200" ]; then
+            echo "::error::Listing KV namespaces answered $code. If it is 403 the API"\
+                 "token is missing the 'Workers KV Storage: Edit' permission and needs"\
+                 "reminting — see the README."
+            jq -r '.errors // .' /tmp/list.json || cat /tmp/list.json
+            exit 1
+          fi
+
+          id=$(jq -r --arg t "$KV_TITLE" '.result[] | select(.title == $t) | .id' /tmp/list.json | head -1)
+
+          if [ -n "$id" ]; then
+            echo "Reusing the existing '$KV_TITLE' namespace."
+          else
+            echo "No '$KV_TITLE' namespace yet — creating it."
+            code=$(curl -sS -o /tmp/new.json -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+              --data "$(jq -nc --arg t "$KV_TITLE" '{title:$t}')" "$api")
+            if [ "$code" != "200" ]; then
+              echo "::error::Creating the KV namespace answered $code."
+              jq -r '.errors // .' /tmp/new.json || cat /tmp/new.json
+              exit 1
+            fi
+            id=$(jq -r '.result.id' /tmp/new.json)
+          fi
+
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error::Could not determine the namespace id."
+            exit 1
+          fi
+          echo "namespace id: $id"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      # PATCH names only the keys it sets, so anything already configured on the
+      # project is left alone — including secrets, whose values the API will not
+      # hand back and so could not be re-sent even if we wanted to.
+      - name: Bind them to the Pages project
+        env:
+          NS: ${{ steps.kv.outputs.id }}
+        run: |
+          set -euo pipefail
+          jq -nc \
+            --arg ns "${NS}" \
+            --arg tips "${TIPS_PASSWORD}" \
+            --arg admin "${ADMIN_PASSWORD}" '
+            {
+              deployment_configs: {
+                production: (
+                  { kv_namespaces: { STATS: { namespace_id: $ns } }, env_vars: {} }
+                  | if $tips  != "" then .env_vars.TIPS_PASSWORD  = { type: "secret_text", value: $tips  } else . end
+                  | if $admin != "" then .env_vars.ADMIN_PASSWORD = { type: "secret_text", value: $admin } else . end
+                )
+              }
+            }' > /tmp/patch.json
+
+          code=$(curl -sS -o /tmp/patched.json -w '%{http_code}' -X PATCH \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            --data @/tmp/patch.json \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects/$PROJECT")
+          rm -f /tmp/patch.json
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Patching the project answered $code. A 403 here means the"\
+                 "token lacks 'Pages: Edit'; a 404 means the project is not in the"\
+                 "account CLOUDFLARE_ACCOUNT_ID names."
+            jq -r '.errors // .' /tmp/patched.json || cat /tmp/patched.json
+            exit 1
+          fi
+
+          # Names only. The values are secret_text and come back without them.
+          echo "Bindings now on production:"
+          jq -r '
+            def names: keys | if length == 0 then "none" else join(", ") end;
+            .result.deployment_configs.production
+            | "  kv namespaces: " + ((.kv_namespaces // {}) | names),
+              "  env vars:      " + ((.env_vars // {}) | names)' /tmp/patched.json
+
+      # Pages hands bindings to the Worker at deploy time, so the running one
+      # cannot see them until the next deployment.
+      - name: Redeploy so the Worker picks them up
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run "Deploy to Cloudflare Pages" --ref main
+          echo "Deploy dispatched."
+
+      - name: Wait for the site to report itself unlocked
+        run: |
+          set -euo pipefail
+          echo "Polling $SITE/api/tips-admin — 503 is locked, 401 is configured."
+          for i in $(seq 1 30); do
+            sleep 10
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+              -H "content-type: application/json" --data '{"password":""}' \
+              "$SITE/api/tips-admin" || echo "000")
+            echo "  attempt $i: HTTP $code"
+            if [ "$code" = "401" ]; then
+              echo "Configured — the editor now answers a wrong password with 401."
+              curl -sS "$SITE/api/_diag"
+              exit 0
+            fi
+          done
+          echo "::warning::Still not answering 401 after five minutes. The bindings were"\
+               "written; the deploy may just be slow. Check $SITE/api/_diag by hand."
