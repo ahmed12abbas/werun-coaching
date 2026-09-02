@@ -170,6 +170,9 @@ function toolButtons(rerender) {
       "button",
       {
         class: "tool",
+        // A wall switch rather than the usual click: this is the one button
+        // on the page that turns the lights on and off.
+        "data-sfx": "flip",
         title: dark ? t("themeLight") : t("themeDark"),
         "aria-label": dark ? t("themeLight") : t("themeDark"),
         html: dark ? ICON.sun : ICON.moon,

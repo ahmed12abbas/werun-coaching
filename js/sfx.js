@@ -144,6 +144,21 @@ const SFX = (function () {
     },
 
     /**
+     * The theme toggle: a wall switch, which is two sounds and not one — the
+     * throw of the lever, then the seat of it a moment later. A single clack
+     * is a mouse button; the pair is what makes it a switch on a wall.
+     */
+    flip() {
+      if (!audio()) return;
+      const at = ctx.currentTime;
+      burst(at, 1900, 2.5, 0.34, 0.012);
+      tone(at, "triangle", 950, 380, 0.13, 0.03);
+      const seat = at + 0.055;
+      burst(seat, 1150, 3.5, 0.2, 0.022);
+      tone(seat, "sine", 300, 150, 0.18, 0.05);
+    },
+
+    /**
      * One number passing the window on the roller.
      *
      * A flick can throw a dozen of these a second, so they are rate-limited
@@ -163,3 +178,40 @@ const SFX = (function () {
     },
   };
 })();
+
+/* -------------------------------------------------------------------------
+   Every button, once.
+
+   The page rebuilds itself from scratch on every theme flip, language switch
+   and re-render, so hanging a sound off each button as it is built would mean
+   remembering to do it in thirty places and again in every place added later.
+   One listener on the document outlives all of that: whatever button was
+   clicked, it was inside something, and closest() finds it.
+
+   It listens in the capture phase so a handler that stops the event — or
+   removes its own button from the page, which several here do — still gets
+   its click. What a button sounds like is written on the button itself:
+
+     (nothing)            the default click
+     data-sfx="flip"      a wall switch, for the theme toggle
+     data-sfx="off"       silence: this one plays its own, and two sounds
+                          for one tap reads as a stutter
+
+   Links are in, when they are dressed as buttons. To an athlete the .fit
+   download is a button; that it happens to be an <a> is our business.
+   ------------------------------------------------------------------------- */
+
+document.addEventListener(
+  "click",
+  (e) => {
+    const t = e.target;
+    if (!t || !t.closest) return; // a click on the document itself
+    const hit = t.closest("button, .btn, [role='button']");
+    if (!hit || hit.disabled) return;
+    const how = hit.getAttribute("data-sfx");
+    if (how === "off") return;
+    if (how === "flip") SFX.flip();
+    else SFX.click();
+  },
+  true
+);

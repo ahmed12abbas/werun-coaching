@@ -144,6 +144,7 @@ function tipsCorner() {
     {
       class: "cloud-x",
       type: "button",
+      "data-sfx": "off", // plays its own on the way down
       "aria-label": t("tipsClose"),
       onclick: () => {
         SFX.unpop();
@@ -185,6 +186,7 @@ function tipsCorner() {
     {
       class: "btn sm tips-toggle hidden",
       type: "button",
+      "data-sfx": "off", // pop on the way up, the same shape down on the way back
       "aria-expanded": "false",
       onclick: () => {
         // The cork out of the bottle on the way up, the same shape run

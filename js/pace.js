@@ -482,6 +482,7 @@ function paceCalculator(units) {
     "button",
     {
       class: "btn sm pace-toggle",
+      "data-sfx": "off", // clicks itself, so the page-wide listener stays out
       "aria-expanded": open ? "true" : "false",
       onclick: () => {
         // A switch, both ways — a panel that folds out of the page is not a
