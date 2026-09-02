@@ -284,35 +284,10 @@ async function tipsAdmin(request, env) {
   return json({ liveId: liveId, articles: articles, saved: true });
 }
 
-/* ---------- TEMPORARY: GET /api/_diag -------------------------------------
-   Reports which bindings the running Worker can actually see, so a missing
-   one can be told apart from a misnamed one. Names only — never a value.
-   Delete this and its route once the dashboard is green.
-   ------------------------------------------------------------------------- */
-
-function diag(request, env) {
-  // Shape only — length and whether the ends are clean — so a secret that
-  // picked up a newline or a space on its way in can be told apart from a
-  // typo, without the value itself ever leaving the Worker.
-  const shape = (v) =>
-    v ? { length: v.length, trimmedLength: v.trim().length, endsClean: v === v.trim() } : null;
-  return json({
-    sees: Object.keys(env).sort(),
-    hasAdminPassword: Boolean(env.ADMIN_PASSWORD),
-    hasStats: Boolean(env.STATS),
-    passwords: {
-      tips: shape(env.TIPS_PASSWORD),
-      admin: shape(env.ADMIN_PASSWORD),
-      sameValue: Boolean(env.TIPS_PASSWORD) && env.TIPS_PASSWORD === env.ADMIN_PASSWORD,
-    },
-    host: new URL(request.url).host,
-  });
-}
-
 /* ---------- routing ------------------------------------------------------- */
 
 const ROUTES = { "/api/share": share, "/api/stats": stats, "/api/tips-admin": tipsAdmin };
-const GETTABLE = { "/api/_diag": diag, "/api/tips": tips };
+const GETTABLE = { "/api/tips": tips };
 
 export default {
   async fetch(request, env) {

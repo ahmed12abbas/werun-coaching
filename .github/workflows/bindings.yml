@@ -240,9 +240,8 @@ jobs:
             echo "  attempt $i: HTTP $code"
             if [ "$code" = "401" ]; then
               echo "Configured — the editor now answers a wrong password with 401."
-              curl -sS "$SITE/api/_diag"
               exit 0
             fi
           done
           echo "::warning::Still not answering 401 after five minutes. The bindings were"\
-               "written; the deploy may just be slow. Check $SITE/api/_diag by hand."
+               "written; the deploy may just be slow. Try $SITE/tips by hand."
