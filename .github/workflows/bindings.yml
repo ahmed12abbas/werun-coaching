@@ -66,6 +66,37 @@ jobs:
           echo "TIPS_PASSWORD set:  $([ -n "${TIPS_PASSWORD}" ] && echo yes || echo no)"
           echo "ADMIN_PASSWORD set: $([ -n "${ADMIN_PASSWORD}" ] && echo yes || echo no)"
 
+      # Both halves are checked before either is written, so a token that can
+      # deploy but not reach KV says so plainly instead of failing midway.
+      - name: Check what the token can reach
+        run: |
+          set -euo pipefail
+          base="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT"
+
+          pages=$(curl -sS -o /tmp/p.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$base/pages/projects/$PROJECT")
+          kv=$(curl -sS -o /tmp/k.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$base/storage/kv/namespaces?per_page=1")
+
+          echo "Pages project read: HTTP $pages"
+          echo "KV namespace list:  HTTP $kv"
+
+          ok=yes
+          if [ "$pages" != "200" ]; then
+            ok=no
+            echo "::error::The token cannot read the '$PROJECT' Pages project (HTTP $pages)."\
+                 "A 404 means CLOUDFLARE_ACCOUNT_ID points at the wrong account."
+          fi
+          if [ "$kv" != "200" ]; then
+            ok=no
+            echo "::error::The token cannot reach Workers KV (HTTP $kv). Cloudflare answers"\
+                 "401 code 10000 when a token has no grant for a resource class at all, and"\
+                 "403 when it has one that is too narrow. Either way the token needs"\
+                 "reminting with 'Workers KV Storage: Edit' added alongside 'Pages: Edit',"\
+                 "signed in as the account that owns the project. See the README."
+          fi
+          [ "$ok" = "yes" ] || exit 1
+          echo "Both halves reachable — going ahead."
       # The token needs Workers KV Storage:Edit for this and Pages:Edit for the
       # step after. If it was minted Pages-only, this is where that shows up.
       - name: Find or create the KV namespace
@@ -77,9 +108,7 @@ jobs:
           code=$(curl -sS -o /tmp/list.json -w '%{http_code}' \
             -H "Authorization: Bearer $TOKEN" "$api?per_page=100")
           if [ "$code" != "200" ]; then
-            echo "::error::Listing KV namespaces answered $code. If it is 403 the API"\
-                 "token is missing the 'Workers KV Storage: Edit' permission and needs"\
-                 "reminting — see the README."
+            echo "::error::Listing KV namespaces answered $code — see the probe above."
             jq -r '.errors // .' /tmp/list.json || cat /tmp/list.json
             exit 1
           fi

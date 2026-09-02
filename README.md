@@ -248,8 +248,30 @@ Add `ADMIN_PASSWORD` as a second repo secret to unlock `/admin` in the same
 run. Neither value is printed: both are masked, and the request body goes
 to a file rather than an echoed command line.
 
-The token needs **Workers KV Storage: Edit** as well as **Pages: Edit**. If
-it was minted Pages-only the KV step fails with a 403 and says so.
+The token needs **Workers KV Storage: Edit** as well as **Pages: Edit**, and
+the one in the repo on 2026-09-02 had only the latter — the run failed with
+`401 code 10000 Authentication error` on the KV listing. Cloudflare answers
+401/10000 when a token has no grant for a resource class at all, and 403 when
+it has one that is too narrow, so a 401 here is not about the account id.
+The workflow now probes both halves before writing anything and names which
+one is missing.
+
+Reminting is a dashboard job, and it has to be done signed in as the account
+that owns the project — *My Profile* → *API Tokens* → *Create Token* →
+*Custom token*, with these three permissions:
+
+| Scope | Permission | Level |
+|---|---|---|
+| Account | Cloudflare Pages | Edit |
+| Account | Workers KV Storage | Edit |
+| Account | Account Settings | Read |
+
+Then replace the repo secret the same way it was set last time — from a file,
+since a console paste truncated it once already:
+
+```bash
+Get-Content token.txt | gh secret set CLOUDFLARE_API_TOKEN
+```
 
 To change the password later, edit that one variable — nothing needs
 redeploying twice and no code changes.
