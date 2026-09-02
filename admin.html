@@ -87,6 +87,8 @@ a.btn{text-decoration:none}
 .tipart>summary::-webkit-details-marker{display:none}
 .tipart>summary:hover{background:var(--bg)}
 .tiptitle{font-weight:650;flex:1 1 200px;min-width:0}
+.tipwhen{flex:0 1 auto;white-space:nowrap}
+@media (max-width:560px){.tipwhen{white-space:normal;flex-basis:100%}}
 .tipbody{padding:12px 14px 14px;border-top:1px solid var(--line)}
 /* The two languages read as one article, split by a rule rather than a gap. */
 .tipside+.tipside{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
@@ -113,6 +115,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
+<script src="js/tipfmt.js?v=97523749"></script>
 <script>
 "use strict";
 
@@ -212,27 +215,22 @@ function loadTips(pw) {
   })["catch"](function () { return null; });
 }
 
-/* The same two rules js/tips.js applies on the athlete's screen and tips.html
-   previews in the editor: a blank line starts a paragraph, a line opening with
-   a dash is a bullet, and a block is a list only when every line in it is a
-   bullet. This is the third copy of them -- change one, change all three. */
-function tipBlocks(body) {
-  var out = [];
-  String(body || "").split(/\n\s*\n/).forEach(function (block) {
-    var lines = block.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
-    if (!lines.length) return;
-    var allBullets = lines.every(function (l) { return /^[-\u2022*]\s+/.test(l); });
-    out.push(allBullets
-      ? { kind: "ul", items: lines.map(function (l) { return l.replace(/^[-\u2022*]\s+/, ""); }) }
-      : { kind: "p", text: lines.join(" ") });
+/* Rendered with the same rules the athlete's cloud and the editor's preview
+   use, loaded from js/tipfmt.js so all three agree by construction. */
+function runs(text) {
+  return tipRuns(text).map(function (r) {
+    return r.bold ? el("b", {}, r.text) : document.createTextNode(r.text);
   });
-  return out;
 }
 
-function bold(text, into) {
-  String(text).split("**").forEach(function (part, i) {
-    if (!part) return;
-    into.append(i % 2 ? el("b", {}, part) : document.createTextNode(part));
+/* No locale passed: dates follow whoever is reading the dashboard. */
+function stamp(iso) {
+  if (!iso) return null;
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
   });
 }
 
@@ -246,12 +244,10 @@ function tipSide(a, lang) {
   tipBlocks(side.body).forEach(function (b) {
     if (b.kind === "ul") {
       var ul = el("ul", { class: "tipul" });
-      b.items.forEach(function (t) { var li = el("li", {}); bold(t, li); ul.append(li); });
+      b.items.forEach(function (t) { ul.append(el("li", {}, runs(t))); });
       box.append(ul);
     } else {
-      var p = el("p", {});
-      bold(b.text, p);
-      box.append(p);
+      box.append(el("p", {}, runs(b.text)));
     }
   });
   return box;
@@ -259,7 +255,11 @@ function tipSide(a, lang) {
 
 function tipArticle(a, isLive) {
   var title = (a.en && a.en.title) || (a.ar && a.ar.title) || "Untitled";
-  var when = a.updated ? new Date(a.updated) : null;
+  // Articles saved before `created` existed fall back to their last edit.
+  var posted = stamp(a.created || a.updated);
+  // Only show the edit when it is a different moment from the posting.
+  var edited = a.created && a.updated && a.updated !== a.created ? stamp(a.updated) : null;
+  var when = posted ? "Posted " + posted + (edited ? " \u00b7 Updated " + edited : "") : null;
   // This page’s el() sets every attribute it is given, so a false `open`
   // would land as open="false" — which is still a present attribute, and
   // still opens the details. Set it only when it is wanted.
@@ -268,7 +268,7 @@ function tipArticle(a, isLive) {
       el("span", { class: "tiptitle" }, title),
       isLive ? el("span", { class: "badge" }, "Live")
              : el("span", { class: "muted small" }, "draft"),
-      when ? el("span", { class: "muted small" }, when.toLocaleDateString()) : null));
+      when ? el("span", { class: "muted small tipwhen" }, when) : null));
   if (isLive) d.setAttribute("open", "");
 
   var body = el("div", { class: "tipbody" });

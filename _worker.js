@@ -216,14 +216,40 @@ function cleanSide(side) {
   };
 }
 
-function cleanArticle(raw) {
+/**
+ * One article, trimmed to what is safe to store, against what is already
+ * there under the same id.
+ *
+ * Timestamps are never taken from the request — a client could say anything.
+ * `created` carries over from the stored copy, and `updated` moves only when
+ * this article's own text actually changed. The editor posts the whole
+ * collection on every save, so without that comparison one edit would restamp
+ * every other article and "updated" would mean nothing at all.
+ */
+function cleanArticle(raw, prev) {
   const a = raw && typeof raw === "object" ? raw : {};
   const id = /^[A-Za-z0-9_-]{1,40}$/.test(String(a.id || "")) ? String(a.id) : null;
+  const en = cleanSide(a.en);
+  const ar = cleanSide(a.ar);
+  const now = new Date().toISOString();
+
+  const unchanged =
+    prev &&
+    prev.en &&
+    prev.ar &&
+    prev.en.title === en.title &&
+    prev.en.body === en.body &&
+    prev.ar.title === ar.title &&
+    prev.ar.body === ar.body;
+
   return {
     id: id || "a" + Math.random().toString(36).slice(2, 10),
-    updated: new Date().toISOString(),
-    en: cleanSide(a.en),
-    ar: cleanSide(a.ar),
+    // Articles written before this field existed fall back to their last known
+    // edit, which is the closest thing to a posting date they have.
+    created: (prev && (prev.created || prev.updated)) || now,
+    updated: unchanged ? prev.updated || now : now,
+    en: en,
+    ar: ar,
   };
 }
 
@@ -242,7 +268,15 @@ async function tips(request, env) {
   const live = doc.articles.find((a) => a && a.id === doc.liveId) || null;
   if (!live) return json({ article: null });
 
-  return json({ article: { id: live.id, updated: live.updated, en: live.en, ar: live.ar } });
+  return json({
+    article: {
+      id: live.id,
+      created: live.created || live.updated,
+      updated: live.updated,
+      en: live.en,
+      ar: live.ar,
+    },
+  });
 }
 
 /* ---------- POST /api/tips-admin ----------------------------------------- */
@@ -292,8 +326,13 @@ async function tipsAdmin(request, env) {
 
   // The editor sends the whole collection every save, so what comes back from
   // a reload is exactly what the coach was last looking at — no merge to get
-  // wrong, and a deleted article stays deleted.
-  const articles = incoming.map(cleanArticle).filter((a) => a.en.title || a.ar.title);
+  // wrong, and a deleted article stays deleted. The stored copy is read first
+  // only so each article can keep its own dates.
+  const stored = await readTips(env.STATS);
+  const before = new Map(stored.articles.map((a) => [a && a.id, a]));
+  const articles = incoming
+    .map((raw) => cleanArticle(raw, before.get(raw && typeof raw === "object" ? raw.id : null)))
+    .filter((a) => a.en.title || a.ar.title);
   const liveId = articles.some((a) => a.id === body.save.liveId) ? body.save.liveId : null;
 
   await env.STATS.put(TIPS_KEY, JSON.stringify({ v: 1, liveId: liveId, articles: articles }));

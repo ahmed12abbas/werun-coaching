@@ -62,6 +62,7 @@ a{color:var(--brand)}
 
 .head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .head .grow{flex:1 1 180px;min-width:0}
+.times{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:760px){.pair{grid-template-columns:1fr}}
 .side+.side{margin-top:0}
@@ -113,6 +114,7 @@ footer{margin-top:30px;font-size:13px;color:var(--muted)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
+<script src="js/tipfmt.js?v=97523749"></script>
 <script>
 "use strict";
 
@@ -203,41 +205,57 @@ function renderLogin(message) {
 }
 
 /* ---------- the preview ---------------------------------------------------
-   The same two rules js/tips.js applies on the athlete's screen — a blank
-   line starts a paragraph, a line opening with "-" is a bullet — so what she
-   sees here is what they get. Kept as its own small copy rather than loading
-   the site's javascript, which expects the whole i18n/brand stack behind it.
-   If those rules change there, change them here too.
+   Built from the same rules the athlete's cloud uses, loaded from
+   js/tipfmt.js so the preview can never disagree with what they will see.
    ------------------------------------------------------------------------- */
 
-function bold(text, into) {
-  String(text).split("**").forEach(function (part, i) {
-    if (!part) return;
-    into.append(i % 2 ? el("b", {}, part) : document.createTextNode(part));
+/** Runs into text nodes and <b>, and nothing else. */
+function runs(text) {
+  return tipRuns(text).map(function (r) {
+    return r.bold ? el("b", {}, r.text) : document.createTextNode(r.text);
   });
 }
 
 function previewNodes(body) {
-  var out = [];
-  String(body || "").split(/\n\s*\n/).forEach(function (block) {
-    var lines = block.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
-    if (!lines.length) return;
-    var allBullets = lines.every(function (l) { return /^[-•*]\s+/.test(l); });
-    if (allBullets) {
+  return tipBlocks(body).map(function (b) {
+    if (b.kind === "ul") {
       var ul = el("ul", {});
-      lines.forEach(function (l) {
-        var li = el("li", {});
-        bold(l.replace(/^[-•*]\s+/, ""), li);
-        ul.append(li);
-      });
-      out.push(ul);
-    } else {
-      var p = el("p", {});
-      bold(lines.join(" "), p);
-      out.push(p);
+      b.items.forEach(function (t) { ul.append(el("li", {}, runs(t))); });
+      return ul;
     }
+    return el("p", {}, runs(b.text));
   });
-  return out;
+}
+
+/* ---------- when it was written ------------------------------------------
+   No locale is passed, so these follow the coach's own browser rather than
+   the page's English chrome.
+   ------------------------------------------------------------------------- */
+
+function stamp(iso) {
+  if (!iso) return null;
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+
+function articleTimes(a) {
+  // Articles saved before `created` existed carry only their last edit,
+  // which is the closest thing to a posting date they have.
+  var posted = stamp(a.created || a.updated);
+  if (!posted) return el("div", { class: "times" }, "Not saved yet");
+
+  var line = el("div", { class: "times" }, "Posted " + posted);
+  // Only worth saying when it differs from the posting; a fresh article
+  // would otherwise carry the same date twice.
+  if (a.created && a.updated && a.updated !== a.created) {
+    var edited = stamp(a.updated);
+    if (edited) line.append(" \u00b7 Updated " + edited);
+  }
+  return line;
 }
 
 /* ---------- the editor ----------------------------------------------------- */
@@ -310,7 +328,9 @@ function articleCard(article, index) {
     isLive ? "Live — athletes see this" : "Show this one");
 
   var head = el("div", { class: "head" },
-    el("h2", { class: "grow" }, "Article " + (index + 1)),
+    el("div", { class: "grow" },
+      el("h2", {}, "Article " + (index + 1)),
+      articleTimes(article)),
     isLive ? el("span", { class: "badge" }, "Live") : null,
     pick,
     el("button", {

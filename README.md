@@ -317,6 +317,13 @@ Each article has an English and an Arabic half, and the cloud shows whichever
 matches the athlete's language toggle. If one half is left empty, the other is
 shown in its place rather than an empty bubble.
 
+Each article carries its own **posted** and **updated** times, shown beside it
+in the editor and on the dashboard. The editor posts the whole collection on
+every save, so the Worker compares each article against the stored copy and
+moves `updated` only when that article's own text actually changed -- otherwise
+editing one would restamp them all. Timestamps are never taken from the
+request.
+
 ### Writing an article
 
 There is no markup to learn. The editor previews the result live, beside the
@@ -327,6 +334,12 @@ box, in both languages:
 | a blank line | a new paragraph |
 | a line starting with `-` | a bullet |
 | `**five seconds slower**` | **five seconds slower** |
+
+Those rules live in one place -- `js/tipfmt.js` -- and all three renderers
+call into it: the athlete's cloud, the editor's preview, and the read-only
+viewer on `/admin`. It is deliberately DOM-free, so the two standalone pages
+can load it without pulling in the rest of the site's javascript. Change the
+rules there and all three follow; that is the point.
 
 A block counts as a list only when *every* line in it is a bullet, so a dash
 used mid-sentence stays part of the sentence. Nothing else is interpreted:
@@ -369,6 +382,7 @@ again.
 | `js/views.js` | Builder and athlete viewer |
 | `js/boot.js` | Entry point — builder vs viewer |
 | `js/fit.js` | Binary `.FIT` workout encoder |
+| `js/tipfmt.js` | The one copy of the article formatting rules, shared by all three renderers |
 | `js/tips.js` | Coach Tips: the logo pop and the cloud it opens |
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |

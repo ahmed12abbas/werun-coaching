@@ -1,5 +1,5 @@
 /**
- * Stamps each <script src="js/…"> in index.html with a ?v= content hash.
+ * Stamps each <script src="js/…"> with a ?v= content hash.
  *
  * Both hosts serve the js files with a ten-minute max-age and no way to purge:
  * GitHub Pages sends `Cache-Control: max-age=600` and Cloudflare Pages caches
@@ -13,7 +13,11 @@
  *
  *   node tools/version-assets.js
  *
- * It rewrites index.html in place and prints what moved. Safe to run twice.
+ * It rewrites the pages in place and prints what moved. Safe to run twice.
+ *
+ * All three pages are covered, not just index.html: admin.html and tips.html
+ * are otherwise standalone, but both now load js/tipfmt.js, and a stale copy
+ * of the formatting rules there would quietly disagree with what athletes see.
  */
 
 const fs = require("fs");
@@ -21,16 +25,25 @@ const path = require("path");
 const crypto = require("crypto");
 
 const root = path.join(__dirname, "..");
-const page = path.join(root, "index.html");
-
-const html = fs.readFileSync(page, "utf8");
-const changes = [];
+const PAGES = ["index.html", "admin.html", "tips.html"];
 
 // Matches src="js/anything.js" with or without a version already on it, so a
 // second run replaces the old stamp rather than stacking another one.
-const updated = html.replace(
-  /(<script\s+src=")(js\/[^"?]+\.js)(\?v=[^"]*)?(")/g,
-  (whole, open, src, oldQuery, close) => {
+const TAG = /(<script\s+src=")(js\/[^"?]+\.js)(\?v=[^"]*)?(")/g;
+
+let touched = false;
+
+for (const name of PAGES) {
+  const page = path.join(root, name);
+  if (!fs.existsSync(page)) {
+    console.warn("skipped " + name + " — no such file");
+    continue;
+  }
+
+  const html = fs.readFileSync(page, "utf8");
+  const changes = [];
+
+  const updated = html.replace(TAG, (whole, open, src, oldQuery, close) => {
     const file = path.join(root, src);
     if (!fs.existsSync(file)) {
       console.warn("skipped " + src + " — no such file");
@@ -45,13 +58,16 @@ const updated = html.replace(
     const was = oldQuery ? oldQuery.slice(3) : "none";
     if (was !== hash) changes.push(src + ": " + was + " -> " + hash);
     return open + src + "?v=" + hash + close;
-  }
-);
+  });
 
-if (updated === html) {
-  console.log("index.html already up to date.");
-} else {
-  fs.writeFileSync(page, updated);
-  console.log("index.html stamped:");
-  for (const line of changes) console.log("  " + line);
+  if (updated === html) {
+    console.log(name + " already up to date.");
+  } else {
+    fs.writeFileSync(page, updated);
+    touched = true;
+    console.log(name + " stamped:");
+    for (const line of changes) console.log("  " + line);
+  }
 }
+
+if (!touched) console.log("Nothing to do.");

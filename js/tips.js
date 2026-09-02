@@ -28,28 +28,31 @@ function loadTip() {
 }
 
 /**
- * The coach writes plainly in a textarea: a blank line starts a paragraph, a
- * line opening with "-" is a bullet. Everything is built as text nodes through
- * rich(), which only ever produces <b>, so an article can emphasise a phrase
- * but cannot put markup into the page.
+ * Article text into nodes.
+ *
+ * The rules themselves live in js/tipfmt.js, shared with the editor's preview
+ * and the dashboard's viewer so the three cannot drift apart and start
+ * disagreeing about what athletes will see. Here they only become elements.
  */
 function tipParagraphs(text) {
-  const out = [];
-  for (const block of String(text || "").split(/\n\s*\n/)) {
-    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-    if (!lines.length) continue;
-
-    // A block is a list only when every line in it is a bullet, so a dash
-    // used mid-sentence stays part of the sentence.
-    if (lines.every((l) => /^[-•*]\s+/.test(l))) {
+  const nodes = [];
+  for (const block of tipBlocks(text)) {
+    if (block.kind === "ul") {
       const ul = el("ul", { class: "cloud-list" });
-      for (const l of lines) ul.append(el("li", {}, rich(l.replace(/^[-•*]\s+/, ""))));
-      out.push(ul);
+      for (const item of block.items) ul.append(el("li", {}, tipInline(item)));
+      nodes.push(ul);
     } else {
-      out.push(el("p", {}, rich(lines.join(" "))));
+      nodes.push(el("p", {}, tipInline(block.text)));
     }
   }
-  return out;
+  return nodes;
+}
+
+/** Runs into text nodes and <b>, and nothing else. */
+function tipInline(text) {
+  return tipRuns(text).map((run) =>
+    run.bold ? el("b", {}, run.text) : document.createTextNode(run.text)
+  );
 }
 
 /** The half of the article to show, falling back to the other language. */
