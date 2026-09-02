@@ -182,6 +182,15 @@ session called `Thursday | WeRUN` counts as Thursday, in English or Arabic —
 so renaming a session changes which column it lands in, and a name with no day
 in it is counted under **Other**.
 
+Underneath the counts the same page shows **Coach Tips read-only**: every
+article, both languages, which one is live, newest state at a glance. It is a
+viewer, not an editor -- writing still happens at `/tips`.
+
+The club password (`ADMIN_PASSWORD`) opens the tips routes as well as this one,
+so the dashboard can show the articles without the coach password being copied
+into a second page. It does not work the other way round: `TIPS_PASSWORD` opens
+`/tips` only, never the share counts.
+
 It counts taps, not people: the same athlete tapping twice counts twice.
 Nothing else is recorded — no IP, no identity, not even which session — so
 there is nothing in the store worth protecting.

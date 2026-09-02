@@ -73,6 +73,32 @@ tbody tr:last-child td{border-bottom:0}
 .tile .n{font-family:var(--display);font-size:38px;line-height:1;font-weight:600}
 .tile .l{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
   font-weight:700;margin-top:4px}
+/* ---- the read-only look at Coach Tips ---- */
+.btn.sm{padding:7px 12px;font-size:13.5px;border-radius:10px}
+a.btn{text-decoration:none}
+.badge{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--brand);background:var(--brand-soft);border-radius:999px;padding:3px 10px;flex:none}
+.tiphead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tiphead h2{flex:1 1 auto}
+.tipart{border:1px solid var(--line);border-radius:13px;margin-top:10px;overflow:hidden}
+.tipart.live{border-color:var(--brand)}
+.tipart>summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;
+  align-items:center;gap:10px;flex-wrap:wrap}
+.tipart>summary::-webkit-details-marker{display:none}
+.tipart>summary:hover{background:var(--bg)}
+.tiptitle{font-weight:650;flex:1 1 200px;min-width:0}
+.tipbody{padding:12px 14px 14px;border-top:1px solid var(--line)}
+/* The two languages read as one article, split by a rule rather than a gap. */
+.tipside+.tipside{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.tipside.ar{direction:rtl;text-align:right}
+.tiplang{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px}
+.tipside h3{font-family:var(--display);font-size:24px;font-weight:600;text-transform:uppercase;
+  line-height:1.05;margin:0 0 8px}
+.tipside p{margin:0 0 9px;font-size:14.5px;line-height:1.6}
+.tipul{margin:0 0 9px;padding-inline-start:20px;font-size:14.5px}
+.tipul li{margin-bottom:4px}
+.tipside p:last-child,.tipul:last-child{margin-bottom:0}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
 a{color:var(--brand)}
 </style>
@@ -167,11 +193,123 @@ function load(pw) {
     return res.json();
   }).then(function (data) {
     password = pw;
-    renderStats(data);
+    // The articles are a second, softer ask: if they cannot be read the
+    // counts still render, with a line saying so.
+    return loadTips(pw).then(function (tips) { renderStats(data, tips); });
   });
 }
 
-function renderStats(data) {
+/* The club password opens the tips routes as well as this one, so the
+   dashboard can show the articles without the coach's password being copied
+   into a second page. A failure here is never fatal. */
+function loadTips(pw) {
+  return fetch("/api/tips-admin", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: pw })
+  }).then(function (res) {
+    return res.ok ? res.json() : null;
+  })["catch"](function () { return null; });
+}
+
+/* The same two rules js/tips.js applies on the athlete's screen and tips.html
+   previews in the editor: a blank line starts a paragraph, a line opening with
+   a dash is a bullet, and a block is a list only when every line in it is a
+   bullet. This is the third copy of them -- change one, change all three. */
+function tipBlocks(body) {
+  var out = [];
+  String(body || "").split(/\n\s*\n/).forEach(function (block) {
+    var lines = block.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    if (!lines.length) return;
+    var allBullets = lines.every(function (l) { return /^[-\u2022*]\s+/.test(l); });
+    out.push(allBullets
+      ? { kind: "ul", items: lines.map(function (l) { return l.replace(/^[-\u2022*]\s+/, ""); }) }
+      : { kind: "p", text: lines.join(" ") });
+  });
+  return out;
+}
+
+function bold(text, into) {
+  String(text).split("**").forEach(function (part, i) {
+    if (!part) return;
+    into.append(i % 2 ? el("b", {}, part) : document.createTextNode(part));
+  });
+}
+
+function tipSide(a, lang) {
+  var side = (a && a[lang]) || {};
+  if (!side.title && !side.body) return null;
+  var box = el("div", { class: "tipside" + (lang === "ar" ? " ar" : "") });
+  if (lang === "ar") box.setAttribute("dir", "rtl");
+  box.append(el("div", { class: "tiplang" }, lang === "ar" ? "العربية" : "English"));
+  if (side.title) box.append(el("h3", {}, side.title));
+  tipBlocks(side.body).forEach(function (b) {
+    if (b.kind === "ul") {
+      var ul = el("ul", { class: "tipul" });
+      b.items.forEach(function (t) { var li = el("li", {}); bold(t, li); ul.append(li); });
+      box.append(ul);
+    } else {
+      var p = el("p", {});
+      bold(b.text, p);
+      box.append(p);
+    }
+  });
+  return box;
+}
+
+function tipArticle(a, isLive) {
+  var title = (a.en && a.en.title) || (a.ar && a.ar.title) || "Untitled";
+  var when = a.updated ? new Date(a.updated) : null;
+  // This page’s el() sets every attribute it is given, so a false `open`
+  // would land as open="false" — which is still a present attribute, and
+  // still opens the details. Set it only when it is wanted.
+  var d = el("details", { class: "tipart" + (isLive ? " live" : "") },
+    el("summary", {},
+      el("span", { class: "tiptitle" }, title),
+      isLive ? el("span", { class: "badge" }, "Live")
+             : el("span", { class: "muted small" }, "draft"),
+      when ? el("span", { class: "muted small" }, when.toLocaleDateString()) : null));
+  if (isLive) d.setAttribute("open", "");
+
+  var body = el("div", { class: "tipbody" });
+  var sides = [tipSide(a, "en"), tipSide(a, "ar")].filter(Boolean);
+  if (!sides.length) sides = [el("p", { class: "muted small" }, "Nothing written yet.")];
+  sides.forEach(function (n) { body.append(n); });
+  d.append(body);
+  return d;
+}
+
+function tipsCard(tips) {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" },
+      el("h2", {}, "Coach Tips"),
+      el("a", { class: "btn sm", href: "/tips" }, "Open the editor")));
+
+  var note = function (t) {
+    card.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, t));
+    return card;
+  };
+
+  if (!tips) return note("Could not read the articles with this password.");
+  if (tips.warning === "no-store") return note("No KV namespace is bound, so there is nowhere to keep articles.");
+
+  var arts = tips.articles || [];
+  if (!arts.length) {
+    return note("No articles yet. Nothing appears beside the session until one is " +
+                "written and marked live.");
+  }
+
+  var hasLive = arts.some(function (a) { return a.id === tips.liveId; });
+  card.append(el("p", { class: "muted small", style: "margin:10px 0 2px" },
+    hasLive
+      ? "Athletes see the one marked live. " + arts.length + " saved in total."
+      : "Nothing is marked live, so the button is hidden on the session page."));
+
+  arts.forEach(function (a) { card.append(tipArticle(a, a.id === tips.liveId)); });
+  return card;
+}
+
+function renderStats(data, tips) {
   app.textContent = "";
   var weeks = data.weeks || [];
 
@@ -192,6 +330,7 @@ function renderStats(data) {
         "Counting is live. This fills in the first time an athlete taps " +
         "Share this session.")
     ));
+    app.append(tipsCard(tips));
     app.append(controls());
     return;
   }
@@ -245,6 +384,7 @@ function renderStats(data) {
       el("div", { class: "scroll" }, el("table", {}, el("thead", {}, head), body))
     )
   );
+  app.append(tipsCard(tips));
   app.append(controls());
 }
 

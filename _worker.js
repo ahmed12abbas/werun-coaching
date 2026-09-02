@@ -247,19 +247,35 @@ async function tips(request, env) {
 
 /* ---------- POST /api/tips-admin ----------------------------------------- */
 
+/**
+ * Either password opens the articles: the coach's own, or the club password,
+ * which is the owner's key to everything and is the one /admin already holds
+ * — that is what lets the dashboard show the articles without the coach's
+ * password being copied into a second page.
+ *
+ * Every candidate is compared even after one matches, so the time taken says
+ * nothing about which of the two it was, or whether both are set.
+ */
+async function tipsAllows(given, env) {
+  let ok = false;
+  for (const secret of [env.TIPS_PASSWORD, env.ADMIN_PASSWORD]) {
+    if (secret && (await safeEqual(given, secret))) ok = true;
+  }
+  return ok;
+}
+
 /*
- * The editor behind /tips. Same shape as /api/stats — password in the body,
- * checked here against a secret the site never ships — but its own secret, so
- * the coach who writes the articles need not be handed the key to the share
- * dashboard. TIPS_PASSWORD if it is set, otherwise ADMIN_PASSWORD, so the page
- * works the moment it deploys and can be split off later without a migration.
+ * The editor behind /tips, and the read-only view of the same articles on
+ * /admin. Same shape as /api/stats — password in the body, checked here
+ * against secrets the site never ships.
  */
 async function tipsAdmin(request, env) {
-  const secret = env.TIPS_PASSWORD || env.ADMIN_PASSWORD;
-  if (!secret) return json({ error: "not-configured" }, 503);
+  if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
+    return json({ error: "not-configured" }, 503);
+  }
 
   const body = await readBody(request);
-  if (!(await safeEqual(String((body && body.password) || ""), secret))) {
+  if (!(await tipsAllows(String((body && body.password) || ""), env))) {
     return json({ error: "bad-password" }, 401);
   }
 
