@@ -127,6 +127,13 @@ function tipsCorner() {
   let open = false;
   let popTimer = null;
 
+  // What the caller gets back. The nodes are filled in at the end; the closer
+  // is here from the start so the pace calculator can be handed it — this
+  // cloud and that panel both hang off the session head, and two of them up
+  // at once is two things talking over each other. Closing this way is
+  // silent: the panel that did it plays its own sound.
+  const api = { button: null, cloud: null, scrim: null, onOpen: null, close: () => setOpen(false) };
+
   const kicker = el("span", { class: "cloud-kicker" }, t("tipsKicker"));
   const title = el("h2", { class: "cloud-title" });
   const body = el("div", { class: "cloud-body" });
@@ -134,7 +141,15 @@ function tipsCorner() {
 
   const closeBtn = el(
     "button",
-    { class: "cloud-x", type: "button", "aria-label": t("tipsClose"), onclick: () => setOpen(false) },
+    {
+      class: "cloud-x",
+      type: "button",
+      "aria-label": t("tipsClose"),
+      onclick: () => {
+        SFX.unpop();
+        setOpen(false);
+      },
+    },
     "✕"
   );
 
@@ -154,7 +169,16 @@ function tipsCorner() {
     inner
   );
 
-  const scrim = el("div", { class: "cloud-scrim hidden", onclick: () => setOpen(false) });
+  const scrim = el(
+    "div",
+    {
+      class: "cloud-scrim hidden",
+      onclick: () => {
+        SFX.unpop();
+        setOpen(false);
+      },
+    }
+  );
 
   const button = el(
     "button",
@@ -162,7 +186,16 @@ function tipsCorner() {
       class: "btn sm tips-toggle hidden",
       type: "button",
       "aria-expanded": "false",
-      onclick: () => setOpen(!open),
+      onclick: () => {
+        // The cork out of the bottle on the way up, the same shape run
+        // downhill on the way back. Only the button and the cloud's own
+        // closers make a sound: when the pace panel shuts this cloud it
+        // plays its own click, and two noises for one tap reads as a
+        // stutter.
+        if (open) SFX.unpop();
+        else SFX.pop();
+        setOpen(!open);
+      },
       // Replaying the pop on hover is the desktop half of the invitation the
       // first pop makes; a phone gets it on tap instead.
       onmouseenter: () => pop(),
@@ -227,6 +260,7 @@ function tipsCorner() {
   }
 
   function setOpen(next) {
+    if (next === open) return;
     open = next;
     cloud.classList.toggle("hidden", !open);
     scrim.classList.toggle("hidden", !open);
@@ -239,6 +273,7 @@ function tipsCorner() {
       aimTail();
       syncFade();
       cloud.focus();
+      if (api.onOpen) api.onOpen();
     }
   }
 
@@ -248,8 +283,15 @@ function tipsCorner() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && open) setOpen(false);
+    if (e.key === "Escape" && open) {
+      SFX.unpop();
+      setOpen(false);
+    }
   });
+
+  api.button = button;
+  api.cloud = cloud;
+  api.scrim = scrim;
 
   loadTip().then((found) => {
     if (!found) return; // nothing live: the button never appears at all
@@ -260,5 +302,5 @@ function tipsCorner() {
     pop();
   });
 
-  return { button: button, cloud: cloud, scrim: scrim };
+  return api;
 }

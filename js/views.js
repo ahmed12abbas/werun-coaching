@@ -293,6 +293,12 @@ function renderViewer(app, w, rerender) {
   // the cloud stay out of the page entirely unless she has an article live.
   const corner = tipsCorner();
 
+  // One at a time. They open off buttons an inch apart and both push the
+  // session down the page, so whichever is asked for wins and the other folds
+  // away — silently, since the one being opened is already making its noise.
+  pace.onOpen = () => corner.close();
+  corner.onOpen = () => pace.close();
+
   app.append(
     el(
       "div",

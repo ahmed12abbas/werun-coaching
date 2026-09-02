@@ -227,6 +227,10 @@ function rollerColumn(values, label, onPick) {
     if (i !== index) {
       index = i;
       publish();
+      // Only the numbers the thumb moved past. Scrolls we caused ourselves
+      // settle on the index that is already set and never get here, so
+      // opening the panel or switching mode puts the columns back in silence.
+      SFX.tick();
     }
     // Fires once the flick has come to rest, not on every frame of it.
     clearTimeout(settle);
@@ -237,7 +241,10 @@ function rollerColumn(values, label, onPick) {
     const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
     if (!step) return;
     e.preventDefault();
-    if (setIndex(index + step)) onPick();
+    if (setIndex(index + step)) {
+      SFX.tick();
+      onPick();
+    }
   });
 
   publish();
@@ -455,16 +462,34 @@ function paceCalculator(units) {
   let open = false;
   panel.classList.add("hidden");
 
+  // The caller hangs the other panel's closer here: this one and the Coach
+  // Tips cloud both hang off the session head, and two of them up at once is
+  // two things talking over each other.
+  const api = { button: null, panel: panel, onOpen: null, close: () => setOpen(false) };
+
+  function setOpen(next) {
+    if (next === open) return;
+    open = next;
+    panel.classList.toggle("hidden", !open);
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    // scrollTop only takes while the column is laid out, so the roller has to
+    // be put back where the value says every time the panel comes up.
+    if (open) sync();
+    if (open && api.onOpen) api.onOpen();
+  }
+
   const button = el(
     "button",
     {
       class: "btn sm pace-toggle",
       "aria-expanded": open ? "true" : "false",
       onclick: () => {
-        open = !open;
-        panel.classList.toggle("hidden", !open);
-        button.setAttribute("aria-expanded", open ? "true" : "false");
-        if (open) sync();
+        // A switch, both ways — a panel that folds out of the page is not a
+        // cork coming out of a bottle. Only the button makes the sound: when
+        // the tips cloud closes this panel it plays its own, and two noises
+        // for one tap reads as a stutter.
+        SFX.click();
+        setOpen(!open);
       },
     },
     // The glow chases round the rim while the panel is shut, to say there is
@@ -473,5 +498,6 @@ function paceCalculator(units) {
     el("span", { class: "pace-face" }, el("span", { html: ICON.timer }), t("pcOpen"))
   );
 
-  return { button: button, panel: panel };
+  api.button = button;
+  return api;
 }

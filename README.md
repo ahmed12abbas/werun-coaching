@@ -418,6 +418,7 @@ again.
 | `js/fit.js` | Binary `.FIT` workout encoder |
 | `js/tipfmt.js` | The one copy of the article formatting rules, shared by all three renderers |
 | `js/tips.js` | Coach Tips: the logo pop and the cloud it opens |
+| `js/sfx.js` | The pop, the click and the roller detent — synthesised, no audio files |
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
 | `_worker.js` | Server side of the share counter and Coach Tips; reserved name, never served |
