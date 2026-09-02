@@ -535,6 +535,7 @@ function renderViewer(app, w, rerender) {
     "button",
     {
       class: "btn lg block share-cta",
+      "data-sfx": "share", // its own sound: this tap is for someone else
       onclick: async () => {
         countShare(w);
         const data = { title: w.name, text: asText(w), url: location.href };
@@ -549,8 +550,10 @@ function renderViewer(app, w, rerender) {
         copyText(location.href, t("linkCopied"));
       },
     },
-    el("span", { html: ICON.link }),
-    t("shareSession")
+    // The same comet that laps the pace and tips buttons, so the three
+    // things on the page worth pressing all announce themselves the same way.
+    el("span", { class: "share-glow", "aria-hidden": "true" }),
+    el("span", { class: "share-face" }, el("span", { html: ICON.link }), t("shareSession"))
   );
 
   // Three things, one grid, two arrangements — see .foot-row in index.html.

@@ -163,6 +163,42 @@ const SFX = (function () {
     },
 
     /**
+     * The session going out. A rising rush of air — the link leaving — and a
+     * two-note chime as it lands, a fifth apart so it resolves rather than
+     * hangs. Longer than anything else on the page, because this is the one
+     * tap that does something for someone other than the athlete tapping.
+     */
+    share() {
+      if (!audio()) return;
+      const c = ctx;
+      const at = c.currentTime;
+
+      // The rush: noise through a bandpass that climbs, quiet in, quiet out.
+      const src = c.createBufferSource();
+      src.buffer = noise(c);
+      const band = c.createBiquadFilter();
+      band.type = "bandpass";
+      band.Q.value = 1.4;
+      band.frequency.setValueAtTime(320, at);
+      band.frequency.exponentialRampToValueAtTime(3600, at + 0.28);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.16, at + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.32);
+      src.connect(band).connect(g).connect(master);
+      src.start(at, Math.random() * 0.5, 0.36);
+      src.stop(at + 0.36);
+
+      // The landing: E5 then B5, the second a little softer, each with the
+      // octave over the top that makes a note into a chime.
+      const land = at + 0.2;
+      tone(land, "triangle", 659.25, 659.25, 0.18, 0.22);
+      tone(land, "sine", 1318.5, 1318.5, 0.05, 0.14);
+      tone(land + 0.11, "triangle", 987.77, 987.77, 0.15, 0.3);
+      tone(land + 0.11, "sine", 1975.5, 1975.5, 0.04, 0.18);
+    },
+
+    /**
      * The theme toggle: a wall switch, which is two sounds and not one — the
      * throw of the lever, then the seat of it a moment later. A single clack
      * is a mouse button; the pair is what makes it a switch on a wall.
@@ -213,11 +249,14 @@ const SFX = (function () {
 
      (nothing)            the default click
      data-sfx="flip"      a wall switch, for the theme toggle
+     data-sfx="share"     the session going out, for the share link
      data-sfx="off"       silence: this one plays its own, and two sounds
                           for one tap reads as a stutter
 
    Links are in, when they are dressed as buttons. To an athlete the .fit
-   download is a button; that it happens to be an <a> is our business.
+   download is a button; that it happens to be an <a> is our business. So
+   are the <summary> rows that fold the watch instructions open: they are
+   pressed like buttons and should answer like them.
    ------------------------------------------------------------------------- */
 
 document.addEventListener(
@@ -225,11 +264,12 @@ document.addEventListener(
   (e) => {
     const t = e.target;
     if (!t || !t.closest) return; // a click on the document itself
-    const hit = t.closest("button, .btn, [role='button']");
+    const hit = t.closest("button, .btn, [role='button'], summary");
     if (!hit || hit.disabled) return;
     const how = hit.getAttribute("data-sfx");
     if (how === "off") return;
     if (how === "flip") SFX.flip();
+    else if (how === "share") SFX.share();
     else SFX.click();
   },
   true

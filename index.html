@@ -467,10 +467,21 @@ footer a{color:inherit}
   grid-template-columns:1fr 216px;grid-template-rows:auto auto 1fr;
   grid-template-areas:"rate share" "rate socials" "rate .";}
 .rate{grid-area:rate;min-width:0}
-.share-cta{grid-area:share;align-self:start;
+.share-cta{grid-area:share;align-self:start;position:relative;overflow:hidden;
   background:var(--brand-soft);border-color:transparent;color:var(--brand)}
-.share-cta:hover{background:var(--brand);color:var(--brand-ink)}
+/* The comet lap from the pace button, behind a cover that leaves only the
+   rim of it showing. The cover carries the button's colour, since it sits
+   over the button's own background. */
+.share-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
+  background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
+  filter:blur(1.5px);animation:paceSpin 3.1s linear infinite}
+.share-cta::after{content:"";position:absolute;inset:2px;border-radius:10px;background:var(--brand-soft);
+  transition:background .15s ease}
+.share-cta:hover::after{background:var(--brand)}
+.share-cta:hover{color:var(--brand-ink)}
+.share-face{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px}
 .share-cta svg{width:21px;height:21px}
+@media (prefers-reduced-motion:reduce){.share-glow{animation:none;opacity:.6}}
 .foot-row .socials{grid-area:socials;align-self:start;margin:0}
 @media (max-width:640px){
   .foot-row{grid-template-columns:1fr;grid-template-rows:auto auto auto;
@@ -517,13 +528,13 @@ footer a{color:inherit}
 <script src="js/fit.js?v=b04dac88"></script>
 <script src="js/brand.js?v=037798cf"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
-<script src="js/sfx.js?v=12910669"></script>
+<script src="js/sfx.js?v=02d6c4d6"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script src="js/rate.js?v=419ccd4d"></script>
 <script src="js/tips.js?v=7238e345"></script>
 <script src="js/pace.js?v=83734ba1"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
-<script src="js/views.js?v=6705ffb4"></script>
+<script src="js/views.js?v=55c104e4"></script>
 <script src="js/boot.js?v=e2d4d456"></script>
 </body>
 </html>
