@@ -279,16 +279,16 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .btn.tips-toggle{flex:none;gap:9px;padding:6px 12px 6px 9px;position:relative;overflow:hidden}
 [dir="rtl"] .btn.tips-toggle{padding:6px 9px 6px 12px}
 .tips-toggle[aria-expanded="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
-/* The same comet lap the pace button runs, turning the other way: an oversized
-   conic gradient spinning behind the button with the middle covered back over,
-   so only the edge of it shows. Both stop the moment their panel is open. */
+/* The same comet lap the pace button runs, same way and same speed: an
+   oversized conic gradient spinning behind the button with the middle covered
+   back over, so only the edge of it shows. Both stop the moment their panel
+   is open. */
 .tips-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
   background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
-  filter:blur(1.5px);animation:tipsSpin var(--lap) linear infinite}
+  filter:blur(1.5px);animation:paceSpin var(--lap) linear infinite}
 .tips-toggle::after{content:"";position:absolute;inset:1.6px;border-radius:7px;background:var(--card)}
 .tips-toggle[aria-expanded="true"]::after{background:var(--brand-soft)}
 .tips-toggle[aria-expanded="true"] .tips-glow{display:none}
-@keyframes tipsSpin{to{rotate:-360deg}}
 /* Both sit over that cover; the mark carries the burst, so its whole subtree
    comes with it. */
 .tips-mark,.tips-face{position:relative;z-index:1}
@@ -534,7 +534,7 @@ footer a{color:inherit}
 <script src="js/sfx.js?v=02d6c4d6"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script src="js/rate.js?v=419ccd4d"></script>
-<script src="js/tips.js?v=7238e345"></script>
+<script src="js/tips.js?v=9add8f4f"></script>
 <script src="js/pace.js?v=83734ba1"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
 <script src="js/views.js?v=55c104e4"></script>

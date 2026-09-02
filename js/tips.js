@@ -202,9 +202,9 @@ function tipsCorner() {
       // first pop makes; a phone gets it on tap instead.
       onmouseenter: () => pop(),
     },
-    // The comet laps the rim while the cloud is shut, the same invitation the
-    // pace button makes — the other way round, so the pair reads as two things
-    // rather than one repeated twice.
+    // The comet laps the rim while the cloud is shut: the same invitation the
+    // pace button makes, at the same speed and the same way round, so the two
+    // read as one idea sitting on two buttons.
     el("span", { class: "tips-glow", "aria-hidden": "true" }),
     tipMark(),
     el("span", { class: "tips-face" }, t("tipsOpen"))
