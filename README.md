@@ -73,7 +73,7 @@ Links run roughly 250–450 characters — fine for WhatsApp, Telegram, SMS.
 
 | Day | Session |
 |---|---|
-| **Monday** | 10 min warm up, drills, a 1-2-3-4-5-6 min ladder at 5 K pace, 10 min cool down |
+| **Monday** | 15 min warm up, drills, 12 x 500 m at 5 K pace with 2 min rest, 15 min cool down |
 | **Thursday** | Hill repeats — 12 x 200 m, jog back down, everything but the reps on the lap button |
 
 They live in `SESSIONS` at the top of `js/model.js`. Adding a day is a builder

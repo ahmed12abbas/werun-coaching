@@ -130,22 +130,25 @@ const sessionShell = (name, note, blocks) => ({
   blocks: blocks,
 });
 
-/** Monday: a 1-6 minute ladder at 5 K pace. */
-function mondayLadder() {
-  // Each rung is [work seconds, the recovery that follows it].
-  const ladder = [[60, 60], [120, 60], [180, 90], [240, 120], [300, 120], [360, 120]];
-  const blocks = [
-    Object.assign(blankStep("warmup"), { seconds: 600 }),
+/**
+ * Monday: 12 x 500 m at 5 K pace, 2 min rest between them. The warm up and
+ * cool down end on the lap button — the 15 min is the coach's estimate, not
+ * something that stops the step.
+ */
+function mondayIntervals() {
+  return sessionShell("Monday | WeRUN", "Intervals", [
+    Object.assign(blankStep("warmup"), { durType: "open", estSeconds: 900, note: "15 min" }),
     Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills + strides" }),
-  ];
-  for (const rung of ladder) {
-    blocks.push(
-      Object.assign(blankStep("work"), { durType: "time", seconds: rung[0], note: "@5 K pace" })
-    );
-    blocks.push(Object.assign(blankStep("rest"), { seconds: rung[1] }));
-  }
-  blocks.push(Object.assign(blankStep("cooldown"), { seconds: 600 }));
-  return sessionShell("Monday | WeRUN", "Ladder Intervals", blocks);
+    {
+      kind: "repeat",
+      reps: 12,
+      steps: [
+        Object.assign(blankStep("work"), { meters: 500, note: "@5 K pace" }),
+        Object.assign(blankStep("rest"), { seconds: 120 }),
+      ],
+    },
+    Object.assign(blankStep("cooldown"), { durType: "open", estSeconds: 900, note: "15 min" }),
+  ]);
 }
 
 /**
@@ -172,7 +175,7 @@ function thursdayHills() {
 // Order is the order of the picker buttons. `day` is an i18n key so the
 // picker reads in Arabic too; the session's own name is the coach's to edit.
 const SESSIONS = [
-  { id: "monday", day: "sMonday", build: mondayLadder },
+  { id: "monday", day: "sMonday", build: mondayIntervals },
   { id: "thursday", day: "sThursday", build: thursdayHills },
 ];
 
