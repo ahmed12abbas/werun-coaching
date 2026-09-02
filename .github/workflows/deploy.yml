@@ -61,7 +61,7 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html admin.html _worker.js _site/
+          cp index.html admin.html tips.html _worker.js _site/
           cp -r js assets _site/
           find _site -type f | sort
 
