@@ -223,12 +223,14 @@ there is nothing in the store worth protecting.
 
 `_worker.js` is the server side. Pages treats that filename as reserved and
 runs it in front of the static files instead of serving it, which is what keeps
-the password check off the wire. It answers two routes:
+the password check off the wire. It answers:
 
 | Route | |
 |---|---|
 | `POST /api/share` | public; the viewer's share button calls it and ignores the answer |
+| `POST /api/feedback` | public; one athlete's stars, name and comment |
 | `POST /api/stats` | the dashboard's only data source; needs the password |
+| `POST /api/feedback-admin` | deletes one note; needs the password |
 
 The password is checked in the Worker against a secret, never in JavaScript the
 site serves, and travels in the POST body so it never lands in a URL or an
@@ -402,6 +404,28 @@ again.
 | `GET /api/tips` | public; the live article, both languages, and nothing else |
 | `POST /api/tips-admin` | the editor's only data source; needs the password |
 
+## What athletes said
+
+At the foot of every session link, beside **Share this session**, is a box
+asking how it went: five stars, a name and a comment. The stars are the only
+thing required — most people will give exactly that, and a box that insists on
+more is a box nobody fills in. Sending it leaves a thank-you and
+**#togetherwerun 💜🤍** in the card's place, in whichever language the page is
+in. The name is kept in the browser so an athlete who rates a second session is
+not asked twice; nothing else about them is stored anywhere.
+
+The coach reads them on `/admin`, under the share counts: the average, how the
+ratings are spread across the five, and every note with the session it was left
+on. Each has an **✕** that deletes it for good — public writing with no way to
+remove it is a promise the club cannot keep.
+
+Notes live in the **same `STATS` KV namespace** as everything else, under their
+own key, newest first, capped at 400. `/api/feedback` is the only route on the
+site that takes writing from someone who was never given a password, so it also
+takes one submission a minute from an address — enforced with eight bytes of a
+salted hash under a key that deletes itself after sixty seconds, never the
+address itself.
+
 ## Files
 
 | File | What it does |
@@ -419,6 +443,7 @@ again.
 | `js/tipfmt.js` | The one copy of the article formatting rules, shared by all three renderers |
 | `js/tips.js` | Coach Tips: the logo pop and the cloud it opens |
 | `js/sfx.js` | Every sound the page makes — one listener, no audio files |
+| `js/rate.js` | The five stars, the name and the comment at the foot of a session |
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
 | `_worker.js` | Server side of the share counter and Coach Tips; reserved name, never served |

@@ -144,6 +144,25 @@ const SFX = (function () {
     },
 
     /**
+     * A star going in. Five stars, five notes up a scale, so an athlete
+     * hears the rating rise before they have read anything back — and hears
+     * at once that the tap landed on the fourth star and not the third.
+     */
+    star(n) {
+      if (!audio()) return;
+      const at = ctx.currentTime;
+      // C D E G A: a pentatonic run, which has no wrong note in it whichever
+      // rating someone picks, and no semitone to sound sour at one star.
+      const notes = [523.25, 587.33, 659.25, 783.99, 880];
+      const f = notes[Math.max(1, Math.min(5, Math.round(n))) - 1];
+      burst(at, 2600, 6, 0.13, 0.012);
+      tone(at, "triangle", f, f, 0.2, 0.15);
+      // An octave over the top of it, quieter and shorter: that is the whole
+      // difference between a note and a chime.
+      tone(at, "sine", f * 2, f * 2, 0.07, 0.09);
+    },
+
+    /**
      * The theme toggle: a wall switch, which is two sounds and not one — the
      * throw of the lever, then the seat of it a moment later. A single clack
      * is a mouse button; the pair is what makes it a switch on a wall.

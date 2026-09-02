@@ -530,32 +530,39 @@ function renderViewer(app, w, rerender) {
 
   drawPanel();
 
-  /* --- share onwards ----------------------------------------------------- */
+  /* --- the foot: their say, and the ways onwards ------------------------- */
+  const share = el(
+    "button",
+    {
+      class: "btn block",
+      onclick: async () => {
+        countShare(w);
+        const data = { title: w.name, text: asText(w), url: location.href };
+        if (navigator.share) {
+          try {
+            await navigator.share(data);
+            return;
+          } catch (e) {
+            /* cancelled */
+          }
+        }
+        copyText(location.href, t("linkCopied"));
+      },
+    },
+    el("span", { html: ICON.link }),
+    t("shareSession")
+  );
+
+  // The rating box takes the width; the share link and the club's socials
+  // move to a column beside it. An athlete reaching the foot of the session
+  // has just finished reading it, which is the one moment they have an
+  // opinion to give — so that is what gets the room.
   app.append(
     el(
       "div",
-      { class: "row", style: "margin-top:22px" },
-      el(
-        "button",
-        {
-          class: "btn grow",
-          onclick: async () => {
-            countShare(w);
-            const data = { title: w.name, text: asText(w), url: location.href };
-            if (navigator.share) {
-              try {
-                await navigator.share(data);
-                return;
-              } catch (e) {
-                /* cancelled */
-              }
-            }
-            copyText(location.href, t("linkCopied"));
-          },
-        },
-        el("span", { html: ICON.link }),
-        t("shareSession")
-      )
+      { class: "foot-row" },
+      feedbackCard(w),
+      el("div", { class: "foot-side" }, share, socialRow())
     )
   );
 
@@ -563,7 +570,6 @@ function renderViewer(app, w, rerender) {
     el(
       "footer",
       {},
-      socialRow(),
       "WE RUN Coaching · ",
       el("a", { href: location.pathname }, t("footerBuild"))
     )

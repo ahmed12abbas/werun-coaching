@@ -451,6 +451,45 @@ kbd{background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;bo
 footer{margin-top:34px;text-align:center;font-size:12.5px;color:var(--muted)}
 footer a{color:inherit}
 
+/* ---- the foot: their say, with the share link beside it ----
+   The rating box takes the width and the share link moves to the side, which
+   is the only arrangement where the box reads as the invitation and not as
+   an afterthought under the button. On a phone there are no sides, so the
+   side column goes back on top: the share link is what most athletes came
+   down here for and it should not sit under a form to reach it. */
+.foot-row{display:flex;gap:14px;align-items:flex-start;margin-top:22px;flex-wrap:wrap}
+.foot-side{flex:0 0 216px;display:flex;flex-direction:column;gap:12px}
+.foot-side .socials{margin:0}
+.rate{flex:1 1 320px;min-width:0}
+@media (max-width:640px){
+  .foot-side{flex:1 1 100%;order:-1}
+  .rate{flex:1 1 100%}
+}
+
+/* ---- five stars ---- */
+.stars{display:flex;gap:4px}
+.star{padding:3px;border:0;background:none;cursor:pointer;line-height:0;color:var(--muted);
+  opacity:.32;transition:transform .12s ease,color .12s ease,opacity .12s ease}
+.star svg{width:33px;height:33px;fill:currentColor;display:block}
+.star.on{color:var(--brand);opacity:1}
+.star:hover{transform:translateY(-2px) scale(1.07)}
+.star:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+/* The one thing the card actually asks for, saying so without a word. */
+.stars.asking{animation:nudge .38s ease}
+@keyframes nudge{20%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+.rate-title{margin:0 0 6px}
+.rate-lead{margin:0 0 14px;font-size:14px;line-height:1.5;color:var(--muted)}
+.rate-err{color:var(--err);font-weight:650;margin:0}
+.rate-done{text-align:center;padding:6px 0 2px;animation:landed .4s ease both}
+.rate-hearts{font-size:34px;line-height:1}
+.rate-thanks{margin:9px 0 5px;font-weight:650}
+.rate-tag{margin:0;color:var(--brand);font-weight:700}
+@keyframes landed{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .stars.asking,.rate-done{animation:none}
+  .star:hover{transform:none}
+}
+
 /* ---- socials ---- */
 .socials{display:flex;justify-content:center;gap:10px;margin:0 0 14px}
 .social{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;
@@ -464,16 +503,17 @@ footer a{color:inherit}
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
 <script src="js/config.js?v=48a8f24f"></script>
-<script src="js/i18n.js?v=fa6508ec"></script>
+<script src="js/i18n.js?v=512bee1a"></script>
 <script src="js/fit.js?v=b04dac88"></script>
 <script src="js/brand.js?v=037798cf"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
-<script src="js/sfx.js?v=331a4d59"></script>
+<script src="js/sfx.js?v=12910669"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
+<script src="js/rate.js?v=2f819464"></script>
 <script src="js/tips.js?v=7238e345"></script>
 <script src="js/pace.js?v=83734ba1"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
-<script src="js/views.js?v=5db9e7bf"></script>
+<script src="js/views.js?v=bdaf3af4"></script>
 <script src="js/boot.js?v=e2d4d456"></script>
 </body>
 </html>

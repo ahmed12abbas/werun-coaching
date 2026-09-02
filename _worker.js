@@ -7,9 +7,13 @@
    directory this file is never itself served — the deploy would otherwise put
    the server source up as a downloadable asset.
 
-   Two routes:
-     POST /api/share  — public beacon, counts one tap of "Share this session"
-     POST /api/stats  — password-gated, returns the weekly counts
+   The routes, the public ones first:
+     POST /api/share          — beacon; counts one tap of "Share this session"
+     POST /api/feedback       — one athlete's stars, name and comment
+     GET  /api/tips           — the one article the coach has put live
+     POST /api/stats          — the dashboard: counts and feedback, password-gated
+     POST /api/feedback-admin — takes one note down, password-gated
+     POST /api/tips-admin     — the article editor, password-gated
 
    Bindings, both set on the Pages project (see the README):
      STATS           KV namespace holding the counts
@@ -23,6 +27,16 @@ const DOC_KEY = "share-hits";
 
 /** The coach corner articles, in the same namespace. See readTips() for the shape. */
 const TIPS_KEY = "tips-doc";
+
+/** What athletes said about the sessions. See readFeedback() for the shape. */
+const FEEDBACK_KEY = "feedback-doc";
+
+/* Bounds on what a stranger may put in the store. Feedback is the only route
+   on the site that takes writing from someone who was never given a password,
+   so these caps are what stands between a bored visitor and a KV value too
+   big to read. Once there are more than 400 notes the oldest fall off the
+   end: a club reads these within the week, and a year of them helps nobody. */
+const FB_MAX = { items: 400, show: 200, name: 40, comment: 700, session: 80 };
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
    paragraphs, small enough that one KV value cannot grow into the value size
@@ -152,6 +166,71 @@ async function share(request, env) {
   return new Response(null, { status: 204 });
 }
 
+/* ---------- POST /api/feedback -------------------------------------------- */
+
+/**
+ * One submission a minute from the same address.
+ *
+ * What gets stored is eight bytes of a salted hash of the address, under a key
+ * that deletes itself after sixty seconds — never the address, never anything
+ * that outlives the minute it is guarding, and never anything joined to the
+ * note itself. KV is eventually consistent, so a determined pair of requests
+ * at two edges can slip through together: this is a brake on someone leaning
+ * on the button, not a lock, and the item cap is what actually bounds how bad
+ * a bad day can get.
+ */
+async function tooOften(request, env) {
+  const ip = request.headers.get("cf-connecting-ip");
+  if (!ip) return false; // nothing to go on: let it through rather than block everybody
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("werun-fb:" + ip));
+  const key =
+    "fb-rl:" +
+    Array.from(new Uint8Array(digest).slice(0, 8))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  if (await env.STATS.get(key)) return true;
+  await env.STATS.put(key, "1", { expirationTtl: 60 }); // KV's own floor
+  return false;
+}
+
+/*
+ * Public, like the share beacon: it is a comment box on a page anyone can
+ * open. The rating is the only thing required — the name and the comment are
+ * both allowed to be empty, because most athletes will give exactly a star
+ * count, and a box that insists on more is a box nobody fills in.
+ *
+ * The timestamp is taken here and never from the request, the same rule the
+ * articles follow: a client can say anything about when it wrote.
+ */
+async function feedback(request, env) {
+  // No KV bound? Say so rather than swallowing it. Unlike the share counter, a
+  // note that quietly went nowhere is a promise broken to whoever wrote it.
+  if (!env.STATS) return json({ error: "no-store" }, 503);
+
+  const body = await readBody(request);
+  const rating = Math.round(Number(body && body.rating));
+  if (!(rating >= 1 && rating <= 5)) return json({ error: "bad-rating" }, 400);
+  if (await tooOften(request, env)) return json({ error: "too-often" }, 429);
+
+  const item = {
+    id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    at: new Date().toISOString(),
+    rating: rating,
+    name: oneLine(body.name, FB_MAX.name),
+    comment: cleanComment(body.comment),
+    // Which session they had just read, so a coach can see what a note is about.
+    session: oneLine(body.session, FB_MAX.session),
+    lang: body.lang === "ar" ? "ar" : "en",
+  };
+
+  const doc = await readFeedback(env.STATS);
+  doc.items.unshift(item);
+  if (doc.items.length > FB_MAX.items) doc.items.length = FB_MAX.items;
+  await env.STATS.put(FEEDBACK_KEY, JSON.stringify({ v: 1, items: doc.items }));
+
+  return json({ ok: true });
+}
+
 /* ---------- POST /api/stats ---------------------------------------------- */
 
 /*
@@ -173,6 +252,13 @@ async function stats(request, env) {
 
   if (!env.STATS) return json({ weeks: [], days: DAYS, warning: "no-store" });
 
+  // Both halves of the dashboard in one answer: the counts the coach came for,
+  // and what athletes actually wrote. One ask, one render.
+  const notes = await readFeedback(env.STATS);
+  const said = Object.assign(feedbackSummary(notes.items), {
+    items: notes.items.slice(0, FB_MAX.show),
+  });
+
   const doc = await readDoc(env.STATS);
   const weeks = Object.keys(doc.weeks)
     .sort()
@@ -183,7 +269,38 @@ async function stats(request, env) {
       return { week: week, start: weekStart(week), counts: counts, total: total };
     });
 
-  return json({ weeks: weeks, days: DAYS });
+  return json({ weeks: weeks, days: DAYS, feedback: said });
+}
+
+/* ---------- POST /api/feedback-admin -------------------------------------- */
+
+/*
+ * Taking one note down.
+ *
+ * Public writing with no way to remove it is a promise the club cannot keep —
+ * the first piece of abuse would sit in the dashboard forever — so the coach
+ * gets a delete, behind the same password as the rest of the page.
+ *
+ * A removal and nothing else: there is no way in here to change what an
+ * athlete wrote, so what the dashboard shows is always their words or nothing.
+ */
+async function feedbackAdmin(request, env) {
+  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+
+  const body = await readBody(request);
+  if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {
+    return json({ error: "bad-password" }, 401);
+  }
+  if (!env.STATS) return json({ count: 0, average: 0, spread: [0, 0, 0, 0, 0], items: [] });
+
+  const doc = await readFeedback(env.STATS);
+  const id = String((body && body.remove) || "");
+  const items = id ? doc.items.filter((it) => it && it.id !== id) : doc.items;
+  if (items.length !== doc.items.length) {
+    await env.STATS.put(FEEDBACK_KEY, JSON.stringify({ v: 1, items: items }));
+  }
+
+  return json(Object.assign(feedbackSummary(items), { items: items.slice(0, FB_MAX.show) }));
 }
 
 /* ---------- the coach's corner -------------------------------------------
@@ -203,6 +320,47 @@ async function readTips(kv) {
     return { v: 1, liveId: null, articles: [] };
   }
   return { v: 1, liveId: doc.liveId || null, articles: doc.articles };
+}
+
+/**
+ * Every note ever left, newest first:
+ *   { v: 1, items: [ { id, at, rating, name, comment, session, lang } ] }
+ *
+ * One key again, for the same reason the counts are one key: a club's whole
+ * feedback history is a few dozen kilobytes, and one read beats one per note.
+ */
+async function readFeedback(kv) {
+  const doc = await kv.get(FEEDBACK_KEY, "json");
+  if (!doc || typeof doc !== "object" || !Array.isArray(doc.items)) return { v: 1, items: [] };
+  return { v: 1, items: doc.items };
+}
+
+/** A single line, with the whitespace collapsed out of it. */
+const oneLine = (s, max) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, max);
+
+/**
+ * A comment keeps its paragraphs — someone who wrote three lines about their
+ * session meant the three lines — but loses the runs of blank lines and the
+ * tabs that a paste out of a notes app brings with it.
+ */
+const cleanComment = (s) =>
+  String(s || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, FB_MAX.comment);
+
+/** The shape /admin needs: how many, how good, and how they are spread. */
+function feedbackSummary(items) {
+  const spread = [0, 0, 0, 0, 0];
+  for (const it of items) {
+    const r = it && Math.round(it.rating);
+    if (r >= 1 && r <= 5) spread[r - 1]++;
+  }
+  const count = spread.reduce((n, c) => n + c, 0);
+  const sum = spread.reduce((n, c, i) => n + c * (i + 1), 0);
+  return { count: count, average: count ? Math.round((sum / count) * 10) / 10 : 0, spread: spread };
 }
 
 /** Trim one language's half of an article to something safe to store. */
@@ -341,7 +499,13 @@ async function tipsAdmin(request, env) {
 
 /* ---------- routing ------------------------------------------------------- */
 
-const ROUTES = { "/api/share": share, "/api/stats": stats, "/api/tips-admin": tipsAdmin };
+const ROUTES = {
+  "/api/share": share,
+  "/api/feedback": feedback,
+  "/api/stats": stats,
+  "/api/tips-admin": tipsAdmin,
+  "/api/feedback-admin": feedbackAdmin,
+};
 const GETTABLE = { "/api/tips": tips };
 
 export default {

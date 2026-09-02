@@ -109,6 +109,25 @@ a.btn{text-decoration:none}
 .sign svg{width:15px;height:15px;display:block}
 /* The arrow points the way the language reads. */
 [dir="rtl"] .sign svg{transform:scaleX(-1)}
+/* ---- what athletes said ---- */
+.rstars{flex:none;letter-spacing:2px;font-size:15px;line-height:1;white-space:nowrap}
+.rstars span{color:var(--muted);opacity:.35}
+.rstars span.on{color:var(--brand);opacity:1}
+.spread{margin-top:14px;display:grid;gap:7px}
+.sprow{display:grid;grid-template-columns:30px 1fr 30px;gap:10px;align-items:center;
+  font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sprow .barwrap{height:8px}
+.sprow .c{text-align:right}
+.note{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-top:10px}
+.notehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.who{font-weight:650}
+.who.anon{font-weight:400;font-style:italic;color:var(--muted)}
+.note p{margin:9px 0 0;font-size:14.5px;line-height:1.6;white-space:pre-wrap;
+  overflow-wrap:anywhere}
+.drop{margin-inline-start:auto;border:0;background:none;color:var(--muted);cursor:pointer;
+  font-size:15px;line-height:1;padding:4px 8px;border-radius:8px}
+.drop:hover{color:var(--err);background:var(--bg)}
+.drop:disabled{opacity:.5;cursor:progress}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
 a{color:var(--brand)}
 </style>
@@ -117,7 +136,8 @@ a{color:var(--brand)}
 <div class="wrap">
   <h1>Share stats</h1>
   <p class="muted small" style="margin:0">
-    How many times athletes tapped <b>Share this session</b>, by ISO week.
+    How many times athletes tapped <b>Share this session</b>, by ISO week —
+    and what they said about the sessions.
   </p>
   <div id="app"></div>
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
@@ -331,6 +351,107 @@ function tipsCard(tips) {
   return card;
 }
 
+/* Five glyphs, the first n of them lit. Text stars rather than an icon: the
+   dashboard is read at a glance and a row of them is instantly a rating. */
+function starRow(n) {
+  var wrap = el("span", { class: "rstars", title: n + " out of 5" });
+  for (var i = 1; i <= 5; i++) wrap.append(el("span", { class: i <= n ? "on" : "" }, "\u2605"));
+  return wrap;
+}
+
+/* An athlete may have written Arabic while the page was in English or the
+   other way round, so the direction is read off the words themselves rather
+   than assumed from the language the form was in. */
+function said(text) {
+  var p = el("p", { dir: "auto" });
+  p.textContent = text;
+  return p;
+}
+
+function feedbackCard(first) {
+  var card = el("div", { class: "card" });
+
+  function drop(item, btn) {
+    if (!window.confirm("Delete this note? It cannot be brought back.")) return;
+    btn.disabled = true;
+    fetch("/api/feedback-admin", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: password, remove: item.id })
+    }).then(function (res) {
+      if (!res.ok) throw new Error("The server answered " + res.status + ".");
+      return res.json();
+    }).then(paint)["catch"](function (e) {
+      btn.disabled = false;
+      card.append(el("p", { class: "err" }, e.message));
+    });
+  }
+
+  function note(item) {
+    var box = el("div", { class: "note" });
+    var when = stamp(item.at);
+    var drop_ = el("button", {
+      class: "drop", title: "Delete", "aria-label": "Delete this note",
+      onclick: function () { drop(item, drop_); }
+    }, "\u2715");
+
+    box.append(el("div", { class: "notehead" },
+      starRow(item.rating),
+      el("span", { class: "who" + (item.name ? "" : " anon"), dir: "auto" },
+        item.name || "Anonymous"),
+      el("span", { class: "muted small" },
+        [item.session, when].filter(Boolean).join(" \u00b7 ")),
+      drop_));
+
+    if (item.comment) box.append(said(item.comment));
+    return box;
+  }
+
+  function paint(data) {
+    card.textContent = "";
+    card.append(el("div", { class: "tiphead" }, el("h2", {}, "What athletes said")));
+
+    if (!data || !data.count) {
+      card.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
+        "No ratings yet. The box sits at the foot of every session link, " +
+        "beside Share this session."));
+      return;
+    }
+
+    var items = data.items || [];
+    var withWords = items.filter(function (i) { return i && i.comment; }).length;
+    card.append(el("div", { class: "tiles" },
+      el("div", { class: "tile" },
+        el("div", { class: "n" }, data.average.toFixed(1)),
+        el("div", { class: "l" }, "Average")),
+      el("div", { class: "tile" },
+        el("div", { class: "n" }, String(data.count)),
+        el("div", { class: "l" }, data.count === 1 ? "Rating" : "Ratings")),
+      el("div", { class: "tile" },
+        el("div", { class: "n" }, String(withWords)),
+        el("div", { class: "l" }, "With a comment"))));
+
+    // Five bars beat one average: two people at one star and two at five are
+    // not the same club as four people at three, and the mean cannot say so.
+    var peak = Math.max.apply(null, (data.spread || []).concat(1));
+    var bars = el("div", { class: "spread" });
+    for (var r = 5; r >= 1; r--) {
+      var n = (data.spread || [])[r - 1] || 0;
+      bars.append(el("div", { class: "sprow" },
+        el("span", {}, r + "\u2605"),
+        el("div", { class: "barwrap" },
+          el("div", { class: "bar", style: "width:" + Math.round((n / peak) * 100) + "%" })),
+        el("span", { class: "c" }, String(n))));
+    }
+    card.append(bars);
+
+    items.forEach(function (i) { if (i) card.append(note(i)); });
+  }
+
+  paint(first);
+  return card;
+}
+
 function renderStats(data, tips) {
   app.textContent = "";
   var weeks = data.weeks || [];
@@ -352,6 +473,7 @@ function renderStats(data, tips) {
         "Counting is live. This fills in the first time an athlete taps " +
         "Share this session.")
     ));
+    app.append(feedbackCard(data.feedback));
     app.append(tipsCard(tips));
     app.append(controls());
     return;
@@ -406,6 +528,7 @@ function renderStats(data, tips) {
       el("div", { class: "scroll" }, el("table", {}, el("thead", {}, head), body))
     )
   );
+  app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
   app.append(controls());
 }
