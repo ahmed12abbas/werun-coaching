@@ -101,6 +101,12 @@ a.btn{text-decoration:none}
 .tipul{margin:0 0 9px;padding-inline-start:20px;font-size:14.5px}
 .tipul li{margin-bottom:4px}
 .tipside p:last-child,.tipul:last-child{margin-bottom:0}
+.sign-wrap{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.sign{display:inline-flex;align-items:center;gap:8px;color:var(--brand);
+  text-decoration:none;font-size:12.5px;font-weight:650;line-height:1.35}
+.sign:hover{text-decoration:underline}
+.sign-ic{display:inline-flex;flex:none}
+.sign svg{width:15px;height:15px;display:block}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
 a{color:var(--brand)}
 </style>
@@ -115,7 +121,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/tipfmt.js?v=97523749"></script>
+<script src="js/tipfmt.js?v=744a09a4"></script>
 <script>
 "use strict";
 
@@ -234,6 +240,19 @@ function stamp(iso) {
   });
 }
 
+/** The byline athletes see under every article. */
+function signatureNode(lang) {
+  var ic = el("span", { class: "sign-ic" });
+  ic.innerHTML = TIP_SIGN.icon;
+  var a = el("a", {
+    class: "sign",
+    href: TIP_SIGN.url,
+    target: "_blank",
+    rel: "noopener noreferrer"
+  }, ic, el("span", {}, tipSignName(lang)));
+  return el("div", { class: "sign-wrap" }, a);
+}
+
 function tipSide(a, lang) {
   var side = (a && a[lang]) || {};
   if (!side.title && !side.body) return null;
@@ -250,6 +269,7 @@ function tipSide(a, lang) {
       box.append(el("p", {}, runs(b.text)));
     }
   });
+  box.append(signatureNode(lang));
   return box;
 }
 

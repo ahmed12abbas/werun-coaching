@@ -60,3 +60,31 @@ function tipRuns(text) {
     .map(function (part, i) { return { bold: i % 2 === 1, text: part }; })
     .filter(function (run) { return run.text; });
 }
+
+/**
+ * The coach's byline, shown under every article on all three surfaces.
+ *
+ * It lives here rather than in js/i18n.js because the two standalone pages
+ * have no translation table to read from, and the editor's preview has to
+ * show exactly what athletes will get. The credential stays in Latin in both
+ * languages: it is the name of the qualification, not a phrase to translate.
+ */
+var TIP_SIGN = {
+  url: "https://www.instagram.com/h__enroute/",
+  name: {
+    en: "C.Hadeel Ashour (UESCA certified running coach)",
+    ar: "ك. هديل عاشور (UESCA certified running coach)",
+  },
+  // Instagram as its three shapes, the same glyph the club footer uses.
+  icon:
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<rect x="2.9" y="2.9" width="18.2" height="18.2" rx="5.2" fill="none" ' +
+    'stroke="currentColor" stroke-width="2"/>' +
+    '<circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    '<circle cx="17.2" cy="6.8" r="1.35"/></svg>',
+};
+
+/** The byline for a language, falling back to English. */
+function tipSignName(lang) {
+  return TIP_SIGN.name[lang] || TIP_SIGN.name.en;
+}

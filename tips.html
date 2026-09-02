@@ -90,6 +90,12 @@ a{color:var(--brand)}
 .prev p{margin:0 0 9px;font-size:14.5px;line-height:1.6}
 .prev ul{margin:0 0 9px;padding-inline-start:20px;font-size:14.5px}
 .prev p:last-child,.prev ul:last-child{margin-bottom:0}
+.sign-wrap{margin-top:14px;padding-top:11px;border-top:1px solid var(--line)}
+.sign{display:inline-flex;align-items:center;gap:8px;color:var(--brand);
+  text-decoration:none;font-size:13px;font-weight:650;line-height:1.35}
+.sign:hover{text-decoration:underline}
+.sign-ic{display:inline-flex;flex:none}
+.sign svg{width:16px;height:16px;display:block}
 .prev .cap{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--muted);margin-bottom:8px}
 
@@ -114,7 +120,7 @@ footer{margin-top:30px;font-size:13px;color:var(--muted)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/tipfmt.js?v=97523749"></script>
+<script src="js/tipfmt.js?v=744a09a4"></script>
 <script>
 "use strict";
 
@@ -216,6 +222,19 @@ function runs(text) {
   });
 }
 
+/** The byline athletes see under every article. */
+function signatureNode(lang) {
+  var ic = el("span", { class: "sign-ic" });
+  ic.innerHTML = TIP_SIGN.icon;
+  var a = el("a", {
+    class: "sign",
+    href: TIP_SIGN.url,
+    target: "_blank",
+    rel: "noopener noreferrer"
+  }, ic, el("span", {}, tipSignName(lang)));
+  return el("div", { class: "sign-wrap" }, a);
+}
+
 function previewNodes(body) {
   return tipBlocks(body).map(function (b) {
     if (b.kind === "ul") {
@@ -290,6 +309,7 @@ function sideEditor(article, lang, onChange) {
   if (isAr) preview.setAttribute("dir", "rtl");
 
   function drawPreview() {
+    var lang = isAr ? "ar" : "en";
     preview.textContent = "";
     preview.append(el("div", { class: "cap" }, isAr ? "معاينة" : "Preview"));
     if (side.title) preview.append(el("h3", {}, side.title));
@@ -299,6 +319,8 @@ function sideEditor(article, lang, onChange) {
         isAr ? "لا شيء بعد." : "Nothing here yet."));
     }
     nodes.forEach(function (n) { preview.append(n); });
+    // Athletes always see the byline, so the preview shows it too.
+    preview.append(signatureNode(lang));
   }
 
   var box = el("div", { class: "side" + (isAr ? " ar" : "") },

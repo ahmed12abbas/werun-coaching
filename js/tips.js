@@ -97,6 +97,24 @@ function tipMark() {
 }
 
 /**
+ * The coach's byline, under every article. Opens in a new tab: an athlete
+ * halfway through reading should not lose the session to Instagram.
+ */
+function tipSignature(lang) {
+  return el(
+    "a",
+    {
+      class: "cloud-sign",
+      href: TIP_SIGN.url,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+    el("span", { class: "cloud-sign-ic", html: TIP_SIGN.icon }),
+    el("span", {}, tipSignName(lang))
+  );
+}
+
+/**
  * The button and the cloud it opens.
  *
  * Both start hidden and the button reveals itself only if the coach has an
@@ -112,6 +130,7 @@ function tipsCorner() {
   const kicker = el("span", { class: "cloud-kicker" }, t("tipsKicker"));
   const title = el("h2", { class: "cloud-title" });
   const body = el("div", { class: "cloud-body" });
+  const sign = el("div", { class: "cloud-sign-wrap" });
 
   const closeBtn = el(
     "button",
@@ -128,7 +147,8 @@ function tipsCorner() {
       { class: "cloud-inner" },
       el("div", { class: "cloud-head" }, kicker, closeBtn),
       title,
-      body
+      body,
+      sign
     )
   );
 
@@ -164,12 +184,17 @@ function tipsCorner() {
   }
 
   function fill() {
-    const side = tipSide(article, (typeof I18N !== "undefined" && I18N.lang) || "en");
+    const lang = (typeof I18N !== "undefined" && I18N.lang) || "en";
+    const side = tipSide(article, lang);
     title.textContent = side.title || "";
     body.textContent = "";
     // Node.append() would stringify an array; el() is the only helper here
     // that spreads one.
     for (const node of tipParagraphs(side.body)) body.append(node);
+
+    // Rebuilt with the body so it follows the language toggle.
+    sign.textContent = "";
+    sign.append(tipSignature(lang));
   }
 
   /**

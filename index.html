@@ -366,6 +366,14 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .cloud-list{margin:0 0 10px;padding-inline-start:20px}
 .cloud-list li{margin-bottom:5px}
 .cloud-list li:last-child{margin-bottom:0}
+/* The byline sits below a rule at the end of the article, so it reads as a
+   signature rather than another paragraph of it. */
+.cloud-sign-wrap{margin-top:15px;padding-top:12px;border-top:1px solid var(--line)}
+.cloud-sign{display:inline-flex;align-items:center;gap:8px;color:var(--brand);
+  text-decoration:none;font-size:13px;font-weight:650;line-height:1.35}
+.cloud-sign:hover{text-decoration:underline}
+.cloud-sign-ic{display:inline-flex;flex:none}
+.cloud-sign svg{width:16px;height:16px;display:block}
 @keyframes cloudIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
 
 .cloud-scrim{display:none;position:fixed;inset:0;background:rgba(10,8,18,.5);z-index:40;
@@ -452,8 +460,8 @@ footer a{color:inherit}
 <script src="js/fit.js?v=b04dac88"></script>
 <script src="js/brand.js?v=02347c92"></script>
 <script src="js/model.js?v=39a5ec9a"></script>
-<script src="js/tipfmt.js?v=97523749"></script>
-<script src="js/tips.js?v=e8c50543"></script>
+<script src="js/tipfmt.js?v=744a09a4"></script>
+<script src="js/tips.js?v=98befb54"></script>
 <script src="js/pace.js?v=b48b397d"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
 <script src="js/views.js?v=aa47d7d4"></script>

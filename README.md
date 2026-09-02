@@ -335,6 +335,14 @@ box, in both languages:
 | a line starting with `-` | a bullet |
 | `**five seconds slower**` | **five seconds slower** |
 
+Every article is signed off underneath with the coach's byline, linking to
+<https://www.instagram.com/h__enroute/> in a new tab. The name and the link sit
+in `js/tipfmt.js` beside the formatting rules rather than in `js/i18n.js`,
+because the two standalone pages have no translation table to read from and the
+preview has to show exactly what athletes get. The UESCA credential stays in
+Latin in both languages: it is the name of the qualification, not a phrase to
+translate.
+
 Those rules live in one place -- `js/tipfmt.js` -- and all three renderers
 call into it: the athlete's cloud, the editor's preview, and the read-only
 viewer on `/admin`. It is deliberately DOM-free, so the two standalone pages
