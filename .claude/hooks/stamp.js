@@ -1,6 +1,6 @@
 /**
  * PostToolUse hook (Edit|Write): re-stamp the ?v= cache-busters whenever a
- * file under js/ changes, so index/admin/tips.html never go out stale — the
+ * file under js/ or a stylesheet under assets/ changes, so index/admin/tips.html never go out stale — the
  * deploy workflow rejects them if they do.
  *
  * Reads the hook payload from stdin; does nothing for files outside js/.
@@ -21,7 +21,7 @@ process.stdin.on("end", () => {
     return;
   }
   const file = String((input.tool_input && input.tool_input.file_path) || "").replace(/\\/g, "/");
-  if (!/\/js\/[^/]+\.js$/.test(file)) return;
+  if (!/\/(js\/[^/]+\.js|assets\/[^/]+\.css)$/.test(file)) return;
 
   let out = "";
   try {

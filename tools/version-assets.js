@@ -1,5 +1,5 @@
 /**
- * Stamps each <script src="js/…"> with a ?v= content hash.
+ * Stamps each <script src="js/…"> and <link href="assets/…css"> with a ?v= content hash.
  *
  * Both hosts serve the js files with a ten-minute max-age and no way to purge:
  * GitHub Pages sends `Cache-Control: max-age=600` and Cloudflare Pages caches
@@ -25,11 +25,12 @@ const path = require("path");
 const crypto = require("crypto");
 
 const root = path.join(__dirname, "..");
-const PAGES = ["index.html", "admin.html", "tips.html"];
+const PAGES = ["index.html", "admin.html", "tips.html", "app.html"];
 
-// Matches src="js/anything.js" with or without a version already on it, so a
-// second run replaces the old stamp rather than stacking another one.
-const TAG = /(<script\s+src=")(js\/[^"?]+\.js)(\?v=[^"]*)?(")/g;
+// Matches src="js/anything.js" and stylesheet href="assets/anything.css", with
+// or without a version already on it, so a second run replaces the old stamp
+// rather than stacking another one.
+const TAG = /(<script\s+src="|<link\s+rel="stylesheet"\s+href=")((?:js|assets)\/[^"?]+\.(?:js|css))(\?v=[^"]*)?(")/g;
 
 let touched = false;
 

@@ -430,6 +430,21 @@ and few enough that a script gets nowhere. It is counted against eight bytes of
 a salted hash of the address plus the minute, under a key that deletes itself
 after sixty seconds; the address itself is never stored.
 
+## The club app
+
+`/app` is where members live: join with an email and a password, see the
+week Monday to Sunday, and — from phase 2 — check in at the track and collect
+points. Signups are open to anyone with the link; the coach can close them
+from `/admin` (**Members** card), block a member, or make one a coach.
+Passwords are PBKDF2 via WebCrypto, the login is an `HttpOnly` cookie whose
+only trace in the database is a hash, and both signup and login are
+rate-limited. The plan for the rest is in `docs/PLATFORM-PLAN.md`.
+
+```bash
+node tools/smoke.js                                  # against tools/dev.js
+node tools/smoke.js https://weruncoaching.pages.dev  # against the live site
+```
+
 ## Files
 
 | File | What it does |
@@ -452,7 +467,11 @@ after sixty seconds; the address itself is never stored.
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
 | `_worker.js/` | The API: share counter, feedback, Coach Tips, health — one file per route under `routes/`, shared bits under `lib/`. Reserved name, never served; wrangler bundles it on deploy |
 | `migrations/` | The D1 schema, numbered SQL files; applied by every deploy and by `tools/dev.js` |
+| `app.html` | The club app for members: join, log in, the week, me — `js/app.js` is its entry point |
+| `js/api.js`, `js/auth.js` | How the app talks to `/api` and who is logged in |
+| `assets/site.css` | The one stylesheet, shared by `index.html` and `app.html`; `assets/app.css` adds the app's own |
 | `tools/dev.js` | Runs the whole site locally through wrangler with KV and D1 emulated |
+| `tools/smoke.js` | Signs up, logs in, changes a password, reads a week, blocks and unblocks — against the local site or the live one |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |
 | `docs/PLATFORM-PLAN.md` | The plan for accounts, QR check-in, points, feed and store |
 | `.github/workflows/bindings.yml` | One-shot: creates the KV namespace and D1 database and sets the bindings and secrets over the API |

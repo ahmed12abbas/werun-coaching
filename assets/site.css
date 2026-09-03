@@ -1,0 +1,513 @@
+/* WE RUN Coaching — the one stylesheet.
+   Light is the base; the two dark blocks must stay in step. Shared by
+   index.html (builder + viewer) and app.html (the athlete app); the coach
+   pages carry their own copies of the tokens. Edits here need the ?v=
+   stamp refreshed: node tools/version-assets.js (a hook does it). */
+
+
+/* ---- light is the base; both dark blocks below must stay in step -------- */
+:root{
+  --brand:#8851F4; --brand-ink:#ffffff; --brand-deep:#5B32BC; --brand-soft:#F2ECFE;
+  --bg:#f7f7fa; --card:#ffffff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
+  --warmup:#e8a33d; --work:#8851F4; --recovery:#3b82f6; --cooldown:#10b981; --repeat:#8851F4;
+  --rest:#8b8aa1; --other:#6b7280;
+  --ok:#0f9d58; --warn:#d97706; --err:#dc2626;
+  --radius:16px; --shadow:0 1px 2px rgba(20,18,28,.05),0 10px 30px rgba(20,18,28,.07);
+  --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
+    --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+    --work:#A47CF8; --repeat:#A47CF8;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
+  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+  --work:#A47CF8; --repeat:#A47CF8;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+}
+
+/* ---- Arabic: Teko has no Arabic glyphs, so Cairo carries the display face */
+[dir="rtl"]{
+  --display:"Cairo",-apple-system,"Segoe UI",Tahoma,sans-serif;
+  --body:"Cairo",-apple-system,"Segoe UI",Tahoma,sans-serif;
+}
+[dir="rtl"] h1{font-size:29px;letter-spacing:0;line-height:1.3}
+[dir="rtl"] h2{font-size:21px;line-height:1.3}
+[dir="rtl"] h3{font-size:15px;letter-spacing:.02em}
+[dir="rtl"] .tl-title{font-size:17px;line-height:1.4}
+[dir="rtl"] .acc-t{font-size:16px;line-height:1.4}
+[dir="rtl"] .pick .t{font-size:17px}
+[dir="rtl"] .btn.lg{font-size:16px;letter-spacing:0}
+[dir="rtl"] .tag{font-size:12px;padding:3px 10px;line-height:1.6}
+[dir="rtl"] .rep-label{font-size:13px}
+[dir="rtl"] .num{font-size:1.08em}
+[dir="rtl"] label{letter-spacing:0}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg); font:16px/1.55 var(--body);
+  -webkit-text-size-adjust:100%;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.wrap{max-width:660px;margin:0 auto;padding:18px 16px 72px}
+p{margin:0}
+h1,h2,h3,h4{margin:0;line-height:1.05}
+h1,h2{font-family:var(--display);font-weight:600;letter-spacing:.005em;text-transform:uppercase}
+h1{font-size:40px}
+h2{font-size:27px}
+h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13.5px}
+.mono{font-variant-numeric:tabular-nums}
+.num{font-family:var(--display);font-weight:600;font-size:1.35em;line-height:1;letter-spacing:.01em}
+
+/* ---- brand ---- */
+.brand{display:flex;align-items:center;gap:11px;margin-bottom:20px}
+.brand-logo{height:42px;width:auto;display:block;flex:none}
+.brand-fallback{
+  font-family:"Teko",var(--display);font-weight:700;font-size:23px;line-height:.82;
+  color:var(--brand);text-transform:uppercase;letter-spacing:.01em;
+}
+/* Part of the logo lockup, so it stays Teko and identical in both languages. */
+.brand-sub{font-family:"Teko",-apple-system,"Segoe UI",sans-serif;font-size:19px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted);align-self:center;padding-top:3px}
+.brand-tools{margin-inline-start:auto;display:flex;gap:6px;align-items:center}
+
+/* ---- surfaces ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pad{padding:17px}
+.stack>*+*{margin-top:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row-wrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.divider{height:1px;background:var(--line);margin:2px 0}
+
+/* ---- controls ---- */
+label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px;
+  letter-spacing:.03em;text-transform:uppercase}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+  border-radius:11px;padding:10px 12px;appearance:none}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+textarea{resize:vertical;min-height:64px;font-family:var(--body)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 15px;
+  font-weight:650;cursor:pointer;text-decoration:none;color:inherit;
+  transition:transform .06s ease,background .15s ease,opacity .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+.btn.block{width:100%}
+.btn.sm{padding:7px 11px;font-size:13.5px;border-radius:9px}
+.btn.icon{padding:5px 9px;font-size:12.5px;line-height:1;border-radius:8px;font-weight:700;color:var(--muted)}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.lg{padding:14px 18px;font-family:var(--display);font-size:22px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em}
+/* header toggles */
+.tool{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--line);
+  background:var(--card);border-radius:10px;cursor:pointer;color:var(--muted);flex:none}
+.tool:hover{color:var(--fg)}
+.tool svg{width:18px;height:18px}
+.tool.text{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;width:auto;padding:0 10px}
+[dir="rtl"] .tool.text{font-size:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg button{flex:1;border:0;background:transparent;padding:10px 6px;font-weight:650;font-size:14px;
+  cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+
+/* ---- device picker ---- */
+.picker{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 4px}
+@media (max-width:520px){.picker{grid-template-columns:1fr 1fr}
+  /* an odd one out stretches across rather than leaving a hole */
+  .picker .pick:last-child:nth-child(odd){grid-column:1/-1}
+  .pick .t{font-size:20px}}
+.pick{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 10px;
+  border:1.5px solid var(--line);border-radius:var(--radius);background:var(--card);
+  cursor:pointer;text-align:center;transition:border-color .15s ease,background .15s ease}
+.pick[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.pick svg{width:28px;height:28px;color:var(--brand)}
+.pick .t{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;line-height:1}
+.pick .s{font-size:12px;color:var(--muted);line-height:1.3}
+
+/* ---- builder blocks ---- */
+.blk{border:1px solid var(--line);border-radius:13px;padding:12px;background:var(--bg)}
+.blk+.blk{margin-top:10px}
+.blk-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;padding:2px 10px 0;border-radius:999px;color:#fff;line-height:1.5}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media (max-width:430px){.grid3{grid-template-columns:1fr 1fr}}
+@media (max-width:360px){.grid2,.grid3{grid-template-columns:1fr}}
+.rep-inner{border-inline-start:3px solid var(--repeat);padding-inline-start:10px;margin-top:10px}
+.rep-inner>.blk{background:var(--card)}
+.push{margin-inline-start:auto}
+
+/* ---- timeline ---- */
+.tl-item{display:flex;gap:12px;align-items:stretch}
+.tl-bar{width:5px;border-radius:3px;flex:none}
+.tl-body{flex:1;min-width:0;padding:9px 0}
+.tl-item+.tl-item{border-top:1px solid var(--line)}
+.tl-title{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;line-height:1.1}
+.tl-meta{font-size:13.5px;color:var(--muted);margin-top:1px}
+.rep-group{border:1px dashed var(--line);border-radius:13px;padding:4px 12px;margin:12px 0;position:relative}
+.rep-label{position:absolute;top:-11px;inset-inline-start:12px;background:var(--card);padding:0 8px;
+  font-family:var(--display);font-size:17px;font-weight:600;color:var(--repeat);letter-spacing:.06em}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--bg);border:1px solid var(--line);border-radius:999px;
+  padding:4px 12px 3px;font-size:13px;font-weight:600;display:inline-flex;align-items:baseline;gap:5px}
+
+/* ---- pace calculator ---- */
+/* The title keeps the width it needs; the toggle drops below it on a narrow
+   phone rather than squeezing the session name. */
+.sess-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.sess-head .grow{flex:1 1 200px}
+.pace-toggle{flex:none;margin-inline-start:auto;position:relative;overflow:hidden}
+.pace-toggle[aria-expanded="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
+/* One lap time for every comet on the page: pace, tips and share all turn
+   at this speed, so three buttons read as one idea and not three tempos. */
+:root{--lap:3.1s}
+/* A comet lap of the rim: an oversized conic gradient spinning behind the
+   button, with the middle covered back over so only the edge of it shows.
+   It runs while the panel is shut and stops the moment it is open. */
+.pace-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
+  background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
+  filter:blur(1.5px);animation:paceSpin var(--lap) linear infinite}
+.pace-toggle::after{content:"";position:absolute;inset:1.6px;border-radius:7px;background:var(--card)}
+.pace-toggle[aria-expanded="true"]::after{background:var(--brand-soft)}
+.pace-toggle[aria-expanded="true"] .pace-glow{display:none}
+.pace-face{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px}
+@keyframes paceSpin{to{rotate:360deg}}
+@media (prefers-reduced-motion:reduce){.pace-glow{animation:none;opacity:.6}}
+.pacebox{background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:13px}
+.pace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:430px){.pace-grid{grid-template-columns:repeat(2,1fr)}}
+.pace-cell{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:8px 10px;text-align:center}
+.pace-cell .k{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.pace-cell .v{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.1;letter-spacing:.01em}
+.pace-cell .u{font-size:11.5px;color:var(--muted);line-height:1}
+[dir="rtl"] .pace-cell .v{font-size:21px}
+
+/* ---- the mm:ss roller ----
+   Three rows tall, so the item height, the list padding and ROLL_ITEM in
+   js/pace.js are one number: change it in all three or the snap drifts. */
+.roller{position:relative;display:flex;align-items:center;justify-content:center;
+  direction:ltr; /* a clock reads left-to-right in both languages */
+  background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.roller::before{content:"";position:absolute;inset-inline:8px;top:44px;height:44px;
+  background:var(--brand-soft);border:1px solid var(--brand);border-radius:10px;pointer-events:none}
+.roller::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(var(--card),transparent 36%,transparent 64%,var(--card))}
+.roll{position:relative;z-index:1;height:132px;width:76px;overflow-y:auto;
+  scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  touch-action:pan-y;cursor:ns-resize}
+.roll:focus{outline:none}
+.roll:focus-visible{outline:2px solid var(--brand);outline-offset:-3px;border-radius:10px}
+.roll::-webkit-scrollbar{display:none}
+.roll ul{margin:0;padding:44px 0;list-style:none}
+.roll li{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;
+  font-family:"Teko",var(--display);font-size:31px;font-weight:600;color:var(--muted);opacity:.5;
+  font-variant-numeric:tabular-nums;user-select:none;
+  transition:opacity .15s ease,color .15s ease,transform .15s ease}
+.roll li.on{opacity:1;color:var(--fg);transform:scale(1.06)}
+.roll-sep{position:relative;z-index:1;font-family:"Teko",var(--display);font-size:28px;
+  font-weight:600;color:var(--muted);padding-bottom:5px}
+
+/* ---- and the thing that runs when you spin it ----
+   Nothing moves across the box: the road scrolls underneath a sprite that
+   stays put, so there is no seam when the loop comes round again. */
+.track{position:relative;height:54px;border-radius:12px;overflow:hidden;
+  background:var(--brand-soft);--road:.6s;--bob:.34s;--drift:1.4s;--jostle:1.7s;
+  box-shadow:inset 0 0 0 0 var(--brand);transition:box-shadow .2s ease}
+.track.boost{box-shadow:inset 0 0 0 2px var(--brand)}
+.track-road{position:absolute;inset-inline:0;bottom:11px;height:3px;
+  background:repeating-linear-gradient(90deg,var(--brand) 0 15px,transparent 15px 32px);
+  opacity:.4;animation:road var(--road) linear infinite}
+@keyframes road{to{background-position-x:-32px}}
+[dir="rtl"] .track-road{animation-name:roadRtl}
+@keyframes roadRtl{to{background-position-x:32px}}
+/* Sprite and speed lines ride on one layer that surges up and back the track.
+   The sweep is symmetrical, so it needs no right-to-left twin. */
+.track-runner{position:absolute;inset:0;animation:drift var(--drift) ease-in-out infinite alternate}
+@keyframes drift{from{transform:translateX(-12%)}to{transform:translateX(12%)}}
+/* --face is -1 for the glyphs drawn facing backwards; Arabic flips it again.
+   The last rung holds two runners: .runner jostles them past each other, the
+   span inside bobs, and the two are out of phase so nobody stays in front. */
+.track-sprite{position:absolute;bottom:9px;inset-inline-start:40%;font-size:27px;line-height:1;
+  display:flex;align-items:flex-end;gap:2px;transform:scaleX(var(--face,1))}
+[dir="rtl"] .track-sprite{transform:scaleX(calc(var(--face,1) * -1))}
+.track-sprite .runner{display:block;animation:jostle var(--jostle) ease-in-out infinite alternate}
+.track-sprite .runner:nth-child(2){animation-delay:calc(var(--jostle) * -.63)}
+.track-sprite .runner>span{display:block;animation:bob var(--bob) ease-in-out infinite alternate}
+.track-sprite .runner:nth-child(2)>span{animation-delay:calc(var(--bob) * -.5)}
+@keyframes bob{from{transform:translateY(1px) rotate(-4deg)}to{transform:translateY(-6px) rotate(4deg)}}
+@keyframes jostle{from{transform:translateX(-6px)}to{transform:translateX(6px)}}
+.track-lines{position:absolute;bottom:18px;inset-inline-start:calc(40% - 32px);width:28px;height:16px}
+.track-lines i{position:absolute;inset-inline-start:0;height:2px;border-radius:2px;
+  background:var(--brand);animation:whoosh var(--road) linear infinite}
+@keyframes whoosh{from{transform:translateX(6px);opacity:.55}to{transform:translateX(-26px);opacity:0}}
+[dir="rtl"] .track-lines i{animation-name:whooshRtl}
+@keyframes whooshRtl{from{transform:translateX(-6px);opacity:.55}to{transform:translateX(26px);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .track-road,.track-runner,.track-sprite .runner,.track-sprite .runner>span{animation:none}
+  .track-lines{display:none}
+}
+
+/* ---- coach tips ----
+   The logo springs in from small behind a purple burst and a bulb pops into
+   its corner: the club's title-card animation rebuilt in markup at button
+   size, so it costs a few hundred bytes instead of a video and follows the
+   page's own theme. It plays once when the article arrives and again on
+   hover — never on a loop, because the pace button's spinning rim is already
+   asking for attention from the same row. */
+.btn.tips-toggle{flex:none;gap:9px;padding:6px 12px 6px 9px;position:relative;overflow:hidden}
+[dir="rtl"] .btn.tips-toggle{padding:6px 9px 6px 12px}
+.tips-toggle[aria-expanded="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-deep)}
+/* The same comet lap the pace button runs, same way and same speed: an
+   oversized conic gradient spinning behind the button with the middle covered
+   back over, so only the edge of it shows. Both stop the moment their panel
+   is open. */
+.tips-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
+  background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
+  filter:blur(1.5px);animation:paceSpin var(--lap) linear infinite}
+.tips-toggle::after{content:"";position:absolute;inset:1.6px;border-radius:7px;background:var(--card)}
+.tips-toggle[aria-expanded="true"]::after{background:var(--brand-soft)}
+.tips-toggle[aria-expanded="true"] .tips-glow{display:none}
+/* Both sit over that cover; the mark carries the burst, so its whole subtree
+   comes with it. */
+.tips-mark,.tips-face{position:relative;z-index:1}
+.tips-face{font-size:13.5px;font-weight:650}
+.tips-mark{display:block;width:30px;height:25px;flex:none}
+/* Below this the pair no longer fits a row at full size. Shrink the button
+   rather than dropping its label: the mark on its own left athletes with no
+   idea what it opened. */
+@media (max-width:430px){
+  /* Give the session name the whole line so the two buttons land side by side
+     underneath it, rather than one of them riding up beside the title. */
+  .sess-head .grow{flex-basis:100%}
+  .btn.tips-toggle{padding:5px 10px 5px 8px;gap:7px}
+  [dir="rtl"] .btn.tips-toggle{padding:5px 8px 5px 10px}
+  .tips-face{font-size:12.5px;white-space:nowrap}
+}
+.tips-logo{position:absolute;inset-inline-start:0;top:50%;translate:0 -50%;width:26px;height:26px;
+  object-fit:contain}
+/* Sits behind the logo and never takes the click. */
+.tips-burst{position:absolute;inset-inline-start:13px;top:50%;width:46px;height:46px;
+  translate:-50% -50%;border-radius:50%;opacity:0;pointer-events:none;
+  background:radial-gradient(circle,rgba(139,70,247,.55) 0%,rgba(139,70,247,0) 70%)}
+
+/* The bulb, one element per part — cheaper than an inline SVG this small. */
+/* top:-2px, not -4: the highest ray tip used to land exactly on the button
+   border, and the rim clip would shave it. */
+.tips-bulb{position:absolute;inset-inline-end:-3px;top:-2px;width:12px;height:19px;
+  transform-origin:50% 90%}
+.tips-bulb i{position:absolute}
+.tips-bulb .glass{inset-inline-start:0;top:2px;width:12px;height:12px;
+  border-radius:50% 50% 44% 44%;background:#FFD52E;box-shadow:inset -1.5px -1.5px 0 rgba(0,0,0,.08)}
+.tips-bulb .shine{inset-inline-start:3px;top:4px;width:2px;height:5px;border-radius:2px;
+  background:rgba(255,255,255,.6);rotate:16deg}
+/* One element, three bars: the screw base and the contact under it. */
+.tips-bulb .cap{inset-inline-start:3.5px;top:13px;width:5px;height:1.5px;border-radius:1px;
+  background:#2F3B52;box-shadow:0 2.5px 0 #2F3B52,0 5px 0 #5A6478}
+.tips-bulb .ray{inset-inline-start:5.25px;top:6px;width:1.5px;height:4px;border-radius:1px;
+  background:#FFC53D;transform:rotate(var(--a)) translateY(-9px)}
+
+.tips-toggle.pop .tips-logo{animation:tipsPop .85s cubic-bezier(.34,1.56,.64,1) both}
+.tips-toggle.pop .tips-burst{animation:tipsBurst 1.1s ease-out both}
+.tips-toggle.pop .tips-bulb{animation:tipsBulb .9s cubic-bezier(.34,1.56,.64,1) .5s both}
+.tips-toggle.pop .tips-bulb .ray{animation:tipsRays .5s ease-out .72s both}
+@keyframes tipsPop{0%{transform:scale(.55);opacity:0}18%{opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes tipsBurst{0%{transform:scale(.4);opacity:0}32%{opacity:.6}100%{transform:scale(1.6);opacity:0}}
+@keyframes tipsBulb{0%{transform:scale(.5) rotate(-14deg);opacity:0}35%{opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes tipsRays{from{opacity:0}to{opacity:1}}
+
+/* The cloud: in the flow under the session head on a laptop, with a tail
+   pointing back at the button; a sheet up from the bottom of a phone, where
+   an article inside a small anchored bubble would be all scrolling. */
+.cloud{position:relative;margin-top:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--shadow);max-width:560px;
+  animation:cloudIn .22s cubic-bezier(.34,1.4,.64,1) both}
+.cloud:focus{outline:none}
+/* left, not inset-inline-start: the offset is measured in physical pixels
+   from the cloud edge, so it already points at the button in both
+   directions. translate lands before transform, so the tail shifts onto
+   its own centre and then rotates about it. */
+.cloud-tail{position:absolute;top:-8px;left:var(--tail,26px);translate:-50% 0;width:15px;height:15px;
+  background:var(--card);border-top:1px solid var(--line);border-inline-start:1px solid var(--line);
+  transform:rotate(45deg);border-start-start-radius:4px}
+.cloud-inner{position:relative;padding:15px 18px 18px;max-height:min(62vh,520px);
+  overflow:auto;overscroll-behavior:contain}
+.cloud-head{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.cloud-kicker{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--brand)}
+.cloud-x{margin-inline-start:auto;flex:none;border:0;background:transparent;color:var(--muted);
+  font-size:15px;line-height:1;cursor:pointer;padding:5px 7px;border-radius:8px}
+.cloud-x:hover{background:var(--bg);color:var(--fg)}
+.cloud-title{font-family:var(--display);font-size:30px;font-weight:600;text-transform:uppercase;
+  line-height:1.05;margin:0 0 9px}
+.cloud-body{font-size:14.5px;line-height:1.6}
+.cloud-body p{margin:0 0 10px}
+.cloud-body p:last-child,.cloud-list:last-child{margin-bottom:0}
+.cloud-list{margin:0 0 10px;padding-inline-start:20px}
+.cloud-list li{margin-bottom:5px}
+.cloud-list li:last-child{margin-bottom:0}
+/* The byline sits below a rule at the end of the article, so it reads as a
+   signature rather than another paragraph of it. */
+.cloud-sign-wrap{margin-top:15px;padding-top:12px;border-top:1px solid var(--line)}
+.cloud-sign{display:inline-flex;align-items:center;gap:8px;color:var(--brand);
+  text-decoration:none;font-size:13px;font-weight:650;line-height:1.35}
+.cloud-sign:hover{text-decoration:underline}
+.cloud-sign-ic{display:inline-flex;flex:none}
+.cloud-sign svg{width:16px;height:16px;display:block}
+/* The arrow points the way the language reads. */
+[dir="rtl"] .cloud-sign svg{transform:scaleX(-1)}
+/* Pinned to the cloud, not the scroller, so it stays put while the article
+   moves under it. Only painted while there is something left to scroll to. */
+.cloud::after{content:"";position:absolute;inset-inline:1px;bottom:1px;height:38px;
+  border-radius:0 0 17px 17px;pointer-events:none;opacity:0;transition:opacity .15s ease;
+  background:linear-gradient(to top,var(--card) 28%,transparent)}
+.cloud.more::after{opacity:1}
+@keyframes cloudIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
+
+.cloud-scrim{display:none;position:fixed;inset:0;background:rgba(10,8,18,.5);z-index:40;
+  animation:scrimIn .2s ease both}
+@keyframes scrimIn{from{opacity:0}to{opacity:1}}
+@keyframes sheetIn{from{transform:translateY(100%)}to{transform:none}}
+@media (max-width:560px){
+  .cloud-scrim{display:block}
+  .cloud{position:fixed;inset-inline:0;bottom:0;z-index:41;max-width:none;margin:0;
+    border-radius:20px 20px 0 0;border-bottom:0;
+    animation:sheetIn .26s cubic-bezier(.22,1,.36,1) both}
+  .cloud-tail{display:none}
+  .cloud::after{border-radius:0}
+  /* The grab handle that says this came up from the bottom. */
+  .cloud::before{content:"";display:block;width:38px;height:4px;border-radius:99px;
+    background:var(--line);margin:10px auto 0}
+  .cloud-inner{max-height:80vh;padding:10px 18px calc(20px + env(safe-area-inset-bottom))}
+  html.cloud-open,html.cloud-open body{overflow:hidden}
+}
+@media (prefers-reduced-motion:reduce){
+  .cloud,.cloud-scrim{animation:none}
+  .tips-glow{animation:none;opacity:.6}
+  .tips-toggle.pop .tips-logo,.tips-toggle.pop .tips-burst,
+  .tips-toggle.pop .tips-bulb,.tips-toggle.pop .tips-bulb .ray{animation:none}
+}
+
+/* ---- accordions ---- */
+details.acc{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
+details.acc+details.acc{margin-top:10px}
+details.acc>summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;
+  align-items:center;gap:12px;font-weight:650}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary .caret{margin-inline-start:auto;color:var(--muted);transition:transform .18s ease}
+details.acc[open]>summary .caret{transform:rotate(90deg)}
+[dir="rtl"] details.acc>summary .caret{transform:scaleX(-1)}
+[dir="rtl"] details.acc[open]>summary .caret{transform:scaleX(-1) rotate(-90deg)}
+.acc-t{font-family:var(--display);font-size:21px;font-weight:600;text-transform:uppercase;line-height:1.05}
+.acc-s{font-size:12.5px;color:var(--muted);line-height:1.3}
+.acc-body{padding:0 16px 16px;border-top:1px solid var(--line);padding-top:14px}
+.ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:var(--brand-soft);color:var(--brand)}
+.ic svg{width:20px;height:20px}
+ol.steps{margin:0;padding-inline-start:20px}
+ol.steps li{margin-bottom:9px}
+ol.steps li:last-child{margin-bottom:0}
+kbd{background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;
+  padding:1px 6px;font:inherit;font-size:13px;font-weight:600}
+.note{background:var(--brand-soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.callout{border:1px solid var(--line);border-inline-start:3px solid var(--brand);border-radius:10px;
+  padding:11px 13px;font-size:13.5px;background:var(--bg)}
+.linkbox{display:flex;gap:8px}
+.linkbox input{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;direction:ltr;text-align:left}
+
+/* ---- connect status ---- */
+.status{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:10px 12px;
+  border-radius:11px;background:var(--bg);border:1px solid var(--line)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+.dot.ok{background:var(--ok)} .dot.err{background:var(--err)} .dot.warn{background:var(--warn)}
+.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--brand);
+  border-radius:50%;animation:sp .7s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:var(--fg);color:var(--bg);padding:11px 19px;border-radius:999px;font-size:14px;
+  font-weight:600;opacity:0;pointer-events:none;transition:all .22s ease;z-index:50;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.hidden{display:none !important}
+footer{margin-top:34px;text-align:center;font-size:12.5px;color:var(--muted)}
+footer a{color:inherit}
+
+/* ---- the foot: their say, the share link, the socials ----
+   One grid, three areas, two arrangements. Wide: the rating box takes the
+   width with the link and the socials in a column beside it, which is the
+   only arrangement where the box reads as the invitation and not as an
+   afterthought under a button. The third row is empty and takes all the
+   slack, so the link and the socials sit at the top of that column instead
+   of drifting down the middle of it.
+
+   On a phone there is no beside. The link goes first — it is what most
+   athletes came down here for and it should not sit behind a form — and the
+   socials go last, which is where someone finished with this session goes
+   next. */
+.foot-row{display:grid;gap:14px;margin-top:22px;
+  grid-template-columns:1fr 216px;grid-template-rows:auto auto 1fr;
+  grid-template-areas:"rate share" "rate socials" "rate .";}
+.rate{grid-area:rate;min-width:0}
+.share-cta{grid-area:share;align-self:start;position:relative;overflow:hidden;
+  background:var(--brand-soft);border-color:transparent;color:var(--brand)}
+/* The comet lap from the pace button, behind a cover that leaves only the
+   rim of it showing. The cover carries the button's colour, since it sits
+   over the button's own background. */
+.share-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;translate:-50% -50%;
+  background:conic-gradient(transparent 0 58%,var(--brand) 78%,transparent 93%);
+  filter:blur(1.5px);animation:paceSpin var(--lap) linear infinite}
+.share-cta::after{content:"";position:absolute;inset:2px;border-radius:10px;background:var(--brand-soft);
+  transition:background .15s ease}
+.share-cta:hover::after{background:var(--brand)}
+.share-cta:hover{color:var(--brand-ink)}
+.share-face{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px}
+.share-cta svg{width:21px;height:21px}
+@media (prefers-reduced-motion:reduce){.share-glow{animation:none;opacity:.6}}
+.foot-row .socials{grid-area:socials;align-self:start;margin:0}
+@media (max-width:640px){
+  .foot-row{grid-template-columns:1fr;grid-template-rows:auto auto auto;
+    grid-template-areas:"share" "rate" "socials";}
+}
+
+/* ---- five stars ---- */
+.stars{display:flex;gap:4px}
+.star{padding:3px;border:0;background:none;cursor:pointer;line-height:0;color:var(--muted);
+  opacity:.32;transition:transform .12s ease,color .12s ease,opacity .12s ease}
+.star svg{width:33px;height:33px;fill:currentColor;display:block}
+.star.on{color:var(--brand);opacity:1}
+.star:hover{transform:translateY(-2px) scale(1.07)}
+.star:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+/* The one thing the card actually asks for, saying so without a word. */
+.stars.asking{animation:nudge .38s ease}
+@keyframes nudge{20%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+.rate-title{margin:0 0 14px}
+.rate-err{color:var(--err);font-weight:650;margin:0}
+.rate-done{text-align:center;padding:6px 0 2px;animation:landed .4s ease both}
+.rate-hearts{font-size:34px;line-height:1}
+.rate-thanks{margin:9px 0 5px;font-weight:650}
+.rate-tag{margin:0;color:var(--brand);font-weight:700}
+@keyframes landed{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .stars.asking,.rate-done{animation:none}
+  .star:hover{transform:none}
+}
+
+/* ---- socials ---- */
+.socials{display:flex;justify-content:center;gap:10px;margin:0 0 14px}
+.social{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;
+  background:var(--brand-soft);border:1px solid var(--line);color:var(--brand);
+  transition:background .15s ease,color .15s ease,transform .15s ease}
+.social:hover{background:var(--brand);color:var(--brand-ink);transform:translateY(-2px)}
+.social svg{width:18px;height:18px;display:block}

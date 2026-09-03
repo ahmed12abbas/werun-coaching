@@ -3,22 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>WE RUN Coaching</title>
-<meta name="description" content="This week's WE RUN session — straight to your Garmin, COROS or Apple Watch.">
+<title>WE RUN Club</title>
+<meta name="description" content="The WE RUN club: this week's sessions, check in at the track, your points.">
+<meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#8851F4">
-<meta property="og:title" content="WE RUN Coaching">
-<meta property="og:description" content="This week's session, straight to your watch.">
-<meta property="og:type" content="website">
 <link rel="icon" href="assets/favicon.svg">
 <link rel="apple-touch-icon" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/site.css?v=ab5f0072">
+<link rel="stylesheet" href="assets/app.css?v=a89f568e">
 </head>
 <body>
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
+
+<!-- The same scripts as the link page, in the same order, then the app's own.
+     Everything shares one global scope; app.js is the entry point. -->
 <script src="js/config.js?v=48a8f24f"></script>
 <script src="js/i18n.js?v=7bea5997"></script>
 <script src="js/fit.js?v=b04dac88"></script>
@@ -31,6 +33,8 @@
 <script src="js/pace.js?v=83734ba1"></script>
 <script src="js/connect.js?v=b0591bbe"></script>
 <script src="js/views.js?v=55c104e4"></script>
-<script src="js/boot.js?v=e2d4d456"></script>
+<script src="js/api.js?v=d12fb148"></script>
+<script src="js/auth.js?v=b1b93e29"></script>
+<script src="js/app.js?v=aebac45e"></script>
 </body>
 </html>

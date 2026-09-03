@@ -22,7 +22,7 @@ const { spawn, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const SITE = path.join(ROOT, "_site");
 const PORT = process.argv[2] || "4323";
-const PAGES = ["index.html", "admin.html", "tips.html"];
+const PAGES = ["index.html", "admin.html", "tips.html", "app.html"];
 const DIRS = ["js", "assets", "_worker.js"];
 const STATE = ".wrangler/state";
 

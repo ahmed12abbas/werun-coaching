@@ -2,7 +2,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { safeEqual } from "../lib/crypto.js";
-import { tooOften } from "../lib/limit.js";
+import { tooOften, ipOf } from "../lib/limit.js";
 import { FEEDBACK_KEY, readFeedback } from "../lib/kv.js";
 
 /* Bounds on what a stranger may put in the store. Feedback is the only route
@@ -66,7 +66,7 @@ export async function feedback(request, env) {
   const body = await readBody(request);
   const rating = Math.round(Number(body && body.rating));
   if (!(rating >= 1 && rating <= 5)) return json({ error: "bad-rating" }, 400);
-  if (await tooOften(request, env.STATS, "fb", FB_PER_MINUTE)) return json({ error: "too-often" }, 429);
+  if (await tooOften(env.STATS, "fb", ipOf(request), FB_PER_MINUTE, 60)) return json({ error: "too-often" }, 429);
 
   const item = {
     id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),

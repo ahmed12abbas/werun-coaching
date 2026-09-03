@@ -34,8 +34,8 @@ jobs:
       - name: Check the cache-busting stamps are current
         run: |
           node tools/version-assets.js
-          # admin.html and tips.html load js/tipfmt.js too, so all three are checked.
-          pages="index.html admin.html tips.html"
+          # every page that loads a stamped script or stylesheet is checked.
+          pages="index.html admin.html tips.html app.html"
           if ! git diff --quiet -- $pages; then
             echo "::error::Script tags are stamped with stale hashes."\
                  "Run 'node tools/version-assets.js' and commit the result."
@@ -64,7 +64,7 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html admin.html tips.html _site/
+          cp index.html admin.html tips.html app.html _site/
           cp -r js assets _worker.js _site/
           find _site -type f | sort
 

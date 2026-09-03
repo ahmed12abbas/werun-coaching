@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Share stats · WE RUN</title>
+<title>Coach console · WE RUN</title>
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#8851F4">
 <link rel="icon" href="assets/favicon.svg">
@@ -128,16 +128,29 @@ a.btn{text-decoration:none}
   font-size:15px;line-height:1;padding:4px 8px;border-radius:8px}
 .drop:hover{color:var(--err);background:var(--bg)}
 .drop:disabled{opacity:.5;cursor:progress}
+/* ---- members ---- */
+.switches{margin:12px 0 4px}
+.sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;font-weight:650;
+  text-transform:none;letter-spacing:0;color:var(--fg);cursor:pointer;margin:0}
+.sw input{width:18px;height:18px;margin:0;accent-color:var(--brand)}
+.sw .muted{font-weight:400}
+table.members td,table.members th{text-align:left;white-space:nowrap}
+table.members td.left{font-variant-numeric:normal}
+table.members td.name{font-weight:650}
+table.members td.name .badge{margin-inline-start:8px}
+.badge.off{color:var(--err);background:transparent;border:1px solid var(--err)}
+table.members tr.blocked td{color:var(--muted)}
+table.members td.acts .btn+.btn{margin-inline-start:6px}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
 a{color:var(--brand)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Share stats</h1>
+  <h1>Coach console</h1>
   <p class="muted small" style="margin:0">
     How many times athletes tapped <b>Share this session</b>, by ISO week —
-    and what they said about the sessions.
+    what they said about the sessions, and who has joined the club.
   </p>
   <div id="app"></div>
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
@@ -476,6 +489,7 @@ function renderStats(data, tips) {
     ));
     app.append(feedbackCard(data.feedback));
     app.append(tipsCard(tips));
+    app.append(membersCard());
     app.append(controls());
     return;
   }
@@ -531,7 +545,105 @@ function renderStats(data, tips) {
   );
   app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
+  app.append(membersCard());
   app.append(controls());
+}
+
+
+/* ---- members ----
+   The platform's first admin surface: who has joined, block or unblock,
+   make a coach — and the switch that closes signups. Same password as the
+   rest of the page; the Worker checks it on every call. */
+function membersCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" },
+      el("h2", {}, "Members"),
+      el("a", { class: "btn sm", href: "/app" }, "Open the app")));
+  var switches = el("div", { class: "switches" });
+  var body = el("div", {});
+  card.append(switches, body);
+
+  function post(route, payload) {
+    return fetch(route, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(Object.assign({ password: password }, payload))
+    }).then(function (res) {
+      return res.json()["catch"](function () { return {}; }).then(function (data) {
+        if (res.ok) return data;
+        if (data.error === "no-db") {
+          throw new Error("No database is bound to the site yet -- run the bindings workflow (see the README).");
+        }
+        throw new Error("The server answered " + res.status + ".");
+      });
+    });
+  }
+
+  function paintSwitches(s) {
+    switches.textContent = "";
+    var box = el("input", { type: "checkbox", id: "sw-signups" });
+    if (s.signups_open) box.setAttribute("checked", "");
+    box.addEventListener("change", function () {
+      box.disabled = true;
+      post("/api/admin/settings", { set: { signups_open: box.checked } })
+        .then(function (d) { paintSwitches(d.settings); })
+        ["catch"](function (e) { box.disabled = false; switches.append(el("p", { class: "err" }, e.message)); });
+    });
+    switches.append(el("label", { class: "sw", for: "sw-signups" }, box,
+      el("span", {}, "Signups open"),
+      el("span", { class: "muted small" }, s.signups_open
+        ? "Anyone with the link can join."
+        : "Closed -- the join form says to ask the coach.")));
+  }
+
+  function act(m, action, extra, btn) {
+    btn.disabled = true;
+    post("/api/admin/members", Object.assign({ action: action, id: m.id }, extra || {}))
+      .then(paint)["catch"](function (e) { btn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+  }
+
+  function paint(data) {
+    body.textContent = "";
+    var members = data.members || [];
+    if (!members.length) {
+      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
+        "Nobody has joined yet. The join form is at /app."));
+      return;
+    }
+    body.append(el("p", { class: "muted small", style: "margin:10px 0 6px" },
+      members.length + (members.length === 1 ? " member" : " members") + ", newest first."));
+    var head = el("tr", {}, el("th", {}, "Name"), el("th", {}, "Email"), el("th", {}, "Joined"),
+      el("th", {}, "Last seen"), el("th", {}, "Check-ins"), el("th", {}, "Points"), el("th", {}, ""));
+    var rows = el("tbody", {});
+    members.forEach(function (m) {
+      var blocked = m.status === "blocked";
+      var blockBtn = el("button", { class: "btn sm", onclick: function () {
+        if (!blocked && !window.confirm("Block " + m.name + "? They are logged out everywhere and cannot log in until unblocked.")) return;
+        act(m, blocked ? "unblock" : "block", null, blockBtn);
+      } }, blocked ? "Unblock" : "Block");
+      var roleBtn = el("button", { class: "btn sm", onclick: function () {
+        if (m.role !== "coach" && !window.confirm("Make " + m.name + " a coach? Coaches will be able to run this console.")) return;
+        act(m, "role", { role: m.role === "coach" ? "athlete" : "coach" }, roleBtn);
+      } }, m.role === "coach" ? "Make athlete" : "Make coach");
+      rows.append(el("tr", { class: blocked ? "blocked" : "" },
+        el("td", { class: "name", dir: "auto" }, m.name,
+          m.role === "coach" ? el("span", { class: "badge" }, "Coach") : null,
+          blocked ? el("span", { class: "badge off" }, "Blocked") : null),
+        el("td", { class: "left" }, m.email),
+        el("td", {}, stamp(m.created_at) || "?"),
+        el("td", {}, stamp(m.last_seen_at) || "--"),
+        el("td", {}, String(m.checkins || 0)),
+        el("td", {}, String(m.points || 0)),
+        el("td", { class: "acts" }, blockBtn, roleBtn)));
+    });
+    body.append(el("div", { class: "scroll" }, el("table", { class: "members" }, el("thead", {}, head), rows)));
+  }
+
+  post("/api/admin/settings", {}).then(function (d) { paintSwitches(d.settings || {}); })["catch"](function () {});
+  post("/api/admin/members", {}).then(paint)["catch"](function (e) {
+    body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, e.message));
+  });
+  return card;
 }
 
 function controls() {
