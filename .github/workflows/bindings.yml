@@ -1,28 +1,35 @@
 name: Set up the Cloudflare bindings
 
 # Manual only, and deliberately so: this writes *account* configuration — a KV
-# namespace and the password the Worker checks against — not site content. It
-# is the scripted version of the dashboard steps in the README, for when the
-# Cloudflare login that owns the project is not to hand.
+# namespace, the D1 database and the secrets the Worker checks against — not
+# site content. It is the scripted version of the dashboard steps in the
+# README, for when the Cloudflare login that owns the project is not to hand.
 #
-# It is safe to run more than once. The namespace is looked up by title before
-# it is created, and the PATCH names only the two keys it sets, so re-running
-# re-points the same binding rather than stacking a second one.
+# It is safe to run more than once. The namespace and the database are looked
+# up by name before they are created, and the PATCH names only the keys it
+# sets, so re-running re-points the same bindings rather than stacking more.
 #
-# Before the first run, set the password as a repo secret — from a file, not a
+# Before the first run, set the passwords as repo secrets — from a file, not a
 # console paste, which has truncated before:
 #
 #   Get-Content pw.txt | gh secret set TIPS_PASSWORD
 #
-# ADMIN_PASSWORD is optional and unlocks /admin the same way. Neither value is
-# ever printed: both are masked in the log, and the request body is written to
-# a file rather than an echoed command line.
+# ADMIN_PASSWORD is optional and unlocks /admin the same way. QR_SECRET signs
+# the check-in codes (any long random string; `openssl rand -hex 32`). None of
+# the values is ever printed: all are masked in the log, and the request body
+# is written to a file rather than an echoed command line.
+#
+# The token needs Pages:Edit, Workers KV Storage:Edit and D1:Edit.
 
 on:
   workflow_dispatch:
     inputs:
       namespace_id:
         description: "KV namespace id — skips the KV lookup, for a Pages-only token"
+        required: false
+        default: ""
+      database_id:
+        description: "D1 database id — skips the D1 lookup, for a Pages-only token"
         required: false
         default: ""
       unbind_kv:
@@ -43,9 +50,12 @@ jobs:
       ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TIPS_PASSWORD: ${{ secrets.TIPS_PASSWORD }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      QR_SECRET: ${{ secrets.QR_SECRET }}
       PROJECT: weruncoaching
       KV_TITLE: werun-stats
+      D1_NAME: werun-db
       NS_INPUT: ${{ inputs.namespace_id }}
+      D1_INPUT: ${{ inputs.database_id }}
       UNBIND: ${{ inputs.unbind_kv }}
       SITE: https://weruncoaching.pages.dev
 
@@ -58,6 +68,7 @@ jobs:
           set -euo pipefail
           [ -n "${TIPS_PASSWORD}" ] && echo "::add-mask::${TIPS_PASSWORD}" || true
           [ -n "${ADMIN_PASSWORD}" ] && echo "::add-mask::${ADMIN_PASSWORD}" || true
+          [ -n "${QR_SECRET}" ] && echo "::add-mask::${QR_SECRET}" || true
           echo "done"
 
       - name: Check what we have to work with
@@ -77,6 +88,10 @@ jobs:
           fi
           echo "TIPS_PASSWORD set:  $([ -n "${TIPS_PASSWORD}" ] && echo yes || echo no)"
           echo "ADMIN_PASSWORD set: $([ -n "${ADMIN_PASSWORD}" ] && echo yes || echo no)"
+          echo "QR_SECRET set:      $([ -n "${QR_SECRET}" ] && echo yes || echo no)"
+          if [ -z "${QR_SECRET}" ]; then
+            echo "::warning::QR_SECRET is not set — check-in codes stay off until it is."
+          fi
 
       # Both halves are checked before either is written, so a token that can
       # deploy but not reach KV says so plainly instead of failing midway.
@@ -89,6 +104,8 @@ jobs:
             -H "Authorization: Bearer $TOKEN" "$base/pages/projects/$PROJECT")
           kv=$(curl -sS -o /tmp/k.json -w '%{http_code}' \
             -H "Authorization: Bearer $TOKEN" "$base/storage/kv/namespaces?per_page=1")
+          d1=$(curl -sS -o /tmp/d.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$base/d1/database?per_page=1")
 
           echo "Pages project read: HTTP $pages"
           if curl -sS -o /tmp/all.json -H "Authorization: Bearer $TOKEN" \
@@ -97,6 +114,7 @@ jobs:
             jq -r '.result[]? | "  - " + .name' /tmp/all.json || true
           fi
           echo "KV namespace list:  HTTP $kv"
+          echo "D1 database list:   HTTP $d1"
 
           ok=yes
           if [ "$pages" != "200" ]; then
@@ -114,8 +132,15 @@ jobs:
                  "reminting with 'Workers KV Storage: Edit' added alongside 'Pages: Edit',"\
                  "signed in as the account that owns the project. See the README."
           fi
+          if [ -n "${D1_INPUT}" ] || [ "${UNBIND}" = "true" ]; then
+            echo "Not looking the database up on this run, so the D1 API is not needed."
+          elif [ "$d1" != "200" ]; then
+            ok=no
+            echo "::error::The token cannot reach D1 (HTTP $d1). Remint it with 'D1: Edit'"\
+                 "alongside the KV and Pages grants, or pass database_id to skip the lookup."
+          fi
           [ "$ok" = "yes" ] || exit 1
-          echo "Both halves reachable — going ahead."
+          echo "Everything reachable — going ahead."
       # The token needs Workers KV Storage:Edit for this and Pages:Edit for the
       # step after. If it was minted Pages-only, this is where that shows up.
       - name: Find or create the KV namespace
@@ -167,12 +192,64 @@ jobs:
           echo "namespace id: $id"
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
+      # Same shape for the database: by name, create if missing, hand on the id.
+      # The tables themselves come from migrations/, applied by every deploy.
+      - name: Find or create the D1 database
+        id: d1
+        run: |
+          set -euo pipefail
+          if [ "${UNBIND}" = "true" ]; then
+            echo "Unbinding — the database is left alone."
+            echo "id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "${D1_INPUT}" ]; then
+            echo "Using the database id given on the run: ${D1_INPUT}"
+            echo "id=${D1_INPUT}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/d1/database"
+
+          code=$(curl -sS -o /tmp/dbs.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$api?name=$D1_NAME")
+          if [ "$code" != "200" ]; then
+            echo "::error::Listing D1 databases answered $code — see the probe above."
+            jq -r '.errors // .' /tmp/dbs.json || cat /tmp/dbs.json
+            exit 1
+          fi
+
+          id=$(jq -r --arg n "$D1_NAME" '.result[] | select(.name == $n) | .uuid' /tmp/dbs.json | head -1)
+
+          if [ -n "$id" ]; then
+            echo "Reusing the existing '$D1_NAME' database."
+          else
+            echo "No '$D1_NAME' database yet — creating it."
+            code=$(curl -sS -o /tmp/newdb.json -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+              --data "$(jq -nc --arg n "$D1_NAME" '{name:$n}')" "$api")
+            if [ "$code" != "200" ]; then
+              echo "::error::Creating the D1 database answered $code."
+              jq -r '.errors // .' /tmp/newdb.json || cat /tmp/newdb.json
+              exit 1
+            fi
+            id=$(jq -r '.result.uuid' /tmp/newdb.json)
+          fi
+
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error::Could not determine the database id."
+            exit 1
+          fi
+          echo "database id: $id"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
       # PATCH names only the keys it sets, so anything already configured on the
       # project is left alone — including secrets, whose values the API will not
       # hand back and so could not be re-sent even if we wanted to.
       - name: Bind them to the Pages project
         env:
           NS: ${{ steps.kv.outputs.id }}
+          DB: ${{ steps.d1.outputs.id }}
         run: |
           set -euo pipefail
           if [ "${UNBIND}" = "true" ]; then
@@ -182,14 +259,19 @@ jobs:
           else
           jq -nc \
             --arg ns "${NS}" \
+            --arg db "${DB}" \
             --arg tips "${TIPS_PASSWORD}" \
-            --arg admin "${ADMIN_PASSWORD}" '
+            --arg admin "${ADMIN_PASSWORD}" \
+            --arg qr "${QR_SECRET}" '
             {
               deployment_configs: {
                 production: (
-                  { kv_namespaces: { STATS: { namespace_id: $ns } }, env_vars: {} }
+                  { kv_namespaces: { STATS: { namespace_id: $ns } },
+                    d1_databases: { DB: { id: $db } },
+                    env_vars: {} }
                   | if $tips  != "" then .env_vars.TIPS_PASSWORD  = { type: "secret_text", value: $tips  } else . end
                   | if $admin != "" then .env_vars.ADMIN_PASSWORD = { type: "secret_text", value: $admin } else . end
+                  | if $qr    != "" then .env_vars.QR_SECRET      = { type: "secret_text", value: $qr    } else . end
                 )
               }
             }' > /tmp/patch.json
@@ -215,6 +297,7 @@ jobs:
             def names: keys | if length == 0 then "none" else join(", ") end;
             .result.deployment_configs.production
             | "  kv namespaces: " + ((.kv_namespaces // {}) | names),
+              "  d1 databases:  " + ((.d1_databases // {}) | names),
               "  env vars:      " + ((.env_vars // {}) | names)' /tmp/patched.json
 
       # Pages hands bindings to the Worker at deploy time, so the running one
@@ -228,20 +311,18 @@ jobs:
           gh workflow run "Deploy to Cloudflare Pages" --ref main --repo "$REPO"
           echo "Deploy dispatched."
 
-      - name: Wait for the site to report itself unlocked
+      - name: Wait for the site to report itself plugged in
         run: |
           set -euo pipefail
-          echo "Polling $SITE/api/tips-admin — 503 is locked, 401 is configured."
+          echo "Polling $SITE/api/health until it sees the store and the database."
           for i in $(seq 1 30); do
             sleep 10
-            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
-              -H "content-type: application/json" --data '{"password":""}' \
-              "$SITE/api/tips-admin" || echo "000")
-            echo "  attempt $i: HTTP $code"
-            if [ "$code" = "401" ]; then
-              echo "Configured — the editor now answers a wrong password with 401."
+            body=$(curl -sS "$SITE/api/health" || echo '{}')
+            echo "  attempt $i: $body"
+            if [ "$(echo "$body" | jq -r '.store and .db and (.tables > 0)')" = "true" ]; then
+              echo "Configured — KV bound, D1 bound and migrated."
               exit 0
             fi
           done
-          echo "::warning::Still not answering 401 after five minutes. The bindings were"\
-               "written; the deploy may just be slow. Try $SITE/tips by hand."
+          echo "::warning::Still not reporting both bindings after five minutes. They were"\
+               "written; the deploy may just be slow. Open $SITE/api/health by hand."

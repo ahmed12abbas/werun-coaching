@@ -1,0 +1,12 @@
+# Local development only. Never used by the deploy: the Pages project's real
+# bindings are set on the project itself (see .github/workflows/bindings.yml).
+# This gives `wrangler d1 migrations apply --local` a database to aim at, and
+# tools/dev.js points `wrangler pages dev` at the same local file.
+name = "weruncoaching-dev"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "werun-db"
+database_id = "werun-db-local"
+migrations_dir = "../migrations"

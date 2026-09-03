@@ -57,15 +57,47 @@ jobs:
           fi
 
       # Only the site itself goes up — never the repo root, which carries the
-      # worker source and the readme. _worker.js is a reserved name: Pages runs
-      # it in front of the static files instead of serving it, which is what
-      # keeps the share counter and the password check off the wire.
+      # connect worker, the docs and the readme. _worker.js/ is a reserved
+      # name: Pages runs it in front of the static files instead of serving it,
+      # which is what keeps the API and the password checks off the wire.
+      # Wrangler bundles the directory into one script on upload.
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html admin.html tips.html _worker.js _site/
-          cp -r js assets _site/
+          cp index.html admin.html tips.html _site/
+          cp -r js assets _worker.js _site/
           find _site -type f | sort
+
+      # The platform's tables. The database is created by the bindings
+      # workflow, not here — so until that has been run once, this step says
+      # so and steps aside rather than failing every deploy of the plain site.
+      - name: Is the D1 database there yet?
+        id: d1
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/d1.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/d1/database?name=werun-db")
+          n=$(jq -r '.result | length' /tmp/d1.json 2>/dev/null || echo 0)
+          if [ "$code" = "200" ] && [ "$n" != "0" ]; then
+            echo "werun-db exists — migrations will run."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No 'werun-db' D1 database visible (HTTP $code). Skipping migrations;"\
+                 "run the 'Set up the Cloudflare bindings' workflow to create and bind it."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply D1 migrations
+        if: steps.d1.outputs.exists == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply werun-db --remote
 
       # The `weruncoaching` project lives in whichever account CLOUDFLARE_ACCOUNT_ID
       # points at. If it is not there yet, create it as a Direct Upload project

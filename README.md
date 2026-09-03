@@ -284,10 +284,11 @@ Get-Content pw.txt | gh secret set TIPS_PASSWORD
 ```
 
 2. Run **Set up the Cloudflare bindings** from the Actions tab. It finds or
-   creates the `werun-stats` namespace, binds it as `STATS`, sets the
-   password as a `secret_text` variable, redeploys so the running Worker
-   picks the bindings up, and then polls the live site until it stops
-   answering `not-configured`.
+   creates the `werun-stats` namespace and the `werun-db` D1 database, binds
+   them as `STATS` and `DB`, sets the passwords and `QR_SECRET` as
+   `secret_text` variables, redeploys so the running Worker picks the
+   bindings up, and then polls `/api/health` until it reports both bindings
+   and a migrated database.
 
 It is manual-trigger only, because it writes account configuration rather
 than site content, and safe to run again — the namespace is looked up by
@@ -312,6 +313,7 @@ that owns the project — *My Profile* → *API Tokens* → *Create Token* →
 |---|---|---|
 | Account | Cloudflare Pages | Edit |
 | Account | Workers KV Storage | Edit |
+| Account | D1 | Edit |
 | Account | Account Settings | Read |
 
 Then replace the repo secret the same way it was set last time — from a file,
@@ -448,8 +450,12 @@ after sixty seconds; the address itself is never stored.
 | `js/rate.js` | The five stars, the name and the comment at the foot of a session |
 | `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
-| `_worker.js` | Server side of the share counter and Coach Tips; reserved name, never served |
-| `.github/workflows/bindings.yml` | One-shot: sets the KV and password bindings over the API |
+| `_worker.js/` | The API: share counter, feedback, Coach Tips, health — one file per route under `routes/`, shared bits under `lib/`. Reserved name, never served; wrangler bundles it on deploy |
+| `migrations/` | The D1 schema, numbered SQL files; applied by every deploy and by `tools/dev.js` |
+| `tools/dev.js` | Runs the whole site locally through wrangler with KV and D1 emulated |
+| `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |
+| `docs/PLATFORM-PLAN.md` | The plan for accounts, QR check-in, points, feed and store |
+| `.github/workflows/bindings.yml` | One-shot: creates the KV namespace and D1 database and sets the bindings and secrets over the API |
 | `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 
@@ -481,15 +487,32 @@ you hand out.
 ### 2. Cloudflare Pages — automatic, via GitHub Actions
 
 `.github/workflows/deploy.yml` redeploys `weruncoaching.pages.dev` on every push to `main`.
-It assembles a folder holding only `index.html`, `js/` and `assets/` and uploads
-that, so the worker source and this readme never end up on the site.
+It assembles a folder holding only the three pages, `js/`, `assets/` and
+`_worker.js/` and uploads that, so the connect worker, the docs and this readme
+never end up on the site. If the `werun-db` D1 database exists it applies
+`migrations/` first; until the bindings workflow has created it, that step
+says so and steps aside.
+
+### Running it locally
+
+```bash
+node tools/dev.js
+```
+
+assembles the same folder, applies the migrations to a local D1 file, and runs
+`wrangler pages dev` on <http://127.0.0.1:4323> with `STATS` and `DB` bound and
+the secrets read from `.dev.vars` (gitignored — `ADMIN_PASSWORD=letmein`,
+`TIPS_PASSWORD=coach`, `QR_SECRET=anything`). Edits under `js/`, the pages and
+`_worker.js/` are copied across as you save. State lives in `.wrangler/state`;
+delete it to start clean. `/api/health` says what the Worker can see.
 
 Both secrets (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) are set and the
 deploy is green. If the token ever needs replacing:
 
 1. Create one at <https://dash.cloudflare.com/profile/api-tokens> — Custom token,
-   permission **Account → Cloudflare Pages → Edit**. Tokens are `cfut_`-prefixed
-   and ~53 characters now.
+   permissions **Account → Cloudflare Pages → Edit**, **Workers KV Storage →
+   Edit** and **D1 → Edit** (the last two are for the bindings workflow and the
+   migrations step). Tokens are `cfut_`-prefixed and ~53 characters now.
 2. Save it to a file and pipe it in — pasting into gh's hidden prompt truncates:
    `Get-Content token.txt | gh secret set CLOUDFLARE_API_TOKEN` (then delete the
    file).
