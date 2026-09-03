@@ -432,17 +432,54 @@ after sixty seconds; the address itself is never stored.
 
 ## The club app
 
-`/app` is where members live: join with an email and a password, see the
-week Monday to Sunday, and — from phase 2 — check in at the track and collect
-points. Signups are open to anyone with the link; the coach can close them
+`/app` is where members live: join with an email and a password, see the week
+Monday to Sunday, open any published session in full, **scan the coach's code
+at the track**, and collect points. Signups are open to anyone with the link; the coach can close them
 from `/admin` (**Members** card), block a member, or make one a coach.
 Passwords are PBKDF2 via WebCrypto, the login is an `HttpOnly` cookie whose
 only trace in the database is a hash, and both signup and login are
 rate-limited. The plan for the rest is in `docs/PLATFORM-PLAN.md`.
 
+### Checking in
+
+The coach opens **/admin → Sessions & QR**, pastes the share link she just
+built, sets the day, the time and the points, and publishes. At the track she
+taps **Show the code**: the screen fills with a QR that is re-signed every
+thirty seconds, counts who has scanned, and keeps the phone awake.
+
+Athletes point their camera at it. The link opens the app, checks them in and
+adds the points — and if they have not joined yet, the code is kept while they
+sign up and used the moment they are in.
+
+What stops it being gamed:
+
+| | |
+|---|---|
+| A screenshot in the group chat | The slot is inside the signature, so it is refused about a minute later |
+| Checking in from home | The window is 30 minutes before the start to 45 after, and the coach sets both |
+| Checking in twice | One row per athlete per session, as a database constraint rather than a rule in the page |
+| A made-up link | The signature is HMAC-SHA256 under `QR_SECRET`, which never leaves the Worker |
+
+The coach can see who came and void any check-in; the points go back as a
+reversing row, so an athlete's history says what happened.
+
+The QR itself is drawn by `js/qr.js`, written from ISO/IEC 18004 rather than
+fetched from a CDN — the site loads no third-party script, and a code that
+carries a signature has no business going through an image service anyway.
+`node tools/qr-test.js` decodes what it draws, which is the only proof worth
+having.
+
+### Running the tools
+
 ```bash
-node tools/smoke.js                                  # against tools/dev.js
-node tools/smoke.js https://weruncoaching.pages.dev  # against the live site
+npm install    # wrangler and the QR test's two libraries; the site ships none
+```
+
+```bash
+node tools/smoke.js                                  # accounts, against tools/dev.js
+node tools/smoke-checkin.js                          # publish, sign, scan, void
+node tools/qr-test.js                                # the QR encoder, through a decoder
+node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 ```
 
 ## Files
@@ -471,7 +508,11 @@ node tools/smoke.js https://weruncoaching.pages.dev  # against the live site
 | `js/api.js`, `js/auth.js` | How the app talks to `/api` and who is logged in |
 | `assets/site.css` | The one stylesheet, shared by `index.html` and `app.html`; `assets/app.css` adds the app's own |
 | `tools/dev.js` | Runs the whole site locally through wrangler with KV and D1 emulated |
+| `js/qr.js` | The check-in QR code, written from the standard; no library, no CDN |
 | `tools/smoke.js` | Signs up, logs in, changes a password, reads a week, blocks and unblocks — against the local site or the live one |
+| `tools/smoke-checkin.js` | Publishes a session, signs a code, scans it, and tries every way of cheating it |
+| `tools/qr-test.js` | Decodes what `js/qr.js` draws, with a real decoder |
+| `package.json` | The dev tools only — wrangler and the QR test's libraries. Nothing here reaches the athletes |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |
 | `docs/PLATFORM-PLAN.md` | The plan for accounts, QR check-in, points, feed and store |
 | `.github/workflows/bindings.yml` | One-shot: creates the KV namespace and D1 database and sets the bindings and secrets over the API |

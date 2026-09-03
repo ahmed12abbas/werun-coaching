@@ -26,6 +26,15 @@ const PAGES = ["index.html", "admin.html", "tips.html", "app.html"];
 const DIRS = ["js", "assets", "_worker.js"];
 const STATE = ".wrangler/state";
 
+/* The wrangler from node_modules, run as a script rather than through npx or
+   a shell. `npm install` puts it there along with the workerd binary it needs;
+   going through npx instead re-resolves the package on every run and, when
+   npm has held back workerd's install script, hangs with nothing printed. */
+const WRANGLER = path.join(ROOT, "node_modules", "wrangler", "bin", "wrangler.js");
+if (!fs.existsSync(WRANGLER)) {
+  console.error("dev: no wrangler in node_modules — run `npm install` first.");
+  process.exit(1);
+}
 function assemble() {
   fs.mkdirSync(SITE, { recursive: true });
   for (const f of PAGES) fs.copyFileSync(path.join(ROOT, f), path.join(SITE, f));
@@ -34,10 +43,10 @@ function assemble() {
 
 function migrate() {
   const r = spawnSync(
-    "npx",
-    ["--yes", "wrangler@4", "d1", "migrations", "apply", "werun-db", "--local",
+    process.execPath,
+    [WRANGLER, "d1", "migrations", "apply", "werun-db", "--local",
      "-c", "tools/wrangler.dev.toml", "--persist-to", STATE],
-    { cwd: ROOT, stdio: "inherit", shell: true }
+    { cwd: ROOT, stdio: "inherit" }
   );
   if (r.status !== 0) {
     console.error("dev: migrations failed — fix migrations/ and try again");
@@ -67,13 +76,13 @@ fs.watch(ROOT, { recursive: true }, (event, file) => {
 });
 
 const wrangler = spawn(
-  "npx",
-  ["--yes", "wrangler@4", "pages", "dev", "_site",
+  process.execPath,
+  [WRANGLER, "pages", "dev", "_site",
    "--port", PORT, "--ip", "127.0.0.1",
    "--kv", "STATS", "--d1", "DB=werun-db-local",
    "--persist-to", STATE,
    "--compatibility-date", "2026-08-01"],
-  { cwd: ROOT, stdio: "inherit", shell: true }
+  { cwd: ROOT, stdio: "inherit" }
 );
 wrangler.on("exit", (code) => process.exit(code || 0));
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => wrangler.kill());

@@ -71,6 +71,9 @@ export function jsonWithCookie(body, status, token) {
 /* ---------- sessions ----------------------------------------------------- */
 
 export async function createSession(env, userId, request) {
+  // Rows nobody could use any more, cleared on the way past: a login is rare
+  // enough to carry one extra delete, and nothing else would ever do it.
+  await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(new Date().toISOString()).run();
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
   const tokenHash = hex(await sha256(token));
   const now = new Date();

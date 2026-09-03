@@ -6,6 +6,9 @@
    One page, hash routes:
      #/login  #/signup            anyone
      #/week   #/week/2026-09-07   the plan, one week at a time   (logged in)
+     #/session/<id>               one session, in full
+     #/c/<id>/<slot>/<sig>        what the coach's QR code points at
+     #/points                     total, streak, history, the club board
      #/me                         name, language, password, log out
 
    Everything visible goes through t() in js/i18n.js. The header comes from
@@ -15,7 +18,7 @@
 
 /* ---------- routing ------------------------------------------------------ */
 
-const PUBLIC_ROUTES = ["login", "signup"];
+const PUBLIC_ROUTES = ["login", "signup", "c"];
 
 function parseRoute() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
@@ -42,26 +45,71 @@ async function appBoot() {
   render();
 }
 
+/* A code scanned by someone not logged in yet.
+
+   The link is held for exactly as long as it takes them to log in or join,
+   in sessionStorage so it dies with the tab, and then replayed. Without this
+   a first-time athlete at the track scans, meets a login form, and loses the
+   code — which by the time they are back has expired anyway. */
+const PENDING = "werun.checkin";
+
+function stashCheckin(args) {
+  try {
+    sessionStorage.setItem(PENDING, args.join("/"));
+  } catch (e) {}
+}
+
+function takeCheckin() {
+  try {
+    const v = sessionStorage.getItem(PENDING);
+    sessionStorage.removeItem(PENDING);
+    return v;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** After a login, go where they were headed rather than to the week. */
+function afterLogin() {
+  const pending = takeCheckin();
+  go(pending ? "c/" + pending : "week");
+}
+
 function render() {
   const app = $("#app");
   const r = parseRoute();
   const user = Auth.user;
 
-  if (!user && !PUBLIC_ROUTES.includes(r.name)) return go("login");
-  if (user && (PUBLIC_ROUTES.includes(r.name) || !r.name)) return go("week");
+  if (!user && !PUBLIC_ROUTES.includes(r.name)) {
+    // A code scanned by a stranger: keep it, then ask who they are.
+    if (r.name === "c") stashCheckin(r.args);
+    return go("login");
+  }
+  if (!user && r.name === "c") {
+    stashCheckin(r.args);
+    return go("login");
+  }
+  if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("week");
 
   app.textContent = "";
   document.title = "WE RUN Club";
   app.append(brandBar(null, appBoot));
   if (user) app.append(appNav(r.name));
-  const screen = SCREENS[r.name] || SCREENS.week;
+  // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
+  const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.week;
   app.append(screen(r.args, user));
 }
 
 function appNav(current) {
   const link = (name, label) =>
     el("a", { href: "#/" + name, "aria-current": current === name ? "page" : null }, label);
-  return el("nav", { class: "appnav" }, link("week", t("navWeek")), link("me", t("navMe")));
+  return el(
+    "nav",
+    { class: "appnav" },
+    link("week", t("navWeek")),
+    link("points", t("navPointsShort")),
+    link("me", t("navMe"))
+  );
 }
 
 /* ---------- small parts -------------------------------------------------- */
@@ -115,7 +163,7 @@ SCREENS.login = function () {
       class: "stack",
       onsubmit: (e) => {
         e.preventDefault();
-        submitting(btn, err, () => Auth.login(email.value.trim(), pw.value).then(() => go("week")));
+        submitting(btn, err, () => Auth.login(email.value.trim(), pw.value).then(afterLogin));
       },
     },
     field("aEmail", email),
@@ -144,7 +192,7 @@ SCREENS.signup = function () {
       class: "stack",
       onsubmit: (e) => {
         e.preventDefault();
-        submitting(btn, err, () => Auth.signup(name.value, email.value.trim(), pw.value).then(() => go("week")));
+        submitting(btn, err, () => Auth.signup(name.value, email.value.trim(), pw.value).then(afterLogin));
       },
     },
     field("aName", name),
@@ -240,11 +288,233 @@ function statusTag(s) {
   return el("span", { class: "tag soon" }, t("aUpcoming"));
 }
 
-/* Session detail arrives with phase 2; until then the week points back. */
-SCREENS.session = function () {
-  go("week");
-  return el("div");
+/* One session, in full: the same timeline, typed Garmin steps, .fit file and
+   pace calculator the share link gives, drawn by the very same code — with a
+   check-in button on top while the window is open. */
+SCREENS.session = function (args) {
+  const box = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+
+  API.get("/api/session?id=" + encodeURIComponent(args[0] || ""))
+    .then((data) => {
+      const s = data.session;
+      box.textContent = "";
+      box.append(checkinCard(s));
+      let w = null;
+      try {
+        w = decodeWorkout(s.payload);
+      } catch (e) {
+        box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, t("brokenLead"))));
+        return;
+      }
+      // The date the coach published it for, not whatever the link carried.
+      w.date = s.date;
+      renderViewer(box, w, appBoot, { chrome: false });
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+
+  return el(
+    "div",
+    { class: "stack" },
+    el("button", { class: "btn sm backlink", onclick: () => go("week") }, t("aBack")),
+    box
+  );
 };
+
+/** The strip above a session: checked in, open now, or when it opens. */
+function checkinCard(s) {
+  const at = new Date(s.starts_at);
+  const time = isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+
+  if (s.checked_in) {
+    return el(
+      "div",
+      { class: "card pad checkin-strip done" },
+      el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")), el("div", { class: "muted small" }, time)),
+      el("span", { class: "tag done" }, t("aPts", { n: s.points }))
+    );
+  }
+
+  const now = Date.now();
+  const open = Date.parse(s.window_open_at);
+  const close = Date.parse(s.window_close_at);
+  const when = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+
+  let note;
+  if (now < open) note = t("aOpensAt", { time: when(s.window_open_at) });
+  else if (now > close) note = t("aClosesAt", { time: when(s.window_close_at) });
+  else note = t("aCheckInLead");
+
+  return el(
+    "div",
+    { class: "card pad checkin-strip" + (now >= open && now <= close ? " open" : "") },
+    el(
+      "div",
+      { class: "grow" },
+      el("div", { class: "ci-title" }, now >= open && now <= close ? t("aCheckIn") : t("aWindowShut")),
+      el("div", { class: "muted small" }, note)
+    ),
+    el("span", { class: "tag " + (now >= open && now <= close ? "open" : "soon") }, t("aPts", { n: s.points }))
+  );
+}
+
+/* ---------- the scanned code --------------------------------------------- */
+
+/*
+ * What the QR points at. By the time an athlete lands here they have already
+ * done the only thing they need to do, so this screen asks nothing: it posts
+ * the code and says what happened.
+ */
+SCREENS.c = function (args, user) {
+  const box = el(
+    "div",
+    { class: "card pad stack" },
+    el("h2", {}, t("aCheckingIn")),
+    el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" }))
+  );
+  if (!user) return box; // render() has already sent them to log in
+
+  API.post("/api/checkin", { session: args[0], slot: Number(args[1]), sig: args[2] })
+    .then((r) => {
+      box.textContent = "";
+      // The noise the share button makes: the one on this site that means
+      // "that went through". Nothing was clicked, so it is played by hand.
+      SFX.share();
+      box.append(
+        el("div", { class: "landed" }, "🎉"),
+        el("h2", {}, t("aWelcomeBack")),
+        el("p", { class: "muted" }, r.session),
+        el(
+          "div",
+          { class: "chips" },
+          r.earned ? el("span", { class: "chip big" }, t("aEarned", { n: r.earned })) : null,
+          r.bonus ? el("span", { class: "chip big" }, t("aStreakBonus", { n: r.bonus })) : null
+        ),
+        el("p", { class: "muted small" }, t("aStreakNow", { n: r.streak }) + " · " + t("aTotalNow", { n: r.total })),
+        el("div", { class: "row-wrap" },
+          el("button", { class: "btn primary", onclick: () => go("points") }, t("aSeePoints")),
+          el("button", { class: "btn", onclick: () => go("week") }, t("aSeeWeek")))
+      );
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(
+        el("h2", {}, t("aCheckIn")),
+        el("p", { class: "form-err" }, errorText(e)),
+        el("div", { class: "row-wrap" }, el("button", { class: "btn", onclick: () => go("week") }, t("aSeeWeek")))
+      );
+    });
+
+  return box;
+};
+
+/* ---------- points -------------------------------------------------------- */
+
+const REASON_KEY = { checkin: "rCheckin", streak: "rStreak", adjust: "rAdjust", void: "rVoid" };
+
+SCREENS.points = function () {
+  const mine = el("div", { class: "card pad stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  const board = el("div", { class: "card pad stack" }, el("h3", {}, t("aBoard")));
+  const wrap = el("div", { class: "stack" }, mine, board);
+
+  API.get("/api/points/me")
+    .then((d) => {
+      mine.textContent = "";
+      mine.append(
+        el("h2", {}, t("aYourPoints")),
+        el(
+          "div",
+          { class: "tiles" },
+          tile(d.total, t("aPoints")),
+          tile(d.streak, t("aStreak")),
+          tile(d.sessions, t("aSessionsCount"))
+        )
+      );
+      if (!d.history.length) {
+        mine.append(el("p", { class: "muted small" }, t("aNoPoints")));
+        return;
+      }
+      mine.append(el("h3", {}, t("aHistory")));
+      const rows = el("div", { class: "ledger" });
+      for (const row of d.history) rows.append(ledgerRow(row));
+      mine.append(rows);
+    })
+    .catch((e) => {
+      mine.textContent = "";
+      mine.append(el("p", { class: "form-err" }, errorText(e)));
+    });
+
+  API.get("/api/points/board")
+    .then((d) => {
+      board.textContent = "";
+      board.append(el("h3", {}, t("aBoard")));
+      if (!d.board.length) board.append(el("p", { class: "muted small" }, t("aBoardEmpty")));
+      else {
+        const list = el("div", { class: "board" });
+        for (const r of d.board) {
+          list.append(
+            el(
+              "div",
+              { class: "board-row" + (r.me ? " me" : "") },
+              el("span", { class: "place num" }, String(r.place)),
+              el("span", { class: "who grow", dir: "auto" }, r.me ? t("aYouAre") : r.name),
+              el("span", { class: "pts num" }, String(r.points))
+            )
+          );
+        }
+        board.append(list);
+      }
+      board.append(boardToggle(d.hidden));
+    })
+    .catch((e) => {
+      board.append(el("p", { class: "form-err" }, errorText(e)));
+    });
+
+  return wrap;
+};
+
+const tile = (n, label) =>
+  el("div", { class: "tile" }, el("div", { class: "n num" }, String(n)), el("div", { class: "l" }, label));
+
+function ledgerRow(row) {
+  const key = REASON_KEY[row.reason] || "rAdjust";
+  const label =
+    row.reason === "checkin"
+      ? t("rCheckin", { n: row.delta, name: row.note || "" })
+      : t(key);
+  const when = new Date(row.at);
+  return el(
+    "div",
+    { class: "ledger-row" },
+    el("span", { class: "grow", dir: "auto" }, label),
+    el("span", { class: "muted small" }, isNaN(when) ? "" : when.toLocaleDateString(locale(), { day: "numeric", month: "short" })),
+    // dir, not an isolate: this one is built here rather than in the table,
+    // and a signed number in an Arabic line reads backwards without it.
+    el("span", { class: "delta num " + (row.delta < 0 ? "down" : "up"), dir: "ltr" }, (row.delta > 0 ? "+" : "") + row.delta)
+  );
+}
+
+/** One tick: on the board, or not. Their own points never change either way. */
+function boardToggle(hidden) {
+  const box = el("input", { type: "checkbox", id: "on-board" });
+  if (!hidden) box.setAttribute("checked", "");
+  const note = el("p", { class: "muted small" }, hidden ? t("aBoardHiddenNote") : "");
+  box.addEventListener("change", () => {
+    box.disabled = true;
+    API.post("/api/points/board-visibility", { hidden: !box.checked })
+      .then((r) => {
+        note.textContent = r.hidden ? t("aBoardHiddenNote") : "";
+        toast(t("aSaved"));
+      })
+      .catch((e) => toast(errorText(e)))
+      .finally(() => {
+        box.disabled = false;
+      });
+  });
+  return el("div", { class: "stack" }, el("label", { class: "sw", for: "on-board" }, box, el("span", {}, t("aOnBoard"))), note);
+}
 
 SCREENS.me = function (args, user) {
   /* name + language */

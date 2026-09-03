@@ -56,3 +56,39 @@ export const week = withUser(async (request, env, user) => {
   }
   return json({ start: isoDay(monday), days: days });
 });
+
+/* ---------- GET /api/session?id= ------------------------------------------ */
+
+/*
+ * One session in full, payload included — that is the part the app decodes
+ * with js/model.js to draw the same timeline, the same typed Garmin steps
+ * and the same .fit file the share link gives. Members only, because the
+ * club's calendar is the club's.
+ */
+export const session = withUser(async (request, env, user) => {
+  const id = new URL(request.url).searchParams.get("id") || "";
+  const row = await env.DB.prepare(
+    "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
+      " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
+      " WHERE s.id = ?"
+  )
+    .bind(user.id, id)
+    .first();
+  if (!row) return json({ error: "no-session" }, 404);
+
+  return json({
+    session: {
+      id: row.id,
+      name: row.name,
+      date: row.date,
+      day: row.day,
+      payload: row.payload,
+      starts_at: row.starts_at,
+      window_open_at: row.window_open_at,
+      window_close_at: row.window_close_at,
+      points: row.points,
+      checked_in: !!(row.checked_in_at && !row.voided_at),
+      checked_in_at: row.voided_at ? null : row.checked_in_at,
+    },
+  });
+});

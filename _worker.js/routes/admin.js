@@ -5,14 +5,21 @@
    login; the shape of the answers will not change. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual } from "../lib/crypto.js";
+import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { nowISO } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 
 const MEMBER_CAP = 500;
 
-async function allowed(body, env) {
+/* Answers with the Response to send instead, or null to go on.
+
+   The brake comes before the compare: behind this password sit every
+   member name and email and the power to promote a coach, so nobody gets to
+   try passwords at machine speed. */
+async function allowed(request, body, env) {
   if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
   if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {
     return json({ error: "bad-password" }, 401);
   }
@@ -43,7 +50,7 @@ async function memberList(env) {
  */
 export async function members(request, env) {
   const body = await readBody(request);
-  const no = await allowed(body, env);
+  const no = await allowed(request, body, env);
   if (no) return no;
 
   const action = String(body.action || "");
@@ -71,7 +78,7 @@ export async function members(request, env) {
    than stored, so a typo cannot plant a setting nothing reads. */
 export async function settings(request, env) {
   const body = await readBody(request);
-  const no = await allowed(body, env);
+  const no = await allowed(request, body, env);
   if (no) return no;
 
   const set = body.set && typeof body.set === "object" ? body.set : {};

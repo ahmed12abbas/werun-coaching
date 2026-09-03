@@ -1,7 +1,7 @@
 /* The share counter and the dashboard that reads it. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual } from "../lib/crypto.js";
+import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { DOC_KEY, readDoc, readFeedback } from "../lib/kv.js";
 import { DAYS, isoWeek, weekStart, dayFromName } from "../lib/week.js";
 import { FB_MAX, feedbackSummary } from "./feedback.js";
@@ -45,6 +45,8 @@ export async function share(request, env) {
 export async function stats(request, env) {
   // An unset password locks the dashboard rather than opening it.
   if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
 
   const body = await readBody(request);
   if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {

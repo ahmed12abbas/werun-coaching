@@ -128,6 +128,43 @@ a.btn{text-decoration:none}
   font-size:15px;line-height:1;padding:4px 8px;border-radius:8px}
 .drop:hover{color:var(--err);background:var(--bg)}
 .drop:disabled{opacity:.5;cursor:progress}
+/* ---- sessions and the code at the track ---- */
+.pub{display:grid;gap:10px;margin-top:12px}
+.pub .row>div{flex:1 1 130px}
+.pub textarea{width:100%;min-height:58px;padding:11px 12px;font:inherit;font-size:13px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:12px;resize:vertical}
+.pub textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
+.decoded{font-size:13px;color:var(--muted)}
+.decoded b{color:var(--fg)}
+table.sess td,table.sess th{text-align:left;white-space:nowrap}
+table.sess td.when small{display:block;color:var(--muted);font-weight:400}
+table.sess td.acts .btn+.btn{margin-inline-start:6px}
+table.sess tr.past td{color:var(--muted)}
+.roster{margin-top:10px;border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.roster h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;margin:0 0 8px}
+.roster ol{margin:0;padding-inline-start:22px;font-size:14.5px}
+.roster li{margin-bottom:5px;display:list-item}
+.roster li.void{color:var(--muted);text-decoration:line-through}
+.roster .drop{margin-inline-start:8px;text-decoration:none}
+
+/* The code itself: as big as the screen allows, because it is read from a
+   metre away by a phone held at arm's length in the dark. */
+.qr-screen{position:fixed;inset:0;z-index:60;background:#fff;color:#111;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
+.qr-screen .code{width:min(78vh,92vw);aspect-ratio:1;display:block}
+.qr-screen .code svg{width:100%;height:100%;display:block}
+.qr-name{font-family:var(--display);font-size:30px;font-weight:600;text-transform:uppercase;
+  line-height:1;text-align:center;margin:0}
+.qr-sub{font-size:14px;color:#555;margin:0;text-align:center}
+.qr-count{font-family:var(--display);font-size:40px;line-height:1;font-weight:600;margin:0}
+.qr-bar{width:min(78vh,92vw);height:5px;border-radius:99px;background:#e6e3ef;overflow:hidden}
+.qr-bar i{display:block;height:100%;background:#8851F4;transition:width .95s linear}
+.qr-shut{color:#b91c1c;font-weight:700}
+.qr-close{position:absolute;top:calc(10px + env(safe-area-inset-top));inset-inline-end:12px;
+  border:1px solid #ddd;background:#fff;color:#333;border-radius:10px;padding:8px 13px;
+  font:inherit;font-weight:650;cursor:pointer}
 /* ---- members ---- */
 .switches{margin:12px 0 4px}
 .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;font-weight:650;
@@ -156,6 +193,9 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
+<script src="js/i18n.js?v=5d929d7b"></script>
+<script src="js/model.js?v=3b1fab6f"></script>
+<script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=02d6c4d6"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
@@ -489,6 +529,7 @@ function renderStats(data, tips) {
     ));
     app.append(feedbackCard(data.feedback));
     app.append(tipsCard(tips));
+    app.append(sessionsCard());
     app.append(membersCard());
     app.append(controls());
     return;
@@ -545,6 +586,7 @@ function renderStats(data, tips) {
   );
   app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
+  app.append(sessionsCard());
   app.append(membersCard());
   app.append(controls());
 }
@@ -644,6 +686,265 @@ function membersCard() {
     body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, e.message));
   });
   return card;
+}
+
+/* ---- sessions ----
+   Publishing is the one place the two halves of the site meet: the coach
+   pastes the share link she already built, and it becomes a row the app can
+   show and a code athletes can scan. The link itself is never decoded on the
+   server -- the payload is stored exactly as it travels, and js/model.js
+   decodes it in the athlete's browser, which is what keeps old links and new
+   sessions the same thing. */
+function sessionsCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Sessions & QR")));
+  var pub = el("div", { class: "pub" });
+  var body = el("div", {});
+  card.append(pub, body);
+
+  function post(payload) {
+    return fetch("/api/admin/sessions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(Object.assign({ password: password }, payload))
+    }).then(function (res) {
+      return res.json()["catch"](function () { return {}; }).then(function (data) {
+        if (res.ok) return data;
+        if (data.error === "no-db") throw new Error("No database is bound yet -- run the bindings workflow (see the README).");
+        if (data.error === "has-checkins") throw new Error("Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.");
+        throw new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
+      });
+    });
+  }
+
+  /* ---- the publish form ---- */
+  var link = el("textarea", { placeholder: "Paste the share link you copied from the builder" });
+  var name = el("input", { type: "text", maxlength: 80, placeholder: "Monday | WeRUN" });
+  var date = el("input", { type: "date" });
+  var time = el("input", { type: "time", value: "18:30" });
+  var points = el("input", { type: "number", min: "0", max: "1000", step: "1", value: "10" });
+  var decoded = el("div", { class: "decoded" });
+  var pubErr = el("p", { class: "err", style: "display:none" });
+  var go = el("button", { class: "btn primary", onclick: function () { publish(); } }, "Publish to the club");
+
+  /* The payload is the bit after w= -- a whole URL, a bare fragment or the
+     payload on its own all end up in the same place. */
+  function payloadOf(text) {
+    var m = /[#&?]w=([^&\s]+)/.exec(String(text || ""));
+    if (m) return decodeURIComponent(m[1]);
+    var bare = String(text || "").trim();
+    return /^\d+\./.test(bare) ? bare : "";
+  }
+
+  function readLink() {
+    decoded.textContent = "";
+    var payload = payloadOf(link.value);
+    if (!payload) return null;
+    var w = null;
+    try { w = decodeWorkout(payload); } catch (e) { w = null; }
+    if (!w) {
+      decoded.append(el("span", { class: "err" }, "That link does not decode. Copy it again from the builder."));
+      return null;
+    }
+    if (!name.value.trim()) name.value = w.name || "";
+    if (!date.value && w.date) date.value = w.date;
+    var est = estimate(w);
+    decoded.append(el("span", {},
+      el("b", {}, w.name || "(no name)"), " \u00b7 " + est.steps + " steps \u00b7 about " +
+      Math.round(est.seconds / 60) + " min"));
+    return { payload: payload, w: w };
+  }
+  link.addEventListener("change", readLink);
+  link.addEventListener("blur", readLink);
+
+  function publish() {
+    pubErr.style.display = "none";
+    var read = readLink();
+    if (!read) { pubErr.textContent = "Paste the share link first."; pubErr.style.display = ""; return; }
+    if (!date.value) { pubErr.textContent = "Which day is it?"; pubErr.style.display = ""; return; }
+    if (!time.value) { pubErr.textContent = "What time does it start?"; pubErr.style.display = ""; return; }
+    go.disabled = true;
+    // Built from the coach's own clock, so the athletes' phones and the
+    // check-in window all agree about when "18:30" was.
+    var startsAt = new Date(date.value + "T" + time.value);
+    post({
+      action: "publish",
+      name: name.value.trim() || read.w.name,
+      payload: read.payload,
+      date: date.value,
+      starts_at: startsAt.toISOString(),
+      points: Number(points.value)
+    }).then(function (d) {
+      link.value = ""; name.value = ""; decoded.textContent = "";
+      paint(d);
+    })["catch"](function (e) {
+      pubErr.textContent = e.message; pubErr.style.display = "";
+    }).then(function () { go.disabled = false; });
+  }
+
+  pub.append(
+    el("div", {}, el("label", {}, "Share link"), link, decoded),
+    el("div", { class: "row" },
+      el("div", {}, el("label", {}, "Session name"), name),
+      el("div", {}, el("label", {}, "Date"), date),
+      el("div", {}, el("label", {}, "Starts"), time),
+      el("div", {}, el("label", {}, "Points"), points)),
+    pubErr,
+    el("div", { class: "row" }, el("div", { style: "flex:0 0 auto" }, go)));
+
+  /* ---- the list ---- */
+  function paint(data) {
+    body.textContent = "";
+    var sessions = (data && data.sessions) || [];
+    if (data && data.qr === false) {
+      body.append(el("p", { class: "err" },
+        "QR_SECRET is not set on the site, so codes cannot be signed. See the README."));
+    }
+    if (!sessions.length) {
+      body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
+        "Nothing published yet. Build a session, copy its link, and paste it above."));
+      return;
+    }
+    var head = el("tr", {}, el("th", {}, "Session"), el("th", {}, "When"),
+      el("th", {}, "Points"), el("th", {}, "Came"), el("th", {}, ""));
+    var rows = el("tbody", {});
+    var now = new Date();
+    sessions.forEach(function (s) {
+      var starts = new Date(s.starts_at);
+      var open = now >= new Date(s.window_open_at) && now <= new Date(s.window_close_at);
+      var showBtn = el("button", { class: "btn sm primary", onclick: function () { qrScreen(s); } }, "Show the code");
+      var whoBtn = el("button", { class: "btn sm", onclick: function () { roster(s, whoBtn); } }, "Who came");
+      var delBtn = el("button", { class: "btn sm", onclick: function () {
+        if (!window.confirm("Remove " + s.name + " from the club calendar?")) return;
+        delBtn.disabled = true;
+        post({ action: "delete", id: s.id }).then(paint)["catch"](function (e) {
+          delBtn.disabled = false; body.append(el("p", { class: "err" }, e.message));
+        });
+      } }, "Remove");
+      rows.append(el("tr", { class: starts < now && !open ? "past" : "" },
+        el("td", { class: "name", dir: "auto" }, s.name,
+          open ? el("span", { class: "badge" }, "Open now") : null),
+        el("td", { class: "when" }, stamp(s.starts_at) || s.date),
+        el("td", {}, String(s.points)),
+        el("td", {}, String(s.came || 0)),
+        el("td", { class: "acts" }, showBtn, whoBtn, delBtn)));
+    });
+    body.append(el("div", { class: "scroll" }, el("table", { class: "sess" }, el("thead", {}, head), rows)));
+  }
+
+  /* ---- who came ---- */
+  function roster(s, btn) {
+    btn.disabled = true;
+    post({ action: "roster", id: s.id }).then(function (d) {
+      var box = el("div", { class: "roster" }, el("h3", {}, "Who came \u00b7 " + s.name));
+      var list = (d.roster || []);
+      if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, "Nobody yet."));
+      else {
+        var ol = el("ol", {});
+        list.forEach(function (r) {
+          var drop = el("button", { class: "drop", title: "Void this check-in",
+            "aria-label": "Void this check-in", onclick: function () {
+              if (!window.confirm("Void " + r.name + "'s check-in? The points go back too.")) return;
+              drop.disabled = true;
+              post({ action: "void", id: r.id }).then(function (d2) {
+                box.replaceWith(el("div", {}));
+                paint(d2); roster(s, btn);
+              })["catch"](function (e) { drop.disabled = false; box.append(el("p", { class: "err" }, e.message)); });
+            } }, "\u2715");
+          ol.append(el("li", { class: r.voided_at ? "void" : "", dir: "auto" },
+            r.name, el("span", { class: "muted small" }, " \u00b7 " + (stamp(r.at) || "")),
+            r.voided_at ? null : drop));
+        });
+        box.append(ol);
+      }
+      body.append(box);
+      box.scrollIntoView({ block: "nearest" });
+    })["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); })
+      .then(function () { btn.disabled = false; });
+  }
+
+  post({ action: "list" }).then(paint)["catch"](function (e) {
+    body.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
+  });
+  return card;
+}
+
+/* ---- the code on the screen ----
+   A fresh code every thirty seconds, drawn by js/qr.js rather than fetched,
+   so it keeps working when the track has no signal to speak of. The bar
+   underneath is the slot running out; the number is who has scanned so far,
+   which is the thing a coach actually watches. */
+function qrScreen(session) {
+  var img = el("div", { class: "code" });
+  var count = el("p", { class: "qr-count" }, "0");
+  var sub = el("p", { class: "qr-sub" }, "Athletes scan this with their camera.");
+  var bar = el("i", {});
+  var screen = el("div", { class: "qr-screen" },
+    el("button", { class: "qr-close", onclick: close_ }, "Done"),
+    el("h2", { class: "qr-name" }, session.name),
+    img,
+    el("div", { class: "qr-bar" }, bar),
+    count, sub);
+
+  var timer = null, tick = null, lock = null, dead = false;
+  document.body.append(screen);
+  // The coach is holding the phone up; letting it sleep mid-session is the
+  // one failure that loses everybody's check-in.
+  if (navigator.wakeLock && navigator.wakeLock.request) {
+    navigator.wakeLock.request("screen").then(function (l) { lock = l; })["catch"](function () {});
+  }
+
+  function close_() {
+    dead = true;
+    clearTimeout(timer); clearInterval(tick);
+    if (lock && lock.release) { try { lock.release(); } catch (e) {} }
+    screen.remove();
+  }
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key === "Escape") { close_(); document.removeEventListener("keydown", esc); }
+  });
+
+  function refresh() {
+    if (dead) return;
+    fetch("/api/admin/qr", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: password, id: session.id })
+    }).then(function (res) { return res.json()["catch"](function () { return {}; }).then(function (d) {
+      if (!res.ok) throw new Error(d.error === "qr-off"
+        ? "QR_SECRET is not set on the site, so codes cannot be signed."
+        : "The server answered " + res.status + ".");
+      return d;
+    }); }).then(function (d) {
+      if (dead) return;
+      img.innerHTML = qrSvg(d.url, "M");
+      count.textContent = String(d.came || 0);
+      sub.textContent = d.open
+        ? "Athletes scan this with their camera."
+        : "Check-in is not open for this session right now.";
+      sub.className = "qr-sub" + (d.open ? "" : " qr-shut");
+
+      // The bar empties over the life of the slot, and the next code is
+      // fetched as it runs out.
+      var left = Math.max(1, d.seconds);
+      var span = 30;
+      bar.style.transition = "none";
+      bar.style.width = Math.round((left / span) * 100) + "%";
+      clearInterval(tick);
+      tick = setInterval(function () {
+        left -= 1;
+        bar.style.transition = "width .95s linear";
+        bar.style.width = Math.max(0, Math.round((left / span) * 100)) + "%";
+      }, 1000);
+      timer = setTimeout(refresh, d.seconds * 1000 + 200);
+    })["catch"](function (e) {
+      if (dead) return;
+      img.textContent = "";
+      img.append(el("p", { class: "err" }, e.message));
+      timer = setTimeout(refresh, 5000);
+    });
+  }
+  refresh();
 }
 
 function controls() {

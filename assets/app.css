@@ -46,3 +46,45 @@ button.day:hover{background:var(--brand-soft)}
 .tag.miss{background:var(--rest)}
 .tag.soon{background:var(--muted)}
 .empty{text-align:center;padding:8px 6px 2px;font-size:14px;color:var(--muted)}
+
+/* ---- the session screen ---- */
+.backlink{align-self:flex-start}
+.checkin-strip{display:flex;align-items:center;gap:12px}
+.checkin-strip.open{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.checkin-strip.done{border-color:var(--ok)}
+.ci-title{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;line-height:1.1}
+[dir="rtl"] .ci-title{font-size:18px}
+
+/* ---- the check-in landing ---- */
+.landed{font-size:52px;line-height:1;text-align:center;animation:landing .5s cubic-bezier(.34,1.5,.64,1) both}
+@keyframes landing{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.landed{animation:none}}
+.chip.big{font-size:15px;padding:6px 14px 5px}
+
+/* ---- points ---- */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--brand-soft);border-radius:13px;padding:12px 10px;text-align:center}
+.tile .n{font-size:32px;line-height:1;display:block}
+.tile .l{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}
+[dir="rtl"] .tile .l{letter-spacing:0}
+.ledger{display:grid;gap:2px}
+.ledger-row{display:flex;align-items:baseline;gap:10px;padding:9px 2px;font-size:14px}
+.ledger-row+.ledger-row{border-top:1px solid var(--line)}
+.ledger-row .delta{flex:none;font-size:1.15em}
+.ledger-row .delta.up{color:var(--ok)}
+.ledger-row .delta.down{color:var(--err)}
+.board{display:grid;gap:2px}
+.board-row{display:flex;align-items:baseline;gap:12px;padding:9px 10px;border-radius:10px;font-size:14.5px}
+.board-row+.board-row{border-top:1px solid var(--line)}
+.board-row.me{background:var(--brand-soft);font-weight:650}
+.board-row .place{flex:none;width:26px;text-align:center;color:var(--muted);font-size:1.05em}
+.board-row.me .place{color:var(--brand)}
+.board-row .pts{flex:none}
+.sw{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:650;text-transform:none;
+  letter-spacing:0;color:var(--fg);cursor:pointer;margin:0}
+/* site.css strips the native look off every input so the text fields match.
+   A checkbox needs it back, or it draws as an empty rounded box that never
+   shows a tick — which is exactly as much use as no checkbox at all. */
+.sw input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;
+  width:18px;height:18px;flex:none;margin:0;padding:0;border:0;border-radius:0;
+  background:none;accent-color:var(--brand)}

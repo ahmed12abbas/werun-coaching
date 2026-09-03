@@ -277,11 +277,19 @@ function connectCard(w) {
 
 const DEVICE_KEY = "werun.device";
 
-function renderViewer(app, w, rerender) {
+/**
+ * The athlete's view of a session.
+ *
+ * `opts.chrome === false` leaves off the header and the footer link back to
+ * the builder: the club app draws this inside its own shell, where a second
+ * logo and a link out to the builder would both be wrong.
+ */
+function renderViewer(app, w, rerender, opts) {
   const est = estimate(w);
   const approx = est.exact ? "" : "~";
+  const chrome = !opts || opts.chrome !== false;
 
-  app.append(brandBar(null, rerender));
+  if (chrome) app.append(brandBar(null, rerender));
 
   /* --- session card ----------------------------------------------------- */
   // The calculator lives beside the title: the paces it gives are the targets
@@ -564,14 +572,16 @@ function renderViewer(app, w, rerender) {
   // the end, which is where someone who is done with this session goes next.
   app.append(el("div", { class: "foot-row" }, feedbackCard(w), share, socialRow()));
 
-  app.append(
-    el(
-      "footer",
-      {},
-      "WE RUN Coaching · ",
-      el("a", { href: location.pathname }, t("footerBuild"))
-    )
-  );
+  if (chrome) {
+    app.append(
+      el(
+        "footer",
+        {},
+        "WE RUN Coaching · ",
+        el("a", { href: location.pathname }, t("footerBuild"))
+      )
+    );
+  }
 }
 
 /* ===================== BUILDER (what the coach uses) ===================== */

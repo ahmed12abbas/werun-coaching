@@ -21,12 +21,19 @@
      POST /api/auth/profile     — name, language         (logged in)
      POST /api/auth/password    — change password        (logged in)
      GET  /api/week?start=      — seven days of sessions (logged in)
+     GET  /api/session?id=      — one session, payload and all (logged in)
+     POST /api/checkin          — a scanned code, into points        (logged in)
+     GET  /api/points/me        — total, streak, history             (logged in)
+     GET  /api/points/board     — the club leaderboard               (logged in)
+     POST /api/points/board-visibility — on or off the board         (logged in)
 
      POST /api/stats            — the dashboard: counts and feedback, password-gated
      POST /api/feedback-admin   — takes one note down, password-gated
      POST /api/tips-admin       — the article editor, password-gated
      POST /api/admin/members    — the members list, block/unblock/role, password-gated
      POST /api/admin/settings   — the switches, password-gated
+     POST /api/admin/sessions   — publish, roster, void, delete, password-gated
+     POST /api/admin/qr         — the code for the track, password-gated
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the counts, feedback, articles and rate limits
@@ -49,8 +56,11 @@ import { feedback, feedbackAdmin } from "./routes/feedback.js";
 import { tips, tipsAdmin } from "./routes/tips.js";
 import { health } from "./routes/health.js";
 import { signup, login, logout, logoutAll, me, profile, password } from "./routes/auth.js";
-import { week } from "./routes/sessions.js";
+import { week, session } from "./routes/sessions.js";
 import { members, settings } from "./routes/admin.js";
+import { adminSessions, adminQr } from "./routes/schedule.js";
+import { checkin } from "./routes/checkin.js";
+import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
 
 const POST = {
   "/api/share": share,
@@ -64,14 +74,21 @@ const POST = {
   "/api/auth/logout-all": logoutAll,
   "/api/auth/profile": profile,
   "/api/auth/password": password,
+  "/api/checkin": checkin,
+  "/api/points/board-visibility": boardVisibility,
   "/api/admin/members": members,
   "/api/admin/settings": settings,
+  "/api/admin/sessions": adminSessions,
+  "/api/admin/qr": adminQr,
 };
 const GET = {
   "/api/tips": tips,
   "/api/health": health,
   "/api/auth/me": me,
   "/api/week": week,
+  "/api/session": session,
+  "/api/points/me": pointsMe,
+  "/api/points/board": pointsBoard,
 };
 
 export default {

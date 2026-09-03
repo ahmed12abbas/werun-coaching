@@ -26,10 +26,10 @@ const cleanLang = (s) => (s === "ar" ? "ar" : "en");
  */
 export async function signup(request, env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
+  // Without KV there is nowhere to keep the count, and an open signup route
+  // with no limit at all is worse than one that is briefly shut.
+  if (!env.STATS) return json({ error: "no-store" }, 503);
   if (!(await getSetting(env, "signups_open"))) return json({ error: "signups-closed" }, 403);
-  if (env.STATS && (await tooOften(env.STATS, "su", ipOf(request), 3, 3600))) {
-    return json({ error: "too-often" }, 429);
-  }
 
   const body = await readBody(request);
   const email = cleanEmail(body.email);
@@ -38,6 +38,10 @@ export async function signup(request, env) {
   if (!emailLooksRight(email)) return json({ error: "bad-email" }, 400);
   if (!name) return json({ error: "bad-name" }, 400);
   if (password.length < MIN_PASSWORD || password.length > MAX.password) return json({ error: "bad-password" }, 400);
+  // Counted once the form is right, so two typos and a short password do not
+  // cost an hour, and it is the expensive half -- hashing, then the insert --
+  // that the cap actually protects.
+  if (await tooOften(env.STATS, "su", ipOf(request), 3, 3600)) return json({ error: "too-often" }, 429);
 
   const { salt, hash } = await hashPassword(password);
   const id = uid();
@@ -69,15 +73,18 @@ export async function signup(request, env) {
  */
 export async function login(request, env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
+  // Same rule as signup: no counter, no attempts.
+  if (!env.STATS) return json({ error: "no-store" }, 503);
   const body = await readBody(request);
   const email = cleanEmail(body.email);
   const password = String(body.password || "");
 
-  if (env.STATS) {
-    const byIp = await tooOften(env.STATS, "li", ipOf(request), 10, 60);
-    const byEmail = email && (await tooOften(env.STATS, "le", email, 20, 3600));
-    if (byIp || byEmail) return json({ error: "too-often" }, 429);
-  }
+  const byIp = await tooOften(env.STATS, "li", ipOf(request), 10, 60);
+  // The slower count is per address *and* email, not per email alone: keyed
+  // on the email by itself, anyone who knows a member address could lock
+  // that member out for an hour from somewhere else.
+  const byWho = email && (await tooOften(env.STATS, "le", ipOf(request) + ":" + email, 20, 3600));
+  if (byIp || byWho) return json({ error: "too-often" }, 429);
 
   const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
   const ok = user ? await verifyPassword(password, user.pass_salt, user.pass_hash) : await burnTime(password);
@@ -131,6 +138,9 @@ export const password = withUser(async (request, env, user) => {
   const current = String(body.current || "");
   const next = String(body.next || "");
   if (next.length < MIN_PASSWORD || next.length > MAX.password) return json({ error: "bad-password" }, 400);
+  // Asking for the current one is what stops a borrowed phone quietly
+  // becoming someone else account, so it cannot be guessed at either.
+  if (env.STATS && (await tooOften(env.STATS, "pw", user.id, 5, 3600))) return json({ error: "too-often" }, 429);
   if (!(await verifyPassword(current, user.pass_salt, user.pass_hash))) return json({ error: "wrong-password" }, 401);
   const { salt, hash } = await hashPassword(next);
   await env.DB.prepare("UPDATE users SET pass_salt = ?, pass_hash = ? WHERE id = ?").bind(salt, hash, user.id).run();

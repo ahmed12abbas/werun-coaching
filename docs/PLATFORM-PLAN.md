@@ -185,7 +185,7 @@ Each phase ships on its own and leaves the site working. Order matters:
 accounts before check-ins, check-ins before points, points before the feed
 only because the feed is the easy one and the QR is the risky one.
 
-### Phase 0 — foundations (no visible change)
+### Phase 0 — foundations  ✔ **done 2026-09-04**
 - Root `wrangler.toml` for the Pages project: `pages_build_output_dir = "_site"`, the `STATS` KV binding, a new `DB` D1 binding. Bindings then come from config, not the dashboard PATCH — `bindings.yml` becomes the way to create the D1 database and set secrets, and stops patching bindings.
 - `migrations/0001_init.sql` + a deploy step: `wrangler d1 migrations apply werun-db --remote` before `pages deploy`.
 - Split `_worker.js` into `_worker.js/`; deploy copies the directory. Behaviour identical — verified by hitting `/api/share`, `/api/tips`, `/api/stats` before and after.
@@ -193,14 +193,14 @@ only because the feed is the easy one and the QR is the risky one.
 - New secret: `QR_SECRET`.
 - `security-reviewer` runs on the split.
 
-### Phase 1 — accounts
+### Phase 1 — accounts  ✔ **done 2026-09-04**
 - `POST /api/auth/signup | login | logout`, `GET /api/auth/me`, `POST /api/auth/password`.
 - `app.html` with signup, login, the weekly plan (reads `club_sessions`, empty days from settings), session detail (reusing the viewer), me (name, language, password, log out everywhere).
 - Rate limits and the "signups open" switch.
 - Admin: **Members** tab (list, search, block/unblock, make coach).
 - Done when: two phones can sign up, log in, and see each other in Members.
 
-### Phase 2 — sessions, QR, points
+### Phase 2 — sessions, QR, points  ✔ **done 2026-09-04**
 - Builder gets **Publish to the club**: date, start time, points → `club_sessions` row with the link payload. The link itself is unchanged — publishing is in addition to it.
 - Admin: **Sessions & QR** tab — this week's list, the live QR screen, who has checked in, void.
 - `GET /api/qr` (coach), `POST /api/checkin` (athlete), `GET /api/points/me`, `GET /api/points/board`.

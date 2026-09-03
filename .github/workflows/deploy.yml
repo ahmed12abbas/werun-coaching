@@ -95,6 +95,10 @@ jobs:
         if: steps.d1.outputs.exists == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
+          # Pinned: package.json carries wrangler for local development, and
+          # the action would otherwise pick its own default. CI never has
+          # node_modules, so this is the only thing that decides the version.
+          wranglerVersion: "4.129.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 migrations apply werun-db --remote
@@ -131,6 +135,7 @@ jobs:
 
       - uses: cloudflare/wrangler-action@v3
         with:
+          wranglerVersion: "4.129.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy _site --project-name weruncoaching --branch main --commit-dirty=true

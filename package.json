@@ -1,0 +1,21 @@
+{
+  "name": "werun-coaching",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The site ships no dependencies at all — every script in js/ is plain, unbundled JavaScript the browser loads directly, and that is not going to change. This file is for the tools: wrangler, which runs the Worker and the D1 database locally and applies migrations on deploy, and two libraries the QR test uses to check js/qr.js against a real encoder and a real decoder. Nothing here reaches the athletes.",
+  "scripts": {
+    "dev": "node tools/dev.js",
+    "stamp": "node tools/version-assets.js",
+    "test": "node tools/qr-test.js && node .claude/skills/i18n-check/scripts/check.js",
+    "smoke": "node tools/smoke.js && node tools/smoke-checkin.js"
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^1.4.4",
+    "wrangler": "^4.129.0"
+  },
+  "allowScripts": {
+    "workerd@1.20260903.1": true,
+    "esbuild@0.28.1": true
+  }
+}

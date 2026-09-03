@@ -8,7 +8,10 @@ export const json = (body, status) =>
 
 export async function readBody(request) {
   try {
-    return await request.json();
+    const v = await request.json();
+    // null, "x", [] and 7 are all valid JSON and none of them is a request
+    // body: hand back {} so a route reads missing fields rather than throwing.
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
   } catch (e) {
     return {}; // a malformed body fails the route's own checks on its own merits
   }

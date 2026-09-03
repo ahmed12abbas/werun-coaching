@@ -10,7 +10,7 @@
    athletes without typing it again. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual } from "../lib/crypto.js";
+import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
@@ -120,6 +120,8 @@ export async function tipsAdmin(request, env) {
   if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
     return json({ error: "not-configured" }, 503);
   }
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
 
   const body = await readBody(request);
   if (!(await tipsAllows(String((body && body.password) || ""), env))) {
