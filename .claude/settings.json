@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tools/version-assets.js)",
+      "Bash(node .claude/skills/i18n-check/scripts/check.js)",
+      "Bash(node garmin-mcp/tools/encode_cases.js:*)",
+      "Bash(uv run --project garmin-mcp python garmin-mcp/test_convert.py:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/stamp.js" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/push-gate.js" }
+        ]
+      }
+    ]
+  }
+}

@@ -3,8 +3,13 @@
 # public repo.
 garmin-mcp/
 
-# Local preview only
-.claude/
+# Local preview and personal MCP config stay out; the shared Claude Code
+# setup (hooks, skills, agents, settings) is versioned.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+!.claude/agents/
 .mcp.json
 
 node_modules/
@@ -18,3 +23,6 @@ Thumbs.db
 
 # Assembled by the deploy workflow (and by hand when testing wrangler pages dev)
 _site/
+
+# graphify knowledge graph, built locally by /graphify — regenerable, never shipped
+graphify-out/
