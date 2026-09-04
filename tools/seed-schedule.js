@@ -6,10 +6,11 @@
  *
  * Writes the ten recurring sessions through /api/admin/schedule, so it goes
  * through the same validation the console does. Safe to re-run: entries are
- * matched on day + time and updated rather than duplicated.
+ * matched on day + time, or failing that on day + place, and updated rather
+ * than duplicated — so moving a session's time moves the row that is there.
  *
  * The club's week starts on Sunday and Friday is the rest day. Two slots:
- * 04:45 before work and 19:30 after it — except Misk, which starts at 19:00
+ * 04:55 before work and 19:30 after it — except Misk, which starts at 19:00
  * because the track is booked from seven.
  *
  * SMOKE_ADMIN_PASSWORD is the club password (default: the .dev.vars one).
@@ -19,16 +20,16 @@ const ADMIN = process.env.SMOKE_ADMIN_PASSWORD || "letmein";
 
 /* weekday: 0 = Sunday … 6 = Saturday, the way the club counts it. */
 const WEEK = [
-  { weekday: 0, at: "04:45", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
+  { weekday: 0, at: "04:55", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
   { weekday: 0, at: "19:30", title_en: "Easy run",        title_ar: "ركضة خفيفة",   place_en: "Alwaha Park",            place_ar: "حديقة الواحة" },
-  { weekday: 1, at: "04:45", title_en: "Easy walk/run",   title_ar: "ركض/مشي خفيف", place_en: "Sports Boulevard",       place_ar: "المسار الرياضي - حطين" },
+  { weekday: 1, at: "04:55", title_en: "Easy walk/run",   title_ar: "ركض/مشي خفيف", place_en: "Sports Boulevard",       place_ar: "المسار الرياضي - حطين" },
   { weekday: 1, at: "19:00", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Misk City Track",        place_ar: "مضمار مدينة مسك" },
-  { weekday: 2, at: "04:45", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
+  { weekday: 2, at: "04:55", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
   { weekday: 2, at: "19:30", title_en: "Strength session",title_ar: "تقويات عدائين",place_en: "Alfaisal University",    place_ar: "جامعة الفيصل" },
-  { weekday: 3, at: "04:45", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Hanifa Road-Trail", place_ar: "وادي حنيفة - تريل" },
+  { weekday: 3, at: "04:55", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Hanifa Road-Trail", place_ar: "وادي حنيفة - تريل" },
   { weekday: 3, at: "19:30", title_en: "Easy run",        title_ar: "ركضة خفيفة",   place_en: "Alnahda Park",           place_ar: "حديقة النهضة" },
-  { weekday: 4, at: "04:45", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
-  { weekday: 6, at: "04:45", title_en: "Long run",        title_ar: "ركضة طويلة",   place_en: "Wadi Hanifa Park",       place_ar: "حديقة وادي حنيفة" },
+  { weekday: 4, at: "04:55", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
+  { weekday: 6, at: "04:55", title_en: "Long run",        title_ar: "ركضة طويلة",   place_en: "Wadi Hanifa Park",       place_ar: "حديقة وادي حنيفة" },
 ];
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -50,7 +51,13 @@ async function call(payload) {
   let updated = 0;
 
   for (const item of WEEK) {
-    const already = existing.find((e) => e.weekday === item.weekday && e.at === item.at);
+    // Day and time first, then day and place: the mornings moved from 04:45
+    // to 04:55, and a re-run has to retime the row that already exists rather
+    // than leave the old time standing beside the new one. No two sessions on
+    // one day meet at the same place, so the fallback cannot pick the wrong row.
+    const already =
+      existing.find((e) => e.weekday === item.weekday && e.at === item.at) ||
+      existing.find((e) => e.weekday === item.weekday && e.place_en === item.place_en);
     const out = await call({ action: "save", entry: Object.assign({ id: already ? already.id : null, active: 1 }, item) });
     existing = out.schedule || existing;
     already ? updated++ : added++;

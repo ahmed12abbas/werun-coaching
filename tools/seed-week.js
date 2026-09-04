@@ -20,9 +20,10 @@
 const BASE = (process.argv[2] || "http://127.0.0.1:4323").replace(/\/+$/, "");
 const ADMIN = process.env.SMOKE_ADMIN_PASSWORD || "letmein";
 
-/* The Monday/Tuesday speed session, exactly as the coach built it:
-   warm up 15 min, ABC drills + strides, 12 × (work @5K / jog-walk), cool down.
-   She replaces this weekly, so it is published per date and never standing. */
+/* The week's speed session, exactly as the coach built it: warm up 15 min,
+   ABC drills + strides, 12 × (work @5K / jog-walk), cool down. It runs three
+   times a week — Monday evening, Tuesday morning, Thursday morning — and she
+   replaces it weekly, so it is published per date and never standing. */
 const SPEED =
   "1.gzjGNz8P0y0QE2AmI9tvaKqQm5mnBDMMpgQk5ejkDA1KBW2F4pKizJTUYrBCoHsNjZBcDHGsKcxIB1NvcFAjGVoM0gGVzspP1y9PzMlWgjvcGJ_DYiGxDo9dpVoA";
 
@@ -30,10 +31,10 @@ const SPEED =
    time so a re-run updates rather than duplicates. Anything not listed keeps
    whatever it already says. */
 const STANDING = [
-  { weekday: 0, at: "04:45", title_en: "Community run — 45 min easy + strides", title_ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات" },
+  { weekday: 0, at: "04:55", title_en: "Community run — 45 min easy + strides", title_ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات" },
   { weekday: 0, at: "19:30", title_en: "Easy run — 45 min + strides",           title_ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات" },
-  { weekday: 1, at: "04:45", title_en: "Easy walk/run — 4 km",                  title_ar: "ركض/مشي خفيف — ٤ كم" },
-  { weekday: 3, at: "04:45", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة تريل — ٧ إلى ٩ كم" },
+  { weekday: 1, at: "04:55", title_en: "Easy walk/run — 4 km",                  title_ar: "ركض/مشي خفيف — ٤ كم" },
+  { weekday: 3, at: "04:55", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة تريل — ٧ إلى ٩ كم" },
   { weekday: 3, at: "19:30", title_en: "Easy run — 50 min + strides",           title_ar: "ركضة خفيفة — ٥٠ دقيقة + فتحات" },
 ];
 
@@ -98,10 +99,19 @@ async function call(path, payload) {
     if (!slot) return console.log("  ? no " + at + " slot on day " + weekday + " — skipped");
     const day = next(weekday);
     const date = iso(day);
-    if (sessions.some((s) => s.date === date && s.schedule_id === slot.id)) {
-      return console.log("  " + date + " " + at + "  already published — left alone");
-    }
     const startsAt = new Date(date + "T" + at + ":00" + CLUB_OFFSET);
+    const already = sessions.find((s) => s.date === date && s.schedule_id === slot.id);
+    if (already) {
+      // A published session is an absolute instant and there is no route that
+      // moves one, so a slot retimed after it was published keeps the old
+      // start. Say so rather than leave the coach to spot it in the app — she
+      // moves it in /admin, or the whole thing goes in as werun-seed.sql.
+      const drift = already.starts_at !== startsAt.toISOString();
+      return console.log(
+        "  " + date + " " + at + "  already published — left alone" +
+          (drift ? "  ⚠ it still starts " + already.starts_at.slice(11, 16) + " UTC; move it in /admin" : "")
+      );
+    }
     await call("/api/admin/sessions", {
       action: "publish",
       schedule_id: slot.id,
@@ -114,13 +124,16 @@ async function call(path, payload) {
     console.log("  " + date + " " + at + "  " + name);
   }
 
-  // Monday evening and Tuesday morning are the same speed session this week.
+  // Monday evening, Tuesday morning and Thursday morning are the same speed
+  // session this week — all three published, so all three open the workout
+  // itself rather than a line of plan.
   await publish(1, "19:00", "Speed session | WeRUN", SPEED);
-  await publish(2, "04:45", "Speed session | WeRUN", SPEED);
+  await publish(2, "04:55", "Speed session | WeRUN", SPEED);
+  await publish(4, "04:55", "Speed session | WeRUN", SPEED);
 
   // Saturday's long run is 80 minutes this week; the weeks after it are the
   // coach's to say, so this is a note against the one date and not the pattern.
-  const sat = slotAt(6, "04:45");
+  const sat = slotAt(6, "04:55");
   if (sat) {
     const date = iso(next(6));
     await call("/api/admin/schedule-change", {
@@ -129,10 +142,10 @@ async function call(path, payload) {
       note_en: "80 minutes",
       note_ar: "٨٠ دقيقة",
     });
-    console.log("  " + date + " 04:45  Long run — 80 minutes (this week only)");
+    console.log("  " + date + " 04:55  Long run — 80 minutes (this week only)");
   }
 
-  console.log("\nStill to come from the coach: Thursday's speed session, and the long runs after this Saturday.");
+  console.log("\nStill to come from the coach: the long runs after this Saturday.");
 })().catch((e) => {
   console.error("seed-week: " + (e.message || e));
   process.exit(1);

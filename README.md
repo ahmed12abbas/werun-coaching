@@ -451,6 +451,16 @@ Athletes point their camera at it. The link opens the app, checks them in and
 adds the points — and if they have not joined yet, the code is kept while they
 sign up and used the moment they are in.
 
+**Join** does the same thing without leaving the app: it opens the camera in
+place, reads the code and follows the very same link, so nothing about what is
+checked or signed changes. It sits on every session in the week — on the
+summary of a standing one, and above the steps of a published one, where it
+stays off until the window opens. Decoding is the browser's own
+`BarcodeDetector` (`js/scan.js`); where that is missing — iOS Safari most
+of all — the panel says to use the phone's camera app, which is the route that
+has always worked. Only a check-in link on this very origin is ever followed:
+whatever the camera reads, a QR is a stranger's text until it matches.
+
 What stops it being gamed:
 
 | | |
@@ -479,9 +489,14 @@ Members and in the CSV export, with the age worked out.
 
 ### The standing week
 
-The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:45
+The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:55
 and 19:30 — Misk at 19:00, because the track is booked from seven. Friday is
 the rest day.
+
+Every one of them opens. A slot with a workout published against it opens the
+workout in full; a standing one opens a summary — the whole place with its map
+pin, what it is worth, how long until it starts, and **Join**. Only a session
+called off stays flat, because there is nothing left to say about it.
 
 That pattern lives in **/admin → The standing week**, and it is what fills
 everyone's Week tab. Three or four times a month one of them moves or is

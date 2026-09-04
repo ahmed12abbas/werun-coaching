@@ -6,6 +6,7 @@
    One page, hash routes:
      #/login  #/signup            anyone
      #/week   #/week/2026-09-07   the plan, one week at a time   (logged in)
+     #/plan/<slot>/<date>         one standing session, at a glance
      #/session/<id>               one session, in full
      #/c/<id>/<slot>/<sig>        what the coach's QR code points at
      #/points                     total, streak, history, the club board
@@ -116,14 +117,25 @@ function render() {
         { class: "card pad stack" },
         el("h2", {}, t("aDown")),
         el("p", { class: "muted" }, t("aDownLead"))
-      )
+      ),
+      appFoot(r.name)
     );
     return;
   }
 
   // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
   const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.week;
-  app.append(screen(r.args, user));
+  app.append(screen(r.args, user), appFoot(r.name));
+}
+
+/* The club's accounts, at the foot of every screen — the same row the share
+   link ends on, so someone who has read their week has somewhere to go next.
+
+   Not on the session screen: renderViewer already puts them under the rating
+   box there, and a second row would only be the same five icons twice. */
+function appFoot(route) {
+  if (route === "session") return null;
+  return el("footer", {}, socialRow());
 }
 
 /** The coach's line across the top of the app, in the reader's language. */
@@ -350,9 +362,9 @@ function dayCard(d, today) {
   return el("div", { class: cls }, when, el("div", { class: "day-body slots" }, items.map((it) => slotRow(it, d.date))));
 }
 
-/* One thing on one day. A published workout is a button into the whole
-   session; a standing one is just where and when, because there is nothing
-   behind it to open yet. */
+/* One thing on one day, and always a way in: a published workout opens the
+   whole session, a standing one opens its summary. Only a session called off
+   stays flat, because there is nothing left to say about it. */
 function slotRow(item, date) {
   const title = side(item, "title");
   const place = side(item, "place");
@@ -386,7 +398,125 @@ function slotRow(item, date) {
   if (item.kind === "session") {
     return el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag);
   }
-  return el("div", { class: "slot" + (item.cancelled ? " off" : "") }, clock, body, tag);
+  if (item.cancelled) return el("div", { class: "slot off" }, clock, body, tag);
+  return el(
+    "button",
+    { class: "slot", type: "button", onclick: () => go("plan/" + item.schedule_id + "/" + date) },
+    clock,
+    body,
+    tag
+  );
+}
+
+/* ---------- one standing session -----------------------------------------
+
+   What the week row cannot hold: the whole place, what it is worth, how long
+   until it starts, and the way in at the track. The slots the coach has
+   published a workout for skip this and open the workout itself.
+   ------------------------------------------------------------------------- */
+
+SCREENS.plan = function (args) {
+  const id = String(args[0] || "");
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(args[1] || "") ? args[1] : localISO(new Date());
+  const box = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+
+  // The week the day belongs to: /api/week is the one endpoint that merges
+  // the pattern, the changes and the published sessions, and a second way of
+  // resolving a single day would be a second answer waiting to disagree.
+  API.get("/api/week?start=" + localISO(weekStartOf(new Date(date + "T00:00:00"))))
+    .then((data) => {
+      const day = (data.days || []).find((d) => d.date === date);
+      const item = day && (day.items || []).find((it) => String(it.schedule_id) === id);
+      box.textContent = "";
+      if (!item) return box.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoSuchSlot"))));
+      // Published between the week screen and this one: the workout says more.
+      if (item.kind === "session") return go("session/" + item.id);
+      box.append(planCard(item, date));
+      startCountdowns();
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+
+  return el(
+    "div",
+    { class: "stack" },
+    el("button", { class: "btn sm backlink", onclick: () => go("week") }, t("aBack")),
+    box
+  );
+};
+
+function planCard(item, date) {
+  const day = new Date(date + "T00:00:00");
+  const place = side(item, "place");
+  const note = I18N.lang === "ar" ? item.note_ar || item.note_en : item.note_en || item.note_ar;
+  const soon = item.cancelled ? null : countdownPill(item, date);
+
+  const head = el(
+    "div",
+    { class: "plan-head" },
+    el("h2", {}, side(item, "title")),
+    item.cancelled ? el("span", { class: "tag miss" }, t("aCalledOff"))
+      : item.moved ? el("span", { class: "tag open" }, t("aChanged")) : null
+  );
+
+  const when = el(
+    "div",
+    { class: "plan-when" },
+    el("span", { class: "num" }, prettyTime(item, date)),
+    el("span", { class: "muted" }, day.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }))
+  );
+
+  const facts = el("div", { class: "plan-facts" });
+  if (place) {
+    facts.append(
+      el(
+        "div",
+        {},
+        el("span", { class: "l" }, t("aWhere")),
+        item.map_url
+          ? el("a", { class: "place", href: item.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
+          : el("span", {}, place)
+      )
+    );
+  }
+  facts.append(el("div", {}, el("span", { class: "l" }, t("aWorth")), el("span", {}, t("aPts", { n: item.points }))));
+
+  return el(
+    "div",
+    { class: "card pad stack" },
+    head,
+    when,
+    soon,
+    facts,
+    note ? el("p", { class: "slot-note" }, note) : null,
+    el("p", { class: "muted small" }, t("aNoWorkoutYet")),
+    // Called off is called off: there is no code to scan for a session that
+    // is not happening.
+    item.cancelled ? null : joinButton(),
+    item.cancelled ? null : el("p", { class: "hint" }, t("aScanLead"))
+  );
+}
+
+/* The way in at the track. The coach holds up the code; this reads it with
+   the phone's own camera and hands the result to the very same #/c/ route the
+   camera app would have followed, so nothing about check-in itself changes.
+
+   Off only where the window is known to be shut — on a standing slot it stays
+   live, because the coach may have published the session since this page was
+   drawn and the code carries its own id either way. */
+function joinButton(off) {
+  return el(
+    "button",
+    {
+      class: "btn primary lg block",
+      type: "button",
+      disabled: !!off,
+      onclick: () => Scan.open((c) => go("c/" + c.session + "/" + c.slot + "/" + c.sig)),
+    },
+    t("aJoin")
+  );
 }
 
 /* A standing session carries a wall-clock time; a published one carries a
@@ -438,8 +568,12 @@ SCREENS.session = function (args) {
         box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, t("brokenLead"))));
         return;
       }
-      // The date the coach published it for, not whatever the link carried.
+      // The date and the name the coach published it under, not whatever the
+      // link carried. One workout can be published to several slots — the club
+      // runs the same speed session three times a week — and a page headed
+      // "Monday | WeRUN" on a Thursday is the link's name outliving its use.
       w.date = s.date;
+      if (s.name) w.name = s.name;
       renderViewer(box, w, appBoot, { chrome: false });
     })
     .catch((e) => {
@@ -482,17 +616,23 @@ function checkinCard(s) {
   else if (now > close) note = t("aClosesAt", { time: when(s.window_close_at) });
   else note = t("aCheckInLead");
 
+  const live = now >= open && now <= close;
   return el(
     "div",
-    { class: "card pad checkin-strip" + (now >= open && now <= close ? " open" : "") },
+    { class: "card pad stack checkin-card" + (live ? " open" : "") },
     el(
       "div",
-      { class: "grow" },
-      el("div", { class: "ci-title" }, now >= open && now <= close ? t("aCheckIn") : t("aWindowShut")),
-      el("div", { class: "muted small" }, note),
-      soon
+      { class: "checkin-strip" },
+      el(
+        "div",
+        { class: "grow" },
+        el("div", { class: "ci-title" }, live ? t("aCheckIn") : t("aWindowShut")),
+        el("div", { class: "muted small" }, note),
+        soon
+      ),
+      el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points }))
     ),
-    el("span", { class: "tag " + (now >= open && now <= close ? "open" : "soon") }, t("aPts", { n: s.points }))
+    joinButton(!live)
   );
 }
 

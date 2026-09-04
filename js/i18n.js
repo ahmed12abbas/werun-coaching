@@ -429,6 +429,21 @@ const STRINGS = {
     aStartingNow: "starting now",
     aHrsMins: "{h}h {m}m",
     aMins: "{m} min",
+
+    /* the app: one session at a glance */
+    aWhere: "Where",
+    aWorth: "Worth",
+    aNoWorkoutYet: "The coach hasn't sent a workout for this one — turn up and run it together.",
+    aNoSuchSlot: "That session isn't on the plan any more.",
+
+    /* the app: joining at the track */
+    aJoin: "Join",
+    aScanTitle: "Scan the coach's code",
+    aScanLead: "Point the camera at the code on the coach's screen.",
+    aScanNoCam: "This browser can't open the camera. Scan the coach's code with your phone's camera app instead.",
+    aScanDenied: "The camera is blocked. Allow it in your browser settings, or scan the code with your phone's camera app.",
+    aScanWrong: "That isn't a WE RUN check-in code — still looking.",
+    aClose: "Close",
   },
 
   ar: {
@@ -841,6 +856,21 @@ const STRINGS = {
     aStartingNow: "تبدأ الآن",
     aHrsMins: "{h} س {m} د",
     aMins: "{m} دقيقة",
+
+    /* the app: one session at a glance */
+    aWhere: "المكان",
+    aWorth: "النقاط",
+    aNoWorkoutYet: "الكوتش ما أرسل تمرين هذه الجلسة — تعال ونجريها مع بعض.",
+    aNoSuchSlot: "هذه الجلسة ما عادت ضمن الخطة.",
+
+    /* the app: joining at the track */
+    aJoin: "انضم",
+    aScanTitle: "امسح كود الكوتش",
+    aScanLead: "وجّه الكاميرا على الكود اللي في شاشة الكوتش.",
+    aScanNoCam: "هذا المتصفح ما يفتح الكاميرا. امسح كود الكوتش بكاميرا جوالك.",
+    aScanDenied: "الكاميرا محجوبة. اسمح لها من إعدادات المتصفح، أو امسح الكود بكاميرا جوالك.",
+    aScanWrong: "هذا مو كود حضور WE RUN — لسه ندوّر.",
+    aClose: "إغلاق",
   },
 };
 
