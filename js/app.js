@@ -1211,8 +1211,18 @@ function runs(text) {
   return tipRuns(text).map((r) => (r.bold ? el("b", {}, r.text) : document.createTextNode(r.text)));
 }
 
+/* The day a thing went up, in the reader's own calendar. The year only when
+   it is not this one: a notice from last Tuesday does not need "2026" on it,
+   and an article from last winter does. */
+function published(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d)) return null;
+  const how = { day: "numeric", month: "long" };
+  if (d.getFullYear() !== new Date().getFullYear()) how.year = "numeric";
+  return el("span", { class: "muted small" }, d.toLocaleDateString(locale(), how));
+}
+
 function postCard(p) {
-  const when = p.published_at ? new Date(p.published_at) : null;
   return el(
     "article",
     { class: "card pad stack post", dir: "auto" },
@@ -1220,9 +1230,7 @@ function postCard(p) {
       "div",
       { class: "post-head" },
       p.pinned ? el("span", { class: "tag open" }, t("aPinned")) : null,
-      when && !isNaN(when)
-        ? el("span", { class: "muted small" }, when.toLocaleDateString(locale(), { day: "numeric", month: "long" }))
-        : null
+      published(p.published_at)
     ),
     el("h2", {}, side(p, "title")),
     el("div", { class: "post-body" }, written(side(p, "body")))
@@ -1237,7 +1245,11 @@ function tipCard(tip) {
   return el(
     "article",
     { class: "card pad stack post tip", dir: "auto" },
-    el("div", { class: "post-head" }, el("span", { class: "cloud-kicker" }, t("aCoachTip"))),
+    // The day it went up, not the day it was last touched: fixing a typo in
+    // an article does not republish it.
+    el("div", { class: "post-head" },
+      el("span", { class: "cloud-kicker" }, t("aCoachTip")),
+      published(tip.created || tip.updated)),
     s.title ? el("h2", {}, s.title) : null,
     el("div", { class: "post-body" }, written(s.body)),
     // The coach's name and nothing else. The byline icon that goes with it

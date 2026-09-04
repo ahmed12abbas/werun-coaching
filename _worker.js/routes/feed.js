@@ -60,7 +60,12 @@ export const feed = withMember(async (request, env, user) => {
     try {
       const doc = await readTips(env.STATS);
       const live = doc.articles.find((a) => a && a.id === doc.liveId);
-      if (live) tip = { id: live.id, updated: live.updated, en: live.en, ar: live.ar };
+      // created is the day it went up and updated the day it was last
+      // touched; the feed shows the first, and older articles have only the
+      // second — the same fallback /api/tips makes.
+      if (live) {
+        tip = { id: live.id, created: live.created || live.updated, updated: live.updated, en: live.en, ar: live.ar };
+      }
     } catch (e) {
       /* the posts are the point; a missing article is not worth a 500 */
     }
