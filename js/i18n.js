@@ -453,6 +453,8 @@ const STRINGS = {
     /* the app: one session at a glance */
     aWhere: "Where",
     aWorth: "Worth",
+    aCoach: "Coach",
+    aWithCoach: "with {name}",
     aNoWorkoutYet: "The coach hasn't sent a workout for this one — turn up and run it together.",
     aSteps: "Steps",
     aTellUs: "How are we doing?",
@@ -904,6 +906,8 @@ const STRINGS = {
     /* the app: one session at a glance */
     aWhere: "المكان",
     aWorth: "النقاط",
+    aCoach: "المدرب",
+    aWithCoach: "مع {name}",
     aNoWorkoutYet: "الكوتش ما أرسل تمرين هذه الجلسة — تعال ونجريها مع بعض.",
     aSteps: "خطوات",
     aTellUs: "كيف أداؤنا؟",

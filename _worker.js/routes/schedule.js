@@ -11,6 +11,8 @@ import { signSlot, slotNow, slotRemaining, checkinUrl } from "../lib/checkin.js"
 import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
+import { hasColumn } from "../lib/columns.js";
+import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 
 /* Riyadh is UTC+3 all year with no daylight saving, so a standing session's
    wall-clock "04:55" becomes a real instant by saying which clock it is on. */
@@ -61,31 +63,42 @@ export async function adminSessions(request, env) {
     // Which standing slot this fills, if it fills one: the week then shows the
     // workout in its place rather than both.
     const scheduleId = /^[A-Za-z0-9_-]{1,64}$/.test(String(body.schedule_id || "")) ? String(body.schedule_id) : null;
+    let slot = null;
     if (scheduleId) {
-      const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(scheduleId).first();
+      slot = await env.DB.prepare("SELECT * FROM schedule WHERE id = ?").bind(scheduleId).first();
       if (!slot) return json({ error: "no-entry" }, 404);
     }
 
+    // Who is taking it: what the form said, or whoever usually has the slot.
+    // Written only once the column exists, because the deploy lands before
+    // the migration and an INSERT naming a column the database has not got
+    // takes the whole publish down with it.
+    const withCoach = await hasColumn(env, "club_sessions", "coach_id");
+    const coachId = cleanCoachId(body.coach_id) || cleanCoachId(slot && slot.coach_id) || null;
+
     const id = uid();
     await env.DB.prepare(
-      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id)" +
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id" +
+        (withCoach ? ", coach_id" : "") + ")" +
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + (withCoach ? ", ?" : "") + ")"
     )
       .bind(
-        id,
-        date,
-        dayFromName(name),
-        name,
-        payload,
-        startsAt.toISOString(),
-        new Date(startsAt.getTime() - before * 60000).toISOString(),
-        new Date(startsAt.getTime() + after * 60000).toISOString(),
-        points,
-        nowISO(),
-        scheduleId
+        ...[
+          id,
+          date,
+          dayFromName(name),
+          name,
+          payload,
+          startsAt.toISOString(),
+          new Date(startsAt.getTime() - before * 60000).toISOString(),
+          new Date(startsAt.getTime() + after * 60000).toISOString(),
+          points,
+          nowISO(),
+          scheduleId,
+        ].concat(withCoach ? [coachId] : [])
       )
       .run();
-    return json({ id: id, sessions: await sessionList(env) });
+    return json({ id: id, sessions: await sessionList(env), coaches: await coachRoster(env) });
   }
 
   if (action === "roster") {
@@ -183,21 +196,28 @@ export async function adminSessions(request, env) {
     // The day comes from the date, not from the name: dayFromName reads the
     // day out of a session the coach titled "Monday | WeRUN", and a standing
     // slot's title says what it is rather than when.
+    // No form to ask, so it inherits: whoever usually takes this slot is who
+    // is standing at the track holding the phone up.
+    const withCoach = await hasColumn(env, "club_sessions", "coach_id");
+    const coachId = cleanCoachId(slot.coach_id) || null;
     await env.DB.prepare(
-      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id)" +
-        " VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id" +
+        (withCoach ? ", coach_id" : "") + ")" +
+        " VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?" + (withCoach ? ", ?" : "") + ")"
     )
       .bind(
-        id,
-        date,
-        DAYS[(weekdayOf(date) + 6) % 7],
-        slot.title_en || slot.title_ar,
-        starts.toISOString(),
-        new Date(starts.getTime() - before * 60000).toISOString(),
-        new Date(starts.getTime() + after * 60000).toISOString(),
-        slot.points,
-        nowISO(),
-        scheduleId
+        ...[
+          id,
+          date,
+          DAYS[(weekdayOf(date) + 6) % 7],
+          slot.title_en || slot.title_ar,
+          starts.toISOString(),
+          new Date(starts.getTime() - before * 60000).toISOString(),
+          new Date(starts.getTime() + after * 60000).toISOString(),
+          slot.points,
+          nowISO(),
+          scheduleId,
+        ].concat(withCoach ? [coachId] : [])
       )
       .run();
 
@@ -208,6 +228,9 @@ export async function adminSessions(request, env) {
   if (action !== "list") return json({ error: "bad-request" }, 400);
   return json({
     sessions: await sessionList(env),
+    // Both halves of the picker: who can be chosen, and the names to put on
+    // the ids the sessions already carry. No join — see lib/coaches.js.
+    coaches: await coachRoster(env),
     qr: !!env.QR_SECRET,
     points_per_checkin: await getSetting(env, "points_per_checkin"),
   });

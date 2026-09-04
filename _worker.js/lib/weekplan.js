@@ -14,6 +14,8 @@
    here. What this hands back is the date, the time as written, and what it
    is for. */
 
+import { coachRoster, coachNameFor } from "./coaches.js";
+
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const validTime = (s) => HHMM.test(String(s || ""));
@@ -85,11 +87,15 @@ export async function loadWeek(env, from, to, userId) {
     console.error("week: no standing schedule yet (" + (e && e.message) + ")");
   }
 
+  // Outside the try above on purpose: `users` has always been there, and a
+  // database still waiting for the standing-week migration should still put
+  // a name on the sessions the coach has published.
   return {
     schedule: schedule,
     changes: changes,
     published: published.results || [],
     nearby: nearby,
+    coaches: await coachRoster(env),
   };
 }
 
@@ -121,7 +127,7 @@ function nearestSteps(list, date) {
    against, when there was one. Its place comes along with it: the session
    carrying the workout is the one an athlete most needs the address for,
    and dropping it because a workout was attached would be backwards. */
-const publishedItem = (s, slot) => ({
+const publishedItem = (s, slot, names) => ({
   kind: "session",
   id: s.id,
   schedule_id: s.schedule_id || null,
@@ -130,6 +136,8 @@ const publishedItem = (s, slot) => ({
   place_en: (slot && slot.place_en) || "",
   place_ar: (slot && slot.place_ar) || "",
   map_url: (slot && slot.map_url) || "",
+  // Who took it — what it was published under, or the slot's usual coach.
+  coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
   at: (s.starts_at || "").slice(11, 16), // as a fallback; the page uses starts_at
   starts_at: s.starts_at,
   window_open_at: s.window_open_at,
@@ -143,7 +151,7 @@ const publishedItem = (s, slot) => ({
   checked_in_at: s.voided_at ? null : s.checked_in_at,
 });
 
-function standingItem(row, change, steps) {
+function standingItem(row, change, steps, names) {
   const item = {
     kind: "standing",
     id: row.id,
@@ -155,6 +163,7 @@ function standingItem(row, change, steps) {
     map_url: row.map_url,
     at: row.at,
     points: row.points,
+    coach: coachNameFor(names, null, row.coach_id),
     cancelled: false,
     moved: false,
     note_en: "",
@@ -189,6 +198,9 @@ function standingItem(row, change, steps) {
  * `dates` are the calendar days the reader is looking at, in their order.
  */
 export function buildDays(dates, data) {
+  const names = new Map();
+  for (const c of data.coaches || []) names.set(c.id, c.name);
+
   const changeFor = new Map();
   for (const c of data.changes) changeFor.set(c.schedule_id + "|" + c.date, c);
 
@@ -221,9 +233,9 @@ export function buildDays(dates, data) {
     const items = data.schedule
       .filter((row) => row.weekday === weekday && !taken.has(row.id))
       .map((row) =>
-        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date))
+        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date), names)
       )
-      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id))));
+      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id), names)));
 
     items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
     return { date: date, items: items };

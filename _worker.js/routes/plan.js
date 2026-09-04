@@ -3,6 +3,8 @@
 import { json, readBody } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
 import { validTime } from "../lib/weekplan.js";
+import { hasColumn } from "../lib/columns.js";
+import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 
 const MAX = { title: 80, place: 100, url: 300, note: 200 };
 const clean = (s, n) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, n);
@@ -52,6 +54,15 @@ export async function adminSchedule(request, env) {
       clean(e.place_en, MAX.place), clean(e.place_ar, MAX.place),
       map_url, points, e.active ? 1 : 0,
     ];
+
+    // Who usually takes it. Only written once the column is there — the
+    // deploy lands before the migration does, and a slot with no coach on it
+    // is the state every slot was in until now, so leaving it unsaid for a
+    // release is no worse than what it replaces.
+    const withCoach = await hasColumn(env, "schedule", "coach_id");
+    const coachId = cleanCoachId(e.coach_id) || null;
+    if (withCoach) fields.push(coachId);
+    const coachCol = withCoach ? ", coach_id = ?" : "";
     const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(e.id || "")) ? String(e.id) : null;
     const now = nowISO();
 
@@ -60,32 +71,37 @@ export async function adminSchedule(request, env) {
       if (!before) return json({ error: "no-entry" }, 404);
       await env.DB.prepare(
         "UPDATE schedule SET weekday = ?, at = ?, title_en = ?, title_ar = ?, place_en = ?," +
-          " place_ar = ?, map_url = ?, points = ?, active = ?, updated_at = ? WHERE id = ?"
+          " place_ar = ?, map_url = ?, points = ?, active = ?" + coachCol + ", updated_at = ? WHERE id = ?"
       )
         .bind(...fields, now, id)
         .run();
     } else {
       await env.DB.prepare(
-        "INSERT INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url, points, active, created_at, updated_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url, points, active" +
+          (withCoach ? ", coach_id" : "") + ", created_at, updated_at)" +
+          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + (withCoach ? ", ?" : "") + ", ?, ?)"
       )
         .bind(uid(), ...fields, now, now)
         .run();
     }
-    return json({ schedule: await list(env) });
+    return json({ schedule: await list(env), coaches: await coachRoster(env) });
   }
 
   if (action === "delete") {
     // Changes recorded against it go with it, which is right: they described
     // an occurrence of something that no longer happens.
     await env.DB.prepare("DELETE FROM schedule WHERE id = ?").bind(String(body.id || "")).run();
-    return json({ schedule: await list(env) });
+    return json({ schedule: await list(env), coaches: await coachRoster(env) });
   }
 
   if (action !== "list") return json({ error: "bad-request" }, 400);
   // The upcoming changes ride along: the console needs both to draw the card,
   // and a second request to learn "nothing has moved" is a wasted one.
-  return json({ schedule: await list(env), changes: await changesAround(env, nowISO().slice(0, 10)) });
+  return json({
+    schedule: await list(env),
+    changes: await changesAround(env, nowISO().slice(0, 10)),
+    coaches: await coachRoster(env),
+  });
 }
 
 /* ---------- POST /api/admin/schedule-change -------------------------------

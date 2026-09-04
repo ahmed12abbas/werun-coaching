@@ -459,6 +459,10 @@ function slotRow(item, date) {
     );
   }
   if (item.kind === "session") meta.append(el("span", {}, t("aPts", { n: item.points })));
+  // Who is taking it, when it has been said. Most slots have the same coach
+  // every week, and a row that repeats the name four times down one day is
+  // noise — so this is left off until somebody fills it in.
+  if (item.coach) meta.append(el("span", { class: "who", dir: "auto" }, t("aWithCoach", { name: item.coach })));
 
   const body = el(
     "div",
@@ -542,6 +546,9 @@ function whereAndWorth(item) {
           : el("span", {}, place)
       )
     );
+  }
+  if (item.coach) {
+    facts.append(el("div", {}, el("span", { class: "l" }, t("aCoach")), el("span", { dir: "auto" }, item.coach)));
   }
   facts.append(el("div", {}, el("span", { class: "l" }, t("aWorth")), el("span", {}, t("aPts", { n: item.points }))));
   return facts;
@@ -723,6 +730,9 @@ SCREENS.session = function (args) {
 function checkinCard(s) {
   const at = new Date(s.starts_at);
   const time = isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  // The workout draws its own screen below this strip and says nothing about
+  // who is taking the session, so this is the only place left to say it.
+  const who = s.coach ? t("aWithCoach", { name: s.coach }) : "";
 
   const soon = countdownPill({ starts_at: s.starts_at }, s.date);
   if (soon) setTimeout(startCountdowns, 0);
@@ -731,7 +741,8 @@ function checkinCard(s) {
     return el(
       "div",
       { class: "card pad checkin-strip done" },
-      el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")), el("div", { class: "muted small" }, time)),
+      el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
+        el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time)),
       el("span", { class: "tag done" }, t("aPts", { n: s.points }))
     );
   }
@@ -757,7 +768,7 @@ function checkinCard(s) {
         "div",
         { class: "grow" },
         el("div", { class: "ci-title" }, live ? t("aCheckIn") : t("aWindowShut")),
-        el("div", { class: "muted small" }, note),
+        el("div", { class: "muted small", dir: "auto" }, who ? note + " · " + who : note),
         soon
       ),
       el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points }))

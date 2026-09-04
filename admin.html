@@ -253,7 +253,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=5e8f4b9a"></script>
+<script src="js/i18n.js?v=89aaa8cf"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
@@ -648,6 +648,7 @@ function renderStats(data, tips) {
     app.append(sessionsCard());
     app.append(feedCard());
     app.append(membersCard());
+  app.append(coachesCard());
     app.append(shopCard());
     app.append(ordersCard());
     app.append(settingsCard());
@@ -804,6 +805,136 @@ function membersCard() {
   return card;
 }
 
+
+/* ---- coaches ----
+   The same `role` column the members table toggles, read the other way
+   round. A club with four coaches and four hundred members should not have to
+   find the four by scrolling -- and the pickers on the standing week and the
+   publish form need a list to offer, which is that same list. */
+function coachesCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Coaches")));
+  var body = el("div", {});
+  card.append(body);
+
+  function post(payload) { return api("/api/admin/coaches", payload); }
+
+  function act(payload, btn) {
+    btn.disabled = true;
+    post(payload).then(function (d) {
+      paint(d);
+      // The standing week and the publish form both draw pickers out of this
+      // list. Telling them is what stops one naming somebody who has just
+      // stopped coaching, without a reload.
+      COACHES.tell(d.coaches || []);
+    })["catch"](function (e) {
+      btn.disabled = false;
+      body.append(el("p", { class: "err" }, e.message === "not-yourself"
+        ? "That is you. Ask another coach to do it, or unlock with the club password first."
+        : e.message));
+    });
+  }
+
+  function paint(d) {
+    body.textContent = "";
+    var coaches = (d && d.coaches) || [];
+    var candidates = (d && d.candidates) || [];
+
+    if (!coaches.length) {
+      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
+        "Nobody is a coach yet. You are in on the club password -- pick a member below and " +
+        "they can run this console with their own login."));
+    } else {
+      var rows = el("tbody", {});
+      coaches.forEach(function (c) {
+        var off = el("button", { class: "btn sm", onclick: function () {
+          if (!window.confirm("Take " + c.name + " off the coaches? They keep their account, their " +
+            "check-ins and their points -- they just cannot run this console or be put on a session.")) return;
+          act({ action: "remove", id: c.id }, off);
+        } }, "Not a coach");
+        rows.append(el("tr", {},
+          el("td", { class: "name", dir: "auto" }, c.name, el("span", { class: "badge" }, "Coach")),
+          el("td", { class: "left" }, c.email),
+          el("td", { class: "acts" }, off)));
+      });
+      body.append(el("p", { class: "muted small", style: "margin:10px 0 6px" },
+        coaches.length + (coaches.length === 1 ? " coach" : " coaches") +
+        ". Any of them can run this console, and any of them can be put on a session."));
+      body.append(el("div", { class: "scroll" }, el("table", { class: "members" },
+        el("thead", {}, el("tr", {}, el("th", {}, "Name"), el("th", {}, "Email"), el("th", {}, ""))), rows)));
+    }
+
+    var pick = el("select", {});
+    pick.append(el("option", { value: "" },
+      candidates.length ? "Pick a member\u2026" : "Everybody is already a coach"));
+    candidates.forEach(function (m) {
+      pick.append(el("option", { value: m.id }, m.name + " \u00b7 " + m.email));
+    });
+    var add = el("button", { class: "btn primary", onclick: function () {
+      if (!pick.value) return;
+      var who = pick.options[pick.selectedIndex].textContent;
+      if (!window.confirm("Make " + who + " a coach? They will be able to run this console.")) return;
+      act({ action: "add", id: pick.value }, add);
+    } }, "Make them a coach");
+    if (!candidates.length) add.disabled = true;
+
+    body.append(el("div", { class: "row", style: "margin-top:14px" },
+      el("div", {}, el("label", {}, "Add a coach"), pick),
+      el("div", { style: "flex:0 0 auto;align-self:flex-end" }, add)));
+  }
+
+  post({ action: "list" }).then(function (d) { paint(d); COACHES.tell(d.coaches || []); })
+    ["catch"](function (e) {
+      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, e.message));
+    });
+  return card;
+}
+
+/* The one list of coaches this page holds, and everyone drawing a picker out
+   of it. Three cards would otherwise ask the server for the same short list
+   and then disagree about it: promoting somebody in one has to fix the
+   pickers in the other two, and a reload is not an answer at the track. */
+var COACHES = {
+  list: [],
+  watchers: [],
+
+  /* Fresh, from whichever answer carried them -- and the pickers that have
+     since been thrown away go here, rather than growing for the length of a
+     morning at the track. The standing week rebuilds its form on every save. */
+  tell: function (rows) {
+    if (rows) COACHES.list = rows;
+    COACHES.watchers = COACHES.watchers.filter(function (w) { return w.sel.isConnected; });
+    COACHES.watchers.forEach(function (w) { w.fill(); });
+  },
+
+  /** A <select> that keeps itself filled. `chosen` is the id to start on. */
+  select: function (chosen) {
+    var sel = el("select", {});
+    // Held apart from the DOM because the picker is nearly always drawn
+    // before the list arrives: with nothing to select, `chosen` would be lost
+    // on the first paint and the slot's coach would read as "not said".
+    var want = chosen || "";
+    sel.addEventListener("change", function () { want = sel.value; });
+    function fill() {
+      sel.textContent = "";
+      sel.append(el("option", { value: "" }, "Not said"));
+      COACHES.list.forEach(function (c) { sel.append(el("option", { value: c.id }, c.name)); });
+      sel.value = want;
+      // An id belonging to somebody who no longer coaches has no option to
+      // land on. Reading as "not said" -- and saving as that -- is honest.
+      if (sel.value !== want) sel.value = "";
+    }
+    fill();
+    COACHES.watchers.push({ sel: sel, fill: fill });
+    return sel;
+  },
+
+  name: function (id) {
+    for (var i = 0; i < COACHES.list.length; i++) if (COACHES.list[i].id === id) return COACHES.list[i].name;
+    return "";
+  }
+};
+
 /* ---- sessions ----
    Publishing is the one place the two halves of the site meet: the coach
    pastes the share link she already built, and it becomes a row the app can
@@ -828,6 +959,7 @@ function sessionsCard() {
   var date = el("input", { type: "date" });
   var time = el("input", { type: "time", value: "18:30" });
   var points = el("input", { type: "number", min: "0", max: "1000", step: "1", value: "10" });
+  var coach = COACHES.select("");
   var decoded = el("div", { class: "decoded" });
   var pubErr = el("p", { class: "err", style: "display:none" });
   var go = el("button", { class: "btn primary", onclick: function () { publish(); } }, "Publish to the club");
@@ -878,7 +1010,8 @@ function sessionsCard() {
       payload: read.payload,
       date: date.value,
       starts_at: startsAt.toISOString(),
-      points: Number(points.value)
+      points: Number(points.value),
+      coach_id: coach.value
     }).then(function (d) {
       link.value = ""; name.value = ""; decoded.textContent = "";
       paint(d);
@@ -893,13 +1026,15 @@ function sessionsCard() {
       el("div", {}, el("label", {}, "Session name"), name),
       el("div", {}, el("label", {}, "Date"), date),
       el("div", {}, el("label", {}, "Starts"), time),
-      el("div", {}, el("label", {}, "Points"), points)),
+      el("div", {}, el("label", {}, "Points"), points),
+      el("div", {}, el("label", {}, "Coach"), coach)),
     pubErr,
     el("div", { class: "row" }, el("div", { style: "flex:0 0 auto" }, go)));
 
   /* ---- the list ---- */
   function paint(data) {
     body.textContent = "";
+    if (data && data.coaches) COACHES.tell(data.coaches);
     var sessions = (data && data.sessions) || [];
     if (data && data.qr === false) {
       body.append(el("p", { class: "err" },
@@ -910,7 +1045,7 @@ function sessionsCard() {
         "Nothing published yet. Build a session, copy its link, and paste it above."));
       return;
     }
-    var head = el("tr", {}, el("th", {}, "Session"), el("th", {}, "When"),
+    var head = el("tr", {}, el("th", {}, "Session"), el("th", {}, "When"), el("th", {}, "Coach"),
       el("th", {}, "Points"), el("th", {}, "Came"), el("th", {}, ""));
     var rows = el("tbody", {});
     var now = new Date();
@@ -930,6 +1065,7 @@ function sessionsCard() {
         el("td", { class: "name", dir: "auto" }, s.name,
           open ? el("span", { class: "badge" }, "Open now") : null),
         el("td", { class: "when" }, stamp(s.starts_at) || s.date),
+        el("td", { dir: "auto" }, COACHES.name(s.coach_id) || "\u2014"),
         el("td", {}, String(s.points)),
         el("td", {}, String(s.came || 0)),
         el("td", { class: "acts" }, showBtn, whoBtn, delBtn)));
@@ -1584,6 +1720,7 @@ function schedulePlanCard() {
     var placeAr = el("input", { type: "text", maxlength: 100, placeholder: "خط التفتيش - بعد الدوار" });
     var map = el("input", { type: "url", maxlength: 300, placeholder: "https://maps.app.goo.gl/…" });
     var points = el("input", { type: "number", min: "0", max: "1000", step: "1", value: "10" });
+    var coach = COACHES.select(editing ? editing.coach_id : "");
     var active = el("input", { type: "checkbox" });
     active.setAttribute("checked", "");
     var err = el("p", { class: "err", style: "display:none" });
@@ -1607,7 +1744,8 @@ function schedulePlanCard() {
         weekday: Number(day.value), at: at.value,
         title_en: titleEn.value, title_ar: titleAr.value,
         place_en: placeEn.value, place_ar: placeAr.value,
-        map_url: map.value, points: Number(points.value), active: active.checked
+        map_url: map.value, points: Number(points.value), active: active.checked,
+        coach_id: coach.value
       } }).then(function (d) { editing = null; form(); paint(d); })
         ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
     }
@@ -1615,7 +1753,8 @@ function schedulePlanCard() {
     editor.append(el("div", { class: "row", style: "margin-top:12px" },
       el("div", {}, el("label", {}, "Day"), day),
       el("div", {}, el("label", {}, "Starts"), at),
-      el("div", {}, el("label", {}, "Points"), points)));
+      el("div", {}, el("label", {}, "Points"), points),
+      el("div", {}, el("label", {}, "Coach"), coach)));
 
     editor.append(el("div", { class: "two", style: "margin-top:12px" },
       el("div", {}, el("label", {}, "What (English)"), titleEn,
@@ -1707,6 +1846,7 @@ function schedulePlanCard() {
 
   function paint(d) {
     list.textContent = "";
+    if (d && d.coaches) COACHES.tell(d.coaches);
     var all = (d && d.schedule) || [];
     if (!all.length) {
       list.append(el("p", { class: "wk-empty", style: "margin-top:14px" },
@@ -1723,6 +1863,7 @@ function schedulePlanCard() {
           el("div", { class: "what" },
             el("b", { dir: "auto" }, e.title_en || e.title_ar),
             el("span", { dir: "auto" }, (e.place_en || e.place_ar || "—") + " · " + e.points + " pts" +
+              (COACHES.name(e.coach_id) ? " · " + COACHES.name(e.coach_id) : "") +
               (e.active ? "" : " · not on the schedule"))));
         /* A code for a session with no workout behind it. Seven of the ten
            weekly sessions are these, and without this nobody could check in

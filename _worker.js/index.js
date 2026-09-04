@@ -45,6 +45,7 @@
      POST /api/feedback-admin   — takes one note down
      POST /api/tips-admin       — the article editor
      POST /api/admin/members    — the members list, block/unblock/role
+     POST /api/admin/coaches    — who coaches, and who could
      POST /api/admin/settings   — the switches
      POST /api/admin/sessions   — publish, roster, void, delete
      POST /api/admin/qr         — the code for the track
@@ -81,7 +82,7 @@ import { tips, tipsAdmin } from "./routes/tips.js";
 import { health } from "./routes/health.js";
 import { signup, login, logout, logoutAll, me, profile, password } from "./routes/auth.js";
 import { week, session } from "./routes/sessions.js";
-import { members, settings } from "./routes/admin.js";
+import { members, settings, coaches } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
@@ -112,6 +113,7 @@ const POST = {
   "/api/checkin": checkin,
   "/api/points/board-visibility": boardVisibility,
   "/api/admin/members": members,
+  "/api/admin/coaches": coaches,
   "/api/admin/settings": settings,
   "/api/admin/sessions": adminSessions,
   "/api/admin/qr": adminQr,

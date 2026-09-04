@@ -5,9 +5,10 @@
    login; the shape of the answers will not change. */
 
 import { json, readBody } from "../lib/http.js";
-import { nowISO, refuseUnlessCoach } from "../lib/auth.js";
+import { nowISO, currentUser, refuseUnlessCoach } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
+import { coachList } from "../lib/coaches.js";
 
 const MEMBER_CAP = 500;
 
@@ -56,6 +57,63 @@ export async function members(request, env) {
   }
 
   return json({ members: await memberList(env), at: nowISO() });
+}
+
+/* ---------- POST /api/admin/coaches -------------------------------------- */
+
+/*
+ * The coaches, on their own screen.
+ *
+ * Promoting somebody has always been possible from the members table, but
+ * finding them there means reading five hundred rows for the four that
+ * matter — and nothing anywhere answered "who are the coaches?", which is
+ * the question a picker on a session has to ask. So: the short list, plus
+ * the members who could join it, and the two verbs that move somebody
+ * between them.
+ *
+ * `role` on /api/admin/members still does the same thing; this is the same
+ * column, read the other way round.
+ */
+export async function coaches(request, env) {
+  const body = await readBody(request);
+  const no = await refuseUnlessCoach(request, env, body);
+  if (no) return no;
+
+  const action = String(body.action || "list");
+  const id = String(body.id || "");
+
+  if (action === "add" || action === "remove") {
+    if (!id) return json({ error: "bad-request" }, 400);
+    const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+    if (!who) return json({ error: "no-member" }, 404);
+    // Signing yourself out of the console mid-change is not a thing to let
+    // happen by mis-tap. The club password is the way back either way, but a
+    // coach who demotes themselves loses the screen they are standing on.
+    if (action === "remove") {
+      const me = await currentUser(request, env);
+      if (me && me.id === id) return json({ error: "not-yourself" }, 409);
+    }
+    await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?")
+      .bind(action === "add" ? "coach" : "athlete", id)
+      .run();
+  } else if (action !== "list") {
+    return json({ error: "bad-request" }, 400);
+  }
+
+  return json(await coachesAndCandidates(env));
+}
+
+/* The coaches, and everyone who could be one: active members, not already a
+   coach, newest first — the same order the members table uses, because the
+   coach being made is nearly always somebody the club took on recently. */
+async function coachesAndCandidates(env) {
+  const rows = await env.DB.prepare(
+    "SELECT id, name, email FROM users WHERE role <> 'coach' AND status = 'active'" +
+      " ORDER BY created_at DESC LIMIT ?"
+  )
+    .bind(MEMBER_CAP)
+    .all();
+  return { coaches: await coachList(env), candidates: rows.results || [], at: nowISO() };
 }
 
 /* ---------- POST /api/admin/settings ------------------------------------- */
