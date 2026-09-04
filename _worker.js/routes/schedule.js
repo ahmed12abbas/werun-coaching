@@ -52,10 +52,18 @@ export async function adminSessions(request, env) {
       ? Math.max(0, Math.min(1000, Math.round(Number(body.points))))
       : await getSetting(env, "points_per_checkin");
 
+    // Which standing slot this fills, if it fills one: the week then shows the
+    // workout in its place rather than both.
+    const scheduleId = /^[A-Za-z0-9_-]{1,64}$/.test(String(body.schedule_id || "")) ? String(body.schedule_id) : null;
+    if (scheduleId) {
+      const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(scheduleId).first();
+      if (!slot) return json({ error: "no-entry" }, 404);
+    }
+
     const id = uid();
     await env.DB.prepare(
-      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at)" +
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id)" +
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
         id,
@@ -67,7 +75,8 @@ export async function adminSessions(request, env) {
         new Date(startsAt.getTime() - before * 60000).toISOString(),
         new Date(startsAt.getTime() + after * 60000).toISOString(),
         points,
-        nowISO()
+        nowISO(),
+        scheduleId
       )
       .run();
     return json({ id: id, sessions: await sessionList(env) });

@@ -850,17 +850,19 @@ function postCard(p) {
 function tipCard(tip) {
   const s = (tip[I18N.lang] && tip[I18N.lang].title ? tip[I18N.lang] : tip.en.title ? tip.en : tip.ar) || {};
   if (!s.title && !s.body) return el("div");
-  const ic = el("span", { class: "sign-ic", html: TIP_SIGN.icon });
   return el(
     "article",
     { class: "card pad stack post tip", dir: "auto" },
     el("div", { class: "post-head" }, el("span", { class: "cloud-kicker" }, t("aCoachTip"))),
     s.title ? el("h2", {}, s.title) : null,
     el("div", { class: "post-body" }, written(s.body)),
+    // The coach's name and nothing else. The byline icon that goes with it
+    // elsewhere carries no size of its own, and there is no rule here to give
+    // it one, so it drew the width of the card.
     el(
       "div",
       { class: "sign-wrap" },
-      el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, ic, el("span", {}, tipSignName(I18N.lang)))
+      el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))
     )
   );
 }

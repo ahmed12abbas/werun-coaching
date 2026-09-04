@@ -11,6 +11,7 @@ share link, plus two small server pieces:
 - Check-in codes are signed with `QR_SECRET` and expire in 30 seconds (`_worker.js/lib/checkin.js`). Points are a ledger, never a stored total (`_worker.js/lib/points.js`): taking something back is another row.
 - `/admin` takes either a coach's login or `ADMIN_PASSWORD` — `refuseUnlessCoach()` in `_worker.js/lib/auth.js`. The password stays because it makes the *first* coach and is the way back in if an account is lost; do not "finish the migration" by deleting it.
 - **Migrations are applied by hand here** — the deploy's `wrangler d1 migrations apply` is skipped because the API token has no D1 grant (`node tools/schema-dump.js --bare --from 000N` writes the block to paste into the D1 console). So code that reads a new table must tolerate that table not existing yet: the deploy always lands before the migration does. `lib/weekplan.js` shows the shape — the new read is wrapped, logs, and falls back.
+- The club runs on **Riyadh time, UTC+3, no daylight saving**. Standing times are wall-clock strings (`"04:45"`) and need no timezone; a published session is an absolute instant, so anything building one outside a browser in Riyadh must say `+03:00` — `tools/seed-week.js` does.
 - The club's week starts **Sunday** and Friday is the rest day. The standing ten sessions live in `schedule`; a single occurrence moved or called off is a row in `schedule_changes`, never an edit to the pattern. `_worker.js/lib/weekplan.js` merges pattern → change → published session, in that order, and is the only place that decides what is on a given day.
 - Athlete reads go through `withMember` (which honours the maintenance switch), account routes through `withUser` (which never does, so nobody is locked out of logging in).
 - Email is optional: no `RESEND_API_KEY` and the confirm/reset routes answer `email-off` rather than pretending. `EMAIL_ECHO=1` (in `.dev.vars` only) returns the link in the response so the smoke test can follow it — never set it on Pages, and `/api/health` reports it as a warning if anyone does.
@@ -57,6 +58,7 @@ node tools/smoke-email.js      # confirm an address, reset a password, the CSVs
 node tools/smoke-store.js      # the shop, against a Stripe stub it starts itself
 node tools/smoke-plan.js       # the standing week, and one occurrence moved
 node tools/seed-schedule.js    # writes the club's ten standing sessions
+node tools/seed-week.js        # September's wording, and this week's dated bits
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder
 ```
 

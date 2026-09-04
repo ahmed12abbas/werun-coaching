@@ -55,15 +55,19 @@ export async function loadWeek(env, from, to, userId) {
   return { schedule: schedule, changes: changes, published: published.results || [] };
 }
 
-const publishedItem = (s) => ({
+/* The second argument is the standing entry this session was published
+   against, when there was one. Its place comes along with it: the session
+   carrying the workout is the one an athlete most needs the address for,
+   and dropping it because a workout was attached would be backwards. */
+const publishedItem = (s, slot) => ({
   kind: "session",
   id: s.id,
   schedule_id: s.schedule_id || null,
   title_en: s.name,
   title_ar: s.name,
-  place_en: "",
-  place_ar: "",
-  map_url: "",
+  place_en: (slot && slot.place_en) || "",
+  place_ar: (slot && slot.place_ar) || "",
+  map_url: (slot && slot.map_url) || "",
   at: (s.starts_at || "").slice(11, 16), // as a fallback; the page uses starts_at
   starts_at: s.starts_at,
   window_open_at: s.window_open_at,
@@ -126,6 +130,9 @@ export function buildDays(dates, data) {
     publishedFor.set(s.date, list);
   }
 
+  const slotById = new Map();
+  for (const row of data.schedule) slotById.set(row.id, row);
+
   return dates.map((date) => {
     const weekday = weekdayOf(date);
     const sessions = publishedFor.get(date) || [];
@@ -136,7 +143,7 @@ export function buildDays(dates, data) {
     const items = data.schedule
       .filter((row) => row.weekday === weekday && !taken.has(row.id))
       .map((row) => standingItem(row, changeFor.get(row.id + "|" + date)))
-      .concat(sessions.map(publishedItem));
+      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id))));
 
     items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
     return { date: date, items: items };

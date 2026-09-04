@@ -145,6 +145,25 @@ function nextDates(weekday) {
   item = ((r.data.days || []).find((d) => d.date === first).items || []).find((i) => i.id === mine.id);
   check("taken off the schedule, the club stops seeing it", !item, item);
 
+  /* A workout published against a slot replaces it — and keeps its place. */
+  await plan({ action: "save", entry: Object.assign({}, mine, { active: 1 }) });
+  const startsAt = new Date(first + "T06:00:00+03:00").toISOString();
+  r = await anon.call("POST", "/api/admin/sessions", {
+    password: ADMIN, action: "publish", schedule_id: mine.id,
+    name: "Test workout " + stamp, payload: "1.test", date: first, starts_at: startsAt, points: 10,
+  });
+  check("a workout can be published against a slot", r.status === 200 && !!r.data.id, r.status);
+  const published = r.data.id;
+
+  r = await athlete.call("GET", "/api/week?start=" + first);
+  const onDay = ((r.data.days || []).find((d) => d.date === first) || {}).items || [];
+  check("it replaces the standing one, not doubles it", onDay.filter((i) => i.schedule_id === mine.id).length === 1, onDay);
+  const swapped = onDay.find((i) => i.schedule_id === mine.id);
+  check("…and shows as the workout", swapped && swapped.kind === "session", swapped);
+  check("…keeping the place it is held at", swapped && swapped.place_en === "Wadi Hanifa Park", swapped);
+
+  await anon.call("POST", "/api/admin/sessions", { password: ADMIN, action: "delete", id: published });
+
   r = await plan({ action: "delete", id: mine.id });
   check("and it can be removed", r.status === 200 && !(r.data.schedule || []).some((e) => e.id === mine.id), r.status);
 
