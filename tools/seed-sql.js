@@ -91,8 +91,11 @@ for (const s of WEEK) {
 }
 
 /* ---- this week's published workouts ---- */
+/* The same two numbers as DEFAULTS in _worker.js/lib/settings.js, because a
+   session seeded from here and one published from /admin must open and close
+   at the same points either side of the start. */
 const WINDOW_BEFORE = 30 * 60000;
-const WINDOW_AFTER = 45 * 60000;
+const WINDOW_AFTER = 180 * 60000;
 
 function publish(weekday, at, name) {
   const date = nextDate(weekday);
