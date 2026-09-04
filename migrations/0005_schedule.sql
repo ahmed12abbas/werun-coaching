@@ -46,4 +46,9 @@ CREATE INDEX schedule_changes_date ON schedule_changes(date);
 -- When the coach publishes a real workout for one of these, the published
 -- session says which standing slot it belongs to, so the week shows one thing
 -- and not two.
-ALTER TABLE club_sessions ADD COLUMN schedule_id TEXT REFERENCES schedule(id);
+--
+-- Plainly, with no REFERENCES clause: foreign keys are off by default here, so
+-- it would enforce nothing, and an ADD COLUMN carrying one is the statement
+-- that the D1 console refused — taking the whole paste down with it, since it
+-- runs them as one. A column that holds an id is all this ever needed to be.
+ALTER TABLE club_sessions ADD COLUMN schedule_id TEXT;

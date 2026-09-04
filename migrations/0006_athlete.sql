@@ -6,6 +6,9 @@
 --
 -- Both are allowed to be empty. Someone who will not say still runs with the
 -- club, and a join form that refuses them is a form that loses them.
-ALTER TABLE users ADD COLUMN gender TEXT NOT NULL DEFAULT ''
-  CHECK (gender IN ('', 'woman', 'man', 'other'));
+-- No CHECK constraint on either: the Worker is the only writer and it already
+-- whitelists the answer, so the constraint would repeat a rule rather than add
+-- one — and every extra clause on an ADD COLUMN is another thing the console
+-- can refuse, which after two failed pastes is not a trade worth making.
+ALTER TABLE users ADD COLUMN gender TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN birth_year INTEGER;
