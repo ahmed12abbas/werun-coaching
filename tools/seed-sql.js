@@ -29,14 +29,14 @@ const CLUB_OFFSET = "+03:00";
 
 /* The standing week, with September's wording where the coach gave it. */
 const WEEK = [
-  { d: 0, at: "04:45", en: "Community run — 45 min easy + strides", ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + سترايدز", pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
-  { d: 0, at: "19:30", en: "Easy run — 45 min + strides",           ar: "ركضة خفيفة — ٤٥ دقيقة + سترايدز",       pen: "Alwaha Park",            par: "حديقة الواحة" },
+  { d: 0, at: "04:45", en: "Community run — 45 min easy + strides", ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات",    pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
+  { d: 0, at: "19:30", en: "Easy run — 45 min + strides",           ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات",          pen: "Alwaha Park",            par: "حديقة الواحة" },
   { d: 1, at: "04:45", en: "Easy walk/run — 4 km",                  ar: "ركض/مشي خفيف — ٤ كم",                   pen: "Sports Boulevard",       par: "المسار الرياضي - حطين" },
   { d: 1, at: "19:00", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
   { d: 2, at: "04:45", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 2, at: "19:30", en: "Strength session",                      ar: "تقويات عدائين",                         pen: "Alfaisal University",    par: "جامعة الفيصل" },
   { d: 3, at: "04:45", en: "Trail run — 7 to 9 km",                 ar: "ركضة تريل — ٧ إلى ٩ كم",                pen: "Wadi Hanifa Road-Trail", par: "وادي حنيفة - تريل" },
-  { d: 3, at: "19:30", en: "Easy run — 50 min + strides",           ar: "ركضة خفيفة — ٥٠ دقيقة + سترايدز",       pen: "Alnahda Park",           par: "حديقة النهضة" },
+  { d: 3, at: "19:30", en: "Easy run — 50 min + strides",           ar: "ركضة خفيفة — ٥٠ دقيقة + فتحات",          pen: "Alnahda Park",           par: "حديقة النهضة" },
   { d: 4, at: "04:45", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 6, at: "04:45", en: "Long run",                              ar: "ركضة طويلة",                            pen: "Wadi Hanifa Park",       par: "حديقة وادي حنيفة" },
 ];
