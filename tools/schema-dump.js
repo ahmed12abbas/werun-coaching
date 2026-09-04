@@ -1,8 +1,12 @@
 /**
  * The whole schema as one file, for setting a database up by hand.
  *
- *   node tools/schema-dump.js           -> werun-schema.sql       (commented)
- *   node tools/schema-dump.js --bare    -> werun-schema.bare.sql  (no comments)
+ *   node tools/schema-dump.js               -> werun-schema.sql       (commented)
+ *   node tools/schema-dump.js --bare        -> werun-schema.bare.sql  (no comments)
+ *   node tools/schema-dump.js --bare --from 0005
+ *                                           -> only 0005 onwards, for a
+ *                                              database that already has the
+ *                                              earlier ones
  *
  * For the one case the migrations workflow cannot cover: a database that has
  * to be created by hand, because the API token cannot reach D1 and so the
@@ -26,9 +30,18 @@ const DIR = path.join(ROOT, "migrations");
 const bare = process.argv.includes("--bare");
 const OUT = path.join(ROOT, bare ? "werun-schema.bare.sql" : "werun-schema.sql");
 
-const files = fs.readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort();
+const fromArg = (() => {
+  const i = process.argv.indexOf("--from");
+  return i > -1 ? String(process.argv[i + 1] || "") : "";
+})();
+
+const all = fs.readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort();
+// --from names the first migration to include, for a database that is behind
+// rather than empty. The ledger rows still cover only what is written, so the
+// ones already applied keep their existing rows.
+const files = fromArg ? all.filter((f) => f >= fromArg) : all;
 if (!files.length) {
-  console.error("no migrations to dump");
+  console.error(fromArg ? "no migrations at or after " + fromArg : "no migrations to dump");
   process.exit(1);
 }
 
