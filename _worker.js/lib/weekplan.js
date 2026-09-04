@@ -18,6 +18,17 @@ const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const validTime = (s) => HHMM.test(String(s || ""));
 
+/* How far either side of the week on screen to look for a slot workout.
+   The coach publishes the speed session a week or so ahead and replaces it
+   every week, so a month reaches the current copy in either direction — and
+   stops a one-off published for a race in December from becoming "the steps"
+   on every Monday between now and then. */
+const STEPS_DAYS = 28;
+
+const DAY_MS = 86400000;
+const shiftDay = (iso, n) =>
+  new Date(Date.parse(iso + "T00:00:00Z") + n * DAY_MS).toISOString().slice(0, 10);
+
 /** 0 = Sunday … 6 = Saturday, from a YYYY-MM-DD written in the club's week. */
 export const weekdayOf = (iso) => new Date(iso + "T00:00:00Z").getUTCDay();
 
@@ -39,20 +50,71 @@ export async function loadWeek(env, from, to, userId) {
   // one release behind must still hand an athlete their week, with whatever
   // the coach has published, rather than five hundred at them. The same rule
   // the rest of the site follows for a missing binding.
+  //
+  // The third read is what a slot's steps are, on a day the coach has not
+  // published one for: the club runs the same speed session three times a
+  // week and she replaces it weekly, so an athlete opening Monday still wants
+  // the workout whether or not this Monday's copy has gone out. Bounded on
+  // date, which is indexed — buildDays picks the nearest of them per day.
+  //
+  // All three go together because all three want the same thing of the
+  // database: `schedule`, `schedule_changes` and `club_sessions.schedule_id`
+  // all arrived in the same migration, and this project applies migrations by
+  // hand — so a database one release behind must still hand an athlete their
+  // week, with whatever the coach has published, rather than five hundred at
+  // them. The same rule the rest of the site follows for a missing binding.
   let schedule = [];
   let changes = [];
+  let nearby = [];
   try {
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
       env.DB.prepare("SELECT * FROM schedule WHERE active = 1 ORDER BY at ASC").all(),
       env.DB.prepare("SELECT * FROM schedule_changes WHERE date BETWEEN ? AND ?").bind(from, to).all(),
+      env.DB.prepare(
+        "SELECT schedule_id, id, date FROM club_sessions" +
+          " WHERE schedule_id IS NOT NULL AND payload <> '' AND date BETWEEN ? AND ?" +
+          " ORDER BY date ASC, created_at ASC"
+      )
+        .bind(shiftDay(from, -STEPS_DAYS), shiftDay(to, STEPS_DAYS))
+        .all(),
     ]);
     schedule = a.results || [];
     changes = b.results || [];
+    nearby = c.results || [];
   } catch (e) {
     console.error("week: no standing schedule yet (" + (e && e.message) + ")");
   }
 
-  return { schedule: schedule, changes: changes, published: published.results || [] };
+  return {
+    schedule: schedule,
+    changes: changes,
+    published: published.results || [],
+    nearby: nearby,
+  };
+}
+
+/**
+ * The workout to offer for a slot on a day that has none of its own: the one
+ * published closest to it, before or after.
+ *
+ * Nearest rather than newest, because "newest" means whatever is furthest in
+ * the future — one session published for a race two months out would become
+ * the steps on every intervening week. Later rows win a tie, so a re-publish
+ * beats the copy it replaced.
+ */
+function nearestSteps(list, date) {
+  if (!list || !list.length) return null;
+  const want = Date.parse(date + "T00:00:00Z");
+  let best = null;
+  let bestGap = Infinity;
+  for (const s of list) {
+    const gap = Math.abs(Date.parse(s.date + "T00:00:00Z") - want);
+    if (gap <= bestGap) {
+      best = s;
+      bestGap = gap;
+    }
+  }
+  return best;
 }
 
 /* The second argument is the standing entry this session was published
@@ -73,11 +135,15 @@ const publishedItem = (s, slot) => ({
   window_open_at: s.window_open_at,
   window_close_at: s.window_close_at,
   points: s.points,
+  // A session opened purely to hand out a check-in code carries no workout.
+  // The week still shows it, and it still counts — there are just no steps to
+  // open, and the page has to know that before it tries to decode nothing.
+  has_steps: !!s.payload,
   checked_in: !!(s.checked_in_at && !s.voided_at),
   checked_in_at: s.voided_at ? null : s.checked_in_at,
 });
 
-function standingItem(row, change) {
+function standingItem(row, change, steps) {
   const item = {
     kind: "standing",
     id: row.id,
@@ -93,6 +159,9 @@ function standingItem(row, change) {
     moved: false,
     note_en: "",
     note_ar: "",
+    // Where the steps live, when the coach has published this slot before.
+    steps_id: steps ? steps.id : null,
+    steps_date: steps ? steps.date : null,
   };
   if (!change) return item;
 
@@ -133,6 +202,15 @@ export function buildDays(dates, data) {
   const slotById = new Map();
   for (const row of data.schedule) slotById.set(row.id, row);
 
+  // Every workout published near this week, grouped by the slot it belongs
+  // to. Which one a given day gets is nearestSteps()'s business, per day.
+  const stepsFor = new Map();
+  for (const s of data.nearby || []) {
+    const list = stepsFor.get(s.schedule_id) || [];
+    list.push(s);
+    stepsFor.set(s.schedule_id, list);
+  }
+
   return dates.map((date) => {
     const weekday = weekdayOf(date);
     const sessions = publishedFor.get(date) || [];
@@ -142,7 +220,9 @@ export function buildDays(dates, data) {
 
     const items = data.schedule
       .filter((row) => row.weekday === weekday && !taken.has(row.id))
-      .map((row) => standingItem(row, changeFor.get(row.id + "|" + date)))
+      .map((row) =>
+        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date))
+      )
       .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id))));
 
     items.sort((a, b) => String(a.at).localeCompare(String(b.at)));

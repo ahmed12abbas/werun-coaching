@@ -132,8 +132,12 @@ function starPicker() {
 /**
  * The card. `w` is the session being rated — its name rides along so the
  * dashboard can show what an athlete had just run when they wrote.
+ *
+ * `opts.titleKey` swaps the heading. At the foot of a session "How was it?"
+ * is the whole question; at the foot of the account screen there is no "it",
+ * so the club app asks about the club instead.
  */
-function feedbackCard(w) {
+function feedbackCard(w, opts) {
   const picker = starPicker();
 
   const name = el("input", {
@@ -174,7 +178,7 @@ function feedbackCard(w) {
   const card = el(
     "div",
     { class: "card pad rate" },
-    el("h2", { class: "rate-title" }, t("fbTitle")),
+    el("h2", { class: "rate-title" }, t((opts && opts.titleKey) || "fbTitle")),
     form
   );
 

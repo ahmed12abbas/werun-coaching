@@ -253,7 +253,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=adf173f5"></script>
+<script src="js/i18n.js?v=570e1382"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
@@ -309,6 +309,7 @@ function api(route, payload) {
       if (data.error === "bad-password") throw new Error("That password is not right.");
       if (data.error === "too-often") throw new Error("Too many tries. Wait a minute.");
       if (data.error === "qr-off") throw new Error("QR_SECRET is not set on the site, so codes cannot be signed. See the README.");
+      if (data.error === "called-off") throw new Error("That one is called off for this date. Put it back first if it is running after all.");
       if (data.error === "not-configured") throw new Error("No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project -- see the README.");
       throw new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
     });
@@ -1550,6 +1551,17 @@ function ordersCard() {
    coach means by "this week we are at the other gate". */
 var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/* The date a standing session next falls on -- today, when today is its day,
+   because that is the morning the coach is at the track holding the phone up
+   and the whole point of the button. */
+function nextOccurrence(weekday) {
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+    "-" + String(d.getDate()).padStart(2, "0");
+}
+
 function schedulePlanCard() {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" }, el("h2", {}, "The standing week")));
@@ -1712,7 +1724,22 @@ function schedulePlanCard() {
             el("b", { dir: "auto" }, e.title_en || e.title_ar),
             el("span", { dir: "auto" }, (e.place_en || e.place_ar || "—") + " · " + e.points + " pts" +
               (e.active ? "" : " · not on the schedule"))));
+        /* A code for a session with no workout behind it. Seven of the ten
+           weekly sessions are these, and without this nobody could check in
+           to any of them. Opening one makes the session on the spot -- the
+           same row Publish would have made, only with no steps. */
+        var codeBtn = el("button", { class: "btn sm primary", onclick: function () {
+          var was = codeBtn.textContent;
+          codeBtn.disabled = true;
+          codeBtn.textContent = "...";
+          api("/api/admin/sessions", { action: "open", schedule_id: e.id, date: nextOccurrence(e.weekday) })
+            .then(function (d) { qrScreen(d.session); })
+            ["catch"](function (er) { row.append(el("p", { class: "err" }, er.message)); })
+            .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
+        } }, "Show the code");
+
         row.append(el("div", { class: "acts" },
+          e.active ? codeBtn : null,
           el("button", { class: "btn sm", onclick: function () { editing = e; form(); editor.scrollIntoView({ block: "nearest" }); } }, "Edit"),
           el("button", { class: "btn sm", onclick: function () { changeOne(e, row); } }, "Just this week"),
           el("button", { class: "btn sm", onclick: function () {

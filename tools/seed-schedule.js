@@ -17,6 +17,7 @@
  */
 const BASE = (process.argv[2] || "http://127.0.0.1:4323").replace(/\/+$/, "");
 const ADMIN = process.env.SMOKE_ADMIN_PASSWORD || "letmein";
+const { mapFor } = require("./places.js");
 
 /* weekday: 0 = Sunday … 6 = Saturday, the way the club counts it. */
 const WEEK = [
@@ -58,7 +59,14 @@ async function call(payload) {
     const already =
       existing.find((e) => e.weekday === item.weekday && e.at === item.at) ||
       existing.find((e) => e.weekday === item.weekday && e.place_en === item.place_en);
-    const out = await call({ action: "save", entry: Object.assign({ id: already ? already.id : null, active: 1 }, item) });
+    // The pin comes from tools/places.js, keyed on the place, so the two
+    // seeds cannot end up pointing at different corners of the same park.
+    const out = await call({
+      action: "save",
+      entry: Object.assign({ id: already ? already.id : null, active: 1 }, item, {
+        map_url: mapFor(item.place_en),
+      }),
+    });
     existing = out.schedule || existing;
     already ? updated++ : added++;
     console.log(

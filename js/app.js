@@ -117,25 +117,29 @@ function render() {
         { class: "card pad stack" },
         el("h2", {}, t("aDown")),
         el("p", { class: "muted" }, t("aDownLead"))
-      ),
-      appFoot(r.name)
+      )
     );
+    appendFoot(app, r.name);
     return;
   }
 
   // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
   const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.week;
-  app.append(screen(r.args, user), appFoot(r.name));
+  app.append(screen(r.args, user));
+  appendFoot(app, r.name);
 }
 
 /* The club's accounts, at the foot of every screen — the same row the share
    link ends on, so someone who has read their week has somewhere to go next.
 
    Not on the session screen: renderViewer already puts them under the rating
-   box there, and a second row would only be the same five icons twice. */
-function appFoot(route) {
-  if (route === "session") return null;
-  return el("footer", {}, socialRow());
+   box there, and a second row would only be the same five icons twice.
+
+   Appended rather than returned, because this is the browser's own append and
+   not el()'s: handed a null it writes the word "null" onto the page. */
+function appendFoot(app, route) {
+  if (route === "session") return;
+  app.append(el("footer", {}, socialRow()));
 }
 
 /** The coach's line across the top of the app, in the reader's language. */
@@ -341,6 +345,11 @@ SCREENS.week = function (args) {
   return card;
 };
 
+function longDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return isNaN(d) ? iso : d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
+}
+
 function shortDate(iso) {
   const d = new Date(iso + "T00:00:00");
   return isNaN(d) ? iso : d.toLocaleDateString(locale(), { day: "numeric", month: "short" });
@@ -447,9 +456,29 @@ SCREENS.plan = function (args) {
   );
 };
 
+/* The two facts every session has, whether or not it carries a workout: the
+   place — tappable when the coach has dropped a pin on it — and the points. */
+function whereAndWorth(item) {
+  const facts = el("div", { class: "plan-facts" });
+  const place = side(item, "place");
+  if (place) {
+    facts.append(
+      el(
+        "div",
+        {},
+        el("span", { class: "l" }, t("aWhere")),
+        item.map_url
+          ? el("a", { class: "place", href: item.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
+          : el("span", {}, place)
+      )
+    );
+  }
+  facts.append(el("div", {}, el("span", { class: "l" }, t("aWorth")), el("span", {}, t("aPts", { n: item.points }))));
+  return facts;
+}
+
 function planCard(item, date) {
   const day = new Date(date + "T00:00:00");
-  const place = side(item, "place");
   const note = I18N.lang === "ar" ? item.note_ar || item.note_en : item.note_en || item.note_ar;
   const soon = item.cancelled ? null : countdownPill(item, date);
 
@@ -468,20 +497,25 @@ function planCard(item, date) {
     el("span", { class: "muted" }, day.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }))
   );
 
-  const facts = el("div", { class: "plan-facts" });
-  if (place) {
-    facts.append(
-      el(
-        "div",
-        {},
-        el("span", { class: "l" }, t("aWhere")),
-        item.map_url
-          ? el("a", { class: "place", href: item.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
-          : el("span", {}, place)
-      )
-    );
-  }
-  facts.append(el("div", {}, el("span", { class: "l" }, t("aWorth")), el("span", {}, t("aPts", { n: item.points }))));
+  const facts = whereAndWorth(item);
+
+  // The steps the coach has for this slot on some other date. The club runs
+  // the same speed session three times a week, so the workout is nearly
+  // always the one an athlete came for — say plainly which date it is from
+  // rather than let them read it as this one's.
+  const steps = item.steps_id
+    ? [
+        el("p", { class: "muted small" }, t("aStepsLead", { date: longDate(item.steps_date) })),
+        el(
+          "button",
+          { class: "btn block", type: "button", onclick: () => go("session/" + item.steps_id) },
+          t("aSteps")
+        ),
+      ]
+    : [el("p", { class: "muted small" }, t("aNoWorkoutYet"))];
+  // Steps stay on a session that has been called off, where Join does not:
+  // there is no code to scan for a session nobody is holding, but the workout
+  // is still a workout and an athlete may well go and run it alone.
 
   return el(
     "div",
@@ -491,11 +525,30 @@ function planCard(item, date) {
     soon,
     facts,
     note ? el("p", { class: "slot-note" }, note) : null,
-    el("p", { class: "muted small" }, t("aNoWorkoutYet")),
+    steps,
     // Called off is called off: there is no code to scan for a session that
     // is not happening.
     item.cancelled ? null : joinButton(),
     item.cancelled ? null : el("p", { class: "hint" }, t("aScanLead"))
+  );
+}
+
+/* A published session with no steps behind it: the same four facts the
+   week's summary gives, and no pretence that a workout is coming. */
+function noStepsCard(s) {
+  const at = new Date(s.starts_at);
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("div", { class: "plan-head" }, el("h2", { dir: "auto" }, s.name)),
+    el(
+      "div",
+      { class: "plan-when" },
+      el("span", { class: "num" }, isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })),
+      el("span", { class: "muted" }, longDate(s.date))
+    ),
+    whereAndWorth(s),
+    el("p", { class: "muted small" }, t("aNoWorkoutYet"))
   );
 }
 
@@ -561,6 +614,13 @@ SCREENS.session = function (args) {
       const s = data.session;
       box.textContent = "";
       box.append(checkinCard(s));
+      // A session the coach opened only to hand out a code carries no
+      // workout. There is nothing to decode and nothing broken about it — it
+      // says what it is, where, and what it is worth, like the week's summary.
+      if (!s.payload) {
+        box.append(noStepsCard(s));
+        return;
+      }
       let w = null;
       try {
         w = decodeWorkout(s.payload);
@@ -1328,7 +1388,12 @@ SCREENS.me = function (args, user) {
       "div",
       { class: "card pad stack" },
       el("div", { class: "row-wrap" }, el("button", { class: "btn", onclick: out(false) }, t("aLogout")), el("button", { class: "btn", onclick: out(true) }, t("aLogoutAll")))
-    )
+    ),
+    // The same box that sits at the foot of a session, asked about the club
+    // rather than about one run. It goes last, under logging out and above
+    // the socials: an athlete who has finished with their account is the one
+    // with something to say, and nothing here should push the settings down.
+    feedbackCard({ name: "Club feedback" }, { titleKey: "aTellUs" })
   );
 };
 

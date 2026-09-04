@@ -42,6 +42,12 @@ function check(name, ok, detail) {
 }
 
 /** The next date a given weekday falls on, and the one a week later. */
+const addDays = (iso, n) => {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+};
+
 function nextDates(weekday) {
   const d = new Date();
   d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
@@ -162,7 +168,29 @@ function nextDates(weekday) {
   check("…and shows as the workout", swapped && swapped.kind === "session", swapped);
   check("…keeping the place it is held at", swapped && swapped.place_en === "Wadi Hanifa Park", swapped);
 
+  /* The same slot a week later has no workout of its own, so it carries the
+     steps of the one that does — that is the Steps button on the summary. */
+  const nextWeek = addDays(first, 7);
+  r = await athlete.call("GET", "/api/week?start=" + nextWeek);
+  const later = (((r.data.days || []).find((d) => d.date === nextWeek) || {}).items || [])
+    .find((i) => i.schedule_id === mine.id);
+  check("a slot with no workout of its own points at the nearest one", later && later.steps_id === published, later);
+  check("…and says which date those steps are for", later && later.steps_date === first, later);
+
+  /* Far enough away and it stops being "the steps for this session": a
+     one-off published months out must not follow every week until then. */
+  const farOff = addDays(first, 63);
+  r = await athlete.call("GET", "/api/week?start=" + farOff);
+  const far = (((r.data.days || []).find((d) => d.date === farOff) || {}).items || [])
+    .find((i) => i.schedule_id === mine.id);
+  check("but not from months away", far && !far.steps_id, far);
+
   await anon.call("POST", "/api/admin/sessions", { password: ADMIN, action: "delete", id: published });
+
+  r = await athlete.call("GET", "/api/week?start=" + nextWeek);
+  const gone = (((r.data.days || []).find((d) => d.date === nextWeek) || {}).items || [])
+    .find((i) => i.schedule_id === mine.id);
+  check("and the steps go when the workout does", gone && !gone.steps_id, gone);
 
   r = await plan({ action: "delete", id: mine.id });
   check("and it can be removed", r.status === 200 && !(r.data.schedule || []).some((e) => e.id === mine.id), r.status);

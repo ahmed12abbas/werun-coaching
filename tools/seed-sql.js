@@ -15,6 +15,7 @@
  * a second run changes nothing and cannot duplicate a session.
  */
 const crypto = require("crypto");
+const { mapFor } = require("./places.js");
 
 /* Fixed ids, derived from what the row *is*, so the same slot gets the same
    id on every machine and a second run is a no-op rather than a duplicate. */
@@ -72,15 +73,19 @@ for (const s of WEEK) {
   const id = idFor("slot", s.d + "@" + keyed(s.at));
   lines.push(
     "INSERT OR IGNORE INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url, points, active, created_at, updated_at) VALUES (" +
-      [q(id), s.d, q(s.at), q(s.en), q(s.ar), q(s.pen), q(s.par), q(""), 10, 1, q(now), q(now)].join(", ") +
+      [q(id), s.d, q(s.at), q(s.en), q(s.ar), q(s.pen), q(s.par), q(mapFor(s.pen)), 10, 1, q(now), q(now)].join(", ") +
       ");"
   );
   // A second run should still correct the wording if the coach changed it
   // here — and the time, which is how the mornings move to 04:55 on a
   // database that was already seeded at 04:45.
+  // The pin only when there is one to set: a place nobody has dropped a pin
+  // on must not have the coach's own link blanked out from under her.
+  const pin = mapFor(s.pen);
   lines.push(
     "UPDATE schedule SET at = " + q(s.at) + ", title_en = " + q(s.en) + ", title_ar = " + q(s.ar) +
       ", place_en = " + q(s.pen) + ", place_ar = " + q(s.par) +
+      (pin ? ", map_url = " + q(pin) : "") +
       ", updated_at = " + q(now) + " WHERE id = " + q(id) + ";"
   );
 }

@@ -447,6 +447,16 @@ built, sets the day, the time and the points, and publishes. At the track she
 taps **Show the code**: the screen fills with a QR that is re-signed every
 thirty seconds, counts who has scanned, and keeps the phone awake.
 
+**Every session has a code, not only the ones carrying a workout.** Seven of
+the club's ten weekly sessions are standing ones nobody publishes steps for,
+and *Show the code* on a row of **The standing week** opens one on the spot,
+for the next date that row falls on — today, when today is its day. It makes
+the same session Publish would have, with the same window, points and roster,
+only with no steps behind it; the app shows it as a session with the place and
+the points and says plainly that there is no workout. Tapping twice reuses the
+session rather than splitting the roster in two, and a session called off for
+that date refuses.
+
 Athletes point their camera at it. The link opens the app, checks them in and
 adds the points — and if they have not joined yet, the code is kept while they
 sign up and used the moment they are in.
@@ -506,9 +516,11 @@ Tuesday would move every Tuesday after it too, which is not what a coach
 means by "this week we are at the other gate".
 
 Athletes see a moved session marked **Changed** with the coach's note, and a
-called-off one struck through rather than quietly missing. Places can carry a
-maps link, which makes the place name tappable for anyone who has not been
-there before.
+called-off one struck through rather than quietly missing. Places carry a maps
+link, which makes the place name tappable for anyone who has not been there
+before — the club's eight meeting points live in `tools/places.js` so both
+seeds write the same pin, and each is dropped on the meeting point rather than
+on the park as a whole.
 
 Publishing a real workout for one of those slots replaces it in the week, so
 the day shows one thing and not two.

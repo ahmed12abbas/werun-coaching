@@ -171,6 +171,9 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 /* Arabic labels are words rather than clipped English ones, so they set their
    own width instead of being squeezed into sixty pixels. */
 [dir="rtl"] .plan-facts .l{letter-spacing:0;width:auto;min-width:48px}
+/* The place is the one thing on this card that goes somewhere else, so it is
+   coloured like a link rather than left to the underline alone. */
+.plan-facts a.place{color:var(--brand)}
 
 /* ---- reading the coach's code ---- */
 .scan{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:18px;

@@ -434,6 +434,9 @@ const STRINGS = {
     aWhere: "Where",
     aWorth: "Worth",
     aNoWorkoutYet: "The coach hasn't sent a workout for this one — turn up and run it together.",
+    aSteps: "Steps",
+    aTellUs: "How are we doing?",
+    aStepsLead: "No workout for this date yet — these are the steps for {date}.",
     aNoSuchSlot: "That session isn't on the plan any more.",
 
     /* the app: joining at the track */
@@ -861,6 +864,9 @@ const STRINGS = {
     aWhere: "المكان",
     aWorth: "النقاط",
     aNoWorkoutYet: "الكوتش ما أرسل تمرين هذه الجلسة — تعال ونجريها مع بعض.",
+    aSteps: "خطوات",
+    aTellUs: "كيف أداؤنا؟",
+    aStepsLead: "ما نُشر تمرين لهذا التاريخ بعد — هذه خطوات {date}.",
     aNoSuchSlot: "هذه الجلسة ما عادت ضمن الخطة.",
 
     /* the app: joining at the track */

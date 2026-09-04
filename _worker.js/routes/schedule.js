@@ -9,7 +9,13 @@ import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
-import { dayFromName } from "../lib/week.js";
+import { dayFromName, DAYS } from "../lib/week.js";
+import { weekdayOf } from "../lib/weekplan.js";
+
+/* Riyadh is UTC+3 all year with no daylight saving, so a standing session's
+   wall-clock "04:55" becomes a real instant by saying which clock it is on. */
+const CLUB_OFFSET = "+03:00";
+const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 
 const MAX = { name: 80, payload: 4000 };
 const LIST = 40;
@@ -128,6 +134,75 @@ export async function adminSessions(request, env) {
     if ((n && n.n) || 0) return json({ error: "has-checkins" }, 409);
     await env.DB.prepare("DELETE FROM club_sessions WHERE id = ?").bind(id).run();
     return json({ sessions: await sessionList(env) });
+  }
+
+  /* ---- a code for a session that carries no workout ---- */
+
+  /*
+   * Seven of the club's ten weekly sessions are standing ones the coach never
+   * attaches a workout to — and until this existed that meant seven sessions
+   * nobody could check in to, because a code is signed against a session row
+   * and there was none. Opening one makes it: same table, same window, same
+   * points, same roster, only with no steps behind it.
+   *
+   * Find before create, so tapping the button twice on the morning of a run
+   * shows the same session rather than splitting the roster across two.
+   */
+  if (action === "open") {
+    const scheduleId = String(body.schedule_id || "");
+    const date = String(body.date || "");
+    if (!ISO_DATE.test(date)) return json({ error: "bad-date" }, 400);
+
+    const already = await env.DB.prepare(
+      "SELECT * FROM club_sessions WHERE schedule_id = ? AND date = ?"
+    )
+      .bind(scheduleId, date)
+      .first();
+    if (already) return json({ session: already, sessions: await sessionList(env) });
+
+    const slot = await env.DB.prepare("SELECT * FROM schedule WHERE id = ?").bind(scheduleId).first();
+    if (!slot) return json({ error: "no-entry" }, 404);
+
+    // The pattern's time, unless a change moved this one occurrence — and
+    // nothing at all if it was called off, because a session nobody is
+    // holding is not one to hand out a code for.
+    const change = await env.DB.prepare(
+      "SELECT at, cancelled FROM schedule_changes WHERE schedule_id = ? AND date = ?"
+    )
+      .bind(scheduleId, date)
+      .first();
+    if (change && change.cancelled) return json({ error: "called-off" }, 409);
+
+    const at = (change && change.at) || slot.at;
+    const starts = new Date(date + "T" + at + ":00" + CLUB_OFFSET);
+    if (isNaN(starts)) return json({ error: "bad-time" }, 400);
+
+    const before = await getSetting(env, "window_before_min");
+    const after = await getSetting(env, "window_after_min");
+    const id = uid();
+    // The day comes from the date, not from the name: dayFromName reads the
+    // day out of a session the coach titled "Monday | WeRUN", and a standing
+    // slot's title says what it is rather than when.
+    await env.DB.prepare(
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id)" +
+        " VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)"
+    )
+      .bind(
+        id,
+        date,
+        DAYS[(weekdayOf(date) + 6) % 7],
+        slot.title_en || slot.title_ar,
+        starts.toISOString(),
+        new Date(starts.getTime() - before * 60000).toISOString(),
+        new Date(starts.getTime() + after * 60000).toISOString(),
+        slot.points,
+        nowISO(),
+        scheduleId
+      )
+      .run();
+
+    const made = await env.DB.prepare("SELECT * FROM club_sessions WHERE id = ?").bind(id).first();
+    return json({ session: made, sessions: await sessionList(env) });
   }
 
   if (action !== "list") return json({ error: "bad-request" }, 400);

@@ -46,9 +46,14 @@ export const week = withMember(async (request, env, user) => {
  */
 export const session = withMember(async (request, env, user) => {
   const id = new URL(request.url).searchParams.get("id") || "";
+  // The slot's place rides along. A session the coach opened only to hand
+  // out a code has no workout to draw, so where to stand is the one thing the
+  // page has left to say — and dropping it there would be backwards.
   const row = await env.DB.prepare(
-    "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
+    "SELECT s.*, c.at AS checked_in_at, c.voided_at," +
+      " e.place_en AS place_en, e.place_ar AS place_ar, e.map_url AS map_url FROM club_sessions s" +
       " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
+      " LEFT JOIN schedule e ON e.id = s.schedule_id" +
       " WHERE s.id = ?"
   )
     .bind(user.id, id)
@@ -62,6 +67,9 @@ export const session = withMember(async (request, env, user) => {
       date: row.date,
       day: row.day,
       payload: row.payload,
+      place_en: row.place_en || "",
+      place_ar: row.place_ar || "",
+      map_url: row.map_url || "",
       starts_at: row.starts_at,
       window_open_at: row.window_open_at,
       window_close_at: row.window_close_at,
