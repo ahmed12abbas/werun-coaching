@@ -55,6 +55,8 @@ jobs:
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       QR_SECRET: ${{ secrets.QR_SECRET }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
       EMAIL_FROM: ${{ vars.EMAIL_FROM }}
       PROJECT: weruncoaching
       KV_TITLE: werun-stats
@@ -75,6 +77,8 @@ jobs:
           [ -n "${ADMIN_PASSWORD}" ] && echo "::add-mask::${ADMIN_PASSWORD}" || true
           [ -n "${QR_SECRET}" ] && echo "::add-mask::${QR_SECRET}" || true
           [ -n "${RESEND_API_KEY}" ] && echo "::add-mask::${RESEND_API_KEY}" || true
+          [ -n "${STRIPE_SECRET_KEY}" ] && echo "::add-mask::${STRIPE_SECRET_KEY}" || true
+          [ -n "${STRIPE_WEBHOOK_SECRET}" ] && echo "::add-mask::${STRIPE_WEBHOOK_SECRET}" || true
           echo "done"
 
       - name: Check what we have to work with
@@ -96,6 +100,10 @@ jobs:
           echo "ADMIN_PASSWORD set: $([ -n "${ADMIN_PASSWORD}" ] && echo yes || echo no)"
           echo "QR_SECRET set:      $([ -n "${QR_SECRET}" ] && echo yes || echo no)"
           echo "RESEND_API_KEY set: $([ -n "${RESEND_API_KEY}" ] && echo yes || echo no)"
+          echo "STRIPE keys set:    $([ -n "${STRIPE_SECRET_KEY}" ] && echo yes || echo no) / webhook $([ -n "${STRIPE_WEBHOOK_SECRET}" ] && echo yes || echo no)"
+          if [ -n "${STRIPE_SECRET_KEY}" ] && [ -z "${STRIPE_WEBHOOK_SECRET}" ]; then
+            echo "::warning::STRIPE_SECRET_KEY without STRIPE_WEBHOOK_SECRET — every order would sit at pending."
+          fi
           echo "EMAIL_FROM:         ${EMAIL_FROM:-(unset — a Resend test sender is used)}"
           if [ -z "${QR_SECRET}" ]; then
             echo "::warning::QR_SECRET is not set — check-in codes stay off until it is."
@@ -272,7 +280,9 @@ jobs:
             --arg admin "${ADMIN_PASSWORD}" \
             --arg qr "${QR_SECRET}" \
             --arg resend "${RESEND_API_KEY}" \
-            --arg mailfrom "${EMAIL_FROM}" '
+            --arg mailfrom "${EMAIL_FROM}" \
+            --arg sk "${STRIPE_SECRET_KEY}" \
+            --arg whsec "${STRIPE_WEBHOOK_SECRET}" '
             {
               deployment_configs: {
                 production: (
@@ -284,6 +294,8 @@ jobs:
                   | if $qr     != "" then .env_vars.QR_SECRET      = { type: "secret_text", value: $qr     } else . end
                   | if $resend != "" then .env_vars.RESEND_API_KEY = { type: "secret_text", value: $resend } else . end
                   | if $mailfrom != "" then .env_vars.EMAIL_FROM  = { type: "plain_text",  value: $mailfrom } else . end
+                  | if $sk     != "" then .env_vars.STRIPE_SECRET_KEY     = { type: "secret_text", value: $sk     } else . end
+                  | if $whsec  != "" then .env_vars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: $whsec  } else . end
                 )
               }
             }' > /tmp/patch.json

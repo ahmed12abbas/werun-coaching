@@ -19,11 +19,22 @@ export async function health(request, env) {
     tips: !!(env.TIPS_PASSWORD || env.ADMIN_PASSWORD),
     qr: !!env.QR_SECRET,
     email: !!env.RESEND_API_KEY,
+    store: !!env.STRIPE_SECRET_KEY,
+    webhook: !!env.STRIPE_WEBHOOK_SECRET,
   };
-  // Never set on the live site: it hands the confirmation and password-reset
-  // links back in the response instead of mailing them. Reported here so that
-  // if it ever is set, it says so on a page anyone can open.
-  if (env.EMAIL_ECHO === "1") out.warning = "email-echo-on";
+  /* A list, not one field: the site can be wrong in more than one way at a
+     time, and a check that reports only the last of them is a check that
+     hides the others. Everything here is either a development-only switch
+     that has escaped, or a half-configured feature that will fail quietly. */
+  out.warnings = [];
+  // Hands the confirmation and password-reset links back in the response
+  // instead of mailing them. Never set on the live site.
+  if (env.EMAIL_ECHO === "1") out.warnings.push("email-echo-on");
+  // Sends checkout somewhere that is not Stripe. Never set on the live site.
+  if (env.STRIPE_API_BASE) out.warnings.push("stripe-api-base-overridden");
+  // A shop that can take money but cannot hear that it was paid leaves every
+  // order stuck at pending for ever.
+  if (env.STRIPE_SECRET_KEY && !env.STRIPE_WEBHOOK_SECRET) out.warnings.push("stripe-webhook-missing");
   if (env.DB) {
     try {
       const row = await env.DB.prepare(

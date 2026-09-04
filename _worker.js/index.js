@@ -30,6 +30,11 @@
      GET  /api/points/me        — total, streak, history             (logged in)
      GET  /api/points/board     — the club leaderboard               (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
+     GET  /api/store            — what is for sale, and my orders     (logged in)
+     GET  /api/store/order?id=  — one of my orders                    (logged in)
+     POST /api/store/checkout   — start a payment on Stripe's page    (logged in)
+     POST /api/stripe/webhook   — Stripe telling us it was paid (signature-checked,
+                                  and the only public route that changes money)
      POST /api/points/board-visibility — on or off the board         (logged in)
 
    The console's routes take either a coach's login or the club password in
@@ -43,6 +48,8 @@
      POST /api/admin/qr         — the code for the track
      POST /api/admin/posts      — the feed editor
      POST /api/admin/export     — members, points or check-ins as CSV
+     POST /api/admin/products   — what is for sale
+     POST /api/admin/orders     — who is owed one, and handing it over
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the counts, feedback, articles and rate limits
@@ -52,6 +59,8 @@
      QR_SECRET       signs the check-in codes
      RESEND_API_KEY  sends the confirmation and password-reset mail (optional)
      EMAIL_FROM      who that mail comes from, e.g. "WE RUN <coach@…>"
+     STRIPE_SECRET_KEY      switches the shop on (optional)
+     STRIPE_WEBHOOK_SECRET  what the webhook's signature is checked against
    Without them the site still works: sharing just is not counted, the
    dashboard stays locked rather than falling open, and the platform routes
    answer "no-db" instead of crashing.
@@ -75,6 +84,9 @@ import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
 import { feed, adminPosts } from "./routes/feed.js";
 import { verifySend, verify, resetRequest, reset } from "./routes/email.js";
 import { adminExport } from "./routes/export.js";
+import { store, checkout, order } from "./routes/store.js";
+import { stripeWebhook } from "./routes/stripe.js";
+import { adminProducts, adminOrders } from "./routes/shop.js";
 
 const POST = {
   "/api/share": share,
@@ -100,6 +112,10 @@ const POST = {
   "/api/admin/qr": adminQr,
   "/api/admin/posts": adminPosts,
   "/api/admin/export": adminExport,
+  "/api/store/checkout": checkout,
+  "/api/stripe/webhook": stripeWebhook,
+  "/api/admin/products": adminProducts,
+  "/api/admin/orders": adminOrders,
 };
 const GET = {
   "/api/tips": tips,
@@ -110,6 +126,8 @@ const GET = {
   "/api/points/me": pointsMe,
   "/api/points/board": pointsBoard,
   "/api/feed": feed,
+  "/api/store": store,
+  "/api/store/order": order,
 };
 
 export default {

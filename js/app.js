@@ -12,6 +12,8 @@
      #/feed                       what the coach has written for the club
      #/verify/<token>             the link in the confirmation email
      #/reset  #/reset/<token>     ask for a new password, then set it
+     #/store                      the club shop
+     #/order/<id>                 where Stripe sends them back to
      #/me                         name, language, password, log out
 
    Everything visible goes through t() in js/i18n.js. The header comes from
@@ -136,12 +138,16 @@ function announcement() {
 function appNav(current) {
   const link = (name, label) =>
     el("a", { href: "#/" + name, "aria-current": current === name ? "page" : null }, label);
+  // "Week" rather than "This week" here: with five tabs on a phone the long
+  // label is what pushes the row onto two lines.
   return el(
     "nav",
     { class: "appnav" },
-    link("week", t("navWeek")),
+    link("week", t("navWeekShort")),
     link("feed", t("navFeed2")),
     link("points", t("navPointsShort")),
+    // Only when there is a shop behind it.
+    Auth.club.store ? link("store", t("navStore")) : null,
     link("me", t("navMe"))
   );
 }
@@ -568,6 +574,154 @@ function confirmCard() {
     err, ok,
     el("div", { class: "row" }, btn));
 }
+
+
+/* ---------- the shop ------------------------------------------------------ */
+
+/* Pay here, collect at the track. The card itself is handled entirely by
+   Stripe on a page of its own — this screen's whole job is to pick a thing
+   and a size and then get out of the way. */
+
+/** Smallest units to something a person reads, in their own language. */
+function money(amount, currency) {
+  try {
+    return new Intl.NumberFormat(locale(), { style: "currency", currency: (currency || "usd").toUpperCase() })
+      .format(amount / 100);
+  } catch (e) {
+    // An unknown currency code should not take the price off the page.
+    return (amount / 100).toFixed(2) + " " + String(currency || "").toUpperCase();
+  }
+}
+
+SCREENS.store = function () {
+  const list = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+
+  API.get("/api/store")
+    .then((d) => {
+      list.textContent = "";
+      list.append(el("div", { class: "card pad stack" },
+        el("h2", {}, t("aStore")),
+        el("p", { class: "muted small" }, d.open ? t("aStoreLead") : t("aStoreShut"))));
+
+      if (d.open) {
+        for (const p of d.products) list.append(productCard(p, d.currency));
+        if (!d.products.length) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aStoreEmpty"))));
+      }
+      if (d.orders.length) list.append(myOrders(d.orders));
+    })
+    .catch((e) => {
+      list.textContent = "";
+      list.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+
+  return list;
+};
+
+function productCard(p, currency) {
+  const err = el("p", { class: "form-err hidden" });
+  const sizes = el("div", { class: "seg sizes" });
+  let picked = p.options.length === 1 ? p.options[0] : "";
+
+  for (const size of p.options) {
+    const b = el("button", { type: "button", "aria-pressed": picked === size ? "true" : "false" }, size);
+    b.addEventListener("click", () => {
+      picked = size;
+      for (const other of sizes.children) other.setAttribute("aria-pressed", other === b ? "true" : "false");
+    });
+    sizes.append(b);
+  }
+
+  const qty = el("select", { class: "qty" });
+  for (let n = 1; n <= 5; n++) qty.append(el("option", { value: String(n) }, String(n)));
+
+  const buy = el("button", { class: "btn primary lg block" }, t("aBuy"));
+  buy.addEventListener("click", () => {
+    submitting(buy, err, () =>
+      API.post("/api/store/checkout", { product: p.id, variant: picked, qty: Number(qty.value) }).then((r) => {
+        buy.textContent = t("aTaking");
+        // Stripe's own page, on Stripe's own domain. Nothing about the card
+        // ever passes through this site.
+        location.href = r.url;
+      })
+    );
+  });
+
+  return el(
+    "article",
+    { class: "card pad stack product" + (p.sold_out ? " gone" : ""), dir: "auto" },
+    el("div", { class: "post-head" },
+      el("h3", { class: "grow" }, side(p, "name")),
+      el("span", { class: "price num" }, money(p.price, currency))),
+    side(p, "desc") ? el("p", { class: "muted small" }, side(p, "desc")) : null,
+    p.low ? el("p", { class: "few" }, t("aFewLeft", { n: p.low })) : null,
+    p.sold_out
+      ? el("p", { class: "muted" }, t("aSoldOut"))
+      : el("div", { class: "stack" },
+          p.options.length ? el("div", {}, el("label", {}, t("aSize")), sizes) : null,
+          el("div", { class: "row" },
+            el("div", { style: "flex:0 0 92px" }, el("label", {}, t("aQty")), qty)),
+          err,
+          buy)
+  );
+}
+
+const ORDER_STATE = { paid: "aOrderPaid", handed: "aOrderHanded", pending: "aOrderPending", cancelled: "aOrderCancelled" };
+
+function myOrders(orders) {
+  const box = el("div", { class: "card pad stack" }, el("h3", {}, t("aMyOrders")));
+  for (const o of orders) {
+    box.append(
+      el("div", { class: "order-row" },
+        el("span", { class: "grow", dir: "auto" }, o.name + (o.variant ? " · " + o.variant : "") + (o.qty > 1 ? " × " + o.qty : "")),
+        el("span", { class: "muted small" }, money(o.amount, o.currency)),
+        el("span", { class: "tag " + (o.status === "handed" ? "done" : o.status === "paid" ? "open" : "soon") },
+          t(ORDER_STATE[o.status] || "aOrderPending")))
+    );
+  }
+  return box;
+}
+
+/* Where Stripe sends them back to. The webhook may not have landed yet, so a
+   pending order is an ordinary answer here and the page keeps looking. */
+SCREENS.order = function (args) {
+  const box = el("div", { class: "card pad stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  let tries = 0;
+
+  function look() {
+    API.get("/api/store/order?id=" + encodeURIComponent(args[0] || ""))
+      .then((d) => {
+        const o = d.order;
+        // Still pending: ask again for about half a minute, then leave the
+        // page saying so rather than spinning at them forever.
+        if (o.status === "pending" && tries < 10) {
+          tries++;
+          box.textContent = "";
+          box.append(el("h2", {}, t("aOrderPending")), el("p", { class: "muted small" }, t("aOrderWaiting")),
+            el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+          setTimeout(look, 3000);
+          return;
+        }
+        box.textContent = "";
+        const done = o.status === "paid" || o.status === "handed";
+        box.append(
+          done ? el("div", { class: "landed" }, "🎉") : null,
+          el("h2", {}, done ? t("aOrderThanks") : t(ORDER_STATE[o.status] || "aOrderPending")),
+          el("p", { class: "muted" }, o.name + (o.variant ? " · " + o.variant : "") + (o.qty > 1 ? " × " + o.qty : "")),
+          el("p", { class: "muted small" }, money(o.amount, o.currency)),
+          done ? el("p", {}, t("aOrderThanksLead")) : null,
+          el("div", { class: "row-wrap" },
+            el("button", { class: "btn primary", onclick: () => go("store") }, t("aBackToStore")))
+        );
+      })
+      .catch((e) => {
+        box.textContent = "";
+        box.append(el("p", { class: "form-err" }, errorText(e)),
+          el("div", { class: "row-wrap" }, el("button", { class: "btn", onclick: () => go("store") }, t("aBackToStore"))));
+      });
+  }
+  look();
+  return box;
+};
 
 /* ---------- the feed ------------------------------------------------------ */
 

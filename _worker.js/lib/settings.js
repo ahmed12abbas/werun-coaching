@@ -13,6 +13,8 @@ export const DEFAULTS = {
   window_before_min: 30, // check-in opens this long before the start
   window_after_min: 45, // …and closes this long after it
   club_name: "WE RUN",
+  store_open: false, // off until the coach has put something in it
+  currency: "usd", // Stripe's code for it: usd, egp, aed, gbp, eur…
   whatsapp_url: "", // the group, linked from the app's feed
   announcement_en: "", // a line across the top of the app; empty means none
   announcement_ar: "",

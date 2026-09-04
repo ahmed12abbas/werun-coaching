@@ -217,7 +217,7 @@ only because the feed is the easy one and the QR is the risky one.
 - Web Push for "session published" — **not built**. It needs a VAPID key pair, a service worker and a subscriptions table, and none of it can be exercised until the site is on a phone the club actually uses. The plan always had it as "later"; it stays there. A weekly points summary is in the same position: it needs a scheduled Worker, which Pages Functions cannot run, so it would be a second deploy to look after before email is even switched on.
 - Export: members and points as CSV from admin.
 
-### Phase 5 — merch (when wanted)
+### Phase 5 — merch  ✔ **done 2026-09-04**
 - `products`, `orders` tables; **Stripe Checkout** (hosted page — card data never touches the Worker), webhook with signature check → order row; admin sees orders and marks them handed over at the track.
 - Payouts, tax and shipping are Stripe's problem; the store starts as "pay online, collect on Monday".
 

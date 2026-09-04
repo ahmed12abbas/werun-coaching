@@ -4,6 +4,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
 import { emailOn } from "../lib/mail.js";
+import { storeOn } from "../lib/stripe.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
   createSession, dropSession, dropOtherSessions, currentUser, publicUser,
@@ -34,6 +35,8 @@ async function clubFor(env) {
     // EMAIL_ECHO counts because under it the flows really do work — it is
     // never set on the live site, so production reads this as the key alone.
     email: emailOn(env) || env.EMAIL_ECHO === "1",
+    // The Store tab appears only when there is something behind it.
+    store: storeOn(env) && (await getSetting(env, "store_open")),
     name: await getSetting(env, "club_name"),
     announcement_en: await getSetting(env, "announcement_en"),
     announcement_ar: await getSetting(env, "announcement_ar"),

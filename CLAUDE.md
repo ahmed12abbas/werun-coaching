@@ -13,6 +13,9 @@ share link, plus two small server pieces:
 - Athlete reads go through `withMember` (which honours the maintenance switch), account routes through `withUser` (which never does, so nobody is locked out of logging in).
 - Email is optional: no `RESEND_API_KEY` and the confirm/reset routes answer `email-off` rather than pretending. `EMAIL_ECHO=1` (in `.dev.vars` only) returns the link in the response so the smoke test can follow it — never set it on Pages, and `/api/health` reports it as a warning if anyone does.
 - Confirming an address is **not** a gate on anything: signups are open and mail may never be configured, so it marks the account and nothing more.
+- The shop never sees a card: paying happens on Stripe's own page, and an order becomes `paid` only from a webhook whose HMAC signature and timestamp both check out (`_worker.js/lib/stripe.js`). Nothing the browser says on the way back is taken as proof.
+- Prices are read from the database at checkout, never from the request, and stock comes down in the webhook rather than at checkout — a payment page that was opened and abandoned must not hold a shirt.
+- `STRIPE_API_BASE` exists so `tools/smoke-store.js` can point the flow at its own stub. Like `EMAIL_ECHO` it belongs in `.dev.vars` only; `/api/health` lists both in `warnings`.
 - `docs/PLATFORM-PLAN.md` — the platform plan (accounts, QR check-in, points, feed, store) and which decisions are settled.
 - `worker/` — a separate Worker for the intervals.icu OAuth bridge. Different deploy, different bindings.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
@@ -49,6 +52,7 @@ node tools/smoke.js            # accounts end to end, against tools/dev.js (need
 node tools/smoke-checkin.js    # publish, sign a code, scan it, void it
 node tools/smoke-feed.js       # coach login, posts, settings, maintenance
 node tools/smoke-email.js      # confirm an address, reset a password, the CSVs
+node tools/smoke-store.js      # the shop, against a Stripe stub it starts itself
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder
 ```
 

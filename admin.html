@@ -194,6 +194,18 @@ textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
 .set-note{font-size:12px;color:var(--muted);margin-top:4px}
 .danger{border-color:var(--err)}
 .danger .sw span:first-of-type{color:var(--err)}
+/* ---- the shop ---- */
+.prod-row{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-top:10px}
+.prod-row.live{border-color:var(--brand)}
+.prod-row .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prod-row .t{font-weight:650;flex:1 1 180px;min-width:0}
+.prod-row .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.money{font-variant-numeric:tabular-nums;font-weight:650}
+table.ord td,table.ord th{text-align:left;white-space:nowrap}
+table.ord td.money{text-align:right}
+table.ord tr.handed td{color:var(--muted)}
+table.ord tr.cancelled td{color:var(--muted);text-decoration:line-through}
+.tiles .tile .l small{display:block;text-transform:none;letter-spacing:0;font-weight:400}
 /* ---- members ---- */
 .switches{margin:12px 0 4px}
 .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;font-weight:650;
@@ -223,7 +235,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=208af0b5"></script>
+<script src="js/i18n.js?v=0b220c7d"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=02d6c4d6"></script>
@@ -616,6 +628,8 @@ function renderStats(data, tips) {
     app.append(sessionsCard());
     app.append(feedCard());
     app.append(membersCard());
+    app.append(shopCard());
+    app.append(ordersCard());
     app.append(settingsCard());
     app.append(exportCard());
     app.append(controls());
@@ -676,6 +690,8 @@ function renderStats(data, tips) {
   app.append(sessionsCard());
   app.append(feedCard());
   app.append(membersCard());
+  app.append(shopCard());
+  app.append(ordersCard());
   app.append(settingsCard());
   app.append(exportCard());
   app.append(controls());
@@ -1143,6 +1159,7 @@ var SETTINGS_FIELDS = [
   { key: "window_before_min", label: "Check-in opens", type: "number", note: "Minutes before the session starts." },
   { key: "window_after_min", label: "…and closes", type: "number", note: "Minutes after it starts." },
   { key: "club_name", label: "Club name", type: "text", note: "" },
+  { key: "currency", label: "Currency", type: "text", note: "Stripe's code: usd, egp, aed, gbp, eur. Change it before anything is sold." },
   { key: "whatsapp_url", label: "Group chat link", type: "text", note: "Shown at the foot of the News tab. Leave empty for none." },
   { key: "announcement_en", label: "Announcement (English)", type: "text", full: true, note: "A line across the top of the app. Empty means none." },
   { key: "announcement_ar", label: "Announcement (العربية)", type: "text", full: true, note: "" }
@@ -1194,6 +1211,14 @@ function settingsCard() {
       el("label", { class: "sw" }, signups, el("span", {}, "Signups open"),
         el("span", { class: "muted small" }, s.signups_open
           ? "Anyone with the link can join." : "Closed — the join form says to ask the coach."))));
+    var shop = el("input", { type: "checkbox" });
+    if (s.store_open) shop.setAttribute("checked", "");
+    shop.addEventListener("change", function () { save({ store_open: shop.checked }); });
+    grid.append(el("div", { class: "full" },
+      el("label", { class: "sw" }, shop, el("span", {}, "Shop open"),
+        el("span", { class: "muted small" }, s.store_open
+          ? "Members see the Shop tab." : "Closed — the Shop tab is hidden."))));
+
     grid.append(el("div", { class: "full" },
       el("label", { class: "sw" }, maint, el("span", {}, "Maintenance mode"),
         el("span", { class: "muted small" }, s.maintenance
@@ -1270,6 +1295,230 @@ function exportCard() {
   card.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
     "Opens in Excel, Numbers or Sheets. Names and emails are in here, so treat the files as you would the club's phone list."),
     row, err);
+  return card;
+}
+
+/* ---- the shop ----
+   Prices are held in the currency's smallest unit, the way Stripe counts, so
+   the form asks for whole money and converts. The coach never sees a card
+   number and neither does this site: paying happens on Stripe's page, and
+   the order only becomes real when their signed webhook says so. */
+function shopCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Shop")));
+  var editor = el("div", {});
+  var list = el("div", {});
+  card.append(editor, list);
+
+  var editing = null;
+  var currency = "usd";
+
+  function money(minor) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() })
+        .format(minor / 100);
+    } catch (e) { return (minor / 100).toFixed(2) + " " + currency.toUpperCase(); }
+  }
+
+  function form() {
+    editor.textContent = "";
+    var nameEn = el("input", { type: "text", maxlength: 80, placeholder: "Club tee" });
+    var nameAr = el("input", { type: "text", maxlength: 80, placeholder: "تي شيرت النادي" });
+    var descEn = el("input", { type: "text", maxlength: 600, placeholder: "Purple, of course." });
+    var descAr = el("input", { type: "text", maxlength: 600, placeholder: "بنفسجي، طبعاً." });
+    var price = el("input", { type: "number", min: "0.01", step: "0.01", placeholder: "250.00" });
+    var options = el("input", { type: "text", maxlength: 120, placeholder: "S,M,L,XL" });
+    var stock = el("input", { type: "number", min: "0", step: "1", placeholder: "leave empty for unlimited" });
+    var active = el("input", { type: "checkbox" });
+    var err = el("p", { class: "err", style: "display:none" });
+
+    if (editing) {
+      nameEn.value = editing.name_en || ""; nameAr.value = editing.name_ar || "";
+      descEn.value = editing.desc_en || ""; descAr.value = editing.desc_ar || "";
+      price.value = (editing.price / 100).toFixed(2);
+      options.value = editing.options || "";
+      stock.value = editing.stock === null ? "" : String(editing.stock);
+      if (editing.active) active.setAttribute("checked", "");
+    }
+
+    function save() {
+      err.style.display = "none";
+      var minor = Math.round(Number(price.value) * 100);
+      if (!Number.isFinite(minor) || minor < 1) {
+        err.textContent = "Give it a price."; err.style.display = ""; return;
+      }
+      post({ action: "save", product: {
+        id: editing ? editing.id : null,
+        name_en: nameEn.value, name_ar: nameAr.value,
+        desc_en: descEn.value, desc_ar: descAr.value,
+        price: minor, options: options.value,
+        stock: stock.value === "" ? null : Number(stock.value),
+        active: active.checked
+      } }).then(function (d) { editing = null; form(); paint(d); })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+    }
+
+    editor.append(el("div", { class: "two", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "Name (English)"), nameEn,
+        el("div", { style: "margin-top:10px" }, el("label", {}, "Description (English)"), descEn)),
+      el("div", { class: "ar" }, el("label", {}, "Name (العربية)"), nameAr,
+        el("div", { style: "margin-top:10px" }, el("label", {}, "Description (العربية)"), descAr))));
+
+    editor.append(el("div", { class: "row", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "Price"), price),
+      el("div", {}, el("label", {}, "Sizes"), options,
+        el("div", { class: "set-note" }, "Comma separated. Leave empty if there is only one of it.")),
+      el("div", {}, el("label", {}, "How many"), stock,
+        el("div", { class: "set-note" }, "Empty means unlimited."))));
+
+    editor.append(el("div", { class: "row", style: "margin-top:10px" },
+      el("div", { style: "flex:0 0 auto" },
+        el("label", { class: "sw" }, active, el("span", {}, "On sale"))),
+      el("div", { style: "flex:0 0 auto" },
+        el("button", { class: "btn primary", onclick: save }, editing ? "Save it" : "Add it")),
+      editing ? el("div", { style: "flex:0 0 auto" },
+        el("button", { class: "btn", onclick: function () { editing = null; form(); } }, "New product")) : null));
+    editor.append(err);
+  }
+
+  function post(payload) { return api("/api/admin/products", payload); }
+
+  function paint(d) {
+    list.textContent = "";
+    if (d && d.stripe === false) {
+      list.append(el("p", { class: "err" },
+        "STRIPE_SECRET_KEY is not set, so nothing can actually be bought. See the README."));
+    }
+    var products = (d && d.products) || [];
+    if (!products.length) {
+      list.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
+        "Nothing in the shop yet. Athletes see the Shop tab only once something is on sale and the shop is open in Settings."));
+      return;
+    }
+    products.forEach(function (p) {
+      var row = el("div", { class: "prod-row" + (p.active ? " live" : "") },
+        el("div", { class: "head" },
+          el("span", { class: "t", dir: "auto" }, p.name_en || p.name_ar || "Untitled"),
+          el("span", { class: "money" }, money(p.price)),
+          p.active ? el("span", { class: "badge" }, "On sale") : el("span", { class: "muted small" }, "hidden"),
+          el("span", { class: "muted small" },
+            (p.options ? p.options + " \u00b7 " : "") +
+            (p.stock === null ? "unlimited" : p.stock + " left"))));
+      row.append(el("div", { class: "acts" },
+        el("button", { class: "btn sm", onclick: function () { editing = p; form(); editor.scrollIntoView({ block: "nearest" }); } }, "Edit"),
+        el("button", { class: "btn sm", onclick: function () {
+          post({ action: "save", product: Object.assign({}, p, { active: !p.active }) })
+            .then(paint)["catch"](function (e) { row.append(el("p", { class: "err" }, e.message)); });
+        } }, p.active ? "Take off sale" : "Put on sale"),
+        el("button", { class: "btn sm", onclick: function () {
+          if (!window.confirm("Delete " + (p.name_en || p.name_ar) + "?")) return;
+          post({ action: "delete", id: p.id }).then(paint)["catch"](function (e) {
+            row.append(el("p", { class: "err" }, e.message));
+          });
+        } }, "Delete")));
+      list.append(row);
+    });
+  }
+
+  form();
+  api("/api/admin/settings", {}).then(function (d) { currency = (d.settings || {}).currency || "usd"; })
+    ["catch"](function () {})
+    .then(function () { return post({ action: "list" }); })
+    .then(paint)["catch"](function (e) {
+      list.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
+    });
+  return card;
+}
+
+/* ---- who is owed one ----
+   The list a coach reads at the track: paid, not yet handed over, oldest
+   first once you scroll. Cancelling here marks the club's record and puts
+   the stock back; the refund itself belongs in Stripe, where the money is. */
+function ordersCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Orders")));
+  var body = el("div", {});
+  card.append(body);
+  var currency = "usd";
+
+  function money(minor, cur) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency: (cur || currency).toUpperCase() })
+        .format(minor / 100);
+    } catch (e) { return (minor / 100).toFixed(2); }
+  }
+  function post(payload) { return api("/api/admin/orders", payload); }
+
+  function paint(d) {
+    body.textContent = "";
+    if (d && d.stripe && d.webhook === false) {
+      body.append(el("p", { class: "err" },
+        "STRIPE_WEBHOOK_SECRET is not set, so Stripe cannot tell the site an order was paid " +
+        "and every order will sit at pending. See the README."));
+    }
+    var orders = (d && d.orders) || [];
+    if (d && (d.to_hand_over || (d.taken || []).length)) {
+      var tiles = el("div", { class: "tiles" },
+        el("div", { class: "tile" },
+          el("div", { class: "n" }, String(d.to_hand_over || 0)),
+          el("div", { class: "l" }, "To hand over")));
+      (d.taken || []).forEach(function (t) {
+        tiles.append(el("div", { class: "tile" },
+          el("div", { class: "n" }, money(t.total, t.currency)),
+          el("div", { class: "l" }, "Taken", el("small", {}, String(t.currency || "").toUpperCase()))));
+      });
+      body.append(tiles);
+    }
+    if (!orders.length) {
+      body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
+        "Nothing bought yet. Only orders that were actually paid for show here."));
+      return;
+    }
+    var head = el("tr", {}, el("th", {}, "Who"), el("th", {}, "What"), el("th", {}, "Paid"),
+      el("th", {}, "When"), el("th", {}, ""));
+    var rows = el("tbody", {});
+    orders.forEach(function (o) {
+      var act = el("div", { class: "acts" });
+      if (o.status === "paid") {
+        var hand = el("button", { class: "btn sm primary", onclick: function () {
+          hand.disabled = true;
+          post({ action: "hand", id: o.id }).then(paint)["catch"](function (e) {
+            hand.disabled = false; body.append(el("p", { class: "err" }, e.message));
+          });
+        } }, "Handed over");
+        act.append(hand);
+      } else if (o.status === "handed") {
+        act.append(el("button", { class: "btn sm", onclick: function () {
+          post({ action: "unhand", id: o.id }).then(paint)["catch"](function (e) {
+            body.append(el("p", { class: "err" }, e.message));
+          });
+        } }, "Not yet"));
+      }
+      if (o.status !== "cancelled") {
+        act.append(el("button", { class: "btn sm", onclick: function () {
+          if (!window.confirm("Mark this order cancelled? Refund it in Stripe separately -- this only " +
+            "changes the club's record and puts the stock back.")) return;
+          post({ action: "cancel", id: o.id }).then(paint)["catch"](function (e) {
+            body.append(el("p", { class: "err" }, e.message));
+          });
+        } }, "Cancel"));
+      }
+      rows.append(el("tr", { class: o.status },
+        el("td", { dir: "auto" }, o.who, el("small", { style: "display:block;color:var(--muted)" }, o.email)),
+        el("td", { dir: "auto" }, o.name + (o.variant ? " \u00b7 " + o.variant : "") + (o.qty > 1 ? " \u00d7 " + o.qty : "")),
+        el("td", { class: "money" }, money(o.amount, o.currency)),
+        el("td", {}, stamp(o.paid_at || o.created_at) || ""),
+        el("td", {}, act)));
+    });
+    body.append(el("div", { class: "scroll" }, el("table", { class: "ord" }, el("thead", {}, head), rows)));
+  }
+
+  api("/api/admin/settings", {}).then(function (d) { currency = (d.settings || {}).currency || "usd"; })
+    ["catch"](function () {})
+    .then(function () { return post({ action: "list" }); })
+    .then(paint)["catch"](function (e) {
+      body.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
+    });
   return card;
 }
 

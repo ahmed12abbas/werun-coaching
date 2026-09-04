@@ -524,6 +524,42 @@ With no key the routes answer `email-off` and the app does not offer either,
 rather than showing a button that goes nowhere. Resend's free tier is a few
 thousand messages a month; the club will send a handful.
 
+### The shop
+
+Optional, like email. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`,
+add something in **/admin → Shop**, and turn **Shop open** on in Settings —
+then a Shop tab appears in the app.
+
+It is deliberately the simplest thing that works: **pay online, collect from
+the coach at the track**. No addresses, no shipping, and so no delivery
+details for the club to look after.
+
+The card never touches this site. The athlete goes to a page Stripe hosts,
+pays there, and the order becomes real only when Stripe's webhook says so —
+and that webhook is checked before a single field of it is read:
+
+| | |
+|---|---|
+| Forged "it was paid" | The body is HMAC-SHA256 signed with `STRIPE_WEBHOOK_SECRET`; a wrong signature is refused |
+| Yesterday's real message, replayed | Signatures more than five minutes old are refused |
+| A body edited after signing | The signature covers the exact bytes, so any edit breaks it |
+| A price changed in the browser | The price is read from the database at checkout, never from the request |
+| Stripe's retries | An order already paid is left alone, so stock never comes down twice |
+
+Stock comes down when the money is real, not when a payment page opens.
+Cancelling an order in the console puts it back and marks the club's record —
+the refund itself belongs in Stripe, which is where the money is.
+
+**Set up the webhook** in Stripe's dashboard: *Developers → Webhooks → Add
+endpoint*, pointing at `https://<your site>/api/stripe/webhook`, subscribed
+to `checkout.session.completed`. Stripe shows the signing secret once; that
+is `STRIPE_WEBHOOK_SECRET`. Without it every order sits at pending for ever,
+and the console says so at the top of the Orders card.
+
+The currency is a setting (`usd`, `egp`, `aed`, `gbp`, `eur` — Stripe's
+codes). Change it before anything is sold; prices are stored in the currency's
+smallest unit.
+
 ### Taking the data with you
 
 **/admin → Take it with you** hands over the members, the whole points ledger
@@ -542,6 +578,7 @@ node tools/smoke.js                                  # accounts, against tools/d
 node tools/smoke-checkin.js                          # publish, sign, scan, void
 node tools/smoke-feed.js                             # coach login, news, settings
 node tools/smoke-email.js                            # confirm, reset, export
+node tools/smoke-store.js                            # the shop, and the webhook
 node tools/qr-test.js                                # the QR encoder, through a decoder
 node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 ```
@@ -577,6 +614,7 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `tools/smoke-checkin.js` | Publishes a session, signs a code, scans it, and tries every way of cheating it |
 | `tools/smoke-feed.js` | Makes a coach, opens the console on that login, posts, schedules, and turns maintenance on and off |
 | `tools/smoke-email.js` | Confirms an address, resets a password, and checks the CSV exports |
+| `tools/smoke-store.js` | Runs the whole shop against a Stripe stub it starts itself, and tries every way of faking a payment |
 | `tools/qr-test.js` | Decodes what `js/qr.js` draws, with a real decoder |
 | `package.json` | The dev tools only — wrangler and the QR test's libraries. Nothing here reaches the athletes |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |

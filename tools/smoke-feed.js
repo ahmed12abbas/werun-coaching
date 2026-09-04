@@ -38,6 +38,15 @@ function who() {
   return it;
 }
 
+/** Poll until it is true, or give up after about fifteen seconds. */
+async function waitFor(fn, tries) {
+  for (let i = 0; i < (tries || 30); i++) {
+    if (await fn()) return true;
+    await new Promise((f) => setTimeout(f, 500));
+  }
+  return false;
+}
+
 function check(name, ok, detail) {
   console.log((ok ? "PASS " : "FAIL ") + name + (ok || !detail ? "" : "  -> " + JSON.stringify(detail)));
   if (!ok) failures++;
@@ -156,9 +165,9 @@ function check(name, ok, detail) {
   /* Maintenance: athletes held, coach working, nobody locked out. */
   r = await coach.call("POST", "/api/admin/settings", { set: { maintenance: true } });
   check("maintenance goes on", r.status === 200 && r.data.settings.maintenance === true, r.status);
-  // The settings cache is per isolate and holds for a minute, so give the
-  // read path its own fresh value rather than racing it.
-  await new Promise((f) => setTimeout(f, 1200));
+  // Settings are cached per isolate for a minute, so watch for the change to
+  // take rather than sleeping a guess.
+  check("…and takes effect", await waitFor(async () => (await athlete.call("GET", "/api/week")).status === 503), "the week stayed open");
 
   r = await athlete.call("GET", "/api/week");
   check("athletes are held out of the week", r.status === 503 && r.data.error === "maintenance", r);
@@ -177,9 +186,7 @@ function check(name, ok, detail) {
   check("…and so does logging out", r.status === 200, r.status);
 
   await coach.call("POST", "/api/admin/settings", { set: { maintenance: false } });
-  await new Promise((f) => setTimeout(f, 1200));
-  r = await athlete.call("GET", "/api/week");
-  check("and the week comes back", r.status === 200, r.status);
+  check("and the week comes back", await waitFor(async () => (await athlete.call("GET", "/api/week")).status === 200), "the week stayed shut");
 
   /* Tidy up what this run added to the feed. */
   r = await coach.call("POST", "/api/admin/posts", { action: "list" });

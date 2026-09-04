@@ -107,3 +107,19 @@ button.day:hover{background:var(--brand-soft)}
 /* ---- the address not yet confirmed ---- */
 .unconfirmed{border-color:var(--warn)}
 .unconfirmed h3{margin:0}
+
+/* ---- the shop ---- */
+/* Five tabs on a phone: let them wrap rather than squeeze the words. */
+.appnav{flex-wrap:wrap}
+.appnav a{flex:1 1 62px}
+.product h3{margin:0}
+.product .price{flex:none;font-family:var(--display);font-size:24px;font-weight:600;line-height:1}
+.product.gone{opacity:.6}
+.few{color:var(--warn);font-size:13px;font-weight:650;margin:0}
+.sizes{display:flex;flex-wrap:wrap}
+.sizes button{flex:1 1 52px}
+select.qty{width:100%;padding:10px 12px;font:inherit;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:11px}
+.order-row{display:flex;align-items:baseline;gap:10px;padding:9px 2px;font-size:14px;flex-wrap:wrap}
+.order-row+.order-row{border-top:1px solid var(--line)}
+.order-row .tag{flex:none;font-size:12px;padding:2px 9px 0}

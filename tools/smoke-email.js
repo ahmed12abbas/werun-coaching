@@ -60,11 +60,11 @@ const tokenOf = (url) => String(url || "").split("/").pop();
     console.log("No DB bound at " + BASE + " — nothing to test here.");
     process.exit(1);
   }
-  if (r.data.warning !== "email-echo-on") {
+  if (!(r.data.warnings || []).includes("email-echo-on")) {
     console.log("EMAIL_ECHO is not on, so the links cannot be followed. Set it in .dev.vars.");
     process.exit(1);
   }
-  check("health admits the echo is on", r.data.warning === "email-echo-on", r.data);
+  check("health admits the echo is on", (r.data.warnings || []).includes("email-echo-on"), r.data);
 
   r = await athlete.call("POST", "/api/auth/signup", { name: "Mail Test", email, password: pw });
   check("a member joins", r.status === 200, r);
