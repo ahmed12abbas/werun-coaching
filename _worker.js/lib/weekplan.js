@@ -26,22 +26,33 @@ export const weekdayOf = (iso) => new Date(iso + "T00:00:00Z").getUTCDay();
  * One read each rather than one per day.
  */
 export async function loadWeek(env, from, to, userId) {
-  const [schedule, changes, published] = await Promise.all([
-    env.DB.prepare("SELECT * FROM schedule WHERE active = 1 ORDER BY at ASC").all(),
-    env.DB.prepare("SELECT * FROM schedule_changes WHERE date BETWEEN ? AND ?").bind(from, to).all(),
-    env.DB.prepare(
-      "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
-        " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
-        " WHERE s.date BETWEEN ? AND ? ORDER BY s.starts_at ASC"
-    )
-      .bind(userId || "", from, to)
-      .all(),
-  ]);
-  return {
-    schedule: schedule.results || [],
-    changes: changes.results || [],
-    published: published.results || [],
-  };
+  const published = await env.DB.prepare(
+    "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
+      " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
+      " WHERE s.date BETWEEN ? AND ? ORDER BY s.starts_at ASC"
+  )
+    .bind(userId || "", from, to)
+    .all();
+
+  // The standing week arrived in a later migration than the code that reads
+  // it, and this project applies migrations by hand — so a database that is
+  // one release behind must still hand an athlete their week, with whatever
+  // the coach has published, rather than five hundred at them. The same rule
+  // the rest of the site follows for a missing binding.
+  let schedule = [];
+  let changes = [];
+  try {
+    const [a, b] = await Promise.all([
+      env.DB.prepare("SELECT * FROM schedule WHERE active = 1 ORDER BY at ASC").all(),
+      env.DB.prepare("SELECT * FROM schedule_changes WHERE date BETWEEN ? AND ?").bind(from, to).all(),
+    ]);
+    schedule = a.results || [];
+    changes = b.results || [];
+  } catch (e) {
+    console.error("week: no standing schedule yet (" + (e && e.message) + ")");
+  }
+
+  return { schedule: schedule, changes: changes, published: published.results || [] };
 }
 
 const publishedItem = (s) => ({
