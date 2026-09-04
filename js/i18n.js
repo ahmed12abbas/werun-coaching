@@ -344,6 +344,17 @@ const STRINGS = {
     "e_bad-code": "That link isn't a check-in code.",
     "e_qr-off": "Check-in isn't switched on yet.",
     "e_no-store": "The club store isn't connected yet.",
+
+    /* the app: the feed */
+    navFeed2: "News",
+    aFeed: "Club news",
+    aNoNews: "Nothing from the coach yet.",
+    aPinned: "Pinned",
+    aCoachTip: "Coach Tips",
+    aWhatsapp: "Open the group chat",
+    aDown: "Back shortly",
+    aDownLead: "The coach is changing something. Your points and check-ins are safe — try again in a few minutes.",
+    e_maintenance: "The club app is down for a moment. Try again shortly.",
   },
 
   ar: {
@@ -671,6 +682,17 @@ const STRINGS = {
     "e_bad-code": "هذا الرابط ليس كود حضور.",
     "e_qr-off": "التسجيل بالكود غير مفعّل بعد.",
     "e_no-store": "مخزن النادي غير متصل بعد.",
+
+    /* the app: الأخبار */
+    navFeed2: "الأخبار",
+    aFeed: "أخبار النادي",
+    aNoNews: "لا جديد من الكوتش بعد.",
+    aPinned: "مثبّت",
+    aCoachTip: "نصائح الكوتش",
+    aWhatsapp: "افتح مجموعة الواتساب",
+    aDown: "نرجع بعد قليل",
+    aDownLead: "الكوتش يعدّل شيئاً. نقاطك وتسجيلات حضورك محفوظة — جرّب بعد دقائق.",
+    e_maintenance: "تطبيق النادي متوقف مؤقتاً. جرّب بعد قليل.",
   },
 };
 

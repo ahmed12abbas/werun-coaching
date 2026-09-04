@@ -2,7 +2,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
-import { withUser, uid, nowISO } from "../lib/auth.js";
+import { withMember, uid, nowISO } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
 import { slotValid } from "../lib/checkin.js";
 import { addPoints, totalFor, streakFor } from "../lib/points.js";
@@ -18,7 +18,7 @@ import { addPoints, totalFor, streakFor } from "../lib/points.js";
  * last one — two taps landing together both pass the read and one loses at
  * the insert, which is the right answer rather than a race worth locking for.
  */
-export const checkin = withUser(async (request, env, user) => {
+export const checkin = withMember(async (request, env, user) => {
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
   // A per-athlete brake: scanning is cheap, but nothing here should be
   // callable in a loop.

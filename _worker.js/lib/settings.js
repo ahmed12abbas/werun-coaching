@@ -12,6 +12,14 @@ export const DEFAULTS = {
   streak_bonus: 5, // …earns this on top
   window_before_min: 30, // check-in opens this long before the start
   window_after_min: 45, // …and closes this long after it
+  club_name: "WE RUN",
+  whatsapp_url: "", // the group, linked from the app's feed
+  announcement_en: "", // a line across the top of the app; empty means none
+  announcement_ar: "",
+  // Athletes see a message instead of the week; coaches carry on working, and
+  // logging in and out keeps working for everyone, so this cannot lock the
+  // club out of its own site.
+  maintenance: false,
 };
 
 const TTL = 60 * 1000;

@@ -13,10 +13,17 @@ const Auth = {
   /** undefined until load() has answered; then a user object or null. */
   user: undefined,
 
+  /** The club's own settings, as /api/auth/me hands them over. */
+  club: {},
+
+  /** Coaches see the console and are never held out by maintenance. */
+  isCoach: () => !!(Auth.user && Auth.user.role === "coach"),
+
   async load() {
     try {
       const r = await API.get("/api/auth/me");
       Auth.user = r.user || null;
+      Auth.club = r.club || {};
     } catch (e) {
       Auth.user = null;
     }
@@ -26,6 +33,10 @@ const Auth = {
   async login(email, password) {
     const r = await API.post("/api/auth/login", { email: email, password: password });
     Auth.user = r.user;
+    // The club's settings come back with the login, so the announcement and
+    // the maintenance switch are right on the first screen after it rather
+    // than only after a reload.
+    Auth.club = r.club || {};
     return r.user;
   },
 
@@ -37,6 +48,7 @@ const Auth = {
       lang: I18N.lang,
     });
     Auth.user = r.user;
+    Auth.club = r.club || {};
     return r.user;
   },
 

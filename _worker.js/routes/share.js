@@ -1,7 +1,7 @@
 /* The share counter and the dashboard that reads it. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual, guessingTooOften } from "../lib/crypto.js";
+import { refuseUnlessCoach } from "../lib/auth.js";
 import { DOC_KEY, readDoc, readFeedback } from "../lib/kv.js";
 import { DAYS, isoWeek, weekStart, dayFromName } from "../lib/week.js";
 import { FB_MAX, feedbackSummary } from "./feedback.js";
@@ -43,15 +43,9 @@ export async function share(request, env) {
  * a browser history entry or an edge access log.
  */
 export async function stats(request, env) {
-  // An unset password locks the dashboard rather than opening it.
-  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
-  const slow = await guessingTooOften(request, env);
-  if (slow) return slow;
-
   const body = await readBody(request);
-  if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {
-    return json({ error: "bad-password" }, 401);
-  }
+  const no = await refuseUnlessCoach(request, env, body);
+  if (no) return no;
 
   if (!env.STATS) return json({ weeks: [], days: DAYS, warning: "no-store" });
 

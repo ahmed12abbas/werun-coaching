@@ -207,9 +207,9 @@ only because the feed is the easy one and the QR is the risky one.
 - App: check-in landing, the week view lights up with check-in state, points screen (total, streak, history), leaderboard (opt-out per athlete for the shy).
 - Done when: a check-in from a scanned code lands points, a screenshot from 2 minutes ago is refused, and a void takes the points back.
 
-### Phase 3 — feed and console
+### Phase 3 — feed and console  ✔ **done 2026-09-04**
 - `posts` CRUD in admin (**Feed** tab; bilingual fields, pin, schedule), `GET /api/feed` in the app with tips merged in.
-- Admin switches from `ADMIN_PASSWORD` to coach login; `tips.html` moves into the console; the password secret retires.
+- Admin takes a coach login **or** the club password. The password did *not* retire: it is what makes the first coach (there is nobody to promote otherwise) and the only way back if an account is lost. `tips.html` stays where it is, linked from the console — the feed and the tips are different features, and moving a working editor for tidiness was not worth the risk.
 - Settings tab with the table above.
 
 ### Phase 4 — trust

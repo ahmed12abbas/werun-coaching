@@ -1,7 +1,7 @@
 /* The club's calendar as the athlete sees it: a week at a time. */
 
 import { json } from "../lib/http.js";
-import { withUser } from "../lib/auth.js";
+import { withMember } from "../lib/auth.js";
 
 const DAY_MS = 86400 * 1000;
 const isoDay = (d) => d.toISOString().slice(0, 10);
@@ -14,7 +14,7 @@ const isoDay = (d) => d.toISOString().slice(0, 10);
  * in. Each day carries the published session, if any, and whether this
  * athlete has checked in to it. Nothing about anyone else.
  */
-export const week = withUser(async (request, env, user) => {
+export const week = withMember(async (request, env, user) => {
   const url = new URL(request.url);
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(url.searchParams.get("start") || "");
   let monday = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : new Date();
@@ -65,7 +65,7 @@ export const week = withUser(async (request, env, user) => {
  * and the same .fit file the share link gives. Members only, because the
  * club's calendar is the club's.
  */
-export const session = withUser(async (request, env, user) => {
+export const session = withMember(async (request, env, user) => {
   const id = new URL(request.url).searchParams.get("id") || "";
   const row = await env.DB.prepare(
     "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +

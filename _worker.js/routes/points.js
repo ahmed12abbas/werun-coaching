@@ -1,7 +1,7 @@
 /* What an athlete has, and where the club stands. */
 
 import { json, readBody } from "../lib/http.js";
-import { withUser } from "../lib/auth.js";
+import { withMember, withUser } from "../lib/auth.js";
 import { totalFor, streakFor } from "../lib/points.js";
 
 const HISTORY = 60;
@@ -10,7 +10,7 @@ const BOARD = 50;
 /* ---------- GET /api/points/me -------------------------------------------- */
 
 /* The number, how it was arrived at, and the run they are on. */
-export const pointsMe = withUser(async (request, env, user) => {
+export const pointsMe = withMember(async (request, env, user) => {
   const rows = await env.DB.prepare(
     "SELECT delta, reason, note, at FROM points_ledger WHERE user_id = ? ORDER BY at DESC LIMIT ?"
   )
@@ -42,7 +42,7 @@ export const pointsMe = withUser(async (request, env, user) => {
  * The caller's own row comes back separately, so an athlete far down a long
  * board still sees where they are without scrolling to find themselves.
  */
-export const pointsBoard = withUser(async (request, env, user) => {
+export const pointsBoard = withMember(async (request, env, user) => {
   const rows = await env.DB.prepare(
     "SELECT u.id, u.name, COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +

@@ -8,7 +8,8 @@
    WebCrypto — nothing here is home-made. */
 
 import { json } from "./http.js";
-import { hex, safeEqual, sha256 } from "./crypto.js";
+import { hex, safeEqual, sha256, guessingTooOften } from "./crypto.js";
+import { getSetting } from "./settings.js";
 
 const COOKIE = "werun_s";
 const SESSION_DAYS = 90;
@@ -145,3 +146,43 @@ export const withCoach = (fn) =>
     if (user.role !== "coach") return json({ error: "not-coach" }, 403);
     return fn(request, env, user);
   });
+
+/**
+ * The athlete-facing reads — the week, a session, the feed, checking in,
+ * points. The same as withUser, plus the maintenance switch.
+ *
+ * Deliberately not applied to logging in, logging out, /me or the password
+ * form: whatever else is switched off, an athlete must always be able to get
+ * into and out of their own account.
+ */
+export const withMember = (fn) =>
+  withUser(async (request, env, user) => {
+    if (user.role !== "coach" && (await getSetting(env, "maintenance"))) {
+      return json({ error: "maintenance" }, 503);
+    }
+    return fn(request, env, user);
+  });
+
+/**
+ * The console's own guard: a coach, known either by their login or by the
+ * club password in the body.
+ *
+ * The password is not retired along with the switch to accounts, because it
+ * is the only way back in if the coach loses their account — and it is how
+ * the first coach gets made in the first place, since a club that has never
+ * had a coach has nobody to promote one. It is rate-limited before it is
+ * compared, and a coach who is logged in never sends it at all.
+ *
+ * Answers with the Response to send instead, or null to go on.
+ */
+export async function refuseUnlessCoach(request, env, body) {
+  if (!env.DB) return json({ error: "no-db" }, 503);
+  const user = await currentUser(request, env);
+  if (user && user.role === "coach" && user.status !== "blocked") return null;
+
+  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
+  if (await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD)) return null;
+  return json({ error: "bad-password" }, 401);
+}

@@ -88,3 +88,18 @@ button.day:hover{background:var(--brand-soft)}
 .sw input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;
   width:18px;height:18px;flex:none;margin:0;padding:0;border:0;border-radius:0;
   background:none;accent-color:var(--brand)}
+
+/* ---- the coach's line across the top ---- */
+.announce{background:var(--brand-soft);color:var(--brand-deep);border:1px solid var(--brand);
+  border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:14px}
+
+/* ---- the feed ---- */
+.post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.post h2{margin:0}
+.post .tag{padding:2px 9px 0}
+.post-body{font-size:14.5px;line-height:1.6}
+.post-body p{margin:0 0 10px}
+.post-body p:last-child,.post-ul:last-child{margin-bottom:0}
+.post-ul{margin:0 0 10px;padding-inline-start:20px}
+.post-ul li{margin-bottom:5px}
+.post.tip{border-color:var(--brand)}

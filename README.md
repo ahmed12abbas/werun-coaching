@@ -469,6 +469,45 @@ carries a signature has no business going through an image service anyway.
 `node tools/qr-test.js` decodes what it draws, which is the only proof worth
 having.
 
+### The news feed
+
+**/admin → Club news** is a two-language editor: title and body in English
+and Arabic on one row, because the group reads in both and a notice that
+exists in one is a notice half the club misses. **Post it now** publishes;
+giving it a date instead schedules it, so Sunday's notice can be written on
+Friday. Pinned posts sit at the top. Athletes read them on the **News** tab,
+alongside whichever Coach Tips article is live.
+
+Body text follows the same rules as the tips (`js/tipfmt.js`): a blank line
+starts a paragraph, `**bold**` emphasises, and a block whose every line opens
+with a dash becomes a list.
+
+### Signing in to the console
+
+`/admin` takes either:
+
+- **a coach's account** — the same email and password as the app, for anyone
+  whose role is `coach`; or
+- **the club password** (`ADMIN_PASSWORD`), which is how the *first* coach is
+  made (unlock, then **Members → Make coach**) and the way back in if an
+  account is ever lost.
+
+So the first time: join at `/app`, unlock `/admin` with the club password,
+make yourself a coach, and from then on just sign in. A logged-in coach sends
+no password anywhere — the browser carries the session cookie.
+
+### The switches
+
+**/admin → Settings** changes what the site does without a deploy: points per
+check-in, the streak bonus and how often it lands, how long the check-in
+window stays open either side of the start, the club name, the group-chat
+link, an announcement that runs across the top of the app in both languages,
+whether signups are open, and maintenance mode.
+
+Maintenance holds athletes at a "back shortly" card instead of the week, the
+news and their points. Coaches carry on working, and logging in and out keeps
+working for everybody — it cannot lock the club out of its own site.
+
 ### Running the tools
 
 ```bash
@@ -478,6 +517,7 @@ npm install    # wrangler and the QR test's two libraries; the site ships none
 ```bash
 node tools/smoke.js                                  # accounts, against tools/dev.js
 node tools/smoke-checkin.js                          # publish, sign, scan, void
+node tools/smoke-feed.js                             # coach login, news, settings
 node tools/qr-test.js                                # the QR encoder, through a decoder
 node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 ```
@@ -511,6 +551,7 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `js/qr.js` | The check-in QR code, written from the standard; no library, no CDN |
 | `tools/smoke.js` | Signs up, logs in, changes a password, reads a week, blocks and unblocks — against the local site or the live one |
 | `tools/smoke-checkin.js` | Publishes a session, signs a code, scans it, and tries every way of cheating it |
+| `tools/smoke-feed.js` | Makes a coach, opens the console on that login, posts, schedules, and turns maintenance on and off |
 | `tools/qr-test.js` | Decodes what `js/qr.js` draws, with a real decoder |
 | `package.json` | The dev tools only — wrangler and the QR test's libraries. Nothing here reaches the athletes |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |

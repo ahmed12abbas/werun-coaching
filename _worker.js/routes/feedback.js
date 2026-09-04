@@ -1,7 +1,7 @@
 /* What athletes said about the sessions, and the coach taking a note down. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual, guessingTooOften } from "../lib/crypto.js";
+import { refuseUnlessCoach } from "../lib/auth.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { FEEDBACK_KEY, readFeedback } from "../lib/kv.js";
 
@@ -100,14 +100,9 @@ export async function feedback(request, env) {
  * athlete wrote, so what the dashboard shows is always their words or nothing.
  */
 export async function feedbackAdmin(request, env) {
-  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
-  const slow = await guessingTooOften(request, env);
-  if (slow) return slow;
-
   const body = await readBody(request);
-  if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {
-    return json({ error: "bad-password" }, 401);
-  }
+  const no = await refuseUnlessCoach(request, env, body);
+  if (no) return no;
   if (!env.STATS) return json({ count: 0, average: 0, spread: [0, 0, 0, 0, 0], items: [] });
 
   const doc = await readFeedback(env.STATS);

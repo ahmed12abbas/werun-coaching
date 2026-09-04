@@ -9,6 +9,8 @@ share link, plus two small server pieces:
 - `app.html` + `js/app.js` — the members' app (hash routes; `js/api.js` for fetches, `js/auth.js` for the current user). CSS is `assets/site.css` (shared with index.html) + `assets/app.css`.
 - `js/qr.js` — the check-in QR code, written from the standard rather than fetched. Change nothing in it without running `node tools/qr-test.js`, which decodes what it draws.
 - Check-in codes are signed with `QR_SECRET` and expire in 30 seconds (`_worker.js/lib/checkin.js`). Points are a ledger, never a stored total (`_worker.js/lib/points.js`): taking something back is another row.
+- `/admin` takes either a coach's login or `ADMIN_PASSWORD` — `refuseUnlessCoach()` in `_worker.js/lib/auth.js`. The password stays because it makes the *first* coach and is the way back in if an account is lost; do not "finish the migration" by deleting it.
+- Athlete reads go through `withMember` (which honours the maintenance switch), account routes through `withUser` (which never does, so nobody is locked out of logging in).
 - `docs/PLATFORM-PLAN.md` — the platform plan (accounts, QR check-in, points, feed, store) and which decisions are settled.
 - `worker/` — a separate Worker for the intervals.icu OAuth bridge. Different deploy, different bindings.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
@@ -43,6 +45,7 @@ uv run --project garmin-mcp python garmin-mcp/test_convert.py garmin-mcp/tools/c
 node .claude/skills/i18n-check/scripts/check.js
 node tools/smoke.js            # accounts end to end, against tools/dev.js (needs the server up)
 node tools/smoke-checkin.js    # publish, sign a code, scan it, void it
+node tools/smoke-feed.js       # coach login, posts, settings, maintenance
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder
 ```
 

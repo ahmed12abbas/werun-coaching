@@ -11,6 +11,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { safeEqual, guessingTooOften } from "../lib/crypto.js";
+import { currentUser } from "../lib/auth.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
@@ -111,21 +112,29 @@ async function tipsAllows(given, env) {
   return ok;
 }
 
+/** A coach who is logged in needs neither password. */
+async function isCoach(request, env) {
+  if (!env.DB) return false;
+  const user = await currentUser(request, env);
+  return !!(user && user.role === "coach" && user.status !== "blocked");
+}
+
 /*
  * The editor behind /tips, and the read-only view of the same articles on
  * /admin. Same shape as /api/stats — password in the body, checked here
  * against secrets the site never ships.
  */
 export async function tipsAdmin(request, env) {
-  if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
-    return json({ error: "not-configured" }, 503);
-  }
-  const slow = await guessingTooOften(request, env);
-  if (slow) return slow;
-
   const body = await readBody(request);
-  if (!(await tipsAllows(String((body && body.password) || ""), env))) {
-    return json({ error: "bad-password" }, 401);
+  if (!(await isCoach(request, env))) {
+    if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
+      return json({ error: "not-configured" }, 503);
+    }
+    const slow = await guessingTooOften(request, env);
+    if (slow) return slow;
+    if (!(await tipsAllows(String((body && body.password) || ""), env))) {
+      return json({ error: "bad-password" }, 401);
+    }
   }
 
   if (!env.STATS) return json({ liveId: null, articles: [], warning: "no-store" });

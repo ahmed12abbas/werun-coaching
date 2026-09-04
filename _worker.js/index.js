@@ -25,15 +25,19 @@
      POST /api/checkin          — a scanned code, into points        (logged in)
      GET  /api/points/me        — total, streak, history             (logged in)
      GET  /api/points/board     — the club leaderboard               (logged in)
+     GET  /api/feed             — the club's posts and the live tip   (logged in)
      POST /api/points/board-visibility — on or off the board         (logged in)
 
-     POST /api/stats            — the dashboard: counts and feedback, password-gated
-     POST /api/feedback-admin   — takes one note down, password-gated
-     POST /api/tips-admin       — the article editor, password-gated
-     POST /api/admin/members    — the members list, block/unblock/role, password-gated
-     POST /api/admin/settings   — the switches, password-gated
-     POST /api/admin/sessions   — publish, roster, void, delete, password-gated
-     POST /api/admin/qr         — the code for the track, password-gated
+   The console's routes take either a coach's login or the club password in
+   the body — refuseUnlessCoach() in lib/auth.js says why it is still both:
+     POST /api/stats            — the dashboard: counts and feedback
+     POST /api/feedback-admin   — takes one note down
+     POST /api/tips-admin       — the article editor
+     POST /api/admin/members    — the members list, block/unblock/role
+     POST /api/admin/settings   — the switches
+     POST /api/admin/sessions   — publish, roster, void, delete
+     POST /api/admin/qr         — the code for the track
+     POST /api/admin/posts      — the feed editor
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the counts, feedback, articles and rate limits
@@ -61,6 +65,7 @@ import { members, settings } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
+import { feed, adminPosts } from "./routes/feed.js";
 
 const POST = {
   "/api/share": share,
@@ -80,6 +85,7 @@ const POST = {
   "/api/admin/settings": settings,
   "/api/admin/sessions": adminSessions,
   "/api/admin/qr": adminQr,
+  "/api/admin/posts": adminPosts,
 };
 const GET = {
   "/api/tips": tips,
@@ -89,6 +95,7 @@ const GET = {
   "/api/session": session,
   "/api/points/me": pointsMe,
   "/api/points/board": pointsBoard,
+  "/api/feed": feed,
 };
 
 export default {

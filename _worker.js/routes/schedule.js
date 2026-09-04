@@ -5,8 +5,7 @@
    Phase 3 moves this behind a coach login; the answers keep their shape. */
 
 import { json, readBody } from "../lib/http.js";
-import { safeEqual, guessingTooOften } from "../lib/crypto.js";
-import { uid, nowISO } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
@@ -14,17 +13,6 @@ import { dayFromName } from "../lib/week.js";
 
 const MAX = { name: 80, payload: 4000 };
 const LIST = 40;
-
-async function allowed(request, body, env) {
-  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
-  const slow = await guessingTooOften(request, env);
-  if (slow) return slow;
-  if (!(await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD))) {
-    return json({ error: "bad-password" }, 401);
-  }
-  if (!env.DB) return json({ error: "no-db" }, 503);
-  return null;
-}
 
 /** Everything the coach's list needs: the session, and how many came. */
 async function sessionList(env) {
@@ -41,7 +29,7 @@ async function sessionList(env) {
 
 export async function adminSessions(request, env) {
   const body = await readBody(request);
-  const no = await allowed(request, body, env);
+  const no = await refuseUnlessCoach(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "list");
@@ -150,7 +138,7 @@ export async function adminSessions(request, env) {
  */
 export async function adminQr(request, env) {
   const body = await readBody(request);
-  const no = await allowed(request, body, env);
+  const no = await refuseUnlessCoach(request, env, body);
   if (no) return no;
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
 

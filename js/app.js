@@ -9,6 +9,7 @@
      #/session/<id>               one session, in full
      #/c/<id>/<slot>/<sig>        what the coach's QR code points at
      #/points                     total, streak, history, the club board
+     #/feed                       what the coach has written for the club
      #/me                         name, language, password, log out
 
    Everything visible goes through t() in js/i18n.js. The header comes from
@@ -95,9 +96,37 @@ function render() {
   document.title = "WE RUN Club";
   app.append(brandBar(null, appBoot));
   if (user) app.append(appNav(r.name));
+
+  const banner = announcement();
+  if (banner) app.append(banner);
+
+  // With the site down, the account screen still works — an athlete must be
+  // able to log out of a club that is mid-repair — and the coach sees
+  // everything, since she is the one doing the repairing.
+  if (Auth.club.maintenance && !Auth.isCoach() && r.name !== "me") {
+    app.append(
+      el(
+        "div",
+        { class: "card pad stack" },
+        el("h2", {}, t("aDown")),
+        el("p", { class: "muted" }, t("aDownLead"))
+      )
+    );
+    return;
+  }
+
   // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
   const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.week;
   app.append(screen(r.args, user));
+}
+
+/** The coach's line across the top of the app, in the reader's language. */
+function announcement() {
+  const text = I18N.lang === "ar"
+    ? Auth.club.announcement_ar || Auth.club.announcement_en
+    : Auth.club.announcement_en || Auth.club.announcement_ar;
+  if (!text) return null;
+  return el("div", { class: "announce", dir: "auto" }, text);
 }
 
 function appNav(current) {
@@ -107,6 +136,7 @@ function appNav(current) {
     "nav",
     { class: "appnav" },
     link("week", t("navWeek")),
+    link("feed", t("navFeed2")),
     link("points", t("navPointsShort")),
     link("me", t("navMe"))
   );
@@ -409,6 +439,103 @@ SCREENS.c = function (args, user) {
 
   return box;
 };
+
+
+/* ---------- the feed ------------------------------------------------------ */
+
+/* The coach's posts, and the article she has live, on one screen. Both are
+   written in two languages; an athlete reads whichever theirs is, falling
+   back to the other rather than to nothing — a notice in Arabic only is
+   still a notice, and hiding it from an English reader helps nobody. */
+SCREENS.feed = function () {
+  const list = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+
+  API.get("/api/feed")
+    .then((d) => {
+      list.textContent = "";
+      if (d.tip) list.append(tipCard(d.tip));
+      for (const p of d.posts) list.append(postCard(p));
+      if (!d.posts.length && !d.tip) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews"))));
+      if (d.whatsapp) {
+        list.append(
+          el(
+            "a",
+            { class: "btn block", href: d.whatsapp, target: "_blank", rel: "noopener noreferrer" },
+            t("aWhatsapp")
+          )
+        );
+      }
+    })
+    .catch((e) => {
+      list.textContent = "";
+      list.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+
+  return list;
+};
+
+/** Whichever side the reader can read, theirs first. */
+function side(obj, key) {
+  const mine = I18N.lang === "ar" ? key + "_ar" : key + "_en";
+  const other = I18N.lang === "ar" ? key + "_en" : key + "_ar";
+  return obj[mine] || obj[other] || "";
+}
+
+/* The same paragraph and **bold** rules the tips use, from js/tipfmt.js, so
+   the coach writes one way for both. */
+function written(text) {
+  const out = [];
+  for (const b of tipBlocks(text)) {
+    if (b.kind === "ul") {
+      const ul = el("ul", { class: "post-ul" });
+      for (const item of b.items) ul.append(el("li", {}, runs(item)));
+      out.push(ul);
+    } else out.push(el("p", {}, runs(b.text)));
+  }
+  return out;
+}
+
+function runs(text) {
+  return tipRuns(text).map((r) => (r.bold ? el("b", {}, r.text) : document.createTextNode(r.text)));
+}
+
+function postCard(p) {
+  const when = p.published_at ? new Date(p.published_at) : null;
+  return el(
+    "article",
+    { class: "card pad stack post", dir: "auto" },
+    el(
+      "div",
+      { class: "post-head" },
+      p.pinned ? el("span", { class: "tag open" }, t("aPinned")) : null,
+      when && !isNaN(when)
+        ? el("span", { class: "muted small" }, when.toLocaleDateString(locale(), { day: "numeric", month: "long" }))
+        : null
+    ),
+    el("h2", {}, side(p, "title")),
+    el("div", { class: "post-body" }, written(side(p, "body")))
+  );
+}
+
+/* The live article, shown here as well as beside the session — the same
+   words, and the same byline the cloud carries. */
+function tipCard(tip) {
+  const s = (tip[I18N.lang] && tip[I18N.lang].title ? tip[I18N.lang] : tip.en.title ? tip.en : tip.ar) || {};
+  if (!s.title && !s.body) return el("div");
+  const ic = el("span", { class: "sign-ic", html: TIP_SIGN.icon });
+  return el(
+    "article",
+    { class: "card pad stack post tip", dir: "auto" },
+    el("div", { class: "post-head" }, el("span", { class: "cloud-kicker" }, t("aCoachTip"))),
+    s.title ? el("h2", {}, s.title) : null,
+    el("div", { class: "post-body" }, written(s.body)),
+    el(
+      "div",
+      { class: "sign-wrap" },
+      el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, ic, el("span", {}, tipSignName(I18N.lang)))
+    )
+  );
+}
 
 /* ---------- points -------------------------------------------------------- */
 

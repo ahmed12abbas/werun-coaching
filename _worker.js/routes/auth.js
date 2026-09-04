@@ -17,6 +17,24 @@ const emailLooksRight = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const cleanName = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.name);
 const cleanLang = (s) => (s === "ar" ? "ar" : "en");
 
+/**
+ * The club's own settings, as a member is allowed to see them: the name, the
+ * announcement in both languages, and whether the site is being worked on.
+ * Never the whole table — the points rules and the check-in window are the
+ * coach's business.
+ *
+ * It rides along with every answer that says who someone is, so the app
+ * learns all of it in requests it was making anyway.
+ */
+async function clubFor(env) {
+  return {
+    name: await getSetting(env, "club_name"),
+    announcement_en: await getSetting(env, "announcement_en"),
+    announcement_ar: await getSetting(env, "announcement_ar"),
+    maintenance: !!(await getSetting(env, "maintenance")),
+  };
+}
+
 /* ---------- POST /api/auth/signup ---------------------------------------- */
 
 /*
@@ -60,7 +78,7 @@ export async function signup(request, env) {
 
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   const token = await createSession(env, id, request);
-  return jsonWithCookie({ user: publicUser(user) }, 200, token);
+  return jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token);
 }
 
 /* ---------- POST /api/auth/login ----------------------------------------- */
@@ -92,7 +110,7 @@ export async function login(request, env) {
   if (user.status === "blocked") return json({ error: "blocked" }, 403);
 
   const token = await createSession(env, user.id, request);
-  return jsonWithCookie({ user: publicUser(user) }, 200, token);
+  return jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token);
 }
 
 /* ---------- POST /api/auth/logout, /api/auth/logout-all ------------------ */
@@ -114,7 +132,7 @@ export const logoutAll = withUser(async (request, env, user) => {
 export async function me(request, env) {
   const user = await currentUser(request, env);
   if (!user || user.status === "blocked") return json({ user: null });
-  return json({ user: publicUser(user) });
+  return json({ user: publicUser(user), club: await clubFor(env) });
 }
 
 /* ---------- POST /api/auth/profile --------------------------------------- */
