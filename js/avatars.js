@@ -10,10 +10,12 @@
    costs a path, not a payload. Nothing here touches the network, and there
    is no image to fetch, resize or compress.
 
-   They do not move. Each is held at one stride — the moment a photographer
-   would take — because at badge size a swinging limb reads as a sprawl
-   rather than as running, and a wall of twelve of them moving at once is a
-   picker nobody can look at.
+   The six people hold still, at the one stride a photographer would take:
+   a swinging arm on a figure this small reads as a sprawl rather than as
+   running. The animals bound and the cars roll, because a four-legged
+   bound and a turning wheel still read at thirty pixels. What moves gets
+   its movement from one shared block of keyframes in assets/app.css, which
+   also stops it for a reader who asked for less motion.
 
    The ids are a contract with the database: _worker.js/routes/auth.js keeps
    the same twelve and refuses anything else, so an avatar is added in both
@@ -25,8 +27,12 @@ const Avatars = (function () {
      side, which is the whole margin trick — the badge that holds this is
      round, so a horse's nose and a car's front wing need somewhere to be
      that is not the rim. Everything below is drawn in plain 0-64. */
-  const open =
-    '<svg viewBox="-4 -4 72 72" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  const head0 =
+    '<svg viewBox="-4 -4 72 72" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+  /** A drawing that stands still. */
+  const still = head0 + ' aria-hidden="true">';
+  /** A drawing that moves; t is its stride, read by the keyframes as --av-t. */
+  const moving = (t) => head0 + ' style="--av-t:' + t + '" aria-hidden="true">';
 
   /* The ground the thing stands on, in the reader's own ink so it is right
      in both themes without a second colour to keep in step. */
@@ -34,6 +40,12 @@ const Avatars = (function () {
 
   const limb = (d, color, w) =>
     '<path d="' + d + '" stroke="' + color + '" stroke-width="' + w + '"/>';
+
+  /* The same, hinged: av-a and av-b are one swing half a stride apart, and
+     the origin is the joint it hangs from, in the drawing's own units. */
+  const swing = (cls, origin, d, color, w) =>
+    '<path class="' + cls + '" style="transform-origin:' + origin + '" d="' + d + '"' +
+    ' stroke="' + color + '" stroke-width="' + w + '"/>';
 
   /* ---------- people ------------------------------------------------------ */
 
@@ -77,7 +89,7 @@ const Avatars = (function () {
     const leg = (d, thigh) =>
       limb(d, o.skin, 5.2) + (o.tights ? limb(thigh, o.shorts, 6.4) : "");
     return (
-      open + shadow +
+      still + shadow +
       /* the far side first, so the near arm and leg draw over it */
       limb("M33 26 24 30l-3-5", o.skin, 4.6) +
       leg("M29 39 21 47l-4 4", "M29 39 22.5 45.5") +
@@ -92,59 +104,67 @@ const Avatars = (function () {
 
   /* ---------- animals ----------------------------------------------------- */
 
-  /* Four legs off two hips, the far pair reaching against the near pair: one
-     frame of a bound. A horse stands taller than a hare, so where the hip is
-     and where the foot lands are the animal's to say. */
+  /* Four legs off two hips: the far pair swings against the near pair, which
+     is what makes a bound rather than a hop. A horse stands taller than a
+     hare, so where the hip is and where the foot lands are the animal's to
+     say — everything else about the four is the same. */
   function legs(coat, back, front, w, hip, foot) {
     const knee = ((hip + foot) / 2 + 1).toFixed(1);
     const drop = (foot - (hip + foot) / 2 - 1).toFixed(1);
-    const leg = (x, out, tuck) =>
-      limb("M" + x + " " + hip + " " + (x + out) + " " + knee + "l" + tuck + " " + drop, coat, w);
-    return leg(back, -5, 3) + leg(front, -4, 4) + leg(back, 4, -3) + leg(front, 5, 3);
+    const leg = (cls, x, out, tuck) =>
+      swing(cls, x + "px " + hip + "px",
+        "M" + x + " " + hip + " " + (x + out) + " " + knee + "l" + tuck + " " + drop, coat, w);
+    return (
+      leg("av-b", back, -5, 3) + leg("av-b", front, -4, 4) +
+      leg("av-a", back, 4, -3) + leg("av-a", front, 5, 3)
+    );
   }
 
   const TAN = "#d9a441", BROWN = "#8a5a2b", GREY = "#9aa2b1", EYE = "#2b2118";
 
   const cheetah =
-    open + shadow +
-    limb("M16 32c-9 1-11 6-13 12", TAN, 3.4) +
-    legs(TAN, 23, 40, 4, 36, 45) +
-    '<path d="M23 33h17" stroke="' + TAN + '" stroke-width="14"/>' +
-    '<path d="M40 32 46 28" stroke="' + TAN + '" stroke-width="9"/>' +
-    '<circle cx="48" cy="26" r="6" fill="' + TAN + '"/>' +
-    '<path d="M45 21.5l.5-4 3.5 2.5" stroke="' + TAN + '" stroke-width="3"/>' +
-    '<circle cx="50" cy="25" r="1.3" fill="' + EYE + '"/>' +
-    '<g fill="#5a3f14" opacity=".65"><circle cx="27" cy="31" r="1.6"/><circle cx="33" cy="34.5" r="1.6"/>' +
-    '<circle cx="37" cy="30" r="1.5"/><circle cx="30" cy="37" r="1.4"/></g>' +
-    "</svg>";
+    moving(".4s") + shadow +
+    '<g class="av-bound">' +
+      swing("av-b", "16px 32px", "M16 32c-9 1-11 6-13 12", TAN, 3.4) +
+      legs(TAN, 23, 40, 4, 36, 45) +
+      '<path d="M23 33h17" stroke="' + TAN + '" stroke-width="14"/>' +
+      '<path d="M40 32 46 28" stroke="' + TAN + '" stroke-width="9"/>' +
+      '<circle cx="48" cy="26" r="6" fill="' + TAN + '"/>' +
+      '<path d="M45 21.5l.5-4 3.5 2.5" stroke="' + TAN + '" stroke-width="3"/>' +
+      '<circle cx="50" cy="25" r="1.3" fill="' + EYE + '"/>' +
+      '<g fill="#5a3f14" opacity=".65"><circle cx="27" cy="31" r="1.6"/><circle cx="33" cy="34.5" r="1.6"/>' +
+      '<circle cx="37" cy="30" r="1.5"/><circle cx="30" cy="37" r="1.4"/></g>' +
+    "</g></svg>";
 
   const horse =
-    open + shadow +
-    limb("M18 29c-6 2-7.5 7-7 12", "#5b3a1c", 3.6) +
-    legs(BROWN, 24, 40, 4.2, 34, 49) +
-    '<path d="M24 31h16" stroke="' + BROWN + '" stroke-width="13"/>' +
-    '<path d="M40 31 45.5 22" stroke="' + BROWN + '" stroke-width="8"/>' +
-    '<path d="M45.5 21 53 18.5" stroke="' + BROWN + '" stroke-width="5.5"/>' +
-    '<path d="M44.5 18l1-4" stroke="' + BROWN + '" stroke-width="2.8"/>' +
-    '<path d="M41 26.5c2.5-3.5 3.5-5.5 4-7.5" stroke="#42280f" stroke-width="3.6"/>' +
-    '<circle cx="49.5" cy="19.5" r="1.1" fill="' + EYE + '"/>' +
-    "</svg>";
+    moving(".52s") + shadow +
+    '<g class="av-bound">' +
+      swing("av-b", "18px 29px", "M18 29c-6 2-7.5 7-7 12", "#5b3a1c", 3.6) +
+      legs(BROWN, 24, 40, 4.2, 34, 49) +
+      '<path d="M24 31h16" stroke="' + BROWN + '" stroke-width="13"/>' +
+      '<path d="M40 31 45.5 22" stroke="' + BROWN + '" stroke-width="8"/>' +
+      '<path d="M45.5 21 53 18.5" stroke="' + BROWN + '" stroke-width="5.5"/>' +
+      '<path d="M44.5 18l1-4" stroke="' + BROWN + '" stroke-width="2.8"/>' +
+      '<path d="M41 26.5c2.5-3.5 3.5-5.5 4-7.5" stroke="#42280f" stroke-width="3.6"/>' +
+      '<circle cx="49.5" cy="19.5" r="1.1" fill="' + EYE + '"/>' +
+    "</g></svg>";
 
   const hare =
-    open + shadow +
-    legs(GREY, 25, 39, 4, 36, 45) +
-    '<path d="M25 34h13" stroke="' + GREY + '" stroke-width="15"/>' +
-    '<circle cx="20" cy="32" r="3.4" fill="#e9ecf2"/>' +
-    '<circle cx="44" cy="29" r="6.5" fill="' + GREY + '"/>' +
-    limb("M43 25c-1.5-6-.5-9 1.5-11", GREY, 3.4) +
-    limb("M45 25c1-6 3-8.5 5-10.5", GREY, 3.4) +
-    '<circle cx="47" cy="28" r="1.3" fill="' + EYE + '"/>' +
-    "</svg>";
+    moving(".34s") + shadow +
+    '<g class="av-bound">' +
+      legs(GREY, 25, 39, 4, 36, 45) +
+      '<path d="M25 34h13" stroke="' + GREY + '" stroke-width="15"/>' +
+      '<circle cx="20" cy="32" r="3.4" fill="#e9ecf2"/>' +
+      '<circle cx="44" cy="29" r="6.5" fill="' + GREY + '"/>' +
+      swing("av-b", "43px 25px", "M43 25c-1.5-6-.5-9 1.5-11", GREY, 3.4) +
+      swing("av-a", "45px 25px", "M45 25c1-6 3-8.5 5-10.5", GREY, 3.4) +
+      '<circle cx="47" cy="28" r="1.3" fill="' + EYE + '"/>' +
+    "</g></svg>";
 
   /* ---------- cars -------------------------------------------------------- */
 
-  /* Tyre, hub, three spokes. A cross drawn right across the tyre reads as a
-     gunsight at badge size, which is why the spokes stay inside the hub. */
+  /* Tyre, hub, three spokes, and only the spokes turn. A cross drawn right
+     across the tyre reads as a gunsight at badge size. */
   function wheel(x, y, r) {
     const hub = r * 0.52;
     let spokes = "";
@@ -157,45 +177,48 @@ const Avatars = (function () {
     return (
       '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#23212e"/>' +
       '<circle cx="' + x + '" cy="' + y + '" r="' + hub.toFixed(1) + '" fill="#c3c7d2"/>' +
-      '<g stroke="#6b7180" stroke-width="1.4">' + spokes + "</g>"
+      '<g class="av-wheel" style="transform-origin:' + x + 'px ' + y + 'px"' +
+        ' stroke="#6b7180" stroke-width="1.4">' + spokes + "</g>"
     );
   }
 
-  /* The air the car is leaving behind — the one thing here that says speed
-     without moving. Again in the reader's own ink. */
+  /* The air the car is leaving behind, again in the reader's own ink. */
   const zip =
-    '<g stroke="currentColor" stroke-width="2.6" opacity=".38">' +
+    '<g class="av-zip" stroke="currentColor" stroke-width="2.6" opacity=".38">' +
     '<path d="M3 25h12"/><path d="M1 33h8"/></g>';
 
   const formula =
-    open + zip + shadow +
-    '<path d="M8 29h12v3.4H8z" fill="#e11d48"/>' +
-    '<path d="M14 32.4v6" stroke="#e11d48" stroke-width="2.6"/>' +
-    /* one outline for the whole car: floor, the hump the driver sits in,
-       and the nose tapering away to the front wing */
-    '<path d="M10 38h13l3-5h8l4 5h14l7 2.5v5.5H10z" fill="#e11d48"/>' +
-    '<path d="M50 47h11v3H50z" fill="#b3123a"/>' +
-    '<circle cx="29.5" cy="34.6" r="3.3" fill="#eef0f5"/>' +
-    '<path d="M31.2 34h2.6" stroke="#23212e" stroke-width="1.7"/>' +
-    wheel(18.5, 46.5, 6.8) + wheel(45, 46.5, 6.8) +
-    "</svg>";
+    moving(".28s") + zip + shadow +
+    '<g class="av-bob">' +
+      '<path d="M8 29h12v3.4H8z" fill="#e11d48"/>' +
+      '<path d="M14 32.4v6" stroke="#e11d48" stroke-width="2.6"/>' +
+      /* one outline for the whole car: floor, the hump the driver sits in,
+         and the nose tapering away to the front wing */
+      '<path d="M10 38h13l3-5h8l4 5h14l7 2.5v5.5H10z" fill="#e11d48"/>' +
+      '<path d="M50 47h11v3H50z" fill="#b3123a"/>' +
+      '<circle cx="29.5" cy="34.6" r="3.3" fill="#eef0f5"/>' +
+      '<path d="M31.2 34h2.6" stroke="#23212e" stroke-width="1.7"/>' +
+      wheel(18.5, 46.5, 6.8) + wheel(45, 46.5, 6.8) +
+    "</g></svg>";
 
   const rally =
-    open + zip + shadow +
-    '<path d="M7 33h9v3.5H7z" fill="#1d4ed8"/>' +
-    '<path d="M8 47v-8l7-2 7-7h14l8 7 12 2v8z" fill="#2563eb"/>' +
-    '<path d="M23 32h8v5H17z" fill="#cfe3ff" opacity=".9"/><path d="M33 32h2l5 5h-7z" fill="#cfe3ff" opacity=".9"/>' +
-    '<path d="M50 41h5" stroke="#ffd15c" stroke-width="3"/>' +
-    wheel(20, 45, 7.5) + wheel(45, 45, 7.5) +
-    "</svg>";
+    moving(".3s") + zip + shadow +
+    '<g class="av-bob">' +
+      '<path d="M7 33h9v3.5H7z" fill="#1d4ed8"/>' +
+      '<path d="M8 47v-8l7-2 7-7h14l8 7 12 2v8z" fill="#2563eb"/>' +
+      '<path d="M23 32h8v5H17z" fill="#cfe3ff" opacity=".9"/><path d="M33 32h2l5 5h-7z" fill="#cfe3ff" opacity=".9"/>' +
+      '<path d="M50 41h5" stroke="#ffd15c" stroke-width="3"/>' +
+      wheel(20, 45, 7.5) + wheel(45, 45, 7.5) +
+    "</g></svg>";
 
   const supercar =
-    open + zip + shadow +
-    '<path d="M6 47v-5l9-3 11-6h11l13 7 9 3v4z" fill="#f59e0b"/>' +
-    '<path d="M25 36l3-4h8l6 4z" fill="#2b2f3a" opacity=".85"/>' +
-    '<path d="M7 41h6" stroke="#c2410c" stroke-width="2.5"/><path d="M53.5 42.6h3" stroke="#fff2c2" stroke-width="2.4"/>' +
-    wheel(20, 45.5, 7) + wheel(46, 45.5, 7) +
-    "</svg>";
+    moving(".26s") + zip + shadow +
+    '<g class="av-bob">' +
+      '<path d="M6 47v-5l9-3 11-6h11l13 7 9 3v4z" fill="#f59e0b"/>' +
+      '<path d="M25 36l3-4h8l6 4z" fill="#2b2f3a" opacity=".85"/>' +
+      '<path d="M7 41h6" stroke="#c2410c" stroke-width="2.5"/><path d="M53.5 42.6h3" stroke="#fff2c2" stroke-width="2.4"/>' +
+      wheel(20, 45.5, 7) + wheel(46, 45.5, 7) +
+    "</g></svg>";
 
   /* ---------- the twelve --------------------------------------------------- */
 
