@@ -134,13 +134,20 @@ jobs:
           echo "KV namespace list:  HTTP $kv"
           echo "D1 database list:   HTTP $d1"
 
+          # Whatever is bound right now. A namespace that is already on the
+          # project needs no lookup to re-send, so a token that can only read
+          # Pages is enough to change everything else about the bindings.
+          EXISTING_NS=$(jq -r '.result.deployment_configs.production.kv_namespaces.STATS.namespace_id // empty' /tmp/p.json 2>/dev/null || true)
+          echo "EXISTING_NS=$EXISTING_NS" >> "$GITHUB_ENV"
+          [ -n "$EXISTING_NS" ] && echo "STATS is already bound; its id can be reused." || true
+
           ok=yes
           if [ "$pages" != "200" ]; then
             ok=no
             echo "::error::The token cannot read the '$PROJECT' Pages project (HTTP $pages)."\
                  "A 404 means CLOUDFLARE_ACCOUNT_ID points at the wrong account."
           fi
-          if [ -n "${NS_INPUT}" ] || [ "${UNBIND}" = "true" ]; then
+          if [ -n "${NS_INPUT}" ] || [ "${UNBIND}" = "true" ] || [ -n "$EXISTING_NS" ]; then
             echo "Not looking anything up on this run, so the KV API is not needed."
           elif [ "$kv" != "200" ]; then
             ok=no
@@ -173,6 +180,13 @@ jobs:
           if [ -n "${NS_INPUT}" ]; then
             echo "Using the namespace id given on the run: ${NS_INPUT}"
             echo "id=${NS_INPUT}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # What the project already has beats anything we could look up: it is
+          # the binding that is actually live, and reading it cost no KV grant.
+          if [ -n "${EXISTING_NS:-}" ]; then
+            echo "Reusing the namespace already bound to the project: ${EXISTING_NS}"
+            echo "id=${EXISTING_NS}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
