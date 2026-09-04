@@ -225,15 +225,85 @@ function genderSelect(value) {
   return sel;
 }
 
-function yearInput(value) {
-  const now = new Date().getFullYear();
+/* The form asks for an age, because that is the number a runner knows about
+   themselves; the database keeps the birth year, because an age written down
+   is wrong from the next birthday on and nobody ever comes back to correct
+   it. The two meet here and nowhere else. */
+const thisYear = () => new Date().getFullYear();
+const ageOf = (birthYear) => (birthYear ? thisYear() - birthYear : null);
+const yearOfAge = (age) => {
+  const n = Math.round(Number(String(age).trim()));
+  return String(age).trim() === "" || !Number.isFinite(n) ? "" : String(thisYear() - n);
+};
+
+function ageInput(birthYear) {
+  // The same window the Worker allows, said in the other unit: 5 to 100.
   const input = el("input", {
-    type: "number", id: "f-year", inputmode: "numeric",
-    min: String(now - 100), max: String(now - 5), step: "1",
-    placeholder: String(now - 30),
+    type: "number", id: "f-age", inputmode: "numeric",
+    min: "5", max: "100", step: "1", placeholder: "30",
   });
-  if (value) input.value = String(value);
+  const age = ageOf(birthYear);
+  if (age) input.value = String(age);
   return input;
+}
+
+/** The first letter of a name, for a member who has not picked a face. */
+const initialOf = (name) => (String(name || "").trim()[0] || "?").toUpperCase();
+
+/** One badge: their avatar if they chose one, their initial if they did not. */
+function avatarNode(id, name, size) {
+  const box = el("span", { class: "avatar" + (size ? " " + size : "") });
+  if (id && Avatars.has(id)) box.innerHTML = Avatars.svg(id);
+  else box.append(el("span", { class: "letter" }, initialOf(name)));
+  return box;
+}
+
+/**
+ * Twelve faces and a way out of them.
+ *
+ * The pick rides on the profile form rather than saving on the tap, so trying
+ * them all costs one write and a stray tap costs none. Hands back the node
+ * and a reader for what is selected.
+ */
+function avatarPicker(user) {
+  let chosen = Avatars.has(user.avatar) ? user.avatar : "";
+  const face = el("span", { class: "avatar lg" });
+  const opts = [];
+
+  function paint() {
+    face.textContent = "";
+    if (chosen) face.innerHTML = Avatars.svg(chosen);
+    else face.append(el("span", { class: "letter" }, initialOf(user.name)));
+    for (const [id, btn] of opts) btn.setAttribute("aria-pressed", id === chosen ? "true" : "false");
+  }
+
+  const opt = (id, cls, kid) => {
+    // The drawings carry no words of their own, so the name is the button's.
+    const said = Avatars.NAME[id] ? t(Avatars.NAME[id]) : null;
+    const btn = el(
+      "button",
+      { type: "button", class: cls, title: said, "aria-label": said,
+        onclick: () => { chosen = id; paint(); } },
+      kid
+    );
+    opts.push([id, btn]);
+    return btn;
+  };
+
+  const node = el(
+    "div",
+    { class: "stack" },
+    el("div", { class: "row", style: "gap:14px;align-items:center" }, face,
+      el("div", {}, el("label", {}, t("aAvatar")), el("p", { class: "hint" }, t("aAvatarHint")))),
+    el("div", { class: "avpick" }, Avatars.GROUPS.map((g) =>
+      el("div", { class: "avgroup" },
+        el("span", { class: "avlabel" }, t(g.label)),
+        el("div", { class: "avrow" }, g.ids.map((id) => opt(id, "avopt", avatarNode(id, "", null))))))),
+    opt("", "btn sm avnone", t("aAvNone"))
+  );
+
+  paint();
+  return { node: node, value: () => chosen };
 }
 
 /* ---------- screens ------------------------------------------------------ */
@@ -275,7 +345,7 @@ SCREENS.signup = function () {
   const email = el("input", { type: "email", id: "f-email", autocomplete: "username", inputmode: "email", required: true });
   const pw = el("input", { type: "password", id: "f-pw", autocomplete: "new-password", minlength: 8, required: true });
   const gender = genderSelect("");
-  const year = yearInput(null);
+  const age = ageInput(null);
   const err = el("p", { class: "form-err hidden" });
   const btn = el("button", { class: "btn primary lg block", type: "submit" }, t("aSignup"));
   const form = el(
@@ -287,7 +357,7 @@ SCREENS.signup = function () {
         submitting(btn, err, () =>
           Auth.signup(name.value, email.value.trim(), pw.value, {
             gender: gender.value,
-            birth_year: year.value,
+            birth_year: yearOfAge(age.value),
           }).then(afterLogin)
         );
       },
@@ -296,7 +366,7 @@ SCREENS.signup = function () {
     field("aEmail", email),
     field("aPassword", pw, t("aPwHint")),
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
-      el("div", {}, el("label", { for: "f-year" }, t("aBirthYear")), year)),
+      el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
     el("p", { class: "hint" }, t("aBirthHint")),
     err,
     btn
@@ -1230,6 +1300,7 @@ SCREENS.points = function () {
               "div",
               { class: "board-row" + (r.me ? " me" : "") },
               el("span", { class: "place num" }, String(r.place)),
+              avatarNode(r.avatar, r.name, "sm"),
               el("span", { class: "who grow", dir: "auto" }, r.me ? t("aYouAre") : r.name),
               el("span", { class: "pts num" }, String(r.points))
             )
@@ -1291,7 +1362,8 @@ SCREENS.me = function (args, user) {
   /* name + language */
   const name = el("input", { type: "text", id: "f-name", value: user.name, maxlength: 40, autocomplete: "name" });
   const gender = genderSelect(user.gender);
-  const year = yearInput(user.birth_year);
+  const age = ageInput(user.birth_year);
+  const avatar = avatarPicker(user);
   const saveErr = el("p", { class: "form-err hidden" });
   const saveOk = el("p", { class: "form-ok hidden" });
   const saveBtn = el("button", { class: "btn primary", type: "submit" }, t("aSave"));
@@ -1322,7 +1394,12 @@ SCREENS.me = function (args, user) {
         e.preventDefault();
         saveOk.classList.add("hidden");
         submitting(saveBtn, saveErr, () =>
-          Auth.update({ name: name.value, gender: gender.value, birth_year: year.value }).then(() => {
+          Auth.update({
+            name: name.value,
+            gender: gender.value,
+            birth_year: yearOfAge(age.value),
+            avatar: avatar.value(),
+          }).then(() => {
             saveOk.textContent = t("aSaved");
             saveOk.classList.remove("hidden");
             toast(t("aSaved"));
@@ -1330,11 +1407,10 @@ SCREENS.me = function (args, user) {
         );
       },
     },
+    avatar.node,
     field("aName", name),
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
-      el("div", {}, el("label", { for: "f-year" }, t("aBirthYear")),
-        year,
-        user.birth_year ? el("p", { class: "hint" }, t("aAge", { n: new Date().getFullYear() - user.birth_year })) : null)),
+      el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),
     saveErr,

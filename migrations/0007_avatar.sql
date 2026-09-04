@@ -1,0 +1,12 @@
+-- The face a member wears beside their name.
+--
+-- One of twelve ids drawn in js/avatars.js — never a URL and never an upload:
+-- there is no bucket to fill, nothing to moderate, and nothing that can point
+-- the club's page at somebody else's server. Empty is a real answer and the
+-- default, and it shows as the member's own initial.
+--
+-- No CHECK constraint, for the same reason 0006 has none: the Worker is the
+-- only writer and already refuses anything outside the twelve, so the clause
+-- would repeat the rule rather than add one — and a thirteenth avatar would
+-- then need a table rebuild in a console that is pasted into by hand.
+ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT '';

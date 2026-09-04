@@ -3,6 +3,7 @@
 import { json, readBody } from "../lib/http.js";
 import { withMember, withUser } from "../lib/auth.js";
 import { totalFor, streakFor } from "../lib/points.js";
+import { hasColumn } from "../lib/columns.js";
 
 const HISTORY = 60;
 const BOARD = 50;
@@ -43,8 +44,11 @@ export const pointsMe = withMember(async (request, env, user) => {
  * board still sees where they are without scrolling to find themselves.
  */
 export const pointsBoard = withMember(async (request, env, user) => {
+  // Until 0007 is applied there is no column to read, and everyone is on the
+  // board as their initial — which is what an empty avatar means anyway.
+  const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name, COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name," + face + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" +
@@ -56,6 +60,7 @@ export const pointsBoard = withMember(async (request, env, user) => {
   const board = (rows.results || []).map((r, i) => ({
     place: i + 1,
     name: r.name,
+    avatar: r.avatar || "",
     points: r.points,
     sessions: r.sessions,
     me: r.id === user.id,

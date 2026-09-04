@@ -25,6 +25,17 @@ const cleanLang = (s) => (s === "ar" ? "ar" : "en");
 const GENDERS = ["woman", "man", "other"];
 const cleanGender = (s) => (GENDERS.includes(String(s || "")) ? String(s) : "");
 
+/* The twelve drawings in js/avatars.js, by id. The list lives in both places
+   on purpose: the page needs it to draw the picker and the Worker needs it to
+   refuse everything else, and there is no bundler here to share one copy.
+   Anything unrecognised becomes "" — the member's initial — rather than an
+   error, so an old app that sends a retired id still saves its other fields. */
+const AVATARS = [
+  "m1", "m2", "m3", "f1", "f2", "f3",
+  "cheetah", "horse", "hare", "formula", "rally", "supercar",
+];
+const cleanAvatar = (s) => (AVATARS.includes(String(s || "")) ? String(s) : "");
+
 /* A birth year, or nothing. The bounds are the ones a person could
    plausibly have: a typo of 1090 or 2190 is not a runner. */
 function cleanYear(v) {
@@ -185,17 +196,34 @@ export const profile = withUser(async (request, env, user) => {
   const gender = body.gender != null ? cleanGender(body.gender) : user.gender || "";
   const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
+  const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
 
+  // Only the columns this database actually has: 0006 and 0007 are applied by
+  // hand here, so between a deploy and its migration the name and the language
+  // must still save rather than the whole form failing on a column nobody made
+  // yet. Both branches come out once the migrations are in.
+  const sets = ["name = ?", "lang = ?"];
+  const vals = [name, lang];
+  // What went in is what comes back: a field the database could not hold is
+  // not echoed as though it had been kept, or the app shows an avatar that
+  // the next reload takes away again.
+  const saved = { name: name, lang: lang };
   if (await hasColumn(env, "users", "birth_year")) {
-    await env.DB.prepare("UPDATE users SET name = ?, lang = ?, gender = ?, birth_year = ? WHERE id = ?")
-      .bind(name, lang, gender, birthYear, user.id)
-      .run();
-  } else {
-    await env.DB.prepare("UPDATE users SET name = ?, lang = ? WHERE id = ?").bind(name, lang, user.id).run();
+    sets.push("gender = ?", "birth_year = ?");
+    vals.push(gender, birthYear);
+    saved.gender = gender;
+    saved.birth_year = birthYear;
   }
-  return json({
-    user: publicUser(Object.assign({}, user, { name: name, lang: lang, gender: gender, birth_year: birthYear })),
-  });
+  if (await hasColumn(env, "users", "avatar")) {
+    sets.push("avatar = ?");
+    vals.push(avatar);
+    saved.avatar = avatar;
+  }
+  await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
+    .bind(...vals, user.id)
+    .run();
+
+  return json({ user: publicUser(Object.assign({}, user, saved)) });
 });
 
 /* ---------- POST /api/auth/password -------------------------------------- */
