@@ -508,6 +508,29 @@ Maintenance holds athletes at a "back shortly" card instead of the week, the
 news and their points. Coaches carry on working, and logging in and out keeps
 working for everybody — it cannot lock the club out of its own site.
 
+### Email, if you want it
+
+Optional, and the site is complete without it. Set `RESEND_API_KEY` as a repo
+secret and `EMAIL_FROM` as a repo *variable* (`WE RUN <coach@yourdomain>`),
+run the bindings workflow, and two things switch on:
+
+- **Confirm your email** — a line on the Me tab with a button. Nothing is
+  gated on it; it marks the account and shows the coach a tick in Members.
+- **Forgotten your password** — the one that matters. Without it an athlete
+  who forgets has no way back into their points at all. The link is good for
+  one hour and once, and using it logs every other device out.
+
+With no key the routes answer `email-off` and the app does not offer either,
+rather than showing a button that goes nowhere. Resend's free tier is a few
+thousand messages a month; the club will send a handful.
+
+### Taking the data with you
+
+**/admin → Take it with you** hands over the members, the whole points ledger
+and every check-in as CSV, opening in Excel, Numbers or Sheets. Fields that
+look like spreadsheet formulas are quoted out, and the files carry names and
+email addresses — treat them as you would the club's phone list.
+
 ### Running the tools
 
 ```bash
@@ -518,6 +541,7 @@ npm install    # wrangler and the QR test's two libraries; the site ships none
 node tools/smoke.js                                  # accounts, against tools/dev.js
 node tools/smoke-checkin.js                          # publish, sign, scan, void
 node tools/smoke-feed.js                             # coach login, news, settings
+node tools/smoke-email.js                            # confirm, reset, export
 node tools/qr-test.js                                # the QR encoder, through a decoder
 node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 ```
@@ -552,6 +576,7 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `tools/smoke.js` | Signs up, logs in, changes a password, reads a week, blocks and unblocks — against the local site or the live one |
 | `tools/smoke-checkin.js` | Publishes a session, signs a code, scans it, and tries every way of cheating it |
 | `tools/smoke-feed.js` | Makes a coach, opens the console on that login, posts, schedules, and turns maintenance on and off |
+| `tools/smoke-email.js` | Confirms an address, resets a password, and checks the CSV exports |
 | `tools/qr-test.js` | Decodes what `js/qr.js` draws, with a real decoder |
 | `package.json` | The dev tools only — wrangler and the QR test's libraries. Nothing here reaches the athletes |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |

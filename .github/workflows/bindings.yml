@@ -15,9 +15,12 @@ name: Set up the Cloudflare bindings
 #   Get-Content pw.txt | gh secret set TIPS_PASSWORD
 #
 # ADMIN_PASSWORD is optional and unlocks /admin the same way. QR_SECRET signs
-# the check-in codes (any long random string; `openssl rand -hex 32`). None of
-# the values is ever printed: all are masked in the log, and the request body
-# is written to a file rather than an echoed command line.
+# the check-in codes (any long random string; `openssl rand -hex 32`).
+# RESEND_API_KEY is optional and switches on the confirmation and
+# password-reset mail; set the repo *variable* EMAIL_FROM alongside it to say
+# who that mail comes from. None of the secret values is ever printed: all are
+# masked in the log, and the request body is written to a file rather than an
+# echoed command line.
 #
 # The token needs Pages:Edit, Workers KV Storage:Edit and D1:Edit.
 
@@ -51,6 +54,8 @@ jobs:
       TIPS_PASSWORD: ${{ secrets.TIPS_PASSWORD }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       QR_SECRET: ${{ secrets.QR_SECRET }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM }}
       PROJECT: weruncoaching
       KV_TITLE: werun-stats
       D1_NAME: werun-db
@@ -69,6 +74,7 @@ jobs:
           [ -n "${TIPS_PASSWORD}" ] && echo "::add-mask::${TIPS_PASSWORD}" || true
           [ -n "${ADMIN_PASSWORD}" ] && echo "::add-mask::${ADMIN_PASSWORD}" || true
           [ -n "${QR_SECRET}" ] && echo "::add-mask::${QR_SECRET}" || true
+          [ -n "${RESEND_API_KEY}" ] && echo "::add-mask::${RESEND_API_KEY}" || true
           echo "done"
 
       - name: Check what we have to work with
@@ -89,6 +95,8 @@ jobs:
           echo "TIPS_PASSWORD set:  $([ -n "${TIPS_PASSWORD}" ] && echo yes || echo no)"
           echo "ADMIN_PASSWORD set: $([ -n "${ADMIN_PASSWORD}" ] && echo yes || echo no)"
           echo "QR_SECRET set:      $([ -n "${QR_SECRET}" ] && echo yes || echo no)"
+          echo "RESEND_API_KEY set: $([ -n "${RESEND_API_KEY}" ] && echo yes || echo no)"
+          echo "EMAIL_FROM:         ${EMAIL_FROM:-(unset — a Resend test sender is used)}"
           if [ -z "${QR_SECRET}" ]; then
             echo "::warning::QR_SECRET is not set — check-in codes stay off until it is."
           fi
@@ -262,7 +270,9 @@ jobs:
             --arg db "${DB}" \
             --arg tips "${TIPS_PASSWORD}" \
             --arg admin "${ADMIN_PASSWORD}" \
-            --arg qr "${QR_SECRET}" '
+            --arg qr "${QR_SECRET}" \
+            --arg resend "${RESEND_API_KEY}" \
+            --arg mailfrom "${EMAIL_FROM}" '
             {
               deployment_configs: {
                 production: (
@@ -271,7 +281,9 @@ jobs:
                     env_vars: {} }
                   | if $tips  != "" then .env_vars.TIPS_PASSWORD  = { type: "secret_text", value: $tips  } else . end
                   | if $admin != "" then .env_vars.ADMIN_PASSWORD = { type: "secret_text", value: $admin } else . end
-                  | if $qr    != "" then .env_vars.QR_SECRET      = { type: "secret_text", value: $qr    } else . end
+                  | if $qr     != "" then .env_vars.QR_SECRET      = { type: "secret_text", value: $qr     } else . end
+                  | if $resend != "" then .env_vars.RESEND_API_KEY = { type: "secret_text", value: $resend } else . end
+                  | if $mailfrom != "" then .env_vars.EMAIL_FROM  = { type: "plain_text",  value: $mailfrom } else . end
                 )
               }
             }' > /tmp/patch.json

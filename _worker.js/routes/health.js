@@ -18,7 +18,12 @@ export async function health(request, env) {
     admin: !!env.ADMIN_PASSWORD,
     tips: !!(env.TIPS_PASSWORD || env.ADMIN_PASSWORD),
     qr: !!env.QR_SECRET,
+    email: !!env.RESEND_API_KEY,
   };
+  // Never set on the live site: it hands the confirmation and password-reset
+  // links back in the response instead of mailing them. Reported here so that
+  // if it ever is set, it says so on a page anyone can open.
+  if (env.EMAIL_ECHO === "1") out.warning = "email-echo-on";
   if (env.DB) {
     try {
       const row = await env.DB.prepare(

@@ -20,6 +20,10 @@
      GET  /api/auth/me          — who am I; null when nobody
      POST /api/auth/profile     — name, language         (logged in)
      POST /api/auth/password    — change password        (logged in)
+     POST /api/auth/verify/send — post me a confirmation link (logged in)
+     POST /api/auth/verify      — spend that link
+     POST /api/auth/reset/request — post me a new-password link
+     POST /api/auth/reset       — spend that link
      GET  /api/week?start=      — seven days of sessions (logged in)
      GET  /api/session?id=      — one session, payload and all (logged in)
      POST /api/checkin          — a scanned code, into points        (logged in)
@@ -38,6 +42,7 @@
      POST /api/admin/sessions   — publish, roster, void, delete
      POST /api/admin/qr         — the code for the track
      POST /api/admin/posts      — the feed editor
+     POST /api/admin/export     — members, points or check-ins as CSV
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the counts, feedback, articles and rate limits
@@ -45,6 +50,8 @@
      ADMIN_PASSWORD  secret the dashboard checks against
      TIPS_PASSWORD   secret the article editor also accepts
      QR_SECRET       signs the check-in codes
+     RESEND_API_KEY  sends the confirmation and password-reset mail (optional)
+     EMAIL_FROM      who that mail comes from, e.g. "WE RUN <coach@…>"
    Without them the site still works: sharing just is not counted, the
    dashboard stays locked rather than falling open, and the platform routes
    answer "no-db" instead of crashing.
@@ -66,6 +73,8 @@ import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
 import { feed, adminPosts } from "./routes/feed.js";
+import { verifySend, verify, resetRequest, reset } from "./routes/email.js";
+import { adminExport } from "./routes/export.js";
 
 const POST = {
   "/api/share": share,
@@ -79,6 +88,10 @@ const POST = {
   "/api/auth/logout-all": logoutAll,
   "/api/auth/profile": profile,
   "/api/auth/password": password,
+  "/api/auth/verify/send": verifySend,
+  "/api/auth/verify": verify,
+  "/api/auth/reset/request": resetRequest,
+  "/api/auth/reset": reset,
   "/api/checkin": checkin,
   "/api/points/board-visibility": boardVisibility,
   "/api/admin/members": members,
@@ -86,6 +99,7 @@ const POST = {
   "/api/admin/sessions": adminSessions,
   "/api/admin/qr": adminQr,
   "/api/admin/posts": adminPosts,
+  "/api/admin/export": adminExport,
 };
 const GET = {
   "/api/tips": tips,

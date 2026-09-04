@@ -11,6 +11,8 @@ share link, plus two small server pieces:
 - Check-in codes are signed with `QR_SECRET` and expire in 30 seconds (`_worker.js/lib/checkin.js`). Points are a ledger, never a stored total (`_worker.js/lib/points.js`): taking something back is another row.
 - `/admin` takes either a coach's login or `ADMIN_PASSWORD` — `refuseUnlessCoach()` in `_worker.js/lib/auth.js`. The password stays because it makes the *first* coach and is the way back in if an account is lost; do not "finish the migration" by deleting it.
 - Athlete reads go through `withMember` (which honours the maintenance switch), account routes through `withUser` (which never does, so nobody is locked out of logging in).
+- Email is optional: no `RESEND_API_KEY` and the confirm/reset routes answer `email-off` rather than pretending. `EMAIL_ECHO=1` (in `.dev.vars` only) returns the link in the response so the smoke test can follow it — never set it on Pages, and `/api/health` reports it as a warning if anyone does.
+- Confirming an address is **not** a gate on anything: signups are open and mail may never be configured, so it marks the account and nothing more.
 - `docs/PLATFORM-PLAN.md` — the platform plan (accounts, QR check-in, points, feed, store) and which decisions are settled.
 - `worker/` — a separate Worker for the intervals.icu OAuth bridge. Different deploy, different bindings.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
@@ -46,6 +48,7 @@ node .claude/skills/i18n-check/scripts/check.js
 node tools/smoke.js            # accounts end to end, against tools/dev.js (needs the server up)
 node tools/smoke-checkin.js    # publish, sign a code, scan it, void it
 node tools/smoke-feed.js       # coach login, posts, settings, maintenance
+node tools/smoke-email.js      # confirm an address, reset a password, the CSVs
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder
 ```
 

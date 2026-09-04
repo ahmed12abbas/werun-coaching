@@ -3,6 +3,7 @@
 import { json, readBody } from "../lib/http.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
+import { emailOn } from "../lib/mail.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
   createSession, dropSession, dropOtherSessions, currentUser, publicUser,
@@ -28,6 +29,11 @@ const cleanLang = (s) => (s === "ar" ? "ar" : "en");
  */
 async function clubFor(env) {
   return {
+    // Whether the mail flows work at all, so the app only offers "confirm
+    // your email" and "forgotten your password" when they would do something.
+    // EMAIL_ECHO counts because under it the flows really do work — it is
+    // never set on the live site, so production reads this as the key alone.
+    email: emailOn(env) || env.EMAIL_ECHO === "1",
     name: await getSetting(env, "club_name"),
     announcement_en: await getSetting(env, "announcement_en"),
     announcement_ar: await getSetting(env, "announcement_ar"),

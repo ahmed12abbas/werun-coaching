@@ -127,6 +127,9 @@ export const publicUser = (u) => ({
   role: u.role,
   lang: u.lang,
   created_at: u.created_at,
+  // The app shows a "confirm your email" line until this is filled in, so it
+  // has to travel; it says nothing a member does not already know.
+  email_verified_at: u.email_verified_at || null,
 });
 
 /* ---------- guards ------------------------------------------------------- */

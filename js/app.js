@@ -10,6 +10,8 @@
      #/c/<id>/<slot>/<sig>        what the coach's QR code points at
      #/points                     total, streak, history, the club board
      #/feed                       what the coach has written for the club
+     #/verify/<token>             the link in the confirmation email
+     #/reset  #/reset/<token>     ask for a new password, then set it
      #/me                         name, language, password, log out
 
    Everything visible goes through t() in js/i18n.js. The header comes from
@@ -19,7 +21,7 @@
 
 /* ---------- routing ------------------------------------------------------ */
 
-const PUBLIC_ROUTES = ["login", "signup", "c"];
+const PUBLIC_ROUTES = ["login", "signup", "c", "verify", "reset"];
 
 function parseRoute() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
@@ -90,6 +92,8 @@ function render() {
     stashCheckin(r.args);
     return go("login");
   }
+  // verify and reset are reachable logged in as well as out: an athlete who
+  // is already signed in still clicks the link in their mail.
   if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("week");
 
   app.textContent = "";
@@ -206,7 +210,9 @@ SCREENS.login = function () {
     { class: "card pad stack" },
     el("h2", {}, t("aLogin")),
     form,
-    el("p", { class: "switch-link" }, t("aNoAccount") + " ", el("a", { href: "#/signup" }, t("aSignup")))
+    el("p", { class: "switch-link" }, t("aNoAccount") + " ", el("a", { href: "#/signup" }, t("aSignup"))),
+    // Only offered when the club can actually send it.
+    Auth.club.email === false ? null : el("p", { class: "switch-link" }, el("a", { href: "#/reset" }, t("aForgot")))
   );
 };
 
@@ -440,6 +446,128 @@ SCREENS.c = function (args, user) {
   return box;
 };
 
+
+
+/* ---------- the address, and the way back in ------------------------------ */
+
+/* Both of these are opened from a mail app, which may be a browser that has
+   never seen this site and has nobody logged in. So they are public routes
+   and the token in the link is the whole proof. */
+
+SCREENS.verify = function (args) {
+  const box = el("div", { class: "card pad stack" }, el("h2", {}, t("aConfirming")),
+    el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+
+  API.post("/api/auth/verify", { token: args[0] })
+    .then((r) => {
+      // The link may have been opened in the browser they are logged into,
+      // in which case the app now knows more than it did a moment ago.
+      if (r.user) Auth.user = r.user;
+      box.textContent = "";
+      box.append(
+        el("div", { class: "landed" }, "✅"),
+        el("h2", {}, t("aConfirmed")),
+        el("div", { class: "row-wrap" },
+          el("button", { class: "btn primary", onclick: () => go(Auth.user ? "week" : "login") },
+            Auth.user ? t("aSeeWeek") : t("aLogin")))
+      );
+    })
+    .catch(() => {
+      box.textContent = "";
+      box.append(
+        el("h2", {}, t("aConfirmEmail")),
+        el("p", { class: "form-err" }, t("aConfirmBad")),
+        el("div", { class: "row-wrap" },
+          el("button", { class: "btn", onclick: () => go(Auth.user ? "me" : "login") }, t("aBackToLogin")))
+      );
+    });
+
+  return box;
+};
+
+/* With no token this is the "send me a link" form; with one it is the
+   "type the new password" form. One route, because they are one errand. */
+SCREENS.reset = function (args) {
+  return args[0] ? resetForm(args[0]) : resetRequestForm();
+};
+
+function resetRequestForm() {
+  const email = el("input", { type: "email", id: "f-email", autocomplete: "username", inputmode: "email", required: true });
+  const err = el("p", { class: "form-err hidden" });
+  const ok = el("p", { class: "form-ok hidden" });
+  const btn = el("button", { class: "btn primary lg block", type: "submit" }, t("aSendLink"));
+
+  const form = el("form", {
+    class: "stack",
+    onsubmit: (e) => {
+      e.preventDefault();
+      ok.classList.add("hidden");
+      submitting(btn, err, () =>
+        API.post("/api/auth/reset/request", { email: email.value.trim() }).then(() => {
+          ok.textContent = t("aResetSent");
+          ok.classList.remove("hidden");
+        })
+      );
+    },
+  }, field("aEmail", email), err, ok, btn);
+
+  return el("div", { class: "card pad stack" },
+    el("h2", {}, t("aResetTitle")),
+    el("p", { class: "muted small" }, t("aResetLead")),
+    form,
+    el("p", { class: "switch-link" }, el("a", { href: "#/login" }, t("aBackToLogin"))));
+}
+
+function resetForm(token) {
+  const pw = el("input", { type: "password", id: "f-new", autocomplete: "new-password", minlength: 8, required: true });
+  const err = el("p", { class: "form-err hidden" });
+  const btn = el("button", { class: "btn primary lg block", type: "submit" }, t("aResetTitle"));
+  const card = el("div", { class: "card pad stack" });
+
+  const form = el("form", {
+    class: "stack",
+    onsubmit: (e) => {
+      e.preventDefault();
+      submitting(btn, err, () =>
+        API.post("/api/auth/reset", { token: token, password: pw.value }).then(() => {
+          card.textContent = "";
+          card.append(
+            el("div", { class: "landed" }, "✅"),
+            el("h2", {}, t("aResetDone")),
+            el("div", { class: "row-wrap" },
+              el("button", { class: "btn primary", onclick: () => go("login") }, t("aLogin")))
+          );
+        })
+      );
+    },
+  }, field("aNewPassword", pw, t("aPwHint")), err, btn);
+
+  card.append(el("h2", {}, t("aResetTitle")), form,
+    el("p", { class: "switch-link" }, el("a", { href: "#/login" }, t("aBackToLogin"))));
+  return card;
+}
+
+/* The line asking an athlete to confirm their address — only once the club
+   can actually send it, because otherwise it is a request nobody can act on. */
+function confirmCard() {
+  const err = el("p", { class: "form-err hidden" });
+  const ok = el("p", { class: "form-ok hidden" });
+  const btn = el("button", { class: "btn", type: "button" }, t("aSendLink"));
+  btn.addEventListener("click", () => {
+    ok.classList.add("hidden");
+    submitting(btn, err, () =>
+      API.post("/api/auth/verify/send", {}).then(() => {
+        ok.textContent = t("aLinkSent");
+        ok.classList.remove("hidden");
+      })
+    );
+  });
+  return el("div", { class: "card pad stack unconfirmed" },
+    el("h3", {}, t("aConfirmEmail")),
+    el("p", { class: "muted small" }, t("aConfirmLead")),
+    err, ok,
+    el("div", { class: "row" }, btn));
+}
 
 /* ---------- the feed ------------------------------------------------------ */
 
@@ -729,6 +857,10 @@ SCREENS.me = function (args, user) {
       el("h2", {}, t("aHello", { name: user.name })),
       profileForm
     ),
+    // Nothing is gated on this — signups are open and mail may never be
+    // configured — so it asks once, here, where someone came to change
+    // their own details anyway.
+    Auth.club.email && !user.email_verified_at ? confirmCard() : null,
     el("div", { class: "card pad stack" }, el("h3", {}, t("aChangePw")), pwForm),
     el(
       "div",

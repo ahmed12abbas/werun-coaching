@@ -103,3 +103,7 @@ button.day:hover{background:var(--brand-soft)}
 .post-ul{margin:0 0 10px;padding-inline-start:20px}
 .post-ul li{margin-bottom:5px}
 .post.tip{border-color:var(--brand)}
+
+/* ---- the address not yet confirmed ---- */
+.unconfirmed{border-color:var(--warn)}
+.unconfirmed h3{margin:0}

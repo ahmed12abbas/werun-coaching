@@ -212,9 +212,9 @@ only because the feed is the easy one and the QR is the risky one.
 - Admin takes a coach login **or** the club password. The password did *not* retire: it is what makes the first coach (there is nobody to promote otherwise) and the only way back if an account is lost. `tips.html` stays where it is, linked from the console — the feed and the tips are different features, and moving a working editor for tidiness was not worth the risk.
 - Settings tab with the table above.
 
-### Phase 4 — trust
+### Phase 4 — trust  ✔ **done 2026-09-04** (push deferred)
 - Email via Resend: verification on signup, password reset, "you earned N points" optional weekly summary.
-- Web Push for "session published" (later; needs a VAPID key and a service worker — the app is a good PWA candidate anyway).
+- Web Push for "session published" — **not built**. It needs a VAPID key pair, a service worker and a subscriptions table, and none of it can be exercised until the site is on a phone the club actually uses. The plan always had it as "later"; it stays there. A weekly points summary is in the same position: it needs a scheduled Worker, which Pages Functions cannot run, so it would be a second deploy to look after before email is even switched on.
 - Export: members and points as CSV from admin.
 
 ### Phase 5 — merch (when wanted)
