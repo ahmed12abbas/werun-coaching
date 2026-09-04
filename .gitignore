@@ -26,8 +26,7 @@ Thumbs.db
 _site/
 
 # Generated on demand by tools/schema-dump.js for setting a database up by hand
-werun-schema.sql
-werun-schema.bare.sql
+werun-*.sql
 
 # graphify knowledge graph, built locally by /graphify — regenerable, never shipped
 graphify-out/
