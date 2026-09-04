@@ -25,5 +25,8 @@ Thumbs.db
 # Assembled by the deploy workflow (and by hand when testing wrangler pages dev)
 _site/
 
+# Generated on demand by tools/schema-dump.js for setting a database up by hand
+werun-schema.sql
+
 # graphify knowledge graph, built locally by /graphify — regenerable, never shipped
 graphify-out/

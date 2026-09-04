@@ -68,6 +68,38 @@ jobs:
           cp -r js assets _worker.js _site/
           find _site -type f | sort
 
+      # What the running site will actually be able to see. Bindings are handed
+      # to the Worker at deploy time, so a binding added in the dashboard after
+      # the last deploy is not live until the next one — which is exactly the
+      # kind of thing that is invisible until something says it out loud.
+      #
+      # Names only: the API never returns a secret's value.
+      - name: What is bound to production
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/proj.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects/weruncoaching")
+          if [ "$code" != "200" ]; then
+            echo "::warning::Could not read the project's bindings (HTTP $code)."
+            exit 0
+          fi
+          jq -r '
+            def names: if (. // {}) | length == 0 then "none" else ((. // {}) | keys | join(", ")) end;
+            .result.deployment_configs as $c
+            | "production  kv: " + ($c.production.kv_namespaces | names)
+              + "  |  d1: " + ($c.production.d1_databases | names)
+              + "  |  vars: " + ($c.production.env_vars | names),
+              "preview     kv: " + ($c.preview.kv_namespaces | names)
+              + "  |  d1: " + ($c.preview.d1_databases | names)
+              + "  |  vars: " + ($c.preview.env_vars | names)' /tmp/proj.json
+          if [ "$(jq -r '.result.deployment_configs.production.d1_databases.DB.id // empty' /tmp/proj.json)" = "" ]; then
+            echo "::warning::No D1 binding called DB on production — the platform routes will answer no-db."
+          fi
+
       # The platform's tables. The database is created by the bindings
       # workflow, not here — so until that has been run once, this step says
       # so and steps aside rather than failing every deploy of the plain site.
