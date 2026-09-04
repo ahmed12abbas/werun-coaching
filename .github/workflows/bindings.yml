@@ -15,7 +15,9 @@ name: Set up the Cloudflare bindings
 #   Get-Content pw.txt | gh secret set TIPS_PASSWORD
 #
 # ADMIN_PASSWORD is optional and unlocks /admin the same way. QR_SECRET signs
-# the check-in codes (any long random string; `openssl rand -hex 32`).
+# the check-in codes; you do not have to supply one, because nothing ever reads
+# its value — if neither the repo nor the project has one, this workflow mints
+# it. An existing one is left alone, so re-running never rotates a working key.
 # RESEND_API_KEY is optional and switches on the confirmation and
 # password-reset mail; set the repo *variable* EMAIL_FROM alongside it to say
 # who that mail comes from. None of the secret values is ever printed: all are
@@ -106,7 +108,7 @@ jobs:
           fi
           echo "EMAIL_FROM:         ${EMAIL_FROM:-(unset — a Resend test sender is used)}"
           if [ -z "${QR_SECRET}" ]; then
-            echo "::warning::QR_SECRET is not set — check-in codes stay off until it is."
+            echo "QR_SECRET is not a repo secret — one is minted below if the project has not got one."
           fi
 
       # Both halves are checked before either is written, so a token that can
@@ -268,6 +270,25 @@ jobs:
           DB: ${{ steps.d1.outputs.id }}
         run: |
           set -euo pipefail
+
+          # QR_SECRET only has to exist and stay the same — it signs the
+          # check-in codes and is never read by a person. So rather than make
+          # someone invent a random string, keep it somewhere and paste it in,
+          # mint one here when there is none.
+          #
+          # Only when the project has not got one already: re-running this
+          # workflow must not rotate a secret that is working, or every code
+          # on the coach's screen would stop verifying mid-session.
+          if [ -z "${QR_SECRET}" ] && [ "${UNBIND}" != "true" ]; then
+            if jq -e '.result.deployment_configs.production.env_vars.QR_SECRET' /tmp/p.json >/dev/null 2>&1; then
+              echo "The project already has a QR_SECRET — leaving it alone."
+            else
+              QR_SECRET="$(openssl rand -hex 32)"
+              echo "::add-mask::$QR_SECRET"
+              echo "No QR_SECRET anywhere, so one was minted. Nothing needs to know its value."
+            fi
+          fi
+
           if [ "${UNBIND}" = "true" ]; then
             # null deletes the key rather than setting it empty.
             echo '{"deployment_configs":{"production":{"kv_namespaces":{"STATS":null}}}}' > /tmp/patch.json
