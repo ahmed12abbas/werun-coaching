@@ -192,9 +192,9 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 
 /* ---- avatars ----
    One badge, three sizes: the board row, the picker, and the member's own
-   face at the top of Me. The art is drawn in js/avatars.js; everything that
-   moves is below, once, so twelve avatars cost one animation each and not a
-   file each. */
+   face at the top of Me. The art is drawn in js/avatars.js and stands still:
+   a swinging limb reads as a sprawl at this size, and twelve of them moving
+   at once is a picker nobody can look at. */
 .avatar{width:44px;height:44px;flex:none;border-radius:50%;overflow:hidden;
   background:var(--brand-soft);color:var(--fg);display:grid;place-items:center}
 .avatar svg{width:100%;height:100%;display:block}
@@ -224,23 +224,3 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    tiles, so it takes the same "this is the one" mark. */
 .avnone{justify-self:start}
 .avnone[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-deep)}
-
-/* ---- what makes them run ----
-   av-a and av-b are one swing half a stride apart; --av-t is the stride, set
-   on each drawing. The transform origins are in the drawing, because they are
-   joints, not style. */
-@keyframes av-swing{from{transform:rotate(-21deg)}to{transform:rotate(21deg)}}
-@keyframes av-bob{from{transform:translateY(.6px)}to{transform:translateY(-1.6px)}}
-@keyframes av-bound{0%,100%{transform:translateY(0) rotate(0)}
-  45%{transform:translateY(-3px) rotate(-3deg)}}
-@keyframes av-wheel{to{transform:rotate(360deg)}}
-@keyframes av-zip{0%{transform:translateX(7px);opacity:0}
-  35%{opacity:.45}100%{transform:translateX(-11px);opacity:0}}
-.avatar .av-a,.avatar .av-b{animation:av-swing var(--av-t,.46s) infinite alternate ease-in-out}
-.avatar .av-b{animation-direction:alternate-reverse}
-.avatar .av-bob{animation:av-bob var(--av-t,.46s) infinite alternate ease-in-out}
-.avatar .av-bound{animation:av-bound calc(var(--av-t,.46s) * 2) infinite ease-in-out}
-.avatar .av-wheel{animation:av-wheel var(--av-t,.46s) infinite linear}
-.avatar .av-zip{animation:av-zip calc(var(--av-t,.46s) * 2.4) infinite linear}
-/* Asked for less movement: they stand still, and the drawing still reads. */
-@media (prefers-reduced-motion:reduce){.avatar *{animation:none}}
