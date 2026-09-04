@@ -484,10 +484,18 @@ The coach can see who came and void any check-in; the points go back as a
 reversing row, so an athlete's history says what happened.
 
 The QR itself is drawn by `js/qr.js`, written from ISO/IEC 18004 rather than
-fetched from a CDN — the site loads no third-party script, and a code that
-carries a signature has no business going through an image service anyway.
-`node tools/qr-test.js` decodes what it draws, which is the only proof worth
-having.
+fetched from a CDN — a code that carries a signature has no business going
+through an image service. `node tools/qr-test.js` decodes what it draws,
+which is the only proof worth having.
+
+Reading one back is the other half, and there the site does ship somebody
+else's code: **jsQR**, vendored into `js/vendor/` and served from this origin,
+never a CDN. Android Chrome has `BarcodeDetector` built in and never fetches
+it; iOS Safari does not, and iPhones are too much of the club to hand a
+"use your camera app instead" message to. It loads only when the scanner
+opens, so a page that never scans never pays for it. It is also the same
+decoder `tools/qr-test.js` runs `js/qr.js` through, so what the coach shows
+and what the athlete reads are checked against one implementation.
 
 ### What the app asks a member for
 

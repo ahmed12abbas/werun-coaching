@@ -1,0 +1,8 @@
+# core.autocrlf is on for the people working on this, which is right for
+# everything written here. It is wrong for a file copied verbatim from
+# somebody else: js/vendor/README.md says that copy can be diffed against the
+# npm package byte for byte, and rewriting its line endings on checkout would
+# make that false on Windows and true on Linux. -text leaves it exactly as it
+# arrived, everywhere.
+js/vendor/jsqr-1.4.0.js -text
+js/vendor/LICENSE-jsqr.txt -text

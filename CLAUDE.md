@@ -33,7 +33,9 @@ share link, plus two small server pieces:
 - `worker/` — a separate Worker for the intervals.icu OAuth bridge. Different deploy, different bindings.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
 
-No bundler, no framework, no `package.json`. Plain `"use strict"` scripts loaded in order from `index.html`; everything shares one global scope.
+No bundler, no framework, no build step. Plain `"use strict"` scripts loaded in order from `index.html`; everything shares one global scope.
+
+The one exception is `js/vendor/` — a verbatim copy of jsQR, served from this origin and fetched only when the check-in scanner opens, because iOS Safari has no `BarcodeDetector`. Read `js/vendor/README.md` before touching it or adding anything beside it.
 
 ## Rules that CI or athletes will catch
 - **Every user-facing string goes through `t("key")`** with both `en` and `ar` in `js/i18n.js`. Arabic uses the club's running vocabulary (إحماء / جري / استشفاء / تهدئة), not literal translation — copy the register already there.
@@ -51,9 +53,12 @@ No bundler, no framework, no `package.json`. Plain `"use strict"` scripts loaded
 
 ## Local preview
 
-Run `npm install` once: the site itself still ships no dependencies — every
-file in `js/` is plain unbundled JavaScript — but the tools need wrangler (the
-local Worker, D1 and migrations) and two libraries the QR test uses.
+Run `npm install` once. Every file in `js/` is plain unbundled JavaScript and
+none of it is built; the only third-party code that reaches a browser is the
+vendored copy in `js/vendor/`, which is committed and needs no install. The
+install is for the tools: wrangler (the local Worker, D1 and migrations) and
+the two libraries the QR test uses — one of which, jsqr, is also the upstream
+`js/vendor/jsqr-1.4.0.js` is copied from.
 `.claude/launch.json` defines `werun-preview` (static only, :4322) and `werun-api` (`node tools/dev.js` → wrangler with KV + D1 emulated, :4323 — use this for anything touching `/api`). Use `preview_start` rather than a shell server. `/api/health` shows which bindings the Worker sees.
 
 ## Tests
