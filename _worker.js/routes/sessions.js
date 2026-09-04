@@ -3,7 +3,6 @@
 import { json } from "../lib/http.js";
 import { withMember } from "../lib/auth.js";
 import { loadWeek, buildDays } from "../lib/weekplan.js";
-import { hasColumn } from "../lib/columns.js";
 import { coachNames, coachNameFor } from "../lib/coaches.js";
 
 const DAY_MS = 86400 * 1000;
@@ -51,13 +50,8 @@ export const session = withMember(async (request, env, user) => {
   // The slot's place rides along. A session the coach opened only to hand
   // out a code has no workout to draw, so where to stand is the one thing the
   // page has left to say — and dropping it there would be backwards.
-  // `s.*` carries the session's own coach whether or not the column is there
-  // yet; the slot's has to be named, so it is only asked for once it exists —
-  // the deploy lands before the migration, and a SELECT naming a column the
-  // database has not got fails outright rather than returning null.
-  const slotCoach = (await hasColumn(env, "schedule", "coach_id")) ? " e.coach_id AS slot_coach_id," : "";
   const row = await env.DB.prepare(
-    "SELECT s.*, c.at AS checked_in_at, c.voided_at," + slotCoach +
+    "SELECT s.*, c.at AS checked_in_at, c.voided_at, e.coach_id AS slot_coach_id," +
       " e.place_en AS place_en, e.place_ar AS place_ar, e.map_url AS map_url FROM club_sessions s" +
       " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
       " LEFT JOIN schedule e ON e.id = s.schedule_id" +

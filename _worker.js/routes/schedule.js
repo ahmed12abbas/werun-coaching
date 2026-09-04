@@ -11,7 +11,6 @@ import { signSlot, slotNow, slotRemaining, checkinUrl } from "../lib/checkin.js"
 import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
-import { hasColumn } from "../lib/columns.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 
 /* Riyadh is UTC+3 all year with no daylight saving, so a standing session's
@@ -70,32 +69,29 @@ export async function adminSessions(request, env) {
     }
 
     // Who is taking it: what the form said, or whoever usually has the slot.
-    // Written only once the column exists, because the deploy lands before
-    // the migration and an INSERT naming a column the database has not got
-    // takes the whole publish down with it.
-    const withCoach = await hasColumn(env, "club_sessions", "coach_id");
+    // Written now rather than resolved on the way out, so a coach who later
+    // stops coaching does not take this session's history with them.
     const coachId = cleanCoachId(body.coach_id) || cleanCoachId(slot && slot.coach_id) || null;
 
     const id = uid();
     await env.DB.prepare(
-      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id" +
-        (withCoach ? ", coach_id" : "") + ")" +
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + (withCoach ? ", ?" : "") + ")"
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at," +
+        " window_close_at, points, created_at, schedule_id, coach_id)" +
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
-        ...[
-          id,
-          date,
-          dayFromName(name),
-          name,
-          payload,
-          startsAt.toISOString(),
-          new Date(startsAt.getTime() - before * 60000).toISOString(),
-          new Date(startsAt.getTime() + after * 60000).toISOString(),
-          points,
-          nowISO(),
-          scheduleId,
-        ].concat(withCoach ? [coachId] : [])
+        id,
+        date,
+        dayFromName(name),
+        name,
+        payload,
+        startsAt.toISOString(),
+        new Date(startsAt.getTime() - before * 60000).toISOString(),
+        new Date(startsAt.getTime() + after * 60000).toISOString(),
+        points,
+        nowISO(),
+        scheduleId,
+        coachId
       )
       .run();
     return json({ id: id, sessions: await sessionList(env), coaches: await coachRoster(env) });
@@ -198,26 +194,23 @@ export async function adminSessions(request, env) {
     // slot's title says what it is rather than when.
     // No form to ask, so it inherits: whoever usually takes this slot is who
     // is standing at the track holding the phone up.
-    const withCoach = await hasColumn(env, "club_sessions", "coach_id");
-    const coachId = cleanCoachId(slot.coach_id) || null;
     await env.DB.prepare(
-      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id" +
-        (withCoach ? ", coach_id" : "") + ")" +
-        " VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?" + (withCoach ? ", ?" : "") + ")"
+      "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at," +
+        " window_close_at, points, created_at, schedule_id, coach_id)" +
+        " VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
-        ...[
-          id,
-          date,
-          DAYS[(weekdayOf(date) + 6) % 7],
-          slot.title_en || slot.title_ar,
-          starts.toISOString(),
-          new Date(starts.getTime() - before * 60000).toISOString(),
-          new Date(starts.getTime() + after * 60000).toISOString(),
-          slot.points,
-          nowISO(),
-          scheduleId,
-        ].concat(withCoach ? [coachId] : [])
+        id,
+        date,
+        DAYS[(weekdayOf(date) + 6) % 7],
+        slot.title_en || slot.title_ar,
+        starts.toISOString(),
+        new Date(starts.getTime() - before * 60000).toISOString(),
+        new Date(starts.getTime() + after * 60000).toISOString(),
+        slot.points,
+        nowISO(),
+        scheduleId,
+        cleanCoachId(slot.coach_id) || null
       )
       .run();
 

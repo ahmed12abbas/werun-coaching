@@ -1,12 +1,14 @@
 /* Who the club's coaches are, and how a session says which one is taking it.
 
-   Deliberately no SQL join anywhere. `schedule.coach_id` and
-   `club_sessions.coach_id` arrive in a migration that is applied by hand,
-   after the deploy that reads them — a `JOIN users ON users.id = s.coach_id`
-   is a statement the database rejects outright for the length of that
-   window, where `SELECT s.*` simply hands back a row without the column. So
-   the id rides along on rows that are already being read, and the name is
-   looked up from this one small list. */
+   Deliberately no join to `users`. A week is seven days of slots and
+   sessions, and joining every one of them to the members table to fetch four
+   names is the wrong shape: the id rides along on rows that are being read
+   anyway, and the roster below is one small read the whole week shares.
+
+   It also survived the release this arrived in, when the columns did not yet
+   exist — `SELECT s.*` hands back a row without a column it has not got, but
+   a `JOIN users ON users.id = s.coach_id` is a statement the database rejects
+   outright. That window has closed; the shape is kept because it is right. */
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
