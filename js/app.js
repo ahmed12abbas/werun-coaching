@@ -190,6 +190,36 @@ function addDays(iso, n) {
   return localISO(d);
 }
 
+
+/* Who is running. Both are optional — someone who would rather not say still
+   runs with the club, and a join form that refuses them is one that loses
+   them. The year, not the date: it gives the age group a race entry is set
+   by, and the club has no use for the day. */
+function genderSelect(value) {
+  const sel = el("select", { id: "f-gender" });
+  // Blank is "rather not say" — there is no second option meaning the same
+  // thing, because offering it twice only asks the reader which of two
+  // identical answers they meant.
+  for (const [v, key] of [["", "aGenderOther"], ["woman", "aWoman"], ["man", "aMan"]]) {
+    sel.append(el("option", { value: v }, t(key)));
+  }
+  // A member who answered "other" before keeps it, without it being offered.
+  if (value === "other") sel.append(el("option", { value: "other" }, t("aGenderOther")));
+  sel.value = value || "";
+  return sel;
+}
+
+function yearInput(value) {
+  const now = new Date().getFullYear();
+  const input = el("input", {
+    type: "number", id: "f-year", inputmode: "numeric",
+    min: String(now - 100), max: String(now - 5), step: "1",
+    placeholder: String(now - 30),
+  });
+  if (value) input.value = String(value);
+  return input;
+}
+
 /* ---------- screens ------------------------------------------------------ */
 
 const SCREENS = {};
@@ -228,6 +258,8 @@ SCREENS.signup = function () {
   const name = el("input", { type: "text", id: "f-name", autocomplete: "name", placeholder: t("aNamePh"), maxlength: 40, required: true });
   const email = el("input", { type: "email", id: "f-email", autocomplete: "username", inputmode: "email", required: true });
   const pw = el("input", { type: "password", id: "f-pw", autocomplete: "new-password", minlength: 8, required: true });
+  const gender = genderSelect("");
+  const year = yearInput(null);
   const err = el("p", { class: "form-err hidden" });
   const btn = el("button", { class: "btn primary lg block", type: "submit" }, t("aSignup"));
   const form = el(
@@ -236,12 +268,20 @@ SCREENS.signup = function () {
       class: "stack",
       onsubmit: (e) => {
         e.preventDefault();
-        submitting(btn, err, () => Auth.signup(name.value, email.value.trim(), pw.value).then(afterLogin));
+        submitting(btn, err, () =>
+          Auth.signup(name.value, email.value.trim(), pw.value, {
+            gender: gender.value,
+            birth_year: year.value,
+          }).then(afterLogin)
+        );
       },
     },
     field("aName", name),
     field("aEmail", email),
     field("aPassword", pw, t("aPwHint")),
+    el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
+      el("div", {}, el("label", { for: "f-year" }, t("aBirthYear")), year)),
+    el("p", { class: "hint" }, t("aBirthHint")),
     err,
     btn
   );
@@ -280,6 +320,7 @@ SCREENS.week = function (args) {
       const any = data.days.some((d) => d.items && d.items.length);
       for (const d of data.days) list.append(dayCard(d, today));
       if (!any) list.append(el("p", { class: "empty" }, t("aNothingWeek")));
+      startCountdowns();
     })
     .catch((e) => {
       list.textContent = "";
@@ -338,6 +379,9 @@ function slotRow(item, date) {
 
   const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
   const tag = slotTag(item);
+  // Not on one that has been called off: there is nothing to count down to.
+  const soon = item.cancelled ? null : countdownPill(item, date);
+  if (soon) meta.append(soon);
 
   if (item.kind === "session") {
     return el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag);
@@ -416,6 +460,9 @@ function checkinCard(s) {
   const at = new Date(s.starts_at);
   const time = isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 
+  const soon = countdownPill({ starts_at: s.starts_at }, s.date);
+  if (soon) setTimeout(startCountdowns, 0);
+
   if (s.checked_in) {
     return el(
       "div",
@@ -442,7 +489,8 @@ function checkinCard(s) {
       "div",
       { class: "grow" },
       el("div", { class: "ci-title" }, now >= open && now <= close ? t("aCheckIn") : t("aWindowShut")),
-      el("div", { class: "muted small" }, note)
+      el("div", { class: "muted small" }, note),
+      soon
     ),
     el("span", { class: "tag " + (now >= open && now <= close ? "open" : "soon") }, t("aPts", { n: s.points }))
   );
@@ -621,6 +669,72 @@ function confirmCard() {
     el("div", { class: "row" }, btn));
 }
 
+
+
+/* ---------- how long until it starts -------------------------------------
+
+   Eight hours out, a session starts counting down. That is the window where
+   it is worth knowing — the evening session while you are at work, the
+   morning one before you go to bed — and outside it a countdown is noise on
+   every row of the week.
+
+   One ticker for the whole screen rather than one per row: it redraws the
+   text in place, so a week with fourteen sessions still has one timer.
+   ------------------------------------------------------------------------- */
+
+const COUNTDOWN_FROM = 8 * 3600 * 1000;
+let countdownTicker = null;
+
+/** When a slot actually starts, as an instant on the reader's clock. */
+function startsAt(item, date) {
+  if (item.starts_at) {
+    const at = new Date(item.starts_at);
+    if (!isNaN(at)) return at;
+  }
+  const at = new Date(date + "T" + item.at + ":00");
+  return isNaN(at) ? null : at;
+}
+
+/** "in 7h 20m", "in 45 min", or "starting now" once it is under way. */
+function countdownText(when) {
+  const left = when.getTime() - Date.now();
+  if (left <= 0) return t("aStartingNow");
+  const mins = Math.floor(left / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return t("aStartsIn", { t: h ? t("aHrsMins", { h: h, m: m }) : t("aMins", { m: Math.max(1, m) }) });
+}
+
+/**
+ * A pill that counts down, or nothing at all when the start is further off
+ * than the window — or already well past, when the check-in tag says more.
+ */
+function countdownPill(item, date) {
+  const when = startsAt(item, date);
+  if (!when) return null;
+  const left = when.getTime() - Date.now();
+  if (left > COUNTDOWN_FROM || left < -30 * 60000) return null;
+
+  const pill = el("span", { class: "countdown" + (left <= 0 ? " now" : "") }, countdownText(when));
+  pill.dataset.at = String(when.getTime());
+  return pill;
+}
+
+/* Every thirty seconds: enough for a countdown measured in minutes, and
+   little enough that a phone left on the week screen is not kept awake by
+   it. Cleared whenever the screen is redrawn so they never stack up. */
+function startCountdowns() {
+  clearInterval(countdownTicker);
+  countdownTicker = setInterval(() => {
+    const pills = document.querySelectorAll(".countdown");
+    if (!pills.length) return clearInterval(countdownTicker);
+    for (const pill of pills) {
+      const when = new Date(Number(pill.dataset.at));
+      pill.textContent = countdownText(when);
+      pill.classList.toggle("now", when.getTime() - Date.now() <= 0);
+    }
+  }, 30000);
+}
 
 /* ---------- the shop ------------------------------------------------------ */
 
@@ -976,6 +1090,8 @@ function boardToggle(hidden) {
 SCREENS.me = function (args, user) {
   /* name + language */
   const name = el("input", { type: "text", id: "f-name", value: user.name, maxlength: 40, autocomplete: "name" });
+  const gender = genderSelect(user.gender);
+  const year = yearInput(user.birth_year);
   const saveErr = el("p", { class: "form-err hidden" });
   const saveOk = el("p", { class: "form-ok hidden" });
   const saveBtn = el("button", { class: "btn primary", type: "submit" }, t("aSave"));
@@ -1006,7 +1122,7 @@ SCREENS.me = function (args, user) {
         e.preventDefault();
         saveOk.classList.add("hidden");
         submitting(saveBtn, saveErr, () =>
-          Auth.update({ name: name.value }).then(() => {
+          Auth.update({ name: name.value, gender: gender.value, birth_year: year.value }).then(() => {
             saveOk.textContent = t("aSaved");
             saveOk.classList.remove("hidden");
             toast(t("aSaved"));
@@ -1015,6 +1131,10 @@ SCREENS.me = function (args, user) {
       },
     },
     field("aName", name),
+    el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
+      el("div", {}, el("label", { for: "f-year" }, t("aBirthYear")),
+        year,
+        user.birth_year ? el("p", { class: "hint" }, t("aAge", { n: new Date().getFullYear() - user.birth_year })) : null)),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),
     saveErr,

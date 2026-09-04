@@ -19,6 +19,21 @@ const emailLooksRight = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const cleanName = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.name);
 const cleanLang = (s) => (s === "ar" ? "ar" : "en");
 
+/* Empty is a real answer: someone who would rather not say still runs with
+   the club, so anything unrecognised becomes "" rather than an error. */
+const GENDERS = ["woman", "man", "other"];
+const cleanGender = (s) => (GENDERS.includes(String(s || "")) ? String(s) : "");
+
+/* A birth year, or nothing. The bounds are the ones a person could
+   plausibly have: a typo of 1090 or 2190 is not a runner. */
+function cleanYear(v) {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Math.round(Number(v));
+  const now = new Date().getUTCFullYear();
+  if (!Number.isFinite(n) || n < now - 100 || n > now - 5) return undefined; // undefined = refuse
+  return n;
+}
+
 /**
  * The club's own settings, as a member is allowed to see them: the name, the
  * announcement in both languages, and whether the site is being worked on.
@@ -65,6 +80,8 @@ export async function signup(request, env) {
   if (!emailLooksRight(email)) return json({ error: "bad-email" }, 400);
   if (!name) return json({ error: "bad-name" }, 400);
   if (password.length < MIN_PASSWORD || password.length > MAX.password) return json({ error: "bad-password" }, 400);
+  const birthYear = cleanYear(body.birth_year);
+  if (birthYear === undefined) return json({ error: "bad-year" }, 400);
   // Counted once the form is right, so two typos and a short password do not
   // cost an hour, and it is the expensive half -- hashing, then the insert --
   // that the cap actually protects.
@@ -75,10 +92,10 @@ export async function signup(request, env) {
   const now = nowISO();
   try {
     await env.DB.prepare(
-      "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at)" +
-        " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?)"
+      "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
+        " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
     )
-      .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now)
+      .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now, cleanGender(body.gender), birthYear)
       .run();
   } catch (e) {
     if (/UNIQUE/i.test(String(e && e.message))) return json({ error: "email-taken" }, 409);
@@ -151,8 +168,17 @@ export const profile = withUser(async (request, env, user) => {
   const name = body.name != null ? cleanName(body.name) : user.name;
   const lang = body.lang != null ? cleanLang(body.lang) : user.lang;
   if (!name) return json({ error: "bad-name" }, 400);
-  await env.DB.prepare("UPDATE users SET name = ?, lang = ? WHERE id = ?").bind(name, lang, user.id).run();
-  return json({ user: publicUser(Object.assign({}, user, { name: name, lang: lang })) });
+
+  const gender = body.gender != null ? cleanGender(body.gender) : user.gender || "";
+  const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
+  if (birthYear === undefined) return json({ error: "bad-year" }, 400);
+
+  await env.DB.prepare("UPDATE users SET name = ?, lang = ?, gender = ?, birth_year = ? WHERE id = ?")
+    .bind(name, lang, gender, birthYear, user.id)
+    .run();
+  return json({
+    user: publicUser(Object.assign({}, user, { name: name, lang: lang, gender: gender, birth_year: birthYear })),
+  });
 });
 
 /* ---------- POST /api/auth/password -------------------------------------- */

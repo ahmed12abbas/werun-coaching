@@ -413,6 +413,22 @@ const STRINGS = {
     aChanged: "Changed",
     aOpenMap: "Open in maps",
     aNothingWeek: "Nothing on this week yet.",
+
+    /* the app: who is running */
+    aGender: "Gender",
+    aWoman: "Woman",
+    aMan: "Man",
+    aGenderOther: "Rather not say",
+    aBirthYear: "Year of birth",
+    aBirthHint: "For age groups at races. Leave it blank if you would rather not.",
+    aAge: "{n} years old",
+    "e_bad-year": "That year does not look right.",
+
+    /* the app: the countdown */
+    aStartsIn: "in {t}",
+    aStartingNow: "starting now",
+    aHrsMins: "{h}h {m}m",
+    aMins: "{m} min",
   },
 
   ar: {
@@ -809,6 +825,22 @@ const STRINGS = {
     aChanged: "تغيّرت",
     aOpenMap: "افتح الموقع على الخريطة",
     aNothingWeek: "لا شيء هذا الأسبوع بعد.",
+
+    /* the app: بيانات العدّاء */
+    aGender: "الجنس",
+    aWoman: "أنثى",
+    aMan: "ذكر",
+    aGenderOther: "أفضّل عدم الإفصاح",
+    aBirthYear: "سنة الميلاد",
+    aBirthHint: "للفئات العمرية في السباقات. اتركها فارغة إن لم ترغب.",
+    aAge: "{n} سنة",
+    "e_bad-year": "هذه السنة لا تبدو صحيحة.",
+
+    /* the app: العد التنازلي */
+    aStartsIn: "بعد {t}",
+    aStartingNow: "تبدأ الآن",
+    aHrsMins: "{h} س {m} د",
+    aMins: "{m} دقيقة",
   },
 };
 

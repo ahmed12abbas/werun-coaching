@@ -50,7 +50,7 @@ export async function adminExport(request, env) {
 
   if (what === "members") {
     const rows = await env.DB.prepare(
-      "SELECT u.name, u.email, u.role, u.status, u.lang, u.created_at, u.last_seen_at, u.email_verified_at," +
+      "SELECT u.name, u.email, u.role, u.status, u.lang, u.gender, u.birth_year, u.created_at, u.last_seen_at, u.email_verified_at," +
         " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
         " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
         " FROM users u ORDER BY u.created_at ASC LIMIT ?"
@@ -60,9 +60,11 @@ export async function adminExport(request, env) {
     return asFile(
       "werun-members-" + day + ".csv",
       csv(
-        ["name", "email", "role", "status", "language", "joined", "last seen", "email confirmed", "points", "check-ins"],
+        ["name", "email", "role", "status", "language", "gender", "birth year", "age", "joined", "last seen", "email confirmed", "points", "check-ins"],
         (rows.results || []).map((m) => [
-          m.name, m.email, m.role, m.status, m.lang, m.created_at, m.last_seen_at || "",
+          m.name, m.email, m.role, m.status, m.lang, m.gender || "", m.birth_year || "",
+          m.birth_year ? new Date().getUTCFullYear() - m.birth_year : "",
+          m.created_at, m.last_seen_at || "",
           m.email_verified_at || "", m.points, m.checkins,
         ])
       )

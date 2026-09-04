@@ -13,6 +13,7 @@ const MEMBER_CAP = 500;
 async function memberList(env) {
   const rows = await env.DB.prepare(
     "SELECT u.id, u.email, u.name, u.role, u.lang, u.status, u.created_at, u.last_seen_at, u.email_verified_at," +
+      " u.gender, u.birth_year," +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
       " FROM users u ORDER BY u.created_at DESC LIMIT ?"

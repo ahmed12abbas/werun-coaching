@@ -255,8 +255,9 @@ const SFX = (function () {
 
    Links are in, when they are dressed as buttons. To an athlete the .fit
    download is a button; that it happens to be an <a> is our business. So
-   are the <summary> rows that fold the watch instructions open: they are
-   pressed like buttons and should answer like them.
+   are the <summary> rows that fold the watch instructions open, and the
+   club app's tab row: all of them are pressed like buttons and should
+   answer like them.
    ------------------------------------------------------------------------- */
 
 document.addEventListener(
@@ -264,7 +265,7 @@ document.addEventListener(
   (e) => {
     const t = e.target;
     if (!t || !t.closest) return; // a click on the document itself
-    const hit = t.closest("button, .btn, [role='button'], summary");
+    const hit = t.closest("button, .btn, [role='button'], summary, .appnav a");
     if (!hit || hit.disabled) return;
     const how = hit.getAttribute("data-sfx");
     if (how === "off") return;

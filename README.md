@@ -469,6 +469,14 @@ carries a signature has no business going through an image service anyway.
 `node tools/qr-test.js` decodes what it draws, which is the only proof worth
 having.
 
+### What the app asks a member for
+
+A name, an email, a password — and, optionally, **gender and year of birth**.
+Both can be left blank: someone who would rather not say still runs with the
+club. The year rather than the full date, because it gives the age group a
+race entry is set by and the club has no use for the day. Both appear in
+Members and in the CSV export, with the age worked out.
+
 ### The standing week
 
 The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:45

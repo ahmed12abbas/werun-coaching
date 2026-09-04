@@ -130,6 +130,9 @@ export const publicUser = (u) => ({
   // The app shows a "confirm your email" line until this is filled in, so it
   // has to travel; it says nothing a member does not already know.
   email_verified_at: u.email_verified_at || null,
+  // Their own answers, so the Me screen can show what they said.
+  gender: u.gender || "",
+  birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,
 });
 
 /* ---------- guards ------------------------------------------------------- */

@@ -40,13 +40,13 @@ const Auth = {
     return r.user;
   },
 
-  async signup(name, email, password) {
-    const r = await API.post("/api/auth/signup", {
+  async signup(name, email, password, about) {
+    const r = await API.post("/api/auth/signup", Object.assign({
       name: name,
       email: email,
       password: password,
       lang: I18N.lang,
-    });
+    }, about || {}));
     Auth.user = r.user;
     Auth.club = r.club || {};
     return r.user;

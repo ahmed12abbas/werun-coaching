@@ -140,3 +140,17 @@ a.place{text-decoration:underline; text-underline-offset:2px}
 a.place:hover{color:var(--brand)}
 .slot-note{font-size:12.5px; color:var(--warn); margin-top:2px}
 .slot .tag{flex:none; font-size:12px; padding:2px 9px 0}
+
+/* ---- how long until it starts ---- */
+.countdown{display:inline-flex;align-items:center;gap:5px;font-weight:650;color:var(--brand);
+  font-variant-numeric:tabular-nums}
+.countdown::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--brand);flex:none}
+.countdown.now{color:var(--ok)}
+.countdown.now::before{background:var(--ok);animation:pulseNow 2s ease-in-out infinite}
+@keyframes pulseNow{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.countdown.now::before{animation:none}}
+.checkin-strip .countdown{margin-top:4px}
+
+/* ---- who is running ---- */
+select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:11px}
