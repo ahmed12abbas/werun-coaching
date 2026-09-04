@@ -13,6 +13,11 @@
  * 04:55 before work and 19:30 after it — except Misk, which starts at 19:00
  * because the track is booked from seven.
  *
+ * What is deliberately not here: the line under Where that says what each
+ * session actually is ("Long run 80min"). That is the coach's, written in
+ * /admin, and this seed says nothing about it so that re-running it leaves
+ * what she wrote alone.
+ *
  * SMOKE_ADMIN_PASSWORD is the club password (default: the .dev.vars one).
  */
 const BASE = (process.argv[2] || "http://127.0.0.1:4323").replace(/\/+$/, "");

@@ -7,7 +7,7 @@
 import { json, readBody } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
-import { signSlot, slotNow, slotRemaining, checkinUrl } from "../lib/checkin.js";
+import { signSlot, slotNow, slotRemaining, checkinUrl, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
@@ -29,7 +29,13 @@ async function sessionList(env) {
   )
     .bind(LIST)
     .all();
-  return rows.results || [];
+  // The window each row is under *now*, not the one it was written with, so
+  // the console and the app cannot disagree about whether a session is open.
+  const mins = await windowMinutes(env);
+  return (rows.results || []).map((row) => Object.assign({}, row, {
+    window_open_at: windowFor(row, mins).open,
+    window_close_at: windowFor(row, mins).close,
+  }));
 }
 
 /* ---------- POST /api/admin/sessions -------------------------------------- */
@@ -244,7 +250,7 @@ export async function adminQr(request, env) {
 
   const id = String(body.id || "");
   const session = await env.DB.prepare(
-    "SELECT id, name, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
+    "SELECT id, name, starts_at, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
   )
     .bind(id)
     .first();
@@ -254,15 +260,16 @@ export async function adminQr(request, env) {
   const sig = await signSlot(env.QR_SECRET, session.id, slot);
   const origin = new URL(request.url).origin;
   const now = nowISO();
+  const w = windowFor(session, await windowMinutes(env));
 
   return json({
     url: checkinUrl(origin, session.id, slot, sig),
     slot: slot,
     seconds: slotRemaining(),
     name: session.name,
-    open: now >= session.window_open_at && now <= session.window_close_at,
-    window_open_at: session.window_open_at,
-    window_close_at: session.window_close_at,
+    open: now >= w.open && now <= w.close,
+    window_open_at: w.open,
+    window_close_at: w.close,
     came: ((await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM checkins WHERE session_id = ? AND voided_at IS NULL"
     )

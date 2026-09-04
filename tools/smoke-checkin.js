@@ -150,7 +150,31 @@ const PAYLOAD =
   r = await call("POST", "/api/checkin", { session: sessionId, slot: Number(slot), sig });
   check("void: scanning again does not undo the coach", r.status === 403 && r.data.error === "voided", r);
 
+  /* The two ends of the club's rule: open all month before a session, shut
+     two hours after it started. Neither of these reads the columns the row
+     was written with — both are worked out from the start, so widening the
+     window in the console reaches sessions already on the calendar. */
+  const soon = new Date(Date.now() + 5 * 86400 * 1000);
+  const soonDate = soon.toISOString().slice(0, 10);
+  r = await admin({ action: "publish", name: "Next week | WeRUN", payload: PAYLOAD, date: soonDate, starts_at: soon.toISOString(), points: 10 });
+  const soonId = r.data && r.data.id;
+  r = await call("POST", "/api/admin/qr", { password: ADMIN, id: soonId });
+  check("qr: a session five days out is already open", r.data && r.data.open === true, r.data);
+  const soonParts = String(r.data.url).split("#/c/")[1].split("/");
+  r = await call("POST", "/api/checkin", { session: soonId, slot: Number(soonParts[1]), sig: soonParts[2] });
+  check("checkin: and its code is taken", r.status === 200 && r.data.ok === true, r);
+
+  const over = new Date(Date.now() - 3 * 3600 * 1000);
+  r = await admin({ action: "publish", name: "Three hours ago | WeRUN", payload: PAYLOAD, date: over.toISOString().slice(0, 10), starts_at: over.toISOString(), points: 10 });
+  const overId = r.data && r.data.id;
+  r = await call("POST", "/api/admin/qr", { password: ADMIN, id: overId });
+  check("qr: three hours after the start it is shut", r.data && r.data.open === false, r.data);
+  const overParts = String(r.data.url).split("#/c/")[1].split("/");
+  r = await call("POST", "/api/checkin", { session: overId, slot: Number(overParts[1]), sig: overParts[2] });
+  check("checkin: refused two hours after the start", r.status === 403 && r.data.error === "too-late", r);
+
   await admin({ action: "delete", id: oldId });
+  await admin({ action: "delete", id: overId });
   console.log(failures ? "\n" + failures + " failure(s)." : "\nAll passed.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => {

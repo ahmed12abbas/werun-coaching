@@ -10,15 +10,17 @@ export const DEFAULTS = {
   points_per_checkin: 10,
   streak_every: 4, // every N consecutive sessions…
   streak_bonus: 5, // …earns this on top
-  window_before_min: 30, // check-in opens this long before the start
-  // …and closes this long after it. Three hours, not the three quarters of an
-  // hour this started at: a long run is still out on the road when a speed
-  // session would have finished, and an athlete who forgot to scan until the
-  // coffee afterwards is still someone who ran. Nothing is lost by the length
-  // — the code on the coach's screen is signed and dies in thirty seconds, so
-  // a wider window is more time to be *at* the session, not more time to
+  // Check-in opens this long before the start. A month, which is to say it
+  // is simply open: an athlete looking at Saturday's card on a Tuesday gets
+  // a live Join button rather than a dead one, and nothing is lost by it —
+  // the code on the coach's screen is signed and dies in thirty seconds, so
+  // an open window is more time to be *at* the session, never more time to
   // check in from home.
-  window_after_min: 180,
+  window_before_min: 30 * 24 * 60,
+  // …and closes two hours after the start. Long enough for a long run and
+  // the coffee afterwards, short enough that yesterday's session is shut by
+  // the time anybody thinks to try it.
+  window_after_min: 120,
   club_name: "WE RUN",
   store_open: false, // off until the coach has put something in it
   currency: "usd", // Stripe's code for it: usd, egp, aed, gbp, eur…

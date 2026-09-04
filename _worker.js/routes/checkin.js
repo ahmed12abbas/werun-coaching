@@ -4,7 +4,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, uid, nowISO } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
-import { slotValid } from "../lib/checkin.js";
+import { slotValid, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints, totalFor, streakFor } from "../lib/points.js";
 
 /* ---------- POST /api/checkin --------------------------------------------- */
@@ -31,7 +31,7 @@ export const checkin = withMember(async (request, env, user) => {
   if (!sessionId) return json({ error: "bad-code" }, 400);
 
   const session = await env.DB.prepare(
-    "SELECT id, name, date, points, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
+    "SELECT id, name, date, points, starts_at, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
   )
     .bind(sessionId)
     .first();
@@ -39,9 +39,13 @@ export const checkin = withMember(async (request, env, user) => {
 
   if (!(await slotValid(env.QR_SECRET, sessionId, slot, sig))) return json({ error: "stale-code" }, 403);
 
+  // Worked out from the start and the club's two numbers, not read back off
+  // the row: the window is a rule, and a rule that has been widened has to
+  // apply to the sessions already on the calendar as well.
   const now = nowISO();
-  if (now < session.window_open_at) return json({ error: "too-early" }, 403);
-  if (now > session.window_close_at) return json({ error: "too-late" }, 403);
+  const w = windowFor(session, await windowMinutes(env));
+  if (now < w.open) return json({ error: "too-early" }, 403);
+  if (now > w.close) return json({ error: "too-late" }, 403);
 
   const already = await env.DB.prepare(
     "SELECT id, voided_at FROM checkins WHERE session_id = ? AND user_id = ?"

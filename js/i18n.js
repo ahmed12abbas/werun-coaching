@@ -317,6 +317,7 @@ const STRINGS = {
     aWindowShut: "Check-in isn't open for this session.",
     aOpensAt: "Check-in opens {time}.",
     aClosesAt: "Check-in closes {time}.",
+    aClosedAt: "Check-in closed at {time}.",
     navPointsShort: "Points",
     aPoints: "Points",
     aYourPoints: "Your points",
@@ -452,6 +453,7 @@ const STRINGS = {
 
     /* the app: one session at a glance */
     aWhere: "Where",
+    aDetails: "Details",
     aWorth: "Worth",
     aCoach: "Coach",
     aWithCoach: "with {name}",
@@ -770,6 +772,7 @@ const STRINGS = {
     aWindowShut: "التسجيل غير مفتوح لهذه الجلسة.",
     aOpensAt: "التسجيل يفتح {time}.",
     aClosesAt: "التسجيل يقفل {time}.",
+    aClosedAt: "التسجيل أُقفل الساعة {time}.",
     navPointsShort: "النقاط",
     aPoints: "النقاط",
     aYourPoints: "نقاطك",
@@ -905,6 +908,7 @@ const STRINGS = {
 
     /* the app: one session at a glance */
     aWhere: "المكان",
+    aDetails: "التفاصيل",
     aWorth: "النقاط",
     aCoach: "المدرب",
     aWithCoach: "مع {name}",

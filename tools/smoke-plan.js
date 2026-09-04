@@ -97,7 +97,7 @@ function nextDates(weekday) {
       map_url: "https://maps.app.goo.gl/example",
     },
   });
-  const mine = (r.data.schedule || []).find((e) => e.title_en === "Test recovery " + stamp);
+  let mine = (r.data.schedule || []).find((e) => e.title_en === "Test recovery " + stamp);
   check("an entry saves", r.status === 200 && !!mine, r.status);
   check("…with its map link kept", mine && mine.map_url === "https://maps.app.goo.gl/example", mine);
 
@@ -109,6 +109,24 @@ function nextDates(weekday) {
   check("the club sees it on the day", !!item, day);
   check("…in their own language too", item && item.title_ar === "استشفاء تجريبي", item);
   check("…as a standing entry, not a published one", item && item.kind === "standing", item);
+
+  /* ---- what the session is ---- */
+  r = await plan({ action: "save", entry: Object.assign({}, mine, { desc_en: "Long run 80min", desc_ar: "ركضة طويلة ٨٠ دقيقة" }) });
+  check("a description saves against the slot", r.status === 200, r.status);
+  mine = (r.data.schedule || []).find((e) => e.id === mine.id) || mine;
+  r = await athlete.call("GET", "/api/week?start=" + first);
+  item = ((r.data.days || []).find((d) => d.date === first).items || []).find((i) => i.id === mine.id);
+  check("…and the club reads what the session is", item && item.desc_en === "Long run 80min", item);
+  // A save that says nothing about the description leaves it alone:
+  // tools/seed-schedule.js rewrites the printed schedule and must not take
+  // the coach's own lines with it.
+  r = await plan({ action: "save", entry: {
+    id: mine.id, weekday: mine.weekday, at: mine.at, active: 1, points: mine.points,
+    title_en: mine.title_en, title_ar: mine.title_ar,
+    place_en: mine.place_en, place_ar: mine.place_ar, map_url: mine.map_url,
+  } });
+  const kept = (r.data.schedule || []).find((e) => e.id === mine.id);
+  check("…and a save that never mentions it leaves it there", kept && kept.desc_en === "Long run 80min", kept);
 
   /* ---- one occurrence, moved ---- */
   r = await change({ schedule_id: mine.id, date: first, at: "07:15", note_en: "Gate 2 is shut" });
@@ -167,6 +185,7 @@ function nextDates(weekday) {
   const swapped = onDay.find((i) => i.schedule_id === mine.id);
   check("…and shows as the workout", swapped && swapped.kind === "session", swapped);
   check("…keeping the place it is held at", swapped && swapped.place_en === "Wadi Hanifa Park", swapped);
+  check("…and the slot's line about what it is", swapped && swapped.desc_en === "Long run 80min", swapped);
 
   /* The same slot a week later has no workout of its own, so it carries the
      steps of the one that does — that is the Steps button on the summary. */

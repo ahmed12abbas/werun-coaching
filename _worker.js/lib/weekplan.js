@@ -15,6 +15,7 @@
    is for. */
 
 import { coachRoster, coachNameFor } from "./coaches.js";
+import { windowMinutes, windowFor } from "./checkin.js";
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -96,6 +97,9 @@ export async function loadWeek(env, from, to, userId) {
     published: published.results || [],
     nearby: nearby,
     coaches: await coachRoster(env),
+    // The club's check-in window, so buildDays can work each session's out
+    // rather than read back what its row was written with.
+    window: await windowMinutes(env),
   };
 }
 
@@ -127,31 +131,38 @@ function nearestSteps(list, date) {
    against, when there was one. Its place comes along with it: the session
    carrying the workout is the one an athlete most needs the address for,
    and dropping it because a workout was attached would be backwards. */
-const publishedItem = (s, slot, names) => ({
-  kind: "session",
-  id: s.id,
-  schedule_id: s.schedule_id || null,
-  title_en: s.name,
-  title_ar: s.name,
-  place_en: (slot && slot.place_en) || "",
-  place_ar: (slot && slot.place_ar) || "",
-  map_url: (slot && slot.map_url) || "",
-  // Who took it — what it was published under, or the slot's usual coach.
-  coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
-  at: (s.starts_at || "").slice(11, 16), // as a fallback; the page uses starts_at
-  starts_at: s.starts_at,
-  window_open_at: s.window_open_at,
-  window_close_at: s.window_close_at,
-  points: s.points,
-  // A session opened purely to hand out a check-in code carries no workout.
-  // The week still shows it, and it still counts — there are just no steps to
-  // open, and the page has to know that before it tries to decode nothing.
-  has_steps: !!s.payload,
-  checked_in: !!(s.checked_in_at && !s.voided_at),
-  checked_in_at: s.voided_at ? null : s.checked_in_at,
-});
+function publishedItem(s, slot, names, mins) {
+  // When check-in opens and shuts is worked out from the start and the club's
+  // rule, not read back off the row — see lib/checkin.js.
+  const w = windowFor(s, mins);
+  return {
+    kind: "session",
+    id: s.id,
+    schedule_id: s.schedule_id || null,
+    title_en: s.name,
+    title_ar: s.name,
+    place_en: (slot && slot.place_en) || "",
+    place_ar: (slot && slot.place_ar) || "",
+    desc_en: (slot && slot.desc_en) || "",
+    desc_ar: (slot && slot.desc_ar) || "",
+    map_url: (slot && slot.map_url) || "",
+    // Who took it — what it was published under, or the slot's usual coach.
+    coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
+    at: (s.starts_at || "").slice(11, 16), // as a fallback; the page uses starts_at
+    starts_at: s.starts_at,
+    window_open_at: w.open,
+    window_close_at: w.close,
+    points: s.points,
+    // A session opened purely to hand out a check-in code carries no workout.
+    // The week still shows it, and it still counts — there are just no steps
+    // to open, and the page has to know that before it tries to decode nothing.
+    has_steps: !!s.payload,
+    checked_in: !!(s.checked_in_at && !s.voided_at),
+    checked_in_at: s.voided_at ? null : s.checked_in_at,
+  };
+}
 
-function standingItem(row, change, steps, names) {
+function standingItem(row, change, steps, names, mins) {
   const item = {
     kind: "standing",
     id: row.id,
@@ -160,9 +171,15 @@ function standingItem(row, change, steps, names) {
     title_ar: row.title_ar,
     place_en: row.place_en,
     place_ar: row.place_ar,
+    desc_en: row.desc_en || "",
+    desc_ar: row.desc_ar || "",
     map_url: row.map_url,
     at: row.at,
     points: row.points,
+    // A standing slot has a wall-clock time and no instant — the page that
+    // knows the reader's own clock makes one. So it is handed the rule rather
+    // than an answer: check-in shuts this many minutes after the start.
+    window_after_min: mins ? mins.after : null,
     coach: coachNameFor(names, null, row.coach_id),
     cancelled: false,
     moved: false,
@@ -233,9 +250,9 @@ export function buildDays(dates, data) {
     const items = data.schedule
       .filter((row) => row.weekday === weekday && !taken.has(row.id))
       .map((row) =>
-        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date), names)
+        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date), names, data.window)
       )
-      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id), names)));
+      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id), names, data.window)));
 
     items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
     return { date: date, items: items };

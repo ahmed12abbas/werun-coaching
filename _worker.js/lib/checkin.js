@@ -11,6 +11,7 @@
    either side covers that without opening the door to the group chat. */
 
 import { hex } from "./crypto.js";
+import { getSetting } from "./settings.js";
 
 export const SLOT_MS = 30000;
 /** How many slots either side of the current one still count. */
@@ -57,3 +58,36 @@ export async function slotValid(secret, sessionId, slot, sig) {
 /** The link the QR carries. `/app`, not `/app.html`: shorter is denser. */
 export const checkinUrl = (origin, sessionId, slot, sig) =>
   origin + "/app#/c/" + sessionId + "/" + slot + "/" + sig;
+
+/* ---------- when check-in is open ----------------------------------------
+
+   Worked out from the session's start every time it is asked, rather than
+   read back from the two columns the row was written with. The window is a
+   club-wide rule — "open a month out, shut two hours after the start" — and a
+   rule the coach can move from the console has to move for the sessions that
+   are already on the calendar too, not only the ones published after it.
+
+   The columns are still written and still true; they are what the row said
+   when it went out, and the fallback for the odd row whose start will not
+   parse.
+   ------------------------------------------------------------------------- */
+
+export async function windowMinutes(env) {
+  return {
+    before: await getSetting(env, "window_before_min"),
+    after: await getSetting(env, "window_after_min"),
+  };
+}
+
+/** `{ open, close }` as ISO strings, for a session and the club's two numbers. */
+export function windowFor(session, mins) {
+  const at = Date.parse((session && session.starts_at) || "");
+  // No rule to apply, or a start that will not parse: what the row says.
+  if (!mins || !Number.isFinite(at)) {
+    return { open: (session && session.window_open_at) || "", close: (session && session.window_close_at) || "" };
+  }
+  return {
+    open: new Date(at - mins.before * 60000).toISOString(),
+    close: new Date(at + mins.after * 60000).toISOString(),
+  };
+}

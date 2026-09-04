@@ -530,8 +530,9 @@ SCREENS.plan = function (args) {
   );
 };
 
-/* The two facts every session has, whether or not it carries a workout: the
-   place — tappable when the coach has dropped a pin on it — and the points. */
+/* The facts every session has, whether or not it carries a workout: the
+   place — tappable when the coach has dropped a pin on it — what the session
+   is, and the points. */
 function whereAndWorth(item) {
   const facts = el("div", { class: "plan-facts" });
   const place = side(item, "place");
@@ -546,6 +547,13 @@ function whereAndWorth(item) {
           : el("span", {}, place)
       )
     );
+  }
+  // What it is, in a line: "80 min easy on the trail". The coach writes it
+  // once on the standing slot and every session published into that slot
+  // carries it, so nothing shows here until somebody has written one.
+  const what = side(item, "desc");
+  if (what) {
+    facts.append(el("div", {}, el("span", { class: "l" }, t("aDetails")), el("span", { dir: "auto" }, what)));
   }
   if (item.coach) {
     facts.append(el("div", {}, el("span", { class: "l" }, t("aCoach")), el("span", { dir: "auto" }, item.coach)));
@@ -594,6 +602,12 @@ function planCard(item, date) {
   // there is no code to scan for a session nobody is holding, but the workout
   // is still a workout and an athlete may well go and run it alone.
 
+  // Yesterday's session is over: check-in shut two hours after it started,
+  // and a live button on it is an invitation to scan a code that no longer
+  // exists. Called off is called off for the same reason — there is no code
+  // to scan for a session nobody is holding.
+  const shut = checkinShut(item, date);
+  const closed = closesAt(item, date);
   return el(
     "div",
     { class: "card pad stack" },
@@ -603,10 +617,10 @@ function planCard(item, date) {
     facts,
     note ? el("p", { class: "slot-note" }, note) : null,
     steps,
-    // Called off is called off: there is no code to scan for a session that
-    // is not happening.
-    item.cancelled ? null : joinButton(),
-    item.cancelled ? null : el("p", { class: "hint" }, t("aScanLead"))
+    item.cancelled ? null : joinButton(shut),
+    item.cancelled
+      ? null
+      : el("p", { class: "hint" }, shut ? t("aClosedAt", { time: closed }) : t("aScanLead"))
   );
 }
 
@@ -754,7 +768,7 @@ function checkinCard(s) {
 
   let note;
   if (now < open) note = t("aOpensAt", { time: when(s.window_open_at) });
-  else if (now > close) note = t("aClosesAt", { time: when(s.window_close_at) });
+  else if (now > close) note = t("aClosedAt", { time: when(s.window_close_at) });
   else note = t("aCheckInLead");
 
   const live = now >= open && now <= close;
@@ -974,6 +988,38 @@ function startsAt(item, date) {
   }
   const at = new Date(date + "T" + item.at + ":00");
   return isNaN(at) ? null : at;
+}
+
+/* When check-in shuts, as an instant.
+
+   A published session carries one outright. A standing slot carries the club's
+   rule instead — a wall-clock "04:55" is not an instant until somebody says
+   which day and whose clock, and that is this page, not the Worker. */
+const SHUTS_AFTER = 120 * 60000; // only if the week did not say
+
+function closesTime(item, date) {
+  if (item.window_close_at) {
+    const at = Date.parse(item.window_close_at);
+    if (Number.isFinite(at)) return at;
+  }
+  const when = startsAt(item, date);
+  if (!when) return null;
+  const after = Number(item.window_after_min);
+  return when.getTime() + (Number.isFinite(after) ? after * 60000 : SHUTS_AFTER);
+}
+
+/** Is this one over — too late to scan anything? */
+function checkinShut(item, date) {
+  const close = closesTime(item, date);
+  return close !== null && Date.now() > close;
+}
+
+/** The hour it shut, for the line that says so. */
+function closesAt(item, date) {
+  const close = closesTime(item, date);
+  return close === null
+    ? ""
+    : new Date(close).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 }
 
 /** "in 7h 20m", "in 45 min", or "starting now" once it is under way. */

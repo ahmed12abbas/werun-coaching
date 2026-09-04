@@ -465,9 +465,10 @@ sign up and used the moment they are in.
 place, reads the code and follows the very same link, so nothing about what is
 checked or signed changes. It sits on every session in the week — on the
 summary of a standing one, and above the steps of a published one, where it
-stays off until the window opens. Decoding is the browser's own
-`BarcodeDetector` (`js/scan.js`); where that is missing — iOS Safari most
-of all — the panel says to use the phone's camera app, which is the route that
+stays live until check-in shuts, two hours after the start — a session from
+earlier in the week offers a dead button and says when it closed. Decoding is
+the browser's own `BarcodeDetector` (`js/scan.js`); where that is missing —
+iOS Safari most of all — the panel says to use the phone's camera app, which is the route that
 has always worked. Only a check-in link on this very origin is ever followed:
 whatever the camera reads, a QR is a stranger's text until it matches.
 
@@ -476,7 +477,7 @@ What stops it being gamed:
 | | |
 |---|---|
 | A screenshot in the group chat | The slot is inside the signature, so it is refused about a minute later |
-| Checking in from home | The window is 30 minutes before the start to 45 after, and the coach sets both |
+| Checking in from home | Being early is not the thing worth stopping — the window runs from a month before the start to two hours after it, and what actually holds is that the code on the coach's screen is signed and dies in thirty seconds. The coach sets both ends |
 | Checking in twice | One row per athlete per session, as a database constraint rather than a rule in the page |
 | A made-up link | The signature is HMAC-SHA256 under `QR_SECRET`, which never leaves the Worker |
 
@@ -513,8 +514,14 @@ the rest day.
 
 Every one of them opens. A slot with a workout published against it opens the
 workout in full; a standing one opens a summary — the whole place with its map
-pin, what it is worth, how long until it starts, and **Join**. Only a session
-called off stays flat, because there is nothing left to say about it.
+pin, what it is, what it is worth, how long until it starts, and **Join**.
+Only a session called off stays flat, because there is nothing left to say
+about it.
+
+**Details** is that "what it is" line — "Long run 80min", "6 x 800m" — and it
+belongs to the slot rather than to each session, so the coach writes it once
+in **The standing week** and every workout published into that slot carries
+it. Both languages, and blank until somebody writes one.
 
 That pattern lives in **/admin → The standing week**, and it is what fills
 everyone's Week tab. Three or four times a month one of them moves or is

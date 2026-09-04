@@ -4,8 +4,9 @@ import { json, readBody } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
 import { validTime } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
+import { hasColumn } from "../lib/columns.js";
 
-const MAX = { title: 80, place: 100, url: 300, note: 200 };
+const MAX = { title: 80, place: 100, url: 300, note: 200, desc: 200 };
 const clean = (s, n) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, n);
 
 /* A pin has to be a link to a map, not a link to anywhere at all: this is put
@@ -54,6 +55,15 @@ export async function adminSchedule(request, env) {
       map_url, points, e.active ? 1 : 0,
       cleanCoachId(e.coach_id) || null, // who usually takes it
     ];
+    // The line about what the session is, once the migration that adds it is
+    // in — and only when the caller actually named it. seed-schedule.js writes
+    // the printed schedule and says nothing about descriptions; a re-run of it
+    // must not wipe what the coach has written.
+    const said = e.desc_en !== undefined || e.desc_ar !== undefined;
+    const cols = said && (await hasColumn(env, "schedule", "desc_en"))
+      ? { sql: ", desc_en, desc_ar", set: ", desc_en = ?, desc_ar = ?", values: [clean(e.desc_en, MAX.desc), clean(e.desc_ar, MAX.desc)] }
+      : { sql: "", set: "", values: [] };
+
     const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(e.id || "")) ? String(e.id) : null;
     const now = nowISO();
 
@@ -62,17 +72,18 @@ export async function adminSchedule(request, env) {
       if (!before) return json({ error: "no-entry" }, 404);
       await env.DB.prepare(
         "UPDATE schedule SET weekday = ?, at = ?, title_en = ?, title_ar = ?, place_en = ?," +
-          " place_ar = ?, map_url = ?, points = ?, active = ?, coach_id = ?, updated_at = ? WHERE id = ?"
+          " place_ar = ?, map_url = ?, points = ?, active = ?, coach_id = ?" + cols.set +
+          ", updated_at = ? WHERE id = ?"
       )
-        .bind(...fields, now, id)
+        .bind(...fields, ...cols.values, now, id)
         .run();
     } else {
       await env.DB.prepare(
         "INSERT INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url," +
-          " points, active, coach_id, created_at, updated_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          " points, active, coach_id" + cols.sql + ", created_at, updated_at)" +
+          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + cols.values.map(() => ", ?").join("") + ", ?, ?)"
       )
-        .bind(uid(), ...fields, now, now)
+        .bind(uid(), ...fields, ...cols.values, now, now)
         .run();
     }
     return json({ schedule: await list(env), coaches: await coachRoster(env) });

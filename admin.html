@@ -253,7 +253,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=89aaa8cf"></script>
+<script src="js/i18n.js?v=c17719b0"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
@@ -1718,6 +1718,8 @@ function schedulePlanCard() {
     var titleAr = el("input", { type: "text", maxlength: 80, placeholder: "تمرين سرعات" });
     var placeEn = el("input", { type: "text", maxlength: 100, placeholder: "Wadi Mahdia Road" });
     var placeAr = el("input", { type: "text", maxlength: 100, placeholder: "خط التفتيش - بعد الدوار" });
+    var descEn = el("input", { type: "text", maxlength: 200, placeholder: "Long run 80min" });
+    var descAr = el("input", { type: "text", maxlength: 200, placeholder: "ركضة طويلة ٨٠ دقيقة" });
     var map = el("input", { type: "url", maxlength: 300, placeholder: "https://maps.app.goo.gl/…" });
     var points = el("input", { type: "number", min: "0", max: "1000", step: "1", value: "10" });
     var coach = COACHES.select(editing ? editing.coach_id : "");
@@ -1730,6 +1732,7 @@ function schedulePlanCard() {
       at.value = editing.at;
       titleEn.value = editing.title_en || ""; titleAr.value = editing.title_ar || "";
       placeEn.value = editing.place_en || ""; placeAr.value = editing.place_ar || "";
+      descEn.value = editing.desc_en || ""; descAr.value = editing.desc_ar || "";
       map.value = editing.map_url || "";
       points.value = String(editing.points);
       if (!editing.active) active.removeAttribute("checked");
@@ -1744,6 +1747,7 @@ function schedulePlanCard() {
         weekday: Number(day.value), at: at.value,
         title_en: titleEn.value, title_ar: titleAr.value,
         place_en: placeEn.value, place_ar: placeAr.value,
+        desc_en: descEn.value, desc_ar: descAr.value,
         map_url: map.value, points: Number(points.value), active: active.checked,
         coach_id: coach.value
       } }).then(function (d) { editing = null; form(); paint(d); })
@@ -1761,6 +1765,15 @@ function schedulePlanCard() {
         el("div", { style: "margin-top:10px" }, el("label", {}, "Where (English)"), placeEn)),
       el("div", { class: "ar" }, el("label", {}, "What (العربية)"), titleAr,
         el("div", { style: "margin-top:10px" }, el("label", {}, "Where (العربية)"), placeAr))));
+
+    /* The line athletes read to decide whether to set an alarm. It belongs to
+       the standing slot, so every session published into this slot carries it
+       without the coach typing it again. */
+    editor.append(el("div", { class: "two", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "Details (English)"), descEn),
+      el("div", { class: "ar" }, el("label", {}, "Details (العربية)"), descAr)));
+    editor.append(el("div", { class: "set-note" },
+      "Optional. Shown under Where in the app -- \"Long run 80min\", \"6 x 800m\"."));
 
     editor.append(el("div", { style: "margin-top:12px" },
       el("label", {}, "Map link"), map,
@@ -1862,7 +1875,8 @@ function schedulePlanCard() {
           el("span", { class: "at" }, e.at),
           el("div", { class: "what" },
             el("b", { dir: "auto" }, e.title_en || e.title_ar),
-            el("span", { dir: "auto" }, (e.place_en || e.place_ar || "—") + " · " + e.points + " pts" +
+            el("span", { dir: "auto" }, (e.desc_en || e.desc_ar ? (e.desc_en || e.desc_ar) + " · " : "") +
+              (e.place_en || e.place_ar || "—") + " · " + e.points + " pts" +
               (COACHES.name(e.coach_id) ? " · " + COACHES.name(e.coach_id) : "") +
               (e.active ? "" : " · not on the schedule"))));
         /* A code for a session with no workout behind it. Seven of the ten
