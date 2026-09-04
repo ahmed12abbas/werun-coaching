@@ -24,7 +24,9 @@
      POST /api/auth/verify      — spend that link
      POST /api/auth/reset/request — post me a new-password link
      POST /api/auth/reset       — spend that link
-     GET  /api/week?start=      — seven days of sessions (logged in)
+     GET  /api/week?start=      — seven days, Sunday first: the standing week,
+                                  what has changed about it, and anything
+                                  published                        (logged in)
      GET  /api/session?id=      — one session, payload and all (logged in)
      POST /api/checkin          — a scanned code, into points        (logged in)
      GET  /api/points/me        — total, streak, history             (logged in)
@@ -50,6 +52,8 @@
      POST /api/admin/export     — members, points or check-ins as CSV
      POST /api/admin/products   — what is for sale
      POST /api/admin/orders     — who is owed one, and handing it over
+     POST /api/admin/schedule   — the standing week
+     POST /api/admin/schedule-change — one occurrence moved or called off
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the counts, feedback, articles and rate limits
@@ -87,6 +91,7 @@ import { adminExport } from "./routes/export.js";
 import { store, checkout, order } from "./routes/store.js";
 import { stripeWebhook } from "./routes/stripe.js";
 import { adminProducts, adminOrders } from "./routes/shop.js";
+import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 
 const POST = {
   "/api/share": share,
@@ -116,6 +121,8 @@ const POST = {
   "/api/stripe/webhook": stripeWebhook,
   "/api/admin/products": adminProducts,
   "/api/admin/orders": adminOrders,
+  "/api/admin/schedule": adminSchedule,
+  "/api/admin/schedule-change": adminScheduleChange,
 };
 const GET = {
   "/api/tips": tips,

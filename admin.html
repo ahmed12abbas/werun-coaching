@@ -206,6 +206,24 @@ table.ord td.money{text-align:right}
 table.ord tr.handed td{color:var(--muted)}
 table.ord tr.cancelled td{color:var(--muted);text-decoration:line-through}
 .tiles .tile .l small{display:block;text-transform:none;letter-spacing:0;font-weight:400}
+/* ---- the standing week ---- */
+.wk-day{margin-top:14px}
+.wk-day > h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;margin:0 0 6px;color:var(--muted)}
+.wk-row{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:12px;margin-bottom:8px}
+.wk-row.off{opacity:.55}
+.wk-row .at{flex:none;width:58px;font-weight:700;font-variant-numeric:tabular-nums}
+.wk-row .what{flex:1 1 auto;min-width:0}
+.wk-row .what b{display:block;font-weight:650}
+.wk-row .what span{font-size:13px;color:var(--muted)}
+.wk-row .acts{display:flex;gap:6px;flex-wrap:wrap}
+.wk-empty{color:var(--muted);font-size:14px;margin:0 0 8px}
+.changes{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.change-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;
+  padding:8px 0;border-bottom:1px solid var(--line)}
+.change-row:last-child{border-bottom:0}
+.change-row .when{font-weight:650;font-variant-numeric:tabular-nums}
 /* ---- members ---- */
 .switches{margin:12px 0 4px}
 .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;font-weight:650;
@@ -235,7 +253,7 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=0b220c7d"></script>
+<script src="js/i18n.js?v=fb412b5f"></script>
 <script src="js/model.js?v=3b1fab6f"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=02d6c4d6"></script>
@@ -625,6 +643,7 @@ function renderStats(data, tips) {
     ));
     app.append(feedbackCard(data.feedback));
     app.append(tipsCard(tips));
+    app.append(schedulePlanCard());
     app.append(sessionsCard());
     app.append(feedCard());
     app.append(membersCard());
@@ -687,6 +706,7 @@ function renderStats(data, tips) {
   );
   app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
+  app.append(schedulePlanCard());
   app.append(sessionsCard());
   app.append(feedCard());
   app.append(membersCard());
@@ -1518,6 +1538,197 @@ function ordersCard() {
     .then(function () { return post({ action: "list" }); })
     .then(paint)["catch"](function (e) {
       body.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
+    });
+  return card;
+}
+
+/* ---- the standing week ----
+   Ten sessions that repeat is what the club actually runs on, so they live
+   here as a pattern rather than as ten rows re-typed every Sunday. Moving or
+   calling off one Tuesday is a change against that one date: editing the
+   pattern would move every Tuesday after it as well, which is never what a
+   coach means by "this week we are at the other gate". */
+var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function schedulePlanCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "The standing week")));
+  var editor = el("div", {});
+  var list = el("div", {});
+  var changes = el("div", { class: "changes" });
+  card.append(editor, list, changes);
+
+  var editing = null;
+  function post(payload) { return api("/api/admin/schedule", payload); }
+
+  function form() {
+    editor.textContent = "";
+    var day = el("select", {});
+    WK_DAYS.forEach(function (name, i) { day.append(el("option", { value: String(i) }, name)); });
+    var at = el("input", { type: "time" });
+    var titleEn = el("input", { type: "text", maxlength: 80, placeholder: "Speed session" });
+    var titleAr = el("input", { type: "text", maxlength: 80, placeholder: "تمرين سرعات" });
+    var placeEn = el("input", { type: "text", maxlength: 100, placeholder: "Wadi Mahdia Road" });
+    var placeAr = el("input", { type: "text", maxlength: 100, placeholder: "خط التفتيش - بعد الدوار" });
+    var map = el("input", { type: "url", maxlength: 300, placeholder: "https://maps.app.goo.gl/…" });
+    var points = el("input", { type: "number", min: "0", max: "1000", step: "1", value: "10" });
+    var active = el("input", { type: "checkbox" });
+    active.setAttribute("checked", "");
+    var err = el("p", { class: "err", style: "display:none" });
+
+    if (editing) {
+      day.value = String(editing.weekday);
+      at.value = editing.at;
+      titleEn.value = editing.title_en || ""; titleAr.value = editing.title_ar || "";
+      placeEn.value = editing.place_en || ""; placeAr.value = editing.place_ar || "";
+      map.value = editing.map_url || "";
+      points.value = String(editing.points);
+      if (!editing.active) active.removeAttribute("checked");
+      active.checked = !!editing.active;
+    }
+
+    function save() {
+      err.style.display = "none";
+      if (!at.value) { err.textContent = "What time does it start?"; err.style.display = ""; return; }
+      post({ action: "save", entry: {
+        id: editing ? editing.id : null,
+        weekday: Number(day.value), at: at.value,
+        title_en: titleEn.value, title_ar: titleAr.value,
+        place_en: placeEn.value, place_ar: placeAr.value,
+        map_url: map.value, points: Number(points.value), active: active.checked
+      } }).then(function (d) { editing = null; form(); paint(d); })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+    }
+
+    editor.append(el("div", { class: "row", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "Day"), day),
+      el("div", {}, el("label", {}, "Starts"), at),
+      el("div", {}, el("label", {}, "Points"), points)));
+
+    editor.append(el("div", { class: "two", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "What (English)"), titleEn,
+        el("div", { style: "margin-top:10px" }, el("label", {}, "Where (English)"), placeEn)),
+      el("div", { class: "ar" }, el("label", {}, "What (العربية)"), titleAr,
+        el("div", { style: "margin-top:10px" }, el("label", {}, "Where (العربية)"), placeAr))));
+
+    editor.append(el("div", { style: "margin-top:12px" },
+      el("label", {}, "Map link"), map,
+      el("div", { class: "set-note" }, "Optional. Must start https:// — the place name becomes a link in the app.")));
+
+    editor.append(err);
+    editor.append(el("div", { class: "row", style: "margin-top:12px" },
+      el("div", { style: "flex:0 0 auto" },
+        el("label", { class: "sw" }, active, el("span", {}, "On the schedule"))),
+      el("div", { style: "flex:0 0 auto" },
+        el("button", { class: "btn primary", onclick: save }, editing ? "Save it" : "Add it")),
+      editing ? el("div", { style: "flex:0 0 auto" },
+        el("button", { class: "btn", onclick: function () { editing = null; form(); } }, "New session")) : null));
+  }
+
+  /* The next date a given weekday falls on, so "call one off" defaults to the
+     one the coach is most likely to mean. */
+  function nextDate(weekday) {
+    var d = new Date();
+    d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function changeOne(entry, row) {
+    var date = el("input", { type: "date", value: nextDate(entry.weekday) });
+    var at = el("input", { type: "time", value: entry.at });
+    var place = el("input", { type: "text", maxlength: 100, placeholder: entry.place_en || "somewhere else" });
+    var note = el("input", { type: "text", maxlength: 200, placeholder: "Meeting at the far gate" });
+    var err = el("p", { class: "err", style: "display:none" });
+    var box = el("div", { style: "margin-top:10px" });
+
+    function send(payload) {
+      err.style.display = "none";
+      api("/api/admin/schedule-change", Object.assign({ schedule_id: entry.id, date: date.value }, payload))
+        .then(function (d) { box.remove(); paintChanges(d.changes); })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+    }
+
+    box.append(
+      el("div", { class: "row" },
+        el("div", {}, el("label", {}, "Which date"), date),
+        el("div", {}, el("label", {}, "New time"), at),
+        el("div", {}, el("label", {}, "Somewhere else"), place)),
+      el("div", { style: "margin-top:10px" }, el("label", {}, "A word to the club"), note),
+      err,
+      el("div", { class: "row", style: "margin-top:10px" },
+        el("div", { style: "flex:0 0 auto" },
+          el("button", { class: "btn primary", onclick: function () {
+            send({ action: "set", at: at.value, place_en: place.value, note_en: note.value });
+          } }, "Move it")),
+        el("div", { style: "flex:0 0 auto" },
+          el("button", { class: "btn", onclick: function () {
+            if (!window.confirm("Call this one off? Athletes see it struck through with your note.")) return;
+            send({ action: "set", cancelled: true, note_en: note.value });
+          } }, "Call it off")),
+        el("div", { style: "flex:0 0 auto" },
+          el("button", { class: "btn", onclick: function () { box.remove(); } }, "Never mind"))));
+    row.append(box);
+  }
+
+  function paintChanges(rows) {
+    changes.textContent = "";
+    changes.append(el("h3", { style: "font-family:var(--display);font-size:20px;text-transform:uppercase;margin:0 0 8px" },
+      "Changed or called off"));
+    if (!rows || !rows.length) {
+      changes.append(el("p", { class: "muted small", style: "margin:0" },
+        "Nothing changed in the next three weeks. The standing week runs as it is."));
+      return;
+    }
+    rows.forEach(function (c) {
+      changes.append(el("div", { class: "change-row" },
+        el("span", { class: "when" }, c.date),
+        el("span", { style: "flex:1 1 auto" }, (c.title_en || c.title_ar) +
+          (c.cancelled ? " — called off" : c.at ? " — moved to " + c.at : " — changed") +
+          (c.note_en ? " · " + c.note_en : "")),
+        el("button", { class: "btn sm", onclick: function () {
+          api("/api/admin/schedule-change", { action: "clear", schedule_id: c.schedule_id, date: c.date })
+            .then(function (d) { paintChanges(d.changes); })
+            ["catch"](function (e) { changes.append(el("p", { class: "err" }, e.message)); });
+        } }, "Put it back")));
+    });
+  }
+
+  function paint(d) {
+    list.textContent = "";
+    var all = (d && d.schedule) || [];
+    if (!all.length) {
+      list.append(el("p", { class: "wk-empty", style: "margin-top:14px" },
+        "Nothing standing yet. Add the sessions the club runs every week and they appear in everyone's app."));
+      return;
+    }
+    WK_DAYS.forEach(function (name, i) {
+      var mine = all.filter(function (e) { return e.weekday === i; });
+      if (!mine.length) return;
+      var box = el("div", { class: "wk-day" }, el("h3", {}, name));
+      mine.forEach(function (e) {
+        var row = el("div", { class: "wk-row" + (e.active ? "" : " off") },
+          el("span", { class: "at" }, e.at),
+          el("div", { class: "what" },
+            el("b", { dir: "auto" }, e.title_en || e.title_ar),
+            el("span", { dir: "auto" }, (e.place_en || e.place_ar || "—") + " · " + e.points + " pts" +
+              (e.active ? "" : " · not on the schedule"))));
+        row.append(el("div", { class: "acts" },
+          el("button", { class: "btn sm", onclick: function () { editing = e; form(); editor.scrollIntoView({ block: "nearest" }); } }, "Edit"),
+          el("button", { class: "btn sm", onclick: function () { changeOne(e, row); } }, "Just this week"),
+          el("button", { class: "btn sm", onclick: function () {
+            if (!window.confirm("Remove " + (e.title_en || e.title_ar) + " on " + name + " from the standing week?")) return;
+            post({ action: "delete", id: e.id }).then(paint)["catch"](function (er) { row.append(el("p", { class: "err" }, er.message)); });
+          } }, "Remove")));
+        box.append(row);
+      });
+      list.append(box);
+    });
+  }
+
+  form();
+  post({ action: "list" }).then(function (d) { paint(d); paintChanges(d.changes); })
+    ["catch"](function (e) {
+      list.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
     });
   return card;
 }

@@ -117,7 +117,8 @@ const PAYLOAD =
 
   r = await call("GET", "/api/week?start=" + date);
   const day = (r.data.days || []).find((d) => d.date === date);
-  check("week: the session shows as checked in", !!(day && day.session && day.session.checked_in), day);
+  const mine = day && (day.items || []).find((i) => i.id === sessionId);
+  check("week: the session shows as checked in", !!(mine && mine.checked_in), mine || "not in the week");
 
   r = await call("GET", "/api/session?id=" + sessionId);
   check("session: the payload comes back for the app to draw", r.status === 200 && r.data.session.payload === PAYLOAD, r.status);

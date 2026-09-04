@@ -469,6 +469,27 @@ carries a signature has no business going through an image service anyway.
 `node tools/qr-test.js` decodes what it draws, which is the only proof worth
 having.
 
+### The standing week
+
+The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:45
+and 19:30 — Misk at 19:00, because the track is booked from seven. Friday is
+the rest day.
+
+That pattern lives in **/admin → The standing week**, and it is what fills
+everyone's Week tab. Three or four times a month one of them moves or is
+called off, and that is a change against **one date** — *Just this week* on
+the row — never an edit to the pattern. Editing the pattern to move next
+Tuesday would move every Tuesday after it too, which is not what a coach
+means by "this week we are at the other gate".
+
+Athletes see a moved session marked **Changed** with the coach's note, and a
+called-off one struck through rather than quietly missing. Places can carry a
+maps link, which makes the place name tappable for anyone who has not been
+there before.
+
+Publishing a real workout for one of those slots replaces it in the week, so
+the day shows one thing and not two.
+
 ### The news feed
 
 **/admin → Club news** is a two-language editor: title and body in English
@@ -615,6 +636,8 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `tools/smoke-feed.js` | Makes a coach, opens the console on that login, posts, schedules, and turns maintenance on and off |
 | `tools/smoke-email.js` | Confirms an address, resets a password, and checks the CSV exports |
 | `tools/smoke-store.js` | Runs the whole shop against a Stripe stub it starts itself, and tries every way of faking a payment |
+| `tools/smoke-plan.js` | The standing week, and moving one occurrence of it without moving the rest |
+| `tools/seed-schedule.js` | Writes the club's ten standing sessions through the console's own API |
 | `tools/qr-test.js` | Decodes what `js/qr.js` draws, with a real decoder |
 | `package.json` | The dev tools only — wrangler and the QR test's libraries. Nothing here reaches the athletes |
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |

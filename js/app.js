@@ -176,9 +176,11 @@ function submitting(btn, err, work) {
 const localISO = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 const locale = () => (I18N.lang === "ar" ? "ar" : undefined);
 
-function mondayOf(d) {
+/* Sunday, not Monday: the club runs Sunday to Thursday and rests on Friday,
+   so a Monday-first week would cut its weekend in half. */
+function weekStartOf(d) {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  x.setDate(x.getDate() - x.getDay());
   return x;
 }
 
@@ -257,8 +259,8 @@ SCREENS.signup = function () {
    they happen. Today is outlined; a session is a button into its detail. */
 SCREENS.week = function (args) {
   const today = localISO(new Date());
-  const thisMonday = localISO(mondayOf(new Date()));
-  const start = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? localISO(mondayOf(new Date(args[0] + "T00:00:00"))) : thisMonday;
+  const thisWeek = localISO(weekStartOf(new Date()));
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? localISO(weekStartOf(new Date(args[0] + "T00:00:00"))) : thisWeek;
 
   // icon() hands back markup, so it goes in through `html` rather than as text.
   const arrow = (dir) => el("span", { style: "display:inline-flex", html: icon(dir < 0 ? ICON_PATH.left : ICON_PATH.right) });
@@ -266,7 +268,7 @@ SCREENS.week = function (args) {
     "div",
     { class: "week-head" },
     el("button", { class: "btn icon", "aria-label": t("aPrevWeek"), onclick: () => go("week/" + addDays(start, -7)) }, arrow(-1)),
-    el("h2", {}, start === thisMonday ? t("aThisWeek") : t("aWeekOf", { date: shortDate(start) })),
+    el("h2", {}, start === thisWeek ? t("aThisWeek") : t("aWeekOf", { date: shortDate(start) })),
     el("button", { class: "btn icon", "aria-label": t("aNextWeek"), onclick: () => go("week/" + addDays(start, 7)) }, arrow(1))
   );
   const list = el("div", { class: "days" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
@@ -275,9 +277,9 @@ SCREENS.week = function (args) {
   API.get("/api/week?start=" + start)
     .then((data) => {
       list.textContent = "";
-      const any = data.days.some((d) => d.session);
+      const any = data.days.some((d) => d.items && d.items.length);
       for (const d of data.days) list.append(dayCard(d, today));
-      if (!any) list.append(el("p", { class: "empty" }, t("aNoSessions")));
+      if (!any) list.append(el("p", { class: "empty" }, t("aNothingWeek")));
     })
     .catch((e) => {
       list.textContent = "";
@@ -299,24 +301,68 @@ function dayCard(d, today) {
     el("div", { class: "wd" }, date.toLocaleDateString(locale(), { weekday: "short" })),
     el("div", { class: "dm" }, date.toLocaleDateString(locale(), { day: "numeric", month: "short" }))
   );
-  const s = d.session;
   const cls = "day" + (d.date === today ? " today" : "");
-  if (!s) return el("div", { class: cls }, when, el("div", { class: "day-body" }, el("div", { class: "day-rest" }, t("aRest"))));
+  const items = d.items || [];
+  if (!items.length) {
+    return el("div", { class: cls }, when, el("div", { class: "day-body" }, el("div", { class: "day-rest" }, t("aRestDay"))));
+  }
+  return el("div", { class: cls }, when, el("div", { class: "day-body slots" }, items.map((it) => slotRow(it, d.date))));
+}
 
-  const at = new Date(s.starts_at);
-  const time = isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
-  return el(
-    "button",
-    { class: cls, type: "button", onclick: () => go("session/" + s.id) },
-    when,
-    el(
-      "div",
-      { class: "day-body" },
-      el("div", { class: "day-title" }, s.name),
-      el("div", { class: "day-meta" }, [time, t("aPts", { n: s.points })].filter(Boolean).join(" · "))
-    ),
-    statusTag(s)
+/* One thing on one day. A published workout is a button into the whole
+   session; a standing one is just where and when, because there is nothing
+   behind it to open yet. */
+function slotRow(item, date) {
+  const title = side(item, "title");
+  const place = side(item, "place");
+  const note = I18N.lang === "ar" ? item.note_ar || item.note_en : item.note_en || item.note_ar;
+
+  const meta = el("div", { class: "slot-meta" });
+  if (place) {
+    meta.append(
+      item.map_url
+        ? el("a", { class: "place", href: item.map_url, target: "_blank", rel: "noopener noreferrer",
+                    title: t("aOpenMap"), onclick: (e) => e.stopPropagation() }, place)
+        : el("span", { class: "place" }, place)
+    );
+  }
+  if (item.kind === "session") meta.append(el("span", {}, t("aPts", { n: item.points })));
+
+  const body = el(
+    "div",
+    { class: "grow" },
+    el("div", { class: "slot-title" }, title),
+    meta,
+    note ? el("div", { class: "slot-note" }, note) : null
   );
+
+  const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
+  const tag = slotTag(item);
+
+  if (item.kind === "session") {
+    return el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag);
+  }
+  return el("div", { class: "slot" + (item.cancelled ? " off" : "") }, clock, body, tag);
+}
+
+/* A standing session carries a wall-clock time; a published one carries a
+   real instant, which is the one to trust. */
+function prettyTime(item, date) {
+  if (item.starts_at) {
+    const at = new Date(item.starts_at);
+    if (!isNaN(at)) return at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  }
+  const at = new Date(date + "T" + item.at + ":00");
+  return isNaN(at) ? item.at : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+}
+
+function slotTag(item) {
+  if (item.kind === "standing") {
+    if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
+    if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+    return null;
+  }
+  return statusTag(item);
 }
 
 /** Where this session stands for this athlete, right now. */

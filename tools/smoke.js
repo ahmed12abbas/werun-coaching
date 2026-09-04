@@ -87,10 +87,13 @@ function check(name, ok, detail) {
   r = await call("POST", "/api/auth/profile", { name: "Smoke Renamed", lang: "en" });
   check("profile: rename", r.status === 200 && r.data.user.name === "Smoke Renamed" && r.data.user.lang === "en", r);
 
+  // The club's week runs Sunday to Saturday: Friday is its rest day, and a
+  // Monday-first week would split the weekend across two screens.
   r = await call("GET", "/api/week?start=2026-09-09");
-  check("week: seven days from the Monday", r.status === 200 && r.data.start === "2026-09-07" && r.data.days.length === 7 && r.data.days[6].date === "2026-09-13", r);
+  check("week: seven days from the Sunday", r.status === 200 && r.data.start === "2026-09-06" && r.data.days.length === 7 && r.data.days[6].date === "2026-09-12", r.data && { start: r.data.start, n: r.data.days.length });
+  check("week: every day carries its own list", (r.data.days || []).every((d) => Array.isArray(d.items)), r.data && r.data.days[0]);
   r = await call("GET", "/api/week");
-  check("week: no start means this week", r.status === 200 && r.data.days.length === 7, r);
+  check("week: no start means this week", r.status === 200 && r.data.days.length === 7, r.status);
 
   r = await call("POST", "/api/auth/password", { current: "wrong", next: pw + "-2" });
   check("password: wrong current refused", r.status === 401 && r.data.error === "wrong-password", r);

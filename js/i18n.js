@@ -406,6 +406,13 @@ const STRINGS = {
     "e_pick-a-size": "Pick a size first.",
     "e_no-product": "That is not for sale any more.",
     "e_no-order": "That order is not there.",
+
+    /* the app: the standing week */
+    aRestDay: "Rest day",
+    aCalledOff: "Called off",
+    aChanged: "Changed",
+    aOpenMap: "Open in maps",
+    aNothingWeek: "Nothing on this week yet.",
   },
 
   ar: {
@@ -795,6 +802,13 @@ const STRINGS = {
     "e_pick-a-size": "اختر المقاس أولاً.",
     "e_no-product": "لم يعد هذا معروضاً للبيع.",
     "e_no-order": "هذا الطلب غير موجود.",
+
+    /* the app: الأسبوع الثابت */
+    aRestDay: "يوم راحة",
+    aCalledOff: "أُلغيت",
+    aChanged: "تغيّرت",
+    aOpenMap: "افتح الموقع على الخريطة",
+    aNothingWeek: "لا شيء هذا الأسبوع بعد.",
   },
 };
 
