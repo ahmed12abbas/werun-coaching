@@ -43,6 +43,15 @@ export async function health(request, env) {
           " AND name NOT LIKE 'd1\\_%' ESCAPE '\\' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'"
       ).first();
       out.tables = (row && row.n) || 0;
+      // The names, not just the count: when a migration has not landed, the
+      // difference between what is there and what should be is the whole
+      // diagnosis, and counting to ten by hand is nobody's idea of a check.
+      const all = await env.DB.prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table'" +
+          " AND name NOT LIKE 'd1\\_%' ESCAPE '\\' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'" +
+          " ORDER BY name"
+      ).all();
+      out.table_names = (all.results || []).map((r) => r.name);
     } catch (e) {
       out.ok = false;
       out.error = "db-unreachable";

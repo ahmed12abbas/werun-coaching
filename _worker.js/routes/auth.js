@@ -4,6 +4,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
 import { emailOn } from "../lib/mail.js";
+import { hasColumn } from "../lib/columns.js";
 import { storeOn } from "../lib/stripe.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
@@ -91,12 +92,24 @@ export async function signup(request, env) {
   const id = uid();
   const now = nowISO();
   try {
-    await env.DB.prepare(
-      "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
-        " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
-    )
-      .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now, cleanGender(body.gender), birthYear)
-      .run();
+    // Until 0006 is applied, these columns are not there — and joining the
+    // club matters far more than recording an age group, so the row goes in
+    // without them rather than the whole signup failing.
+    if (await hasColumn(env, "users", "birth_year")) {
+      await env.DB.prepare(
+        "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
+          " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
+      )
+        .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now, cleanGender(body.gender), birthYear)
+        .run();
+    } else {
+      await env.DB.prepare(
+        "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at)" +
+          " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?)"
+      )
+        .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now)
+        .run();
+    }
   } catch (e) {
     if (/UNIQUE/i.test(String(e && e.message))) return json({ error: "email-taken" }, 409);
     throw e;
@@ -173,9 +186,13 @@ export const profile = withUser(async (request, env, user) => {
   const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
 
-  await env.DB.prepare("UPDATE users SET name = ?, lang = ?, gender = ?, birth_year = ? WHERE id = ?")
-    .bind(name, lang, gender, birthYear, user.id)
-    .run();
+  if (await hasColumn(env, "users", "birth_year")) {
+    await env.DB.prepare("UPDATE users SET name = ?, lang = ?, gender = ?, birth_year = ? WHERE id = ?")
+      .bind(name, lang, gender, birthYear, user.id)
+      .run();
+  } else {
+    await env.DB.prepare("UPDATE users SET name = ?, lang = ? WHERE id = ?").bind(name, lang, user.id).run();
+  }
   return json({
     user: publicUser(Object.assign({}, user, { name: name, lang: lang, gender: gender, birth_year: birthYear })),
   });
