@@ -56,6 +56,9 @@ button.day:hover{background:var(--brand-soft)}
 .checkin-strip.done{border-color:var(--ok)}
 .ci-title{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;line-height:1.1}
 [dir="rtl"] .ci-title{font-size:18px}
+/* What the session is, under the check-in line. Full strength rather than
+   muted: the line above it is status and this is the session itself. */
+.ci-what{font-size:13.5px; line-height:1.35; margin-top:3px}
 
 /* ---- the check-in landing ---- */
 .landed{font-size:52px;line-height:1;text-align:center;animation:landing .5s cubic-bezier(.34,1.5,.64,1) both}

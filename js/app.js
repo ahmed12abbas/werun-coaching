@@ -758,12 +758,22 @@ function checkinCard(s) {
   const soon = countdownPill({ starts_at: s.starts_at }, s.date);
   if (soon) setTimeout(startCountdowns, 0);
 
+  // What the session is — "80min", "45min easy + strides" — the coach line off
+  // the standing slot. A session that carries a workout has only this strip
+  // above it, and the timeline below says how to run the thing without ever
+  // saying what it is. A session with no steps prints the same line among its
+  // own facts, so saying it here too would say it twice. Only one of the two
+  // cards below is ever built, so the node is safe to share between them.
+  const what = s.payload ? side(s, "desc") : "";
+  const whatLine = what ? el("div", { class: "ci-what", dir: "auto" }, what) : null;
+
   if (s.checked_in) {
     return el(
       "div",
       { class: "card pad checkin-strip done" },
       el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
-        el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time)),
+        el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time),
+        whatLine),
       el("span", { class: "tag done" }, t("aPts", { n: s.points }))
     );
   }
@@ -790,6 +800,7 @@ function checkinCard(s) {
         { class: "grow" },
         el("div", { class: "ci-title" }, live ? t("aCheckIn") : t("aWindowShut")),
         el("div", { class: "muted small", dir: "auto" }, who ? note + " · " + who : note),
+        whatLine,
         soon
       ),
       el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points }))
