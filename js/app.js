@@ -464,10 +464,17 @@ function slotRow(item, date) {
   // noise — so this is left off until somebody fills it in.
   if (item.coach) meta.append(el("span", { class: "who", dir: "auto" }, t("aWithCoach", { name: item.coach })));
 
+  // What the session is, under the name. The title says which session this
+  // is and this says what it asks of you — "45min + strides" — so a reader
+  // scanning the week can tell Sunday's easy 45 from Saturday's long 80
+  // without opening either.
+  const what = side(item, "desc");
+
   const body = el(
     "div",
     { class: "grow" },
     el("div", { class: "slot-title" }, title),
+    what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
     meta,
     note ? el("div", { class: "slot-note" }, note) : null
   );
