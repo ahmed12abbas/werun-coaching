@@ -7,8 +7,7 @@ Mirror on GitHub Pages: <https://ahmed12abbas.github.io/werun-coaching/>
 the Pages URL above and nowhere else).
 
 One link per week's session. The coach builds it, pastes it in the group chat, and
-anyone who opens it gets it onto their Garmin or Apple Watch — with a one-tap
-"send it to my watch" for athletes who connect once.
+anyone who opens it gets it onto their Garmin, COROS or Apple Watch.
 
 The session is encoded into the link itself, so there is no database and old links
 keep working forever. English and Arabic, light and dark, chosen from the header
@@ -25,34 +24,20 @@ This is the part everyone gets wrong, so it's worth being blunt.
 | **Garmin** | Not directly. Garmin Connect has no "import from link" and no workout-share link, and its upload button takes *completed activities*, not planned *workouts*. Garmin's own developer programme — the Training API that could do this — **is closed to new applicants**. |
 | **Apple Watch** | No. Not from us, not from anyone. The Workout app builds custom sessions on the watch itself (watchOS 9+) and there is no import path. |
 
-What *does* work for Garmin is going through **[intervals.icu](https://intervals.icu)**:
-it's free, it's an official Garmin partner, and once an athlete links their Garmin
-account there it uploads their planned workouts into Garmin Connect, which syncs to
-the watch.
-
-So the one-tap chain is:
-
-```
-athlete taps Connect
-  → intervals.icu asks them to approve WE RUN      ← this is the permission step
-  → our Cloudflare Worker stores the access token   (never the browser)
-  → we POST the session onto their intervals.icu calendar
-  → intervals.icu pushes it into Garmin Connect
-  → it's on the watch at the next sync
-```
-
-Athletes approve on intervals.icu's own page. WE RUN never sees a Garmin or
-intervals.icu password, and the token only grants `CALENDAR:WRITE`.
+So every route below is the athlete putting the session on the watch themselves.
+The page’s job is to make that a minute of tapping with every number already
+worked out, instead of a coach reading splits down a phone.
 
 ### What every athlete gets, with no account at all
 
-The connect button is a bonus, not the product. Without it the page still gives:
+No account, no login, nothing to install:
 
 | Route | Friction | Works for |
 |---|---|---|
 | **Typed into Garmin Connect** | ~1 min, every number pre-computed | everyone |
 | **`.fit` over USB** | download, drag onto the watch | anyone with a computer + cable |
 | **Apple Watch, guided** | taps in the Workout app, saved for reuse | watchOS 9+ |
+| **COROS, guided** | taps in the COROS app, synced to the watch | any COROS |
 | **Plain text** | copy/paste | the group chat, notes |
 
 ---
@@ -769,12 +754,10 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | File | What it does |
 |---|---|
 | `index.html` | Markup shell and all the CSS (light + dark, LTR + RTL, Teko + WE RUN purple) |
-| `js/config.js` | **The only file you edit after deploying** |
 | `js/i18n.js` | English and Arabic strings, the theme and language switches |
 | `js/brand.js` | Logo, icons, header toggles |
 | `js/model.js` | Session model, formatters, link encoding |
 | `js/pace.js` | The club's pace chart and the calculator beside the session title |
-| `js/connect.js` | The one-tap delivery client |
 | `js/views.js` | Builder and athlete viewer |
 | `js/boot.js` | Entry point — builder vs viewer |
 | `js/fit.js` | Binary `.FIT` workout encoder |
@@ -805,7 +788,6 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `tools/version-assets.js` | Stamps `?v=` on the script tags; the deploy fails if they are stale |
 | `docs/PLATFORM-PLAN.md` | The plan for accounts, QR check-in, points, feed and store |
 | `.github/workflows/bindings.yml` | One-shot: creates the KV namespace and D1 database and sets the bindings and secrets over the API |
-| `worker/` | Cloudflare Worker holding the OAuth secret and athlete tokens |
 | `assets/logo.png` | **Drop the WE RUN logo here** — the page falls back to a Teko wordmark if it's missing |
 
 Brand colour lives in one place: `--brand` at the top of `index.html`. It's
@@ -888,43 +870,6 @@ To deploy by hand at any time:
 npx wrangler pages deploy <folder> --project-name werun --branch main --commit-dirty=true
 ```
 
-### 3. One-tap delivery — the Worker (optional)
-
-Everything above works without this. To switch on "Send it to my watch":
-
-1. **Register the OAuth app.** Log in to intervals.icu as the club account and go to
-   <https://intervals.icu/oauth/apply>. Ask for scope `CALENDAR:WRITE` and set the
-   redirect URI to `https://<worker-name>.<your-subdomain>.workers.dev/oauth/callback`.
-   The app sits in **Pending** until intervals.icu approve it — nothing works before
-   that.
-2. **Create the token store and deploy:**
-
-```bash
-cd worker && npx wrangler kv namespace create LINKS
-```
-
-   Paste the returned id into `wrangler.toml`, set `INTERVALS_CLIENT_ID` and
-   `ALLOWED_ORIGINS` (your Pages URL), then:
-
-```bash
-cd worker && npx wrangler secret put INTERVALS_CLIENT_SECRET && npx wrangler deploy
-```
-
-3. **Point the site at it.** In `js/config.js` set `workerUrl` to the deployed
-   Worker URL and `connectEnabled` to `true`, then push.
-
-4. Check it with `curl https://<worker>/health` — it should report
-   `{"ok":true,"configured":true}`.
-
-Tell athletes to tick **Upload planned workouts** in their intervals.icu settings
-after linking Garmin; without it the session lands on their intervals.icu calendar
-but never reaches the watch. The page warns them when it can detect this.
-
-> **Not yet exercised against the live API.** The Worker is written to
-> intervals.icu's documented OAuth and `/api/v1/athlete/0/events` contract, but it
-> cannot be run end-to-end until the OAuth app is approved. Test it with one athlete
-> before announcing it to the club.
-
 ---
 
 ## About the `.fit` file
@@ -939,9 +884,6 @@ The output round-trips through an independent parser — header, both CRCs, decl
 data size, message walk, step count and every field value. **It has not been tested
 on a physical Garmin watch.** Try it on your own watch before pointing the whole club
 at that route; the typed and text routes don't depend on it.
-
-The same file is what gets uploaded to intervals.icu on a one-tap send, so the
-athlete gets the exact steps rather than a re-typed approximation.
 
 ---
 

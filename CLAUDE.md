@@ -43,7 +43,6 @@ share link, plus two small server pieces:
 - Prices are read from the database at checkout, never from the request, and stock comes down in the webhook rather than at checkout — a payment page that was opened and abandoned must not hold a shirt.
 - `STRIPE_API_BASE` exists so `tools/smoke-store.js` can point the flow at its own stub. Like `EMAIL_ECHO` it belongs in `.dev.vars` only; `/api/health` lists both in `warnings`.
 - `docs/PLATFORM-PLAN.md` — the platform plan (accounts, QR check-in, points, feed, store) and which decisions are settled.
-- `worker/` — a separate Worker for the intervals.icu OAuth bridge. Different deploy, different bindings.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
 
 No bundler, no framework, no build step. Plain `"use strict"` scripts loaded in order from `index.html`; everything shares one global scope.

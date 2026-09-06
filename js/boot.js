@@ -17,10 +17,7 @@ function boot() {
   const app = $("#app");
   app.textContent = "";
 
-  // Coming back from intervals.icu? Bank the handle before rendering.
-  const linked = Connect.captureRedirect();
-
-  const m = /(?:^|[#&])w=([^&]+)/.exec(location.hash || "");
+    const m = /(?:^|[#&])w=([^&]+)/.exec(location.hash || "");
   if (m) {
     let w;
     try {
@@ -32,8 +29,6 @@ function boot() {
     }
     document.title = w.name + " · WE RUN";
     renderViewer(app, w, boot);
-    if (linked && linked.ok) toast(t("cLinkedToast"));
-    if (linked && !linked.ok) toast(linked.error);
     return;
   }
 

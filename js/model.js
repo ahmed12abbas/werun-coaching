@@ -137,7 +137,7 @@ const sessionShell = (name, note, blocks) => ({
   date: "",
   coach: "",
   note: note,
-  units: CONFIG.units === "mi" ? "mi" : "km",
+  units: "km", // the club talks in min/km; a link may still say otherwise
   blocks: blocks,
 });
 

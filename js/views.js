@@ -132,147 +132,6 @@ function fitButton(w, label) {
   );
 }
 
-/* ===================== the connect card ================================= */
-
-/**
- * "Send it straight to my watch."
- *
- * The athlete approves WE RUN on intervals.icu once; from then on a single
- * tap drops the session on their calendar, and intervals.icu forwards it to
- * Garmin Connect. See js/connect.js for the full chain.
- */
-function connectCard(w) {
-  const body = el("div", { class: "stack" });
-  const card = el(
-    "div",
-    { class: "card pad stack", style: "border-color:var(--brand)" },
-    el(
-      "div",
-      { class: "row" },
-      el("div", { class: "ic", html: ICON.send }),
-      el(
-        "div",
-        {},
-        el("div", { class: "acc-t" }, t("cTitle")),
-        el("div", { class: "acc-s" }, t("cSub"))
-      )
-    ),
-    body
-  );
-
-  const show = (nodes) => {
-    body.textContent = "";
-    [].concat(nodes).forEach((n) => n && body.append(n));
-  };
-
-  /* --- not linked yet --------------------------------------------------- */
-  function askToLink(msg) {
-    const club = CONFIG.clubName;
-    show([
-      msg ? el("div", { class: "status" }, el("span", { class: "dot err" }), msg) : null,
-      el("p", { class: "small muted" }, rich(t("cWhy"))),
-      el(
-        "ol",
-        { class: "steps small" },
-        el("li", {}, rich(t("cStep1", { club: club }))),
-        el("li", {}, rich(t("cStep2"))),
-        el("li", {}, rich(t("cStep3")))
-      ),
-      el(
-        "button",
-        { class: "btn primary block lg", onclick: () => Connect.begin() },
-        el("span", { html: ICON.send }),
-        t("cConnect")
-      ),
-      el("div", { class: "callout" }, rich(t("cPrivacy", { club: club }))),
-    ]);
-  }
-
-  /* --- linked, ready to send ------------------------------------------- */
-  function ready(me) {
-    const dateInput = el("input", { type: "date", value: w.date || todayISO() });
-    const dateRow = el("div", {}, el("label", {}, t("cPutItOn")), dateInput);
-    const unlink = el(
-      "button",
-      {
-        class: "btn sm",
-        onclick: () => {
-          Connect.forget();
-          askToLink(null);
-        },
-      },
-      t("cDisconnect")
-    );
-
-    const btn = el("button", { class: "btn primary block lg" }, el("span", { html: ICON.send }), t("cSend"));
-    btn.addEventListener("click", async () => {
-      btn.disabled = true;
-      btn.textContent = "";
-      btn.append(el("span", { class: "spin" }), document.createTextNode(t("cSending")));
-      try {
-        await Connect.push(w, dateInput.value);
-        show([
-          el(
-            "div",
-            { class: "status" },
-            el("span", { class: "dot ok" }),
-            el("span", {}, t("cSentMsg", { date: prettyDate(dateInput.value) }))
-          ),
-          el("p", { class: "small muted" }, rich(t("cSentHow"))),
-          el("button", { class: "btn block", onclick: () => ready(me) }, t("cSendAgain")),
-        ]);
-        toast(t("cSentToast"));
-      } catch (e) {
-        btn.disabled = false;
-        btn.textContent = "";
-        btn.append(el("span", { html: ICON.send }), document.createTextNode(t("cTryAgain")));
-        show([el("div", { class: "status" }, el("span", { class: "dot err" }), e.message), dateRow, btn, unlink]);
-      }
-    });
-
-    const who = me && me.athlete ? me.athlete : t("cYourAccount");
-    const warn =
-      me && me.garminLinked === false
-        ? el(
-            "div",
-            { class: "status" },
-            el("span", { class: "dot warn" }),
-            el(
-              "span",
-              {},
-              t("cGarminOffPre"),
-              el(
-                "a",
-                { href: "https://intervals.icu/settings", target: "_blank", rel: "noopener" },
-                t("cGarminOffLink")
-              ),
-              t("cGarminOffPost")
-            )
-          )
-        : null;
-
-    show([
-      el("div", { class: "status" }, el("span", { class: "dot ok" }), t("cConnectedAs") + who),
-      warn,
-      dateRow,
-      btn,
-      unlink,
-    ]);
-  }
-
-  /* --- decide what to show ---------------------------------------------- */
-  if (!Connect.isLinked()) {
-    askToLink(null);
-  } else {
-    show(el("div", { class: "status" }, el("span", { class: "spin" }), t("cChecking")));
-    Connect.status()
-      .then((me) => ready(me))
-      .catch((e) => askToLink(e.message));
-  }
-
-  return card;
-}
-
 /* ===================== VIEWER (what the link opens) ====================== */
 
 const DEVICE_KEY = "werun.device";
@@ -399,8 +258,6 @@ function renderViewer(app, w, rerender, opts) {
 
   /* --- Garmin ------------------------------------------------------------ */
   function drawGarmin() {
-    if (Connect.isEnabled()) panel.append(connectCard(w));
-
     panel.append(
       acc(
         ICON.garmin,
@@ -426,7 +283,7 @@ function renderViewer(app, w, rerender, opts) {
           el("p", { class: "small muted" }, rich(t("gcLap"))),
           el("p", { class: "small muted" }, rich(t("gcSave"))),
         ],
-        !Connect.isEnabled()
+        true // open by default: this is how a session reaches a Garmin
       )
     );
 
@@ -811,7 +668,7 @@ function renderBuilder(app, w, rerender) {
   );
 
   app.append(
-    el("footer", {}, socialRow(), Connect.isEnabled() ? t("connectFooterOn") : t("connectFooterOff"))
+    el("footer", {}, socialRow())
   );
 
   paint();
