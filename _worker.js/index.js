@@ -49,6 +49,8 @@
      POST /api/admin/qr         — the code for the track
      POST /api/admin/sessions   — list, roster, open  (the rest is the club's)
      POST /api/admin/schedule   — list                (the rest is the club's)
+     POST /api/coach/rota       — who is taking which session this week; the
+                                  coaches' own rota, which no athlete sees
      POST /api/tips-admin       — the article editor; its own TIPS_PASSWORD as
                                   well, and its own audience. Writing the
                                   club's articles is not running the club.
@@ -102,6 +104,7 @@ import { store, checkout, order } from "./routes/store.js";
 import { stripeWebhook } from "./routes/stripe.js";
 import { adminProducts, adminOrders } from "./routes/shop.js";
 import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
+import { coachRota } from "./routes/rota.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -133,6 +136,7 @@ const POST = {
   "/api/admin/orders": adminOrders,
   "/api/admin/schedule": adminSchedule,
   "/api/admin/schedule-change": adminScheduleChange,
+  "/api/coach/rota": coachRota,
 };
 const GET = {
   "/api/tips": tips,

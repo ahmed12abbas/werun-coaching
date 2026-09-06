@@ -272,7 +272,36 @@ running the club, so a coach who writes them still can, and so can an admin
 who does not coach. And a coach can still be *named* on a session by an admin;
 what they cannot do is publish, move or remove one.
 
-The coach tier is reads, with one exception: **Show the code** on a standing
+### The rota
+
+Each row of the week on `/coach` has a tick: **I am taking this**. A coach
+puts themselves down for a session ahead of the week, as many coaches per
+session as turn up to it, and every other coach sees who else is on it — so a
+Wednesday nobody has taken is visible on Sunday rather than at 04:50 on
+Wednesday.
+
+| | |
+|---|---|
+| Tick yourself on or off | any coach |
+| See who is on a session | any coach |
+| Take somebody else off | admins, and the club password |
+| See any of it at all | nobody else — not athletes, not the app |
+
+It is **not** the coach named on a session. That is `coach_id`: one name, on a
+published workout, shown to athletes in their week. This is many names, on a
+standing slot and a date, shown to nobody but the coaches. The two never touch
+— see `migrations/0011_rota.sql`.
+
+Ticks hang off the standing slot and the date, not off a session id, because
+seven of the ten weekly sessions have no session row until somebody shows a
+code on the morning; a rota that needed one would put empty sessions on the
+club's calendar weeks ahead. Signing up is bounded to ±90 days, and ticking
+twice is the same as ticking once.
+
+**Migration 0011 must be applied by hand.** Until it is, the week draws
+without the rota rather than not at all.
+
+The coach tier is otherwise reads, with one exception: **Show the code** on a standing
 slot opens the session row it signs against, because seven of the club's ten
 weekly sessions have no published workout and nobody could check in to them
 otherwise. That write is find-or-create and bounded to ±60 days, so it cannot
@@ -742,7 +771,7 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `js/sfx.js` | Every sound the page makes — one listener, no audio files |
 | `js/rate.js` | The five stars, the name and the comment at the foot of a session |
 | `admin.html` | The console at `/admin`: everything that runs the club |
-| `coach.html` | The track screen at `/coach`: the head count, the codes for this week, and who came — read-only |
+| `coach.html` | The track screen at `/coach`: the head count, the codes for this week, who came, and the coaches' rota |
 | `js/console.js`, `assets/console.css` | What those two pages share: the login, the fetch wrapper, the QR screen, the dashboard |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
 | `_worker.js/` | The API: the dashboard, feedback, Coach Tips, health — one file per route under `routes/`, shared bits under `lib/`. Reserved name, never served; wrangler bundles it on deploy |

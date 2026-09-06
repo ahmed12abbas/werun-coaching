@@ -10,14 +10,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=2d99d575">
+<link rel="stylesheet" href="assets/console.css?v=eb178b66">
 </head>
 <body>
 <div class="wrap">
   <h1>Coach</h1>
   <p class="muted small" style="margin:0">
-    How many came, and the code for every session this week. Nothing here
-    changes anything.
+    How many came, the code for every session this week, and who is taking it.
+    Put yourself down for a session and the other coaches will see it.
   </p>
   <div id="app"></div>
   <footer>WE RUN Coaching · <a href="app.html">back to the app</a></footer>
@@ -36,9 +36,11 @@
    is a Remove button one thumb away from the code. Publishing, editing,
    voiding and the switches all stay in admin.html.
 
-   It is not a permission boundary — the routes behind it are the same ones
-   the console calls, and every coach can open both pages. It is the screen
-   that fits the moment, not a smaller set of keys.
+   It is also where the boundary sits: everything here is on the coach tier
+   (refuseUnlessCoach in lib/auth.js), and a coach who is not an admin gets
+   all of it and none of /admin. The one thing on the page that writes is the
+   rota — a coach putting themselves down for a session, which is the one
+   thing on it that is theirs to change.
    ========================================================================= */
 
 var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -63,28 +65,29 @@ function weekDates() {
 function load(pw) {
   var had = password;
   password = pw;
-  // Three reads at once: the numbers, the standing week, and what has
-  // actually been published. A coach opening this at the gate waits once.
+  // Four reads at once: the numbers, the standing week, what has actually
+  // been published, and who is down for what. A coach at the gate waits once.
   return Promise.all([
     api("/api/stats", {}),
     api("/api/admin/schedule", { action: "list" }),
-    api("/api/admin/sessions", { action: "list" })
+    api("/api/admin/sessions", { action: "list" }),
+    api("/api/coach/rota", { action: "list" })
   ]).then(function (r) {
-    render(r[0], r[1], r[2]);
+    render(r[0], r[1], r[2], r[3]);
   })["catch"](function (e) {
     password = had;
     throw e;
   });
 }
 
-function render(stats, plan, sess) {
+function render(stats, plan, sess, rota) {
   app.textContent = "";
   attendanceCards(app, stats.weeks);
-  app.append(weekCard(plan, sess));
+  app.append(weekCard(plan, sess, rota));
 }
 
 /* ---- the week, with a code on every row ---- */
-function weekCard(plan, sess) {
+function weekCard(plan, sess, rota) {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" }, el("h2", {}, "Codes for this week")));
   var body = el("div", {});
@@ -94,6 +97,17 @@ function weekCard(plan, sess) {
   var standing = (plan.schedule || []).filter(function (e) { return e.active; });
   var changes = plan.changes || [];
   var sessions = sess.sessions || [];
+  // id -> name for the ticks: the same roster the session pickers use, so
+  // nothing joins the members table to draw a week.
+  var names = {};
+  (plan.coaches || []).forEach(function (c) { names[c.id] = c.name; });
+  /* Every rota column on screen, so one answer redraws all of them: two
+     coaches signing up at the same moment each want to see the other.
+
+     Declared up here and not beside rotaColumn(): the week is drawn further
+     down this function but earlier than that point in the source, and a var
+     is hoisted without its value. */
+  var ROTA_BOXES = [];
 
   if (sess.qr === false) {
     body.append(el("p", { class: "err" },
@@ -135,7 +149,8 @@ function weekCard(plan, sess) {
         note: (e.desc_en || e.desc_ar ? (e.desc_en || e.desc_ar) + " · " : "") +
           (e.place_en || e.place_ar || "—"),
         session: sessionFor(e.id, date),
-        slot: { schedule_id: e.id, date: date }
+        slot: { schedule_id: e.id, date: date },
+        rota: true
       }));
     });
     loose.forEach(function (s) {
@@ -155,6 +170,85 @@ function weekCard(plan, sess) {
       "Nothing standing this week yet. The club's weekly sessions are set up in the console."));
   }
 
+  /* ---- who is taking it ----
+     A coach puts themselves down and everybody else reads it. The tick is
+     only ever the reader's own -- the route refuses any other -- so there is
+     no checkbox beside another coach's name to promise something this page
+     cannot do. Taking a name off is offered on your own row, and on anybody's
+     to an admin. */
+  function rotaColumn(slot) {
+    var box = el("div", { class: "rota" });
+
+    function on() {
+      return (rota.rota || []).filter(function (r) {
+        return r.schedule_id === slot.schedule_id && r.date === slot.date;
+      });
+    }
+
+    function post(payload) {
+      return api("/api/coach/rota", Object.assign(
+        { schedule_id: slot.schedule_id, date: slot.date }, payload))
+        .then(function (d) {
+          // The answer carries the whole fortnight back, so every row on
+          // screen redraws from one call rather than each asking again.
+          rota = d;
+          repaintRota();
+        })["catch"](function (e) {
+          box.append(el("p", { class: "err" }, e.message));
+        });
+    }
+
+    box.paint = function () {
+      box.textContent = "";
+      var mine = on();
+      var iAmOn = mine.some(function (r) { return r.user_id === rota.me; });
+
+      if (rota.can_join) {
+        var tick = el("input", { type: "checkbox", id: "r-" + slot.schedule_id + "-" + slot.date });
+        if (iAmOn) tick.setAttribute("checked", "");
+        tick.addEventListener("change", function () {
+          tick.disabled = true;
+          post({ action: tick.checked ? "join" : "leave" });
+        });
+        box.append(el("label", { class: "sw", for: tick.id }, tick,
+          el("span", {}, "I am taking this")));
+      }
+
+      if (!mine.length) {
+        box.append(el("p", { class: "muted small nobody" }, "Nobody down yet"));
+        return;
+      }
+
+      // Everybody who is down for it, whoever is reading: that is the point.
+      var who = el("div", { class: "who" });
+      mine.forEach(function (r) {
+        var self = r.user_id === rota.me;
+        // A tick left by somebody who has since stopped coaching has no name
+        // in the roster. It is still a tick, and still says somebody is on it.
+        var chip = el("span", { class: "rota-chip" + (self ? " me" : "") },
+          names[r.user_id] || "A coach");
+        if (rota.can_remove || self) {
+          var drop = el("button", { class: "drop", title: "Take off this session",
+            "aria-label": "Take off this session", onclick: function () {
+              drop.disabled = true;
+              post({ action: "leave", user_id: r.user_id });
+            } }, "\u2715");
+          chip.append(drop);
+        }
+        who.append(chip);
+      });
+      box.append(who);
+    };
+
+    box.paint();
+    ROTA_BOXES.push(box);
+    return box;
+  }
+
+  function repaintRota() {
+    ROTA_BOXES.forEach(function (b) { b.paint(); });
+  }
+
   /* One line of the week: when, what, how many have scanned, and the two
      buttons that are the whole reason this page exists. */
   function row(spec) {
@@ -167,6 +261,11 @@ function weekCard(plan, sess) {
     var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") },
       el("span", { class: "at" }, spec.at),
       el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count));
+
+    // Who is taking it. Only on a standing slot: the rota is the standing
+    // week's, and a one-off the coach published already names its own coach.
+    // Nothing on a session called off, which nobody is taking.
+    if (spec.rota && !spec.off) line.append(rotaColumn(spec.slot));
 
     if (spec.off) return line;
 
