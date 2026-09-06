@@ -4,11 +4,24 @@
 
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
+/* The club's two faces, split the way assets/site.css splits them: Teko is
+   the display face and has no Arabic glyphs, so Cairo carries the display
+   AND the body on the Arabic pages. */
+:root {
+  --display: "Teko", "Segoe UI", Roboto, sans-serif;
+  --body: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+[dir="rtl"] {
+  --display: "Cairo", "Segoe UI", Tahoma, sans-serif;
+  --body: "Cairo", "Segoe UI", Tahoma, sans-serif;
+}
+
 body {
   margin: 0;
-  font: 10.5pt/1.45 "Segoe UI", Tahoma, Arial, sans-serif;
+  font: 10.5pt/1.45 var(--body);
   color: #1c1b22;
 }
+[dir="rtl"] { font-family: var(--body); }
 
 .page { page-break-after: always; }
 .page:last-child { page-break-after: auto; }
@@ -23,7 +36,8 @@ body {
 .head .mark { display: flex; align-items: center; gap: 9px; text-decoration: none; }
 .head .mark img { height: 30px; width: auto; display: block; }
 .head .mark span {
-  color: #fff; font-size: 12.5pt; font-weight: 700; letter-spacing: 3.5px;
+  font-family: "Teko", "Segoe UI", sans-serif;
+  color: #fff; font-size: 17pt; font-weight: 500; letter-spacing: 4px;
 }
 .head .sub { margin: 0; color: #b9b3cc; font-size: 9.5pt; }
 .head .url {
@@ -60,8 +74,9 @@ ol.steps b { color: #4c1d95; }
 .note b { color: #4c1d95; }
 
 h2.sec {
-  font-size: 11pt; margin: 0 0 6px; color: #4c1d95;
-  text-transform: uppercase; letter-spacing: .5px;
+  font-family: var(--display);
+  font-size: 15pt; font-weight: 600; margin: 0 0 6px; color: #4c1d95;
+  text-transform: uppercase; letter-spacing: .8px;
 }
 
 /* ---- screenshot strip ---- */
@@ -76,14 +91,19 @@ h2.sec {
    Latin form in both languages: it is not translated. */
 .foot {
   margin-top: 14px; padding-top: 8px; border-top: 1px solid #e4e0ee;
-  font-size: 12pt; font-weight: 700; letter-spacing: .5px;
+  font-family: "Teko", "Segoe UI", sans-serif;
+  font-size: 17pt; font-weight: 500; letter-spacing: 1.5px;
   color: #4c1d95; text-align: center; direction: ltr;
 }
 
 /* ---- Arabic ---- */
-[dir="rtl"] { font-family: "Segoe UI", Tahoma, "Traditional Arabic", Arial, sans-serif; }
 [dir="rtl"] body, [dir="rtl"] .page { text-align: right; }
 
 /* A full-page screenshot is far taller than a phone screen; cap it so one
    strip cannot push the guide onto a second sheet. */
-.shots img { max-height: 74mm; width: auto; max-width: 100%; margin: 0 auto; }
+.shots img { max-height: 66mm; width: auto; max-width: 100%; margin: 0 auto; }
+
+/* Cairo sets taller than the system face, so the Arabic page needs its lines
+   pulled in a little to stay on one sheet. */
+[dir="rtl"] { line-height: 1.4; }
+[dir="rtl"] ol.steps > li { margin-bottom: 5px; }
