@@ -680,19 +680,35 @@ function noStepsCard(s) {
    only takes the athlete to it. It glows because on a session with steps
    it is the second thing worth doing after joining. */
 function stepsButton() {
-  return el(
+  const btn = el(
     "button",
     {
       class: "btn block steps-btn",
       type: "button",
+      "aria-expanded": "false",
+      "aria-controls": "stepsWrap",
+      // Its own two sounds, opening and closing, so the document listener
+      // does not put a click on top of the pop.
+      "data-sfx": "off",
       onclick: () => {
-        const head = document.querySelector(".sess-head");
-        const card = head && head.closest(".card");
-        if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+        const wrap = document.getElementById("stepsWrap");
+        if (!wrap) return;
+        const open = wrap.hidden;
+        wrap.hidden = !open;
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.classList.toggle("on", open);
+        if (open) {
+          SFX.pop();
+          wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          SFX.unpop();
+          btn.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       },
     },
     t("aSteps")
   );
+  return btn;
 }
 
 function joinButton(off) {
@@ -770,7 +786,12 @@ SCREENS.session = function (args) {
       // "Monday | WeRUN" on a Thursday is the link's name outliving its use.
       w.date = s.date;
       if (s.name) w.name = s.name;
-      renderViewer(box, w, appBoot, { chrome: false });
+      // Folded away until the Steps button asks for it: an athlete standing
+      // at the track wants the code, not twenty-seven steps, and the ones
+      // who want the steps say so.
+      const wrap = el("div", { id: "stepsWrap", class: "stack", hidden: true });
+      box.append(wrap);
+      renderViewer(wrap, w, appBoot, { chrome: false });
     })
     .catch((e) => {
       box.textContent = "";

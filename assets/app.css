@@ -302,3 +302,5 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
   to{box-shadow:0 0 20px -3px var(--brand)}}
 .steps-btn{animation:stepsGlow 2.4s ease-in-out infinite alternate}
 @media (prefers-reduced-motion:reduce){.steps-btn{animation:none}}
+/* Open, it has done its job and stops asking for attention. */
+.steps-btn.on{animation:none;background:var(--brand-soft);box-shadow:none}
