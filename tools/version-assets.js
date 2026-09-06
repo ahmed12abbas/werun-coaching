@@ -15,7 +15,7 @@
  *
  * It rewrites the pages in place and prints what moved. Safe to run twice.
  *
- * All three pages are covered, not just index.html: admin.html and tips.html
+ * Every page is covered, not just index.html: admin.html, coach.html and tips.html
  * are otherwise standalone, but both now load js/tipfmt.js, and a stale copy
  * of the formatting rules there would quietly disagree with what athletes see.
  */
@@ -25,7 +25,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const root = path.join(__dirname, "..");
-const PAGES = ["index.html", "admin.html", "tips.html", "app.html"];
+const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html"];
 
 // Matches src="js/anything.js" and stylesheet href="assets/anything.css", with
 // or without a version already on it, so a second run replaces the old stamp

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coach · WE RUN</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#8851F4">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/console.css?v=2d99d575">
+</head>
+<body>
+<div class="wrap">
+  <h1>Coach</h1>
+  <p class="muted small" style="margin:0">
+    How many came, and the code for every session this week. Nothing here
+    changes anything — the club is run from the <a href="admin.html">console</a>.
+  </p>
+  <div id="app"></div>
+  <footer>WE RUN Coaching · <a href="app.html">back to the app</a></footer>
+</div>
+
+<script src="js/qr.js?v=0d34ae98"></script>
+<script src="js/console.js?v=77aecc45"></script>
+<script>
+"use strict";
+
+/* =========================================================================
+   The screen a coach stands at the track with.
+
+   Everything on it is read-only on purpose: at ten to five in the morning,
+   holding a phone up in front of thirty people, the last thing anybody needs
+   is a Remove button one thumb away from the code. Publishing, editing,
+   voiding and the switches all stay in admin.html.
+
+   It is not a permission boundary — the routes behind it are the same ones
+   the console calls, and every coach can open both pages. It is the screen
+   that fits the moment, not a smaller set of keys.
+   ========================================================================= */
+
+var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/* Sunday, not Monday: the club runs Sunday to Thursday and rests on Friday,
+   so a Monday-first week would cut its opening session off from the rest. */
+function weekDates() {
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  var out = [];
+  for (var i = 0; i < 7; i++) {
+    out.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0"));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+/* renderLogin() calls this once the coach is through the door; the two
+   console pages differ only in what they do here. */
+function load(pw) {
+  var had = password;
+  password = pw;
+  // Three reads at once: the numbers, the standing week, and what has
+  // actually been published. A coach opening this at the gate waits once.
+  return Promise.all([
+    api("/api/stats", {}),
+    api("/api/admin/schedule", { action: "list" }),
+    api("/api/admin/sessions", { action: "list" })
+  ]).then(function (r) {
+    render(r[0], r[1], r[2]);
+  })["catch"](function (e) {
+    password = had;
+    throw e;
+  });
+}
+
+function render(stats, plan, sess) {
+  app.textContent = "";
+  attendanceCards(app, stats.weeks);
+  app.append(weekCard(plan, sess));
+}
+
+/* ---- the week, with a code on every row ---- */
+function weekCard(plan, sess) {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Codes for this week")));
+  var body = el("div", {});
+  card.append(body);
+
+  var dates = weekDates();
+  var standing = (plan.schedule || []).filter(function (e) { return e.active; });
+  var changes = plan.changes || [];
+  var sessions = sess.sessions || [];
+
+  if (sess.qr === false) {
+    body.append(el("p", { class: "err" },
+      "QR_SECRET is not set on the site, so codes cannot be signed."));
+  }
+
+  /* What a slot became on one date, if anything: the row a code is signed
+     against, and the roster hangs off. A published session carries the slot
+     id too, so this finds those as well as the ones opened for a code. */
+  function sessionFor(slotId, date) {
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].schedule_id === slotId && sessions[i].date === date) return sessions[i];
+    }
+    return null;
+  }
+
+  function changeFor(slotId, date) {
+    for (var i = 0; i < changes.length; i++) {
+      if (changes[i].schedule_id === slotId && changes[i].date === date) return changes[i];
+    }
+    return null;
+  }
+
+  var any = false;
+  dates.forEach(function (date, weekday) {
+    var mine = standing.filter(function (e) { return e.weekday === weekday; });
+    // A one-off the coach published straight onto this date, filling no slot.
+    var loose = sessions.filter(function (s) { return s.date === date && !s.schedule_id; });
+    if (!mine.length && !loose.length) return;
+    any = true;
+
+    var box = el("div", { class: "wk-day" }, el("h3", {}, WK_DAYS[weekday] + " · " + dayStamp(date)));
+    mine.forEach(function (e) {
+      var change = changeFor(e.id, date);
+      box.append(row({
+        off: !!(change && change.cancelled),
+        at: (change && change.at) || e.at,
+        title: e.title_en || e.title_ar,
+        note: (e.desc_en || e.desc_ar ? (e.desc_en || e.desc_ar) + " · " : "") +
+          (e.place_en || e.place_ar || "—"),
+        session: sessionFor(e.id, date),
+        slot: { schedule_id: e.id, date: date }
+      }));
+    });
+    loose.forEach(function (s) {
+      box.append(row({
+        at: new Date(s.starts_at).toTimeString().slice(0, 5),
+        title: s.name,
+        note: s.points + " pts",
+        session: s,
+        slot: null
+      }));
+    });
+    body.append(box);
+  });
+
+  if (!any) {
+    body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
+      "Nothing standing this week yet. The club's weekly sessions are set up in the console."));
+  }
+
+  /* One line of the week: when, what, how many have scanned, and the two
+     buttons that are the whole reason this page exists. */
+  function row(spec) {
+    var count = el("span", { dir: "auto" });
+    function say() {
+      count.textContent = spec.note + (spec.off ? " · called off" : "") +
+        (spec.session ? " · " + (spec.session.came || 0) + " came" : "");
+    }
+    say();
+    var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") },
+      el("span", { class: "at" }, spec.at),
+      el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count));
+
+    if (spec.off) return line;
+
+    /* The code. A standing slot has no session row until somebody asks for
+       one, so this opens it — find-or-create, the same call the console
+       makes, so tapping it twice cannot split one roster into two. */
+    var codeBtn = el("button", { class: "btn sm primary", onclick: function () {
+      if (spec.session) return qrScreen(spec.session);
+      var was = codeBtn.textContent;
+      codeBtn.disabled = true;
+      codeBtn.textContent = "...";
+      api("/api/admin/sessions", { action: "open", schedule_id: spec.slot.schedule_id, date: spec.slot.date })
+        .then(function (d) {
+          spec.session = d.session;
+          say();
+          qrScreen(d.session);
+        })["catch"](function (er) { line.append(el("p", { class: "err" }, er.message)); })
+        .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
+    } }, "Show the code");
+
+    /* Who came. It never opens a session to answer: a slot nobody has shown
+       a code for has nobody in it, and making a row to say so would leave
+       empty sessions on days that have not happened yet. */
+    var whoBtn = el("button", { class: "btn sm", onclick: function () {
+      if (!spec.session) {
+        line.append(el("p", { class: "muted small" },
+          "Nobody yet — no code has been shown for this one."));
+        whoBtn.disabled = true;
+        return;
+      }
+      whoBtn.disabled = true;
+      api("/api/admin/sessions", { action: "roster", id: spec.session.id }).then(function (d) {
+        var box = el("div", { class: "roster" }, el("h3", {}, "Who came · " + spec.title));
+        var list = d.roster || [];
+        if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, "Nobody yet."));
+        else {
+          var ol = el("ol", {});
+          list.forEach(function (r) {
+            ol.append(el("li", { class: r.voided_at ? "void" : "", dir: "auto" },
+              r.name, el("span", { class: "muted small" }, " · " + (stamp(r.at) || ""))));
+          });
+          box.append(ol);
+        }
+        line.append(box);
+        box.scrollIntoView({ block: "nearest" });
+      })["catch"](function (e) { line.append(el("p", { class: "err" }, e.message)); })
+        .then(function () { whoBtn.disabled = false; });
+    } }, "Who came");
+
+    line.append(el("div", { class: "acts" }, codeBtn, whoBtn));
+    return line;
+  }
+
+  return card;
+}
+
+renderLogin(null);
+</script>
+</body>
+</html>

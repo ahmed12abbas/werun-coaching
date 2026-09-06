@@ -545,7 +545,6 @@ function renderViewer(app, w, rerender, opts) {
       class: "btn lg block share-cta",
       "data-sfx": "share", // its own sound: this tap is for someone else
       onclick: async () => {
-        countShare(w);
         const data = { title: w.name, text: asText(w), url: location.href };
         if (navigator.share) {
           try {

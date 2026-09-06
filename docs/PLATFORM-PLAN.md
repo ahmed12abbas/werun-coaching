@@ -65,7 +65,7 @@ _worker.js/
   lib/crypto.js     safeEqual(), pbkdf2(), randomToken(), hmac()
   lib/limit.js      tooOften() — generalised: per-IP, per-route, KV-backed
   lib/auth.js       cookie ↔ session row ↔ user; requireUser(), requireCoach()
-  routes/share.js   /api/share, /api/stats          (moved, not rewritten)
+  routes/stats.js   /api/stats                      (was routes/share.js; /api/share is gone)
   routes/feedback.js
   routes/tips.js
   routes/auth.js    signup, login, logout, me, password change
@@ -76,8 +76,8 @@ _worker.js/
   routes/admin.js   members, settings, voids, adjustments
 ```
 
-Existing behaviour moves across unchanged first (phase 0), so `/api/share`,
-feedback and tips keep working while the rest is built beside them.
+Existing behaviour moves across unchanged first (phase 0), so
+`/api/feedback` and `/api/tips` keep working while the rest is built beside them.
 
 ### Auth, concretely
 

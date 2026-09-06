@@ -50,7 +50,7 @@ function sourceFiles() {
     .readdirSync(path.join(ROOT, "js"))
     .filter((f) => f.endsWith(".js") && f !== "i18n.js")
     .map((f) => path.join(ROOT, "js", f));
-  const html = ["index.html", "admin.html", "tips.html"]
+  const html = ["index.html", "admin.html", "coach.html", "tips.html"]
     .map((f) => path.join(ROOT, f))
     .filter(fs.existsSync);
   return js.concat(html);

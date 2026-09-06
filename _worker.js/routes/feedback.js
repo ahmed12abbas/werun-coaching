@@ -50,8 +50,8 @@ export function feedbackSummary(items) {
 /* ---------- POST /api/feedback -------------------------------------------- */
 
 /*
- * Public, like the share beacon: it is a comment box on a page anyone can
- * open. The rating is the only thing required — the name and the comment are
+ * Public: it is a comment box on a page anyone can open. The rating is the
+ * only thing required — the name and the comment are
  * both allowed to be empty, because most athletes will give exactly a star
  * count, and a box that insists on more is a box nobody fills in.
  *
@@ -59,8 +59,8 @@ export function feedbackSummary(items) {
  * articles follow: a client can say anything about when it wrote.
  */
 export async function feedback(request, env) {
-  // No KV bound? Say so rather than swallowing it. Unlike the share counter, a
-  // note that quietly went nowhere is a promise broken to whoever wrote it.
+  // No KV bound? Say so rather than swallowing it: a note that quietly went
+  // nowhere is a promise broken to whoever wrote it.
   if (!env.STATS) return json({ error: "no-store" }, 503);
 
   const body = await readBody(request);

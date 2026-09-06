@@ -1,4 +1,4 @@
-/* Weeks and days, the way the club counts them: ISO weeks, Monday first. */
+/* Weeks and days, the way the club counts them: Sunday first, Friday off. */
 
 export const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
@@ -19,28 +19,17 @@ const AR_DAYS = {
 };
 
 /**
- * ISO-8601 week, e.g. "2026-W36". ISO weeks start on Monday, which is what a
- * coach means by "this week" when the week's sessions are Monday and Thursday.
+ * The Sunday a date belongs to, as YYYY-MM-DD.
+ *
+ * The club's week runs Sunday to Thursday and rests on Friday, so the
+ * Monday-first ISO week the old share counter grouped by would have cut every
+ * week's opening session off from the rest of it. One date names the week.
  */
-export function isoWeek(d) {
-  // Shift to this week's Thursday: the year that Thursday falls in is, by
-  // definition, the ISO week-numbering year.
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7) + 3);
-  const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
-  firstThursday.setUTCDate(firstThursday.getUTCDate() - ((firstThursday.getUTCDay() + 6) % 7) + 3);
-  const week = 1 + Math.round((t - firstThursday) / (7 * 24 * 3600 * 1000));
-  return t.getUTCFullYear() + "-W" + String(week).padStart(2, "0");
-}
-
-/** Monday's date for an ISO week, so the dashboard can show a real date. */
-export function weekStart(isoWeekStr) {
-  const m = /^(\d{4})-W(\d{2})$/.exec(isoWeekStr);
-  if (!m) return null;
-  const jan4 = new Date(Date.UTC(+m[1], 0, 4));
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (+m[2] - 1) * 7);
-  return monday.toISOString().slice(0, 10);
+export function clubWeekStart(iso) {
+  const d = new Date(String(iso) + "T00:00:00Z");
+  if (isNaN(d)) return null;
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  return d.toISOString().slice(0, 10);
 }
 
 /** Which day a session name belongs to; "other" when it names no day at all. */

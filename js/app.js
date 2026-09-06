@@ -1542,6 +1542,24 @@ SCREENS.me = function (args, user) {
       el("h2", {}, t("aHello", { name: user.name })),
       profileForm
     ),
+    // The coach's way to the track screen. Here rather than in the tab row:
+    // it is for the four people who take the sessions, and a sixth tab on a
+    // phone is a cost the whole club pays for them. Straight to coach.html,
+    // which is where this week's codes and rosters are.
+    Auth.isCoach()
+      ? el(
+          "div",
+          { class: "card pad stack" },
+          el("h3", {}, t("aCoachTools")),
+          el("p", { class: "muted" }, t("aCoachLead")),
+          el(
+            "div",
+            { class: "row-wrap" },
+            el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")),
+            el("a", { class: "btn", href: "admin.html" }, t("aCoachConsole"))
+          )
+        )
+      : null,
     // Nothing is gated on this — signups are open and mail may never be
     // configured — so it asks once, here, where someone came to change
     // their own details anyway.

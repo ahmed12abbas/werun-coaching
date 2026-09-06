@@ -91,7 +91,7 @@ function check(name, ok, detail) {
   r = await coach.call("POST", "/api/admin/settings", {});
   check("…and the settings", r.status === 200 && r.data.settings.club_name === "WE RUN", r.status);
   r = await coach.call("POST", "/api/stats", {});
-  check("…and the share stats", r.status === 200, r.status);
+  check("…and the attendance dashboard", r.status === 200 && Array.isArray(r.data.weeks), r.status);
   r = await coach.call("POST", "/api/tips-admin", {});
   check("…and the article editor", r.status === 200, r.status);
   r = await athlete.call("POST", "/api/admin/members", {});

@@ -286,6 +286,12 @@ const STRINGS = {
     aLogout: "Log out",
     aLogoutAll: "Log out everywhere",
 
+    /* the coach's own row on Me: the screen she stands at the track with */
+    aCoachTools: "Coaching",
+    aCoachLead: "This week's sessions, the code for each one, and who scanned it.",
+    aCoachCodes: "Show this week's codes",
+    aCoachConsole: "Run the club",
+
     /* the app: what went wrong, one sentence per code the Worker sends */
     e_generic: "Something went wrong — try again.",
     e_offline: "No connection — check your network.",
@@ -738,6 +744,12 @@ const STRINGS = {
     aPwChanged: "تم تغيير كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى.",
     aLogout: "تسجيل الخروج",
     aLogoutAll: "الخروج من كل الأجهزة",
+
+    /* المدرب: شاشة المضمار */
+    aCoachTools: "التدريب",
+    aCoachLead: "حصص هذا الأسبوع، ورمز كل حصة، ومن سجّل حضوره.",
+    aCoachCodes: "اعرض رموز هذا الأسبوع",
+    aCoachConsole: "إدارة النادي",
 
     /* the app: what went wrong */
     e_generic: "حدث خطأ — حاول مرة أخرى.",

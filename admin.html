@@ -10,237 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-/* This page is deliberately standalone: the athlete-facing CSS all lives
-   inline in index.html, and a coach's dashboard is not worth destabilising
-   the page the club actually uses. The tokens below are copied from it so
-   the two look like one site. */
-:root{
-  --brand:#8851F4; --brand-ink:#fff; --brand-soft:#F2ECFE;
-  --bg:#f7f7fa; --card:#fff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
-  --err:#dc2626; --radius:16px;
-  --shadow:0 1px 2px rgba(20,18,28,.05),0 10px 30px rgba(20,18,28,.07);
-  --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
-  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-}
-@media (prefers-color-scheme:dark){:root{
-  --brand:#A47CF8; --brand-ink:#1b1030; --brand-soft:#241a3d;
-  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
-  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
-}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
-  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
-.wrap{max-width:860px;margin:0 auto;padding:28px 18px 60px}
-h1{font-family:var(--display);font-size:40px;font-weight:600;letter-spacing:.01em;
-  text-transform:uppercase;margin:0 0 4px;line-height:1}
-h2{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:.02em;
-  text-transform:uppercase;margin:0 0 10px;line-height:1.1}
-.muted{color:var(--muted)}
-.small{font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:20px;margin-top:18px}
-label{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-input{width:100%;padding:12px 13px;font:inherit;color:var(--fg);background:var(--bg);
-  border:1px solid var(--line);border-radius:12px}
-input:focus{outline:2px solid var(--brand);outline-offset:1px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);
-  color:var(--fg);font:inherit;font-weight:650;cursor:pointer}
-.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
-.btn:disabled{opacity:.55;cursor:progress}
-.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
-.row>div{flex:1 1 200px}
-.err{color:var(--err);font-weight:600;margin-top:10px}
-.scroll{overflow-x:auto;margin-top:4px}
-table{border-collapse:collapse;width:100%;min-width:520px}
-th,td{text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);
-  font-variant-numeric:tabular-nums}
-th:first-child,td:first-child{text-align:left}
-thead th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
-  font-weight:700;white-space:nowrap}
-tbody tr:last-child td{border-bottom:0}
-.wk{font-weight:700}
-.wk small{display:block;font-weight:400;color:var(--muted);font-size:12px}
-.zero{color:var(--muted)}
-.tot{font-weight:700}
-.bar{height:8px;border-radius:99px;background:var(--brand);min-width:3px}
-.barcell{width:34%}
-.barwrap{background:var(--line);border-radius:99px;overflow:hidden}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
-.tile{background:var(--brand-soft);border-radius:13px;padding:14px 16px}
-.tile .n{font-family:var(--display);font-size:38px;line-height:1;font-weight:600}
-.tile .l{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
-  font-weight:700;margin-top:4px}
-/* ---- the read-only look at Coach Tips ---- */
-.btn.sm{padding:7px 12px;font-size:13.5px;border-radius:10px}
-a.btn{text-decoration:none}
-.badge{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--brand);background:var(--brand-soft);border-radius:999px;padding:3px 10px;flex:none}
-.tiphead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.tiphead h2{flex:1 1 auto}
-.tipart{border:1px solid var(--line);border-radius:13px;margin-top:10px;overflow:hidden}
-.tipart.live{border-color:var(--brand)}
-.tipart>summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;
-  align-items:center;gap:10px;flex-wrap:wrap}
-.tipart>summary::-webkit-details-marker{display:none}
-.tipart>summary:hover{background:var(--bg)}
-.tiptitle{font-weight:650;flex:1 1 200px;min-width:0}
-.tipwhen{flex:0 1 auto;white-space:nowrap}
-@media (max-width:560px){.tipwhen{white-space:normal;flex-basis:100%}}
-.tipbody{padding:12px 14px 14px;border-top:1px solid var(--line)}
-/* The two languages read as one article, split by a rule rather than a gap. */
-.tipside+.tipside{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
-.tipside.ar{direction:rtl;text-align:right}
-.tiplang{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--muted);margin-bottom:6px}
-.tipside h3{font-family:var(--display);font-size:24px;font-weight:600;text-transform:uppercase;
-  line-height:1.05;margin:0 0 8px}
-.tipside p{margin:0 0 9px;font-size:14.5px;line-height:1.6}
-.tipul{margin:0 0 9px;padding-inline-start:20px;font-size:14.5px}
-.tipul li{margin-bottom:4px}
-.tipside p:last-child,.tipul:last-child{margin-bottom:0}
-.sign-wrap{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.sign{display:inline-flex;align-items:center;gap:8px;color:var(--brand);
-  text-decoration:none;font-size:12.5px;font-weight:650;line-height:1.35}
-.sign:hover{text-decoration:underline}
-.sign-ic{display:inline-flex;flex:none}
-.sign svg{width:15px;height:15px;display:block}
-/* The arrow points the way the language reads. */
-[dir="rtl"] .sign svg{transform:scaleX(-1)}
-/* ---- what athletes said ---- */
-.rstars{flex:none;letter-spacing:2px;font-size:15px;line-height:1;white-space:nowrap}
-.rstars span{color:var(--muted);opacity:.35}
-.rstars span.on{color:var(--brand);opacity:1}
-.spread{margin-top:14px;display:grid;gap:7px}
-.sprow{display:grid;grid-template-columns:30px 1fr 30px;gap:10px;align-items:center;
-  font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-.sprow .barwrap{height:8px}
-.sprow .c{text-align:right}
-.note{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-top:10px}
-.notehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.who{font-weight:650}
-.who.anon{font-weight:400;font-style:italic;color:var(--muted)}
-.note p{margin:9px 0 0;font-size:14.5px;line-height:1.6;white-space:pre-wrap;
-  overflow-wrap:anywhere}
-.drop{margin-inline-start:auto;border:0;background:none;color:var(--muted);cursor:pointer;
-  font-size:15px;line-height:1;padding:4px 8px;border-radius:8px}
-.drop:hover{color:var(--err);background:var(--bg)}
-.drop:disabled{opacity:.5;cursor:progress}
-/* ---- sessions and the code at the track ---- */
-.pub{display:grid;gap:10px;margin-top:12px}
-.pub .row>div{flex:1 1 130px}
-.pub textarea{width:100%;min-height:58px;padding:11px 12px;font:inherit;font-size:13px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--fg);background:var(--bg);
-  border:1px solid var(--line);border-radius:12px;resize:vertical}
-.pub textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
-.decoded{font-size:13px;color:var(--muted)}
-.decoded b{color:var(--fg)}
-table.sess td,table.sess th{text-align:left;white-space:nowrap}
-table.sess td.when small{display:block;color:var(--muted);font-weight:400}
-table.sess td.acts .btn+.btn{margin-inline-start:6px}
-table.sess tr.past td{color:var(--muted)}
-.roster{margin-top:10px;border:1px solid var(--line);border-radius:13px;padding:12px 14px}
-.roster h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;margin:0 0 8px}
-.roster ol{margin:0;padding-inline-start:22px;font-size:14.5px}
-.roster li{margin-bottom:5px;display:list-item}
-.roster li.void{color:var(--muted);text-decoration:line-through}
-.roster .drop{margin-inline-start:8px;text-decoration:none}
-
-/* The code itself: as big as the screen allows, because it is read from a
-   metre away by a phone held at arm's length in the dark. */
-.qr-screen{position:fixed;inset:0;z-index:60;background:#fff;color:#111;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
-.qr-screen .code{width:min(78vh,92vw);aspect-ratio:1;display:block}
-.qr-screen .code svg{width:100%;height:100%;display:block}
-.qr-name{font-family:var(--display);font-size:30px;font-weight:600;text-transform:uppercase;
-  line-height:1;text-align:center;margin:0}
-.qr-sub{font-size:14px;color:#555;margin:0;text-align:center}
-.qr-count{font-family:var(--display);font-size:40px;line-height:1;font-weight:600;margin:0}
-.qr-bar{width:min(78vh,92vw);height:5px;border-radius:99px;background:#e6e3ef;overflow:hidden}
-.qr-bar i{display:block;height:100%;background:#8851F4;transition:width .95s linear}
-.qr-shut{color:#b91c1c;font-weight:700}
-.qr-close{position:absolute;top:calc(10px + env(safe-area-inset-top));inset-inline-end:12px;
-  border:1px solid #ddd;background:#fff;color:#333;border-radius:10px;padding:8px 13px;
-  font:inherit;font-weight:650;cursor:pointer}
-/* ---- the two ways in ---- */
-.ways{display:grid;gap:14px}
-.way{border:1px solid var(--line);border-radius:14px;padding:16px}
-.way.first{border-color:var(--brand)}
-.way h3{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;
-  letter-spacing:.02em;margin:0 0 4px;line-height:1.1}
-.way p{margin:0 0 12px;font-size:13px;color:var(--muted)}
-.way .row{align-items:flex-end}
-
-/* ---- the feed editor ---- */
-.posts{display:grid;gap:10px;margin-top:12px}
-.post-row{border:1px solid var(--line);border-radius:13px;padding:12px 14px}
-.post-row.live{border-color:var(--brand)}
-.post-row .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.post-row .t{font-weight:650;flex:1 1 200px;min-width:0}
-.post-row .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:620px){.two{grid-template-columns:1fr}}
-.two .ar textarea,.two .ar input{direction:rtl;text-align:right}
-textarea{width:100%;min-height:90px;padding:11px 12px;font:inherit;font-size:14px;color:var(--fg);
-  background:var(--bg);border:1px solid var(--line);border-radius:12px;resize:vertical}
-textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
-
-/* ---- settings ---- */
-.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
-.setgrid .full{grid-column:1/-1}
-.set-note{font-size:12px;color:var(--muted);margin-top:4px}
-.danger{border-color:var(--err)}
-.danger .sw span:first-of-type{color:var(--err)}
-/* ---- the shop ---- */
-.prod-row{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-top:10px}
-.prod-row.live{border-color:var(--brand)}
-.prod-row .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.prod-row .t{font-weight:650;flex:1 1 180px;min-width:0}
-.prod-row .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.money{font-variant-numeric:tabular-nums;font-weight:650}
-table.ord td,table.ord th{text-align:left;white-space:nowrap}
-table.ord td.money{text-align:right}
-table.ord tr.handed td{color:var(--muted)}
-table.ord tr.cancelled td{color:var(--muted);text-decoration:line-through}
-.tiles .tile .l small{display:block;text-transform:none;letter-spacing:0;font-weight:400}
-/* ---- the standing week ---- */
-.wk-day{margin-top:14px}
-.wk-day > h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;
-  letter-spacing:.04em;margin:0 0 6px;color:var(--muted)}
-.wk-row{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--line);
-  border-radius:12px;margin-bottom:8px}
-.wk-row.off{opacity:.55}
-.wk-row .at{flex:none;width:58px;font-weight:700;font-variant-numeric:tabular-nums}
-.wk-row .what{flex:1 1 auto;min-width:0}
-.wk-row .what b{display:block;font-weight:650}
-.wk-row .what span{font-size:13px;color:var(--muted)}
-.wk-row .acts{display:flex;gap:6px;flex-wrap:wrap}
-.wk-empty{color:var(--muted);font-size:14px;margin:0 0 8px}
-.changes{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
-.change-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;
-  padding:8px 0;border-bottom:1px solid var(--line)}
-.change-row:last-child{border-bottom:0}
-.change-row .when{font-weight:650;font-variant-numeric:tabular-nums}
-/* ---- members ---- */
-.switches{margin:12px 0 4px}
-.sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;font-weight:650;
-  text-transform:none;letter-spacing:0;color:var(--fg);cursor:pointer;margin:0}
-.sw input{width:18px;height:18px;margin:0;accent-color:var(--brand)}
-.sw .muted{font-weight:400}
-table.members td,table.members th{text-align:left;white-space:nowrap}
-table.members td.left{font-variant-numeric:normal}
-table.members td.name{font-weight:650}
-table.members td.name .badge{margin-inline-start:8px}
-.badge.off{color:var(--err);background:transparent;border:1px solid var(--err)}
-table.members tr.blocked td{color:var(--muted)}
-table.members td.acts .btn+.btn{margin-inline-start:6px}
-table.members td.conf{text-align:center;font-weight:700;color:var(--ok)}
-footer{margin-top:30px;font-size:13px;color:var(--muted)}
-a{color:var(--brand)}
-</style>
+<link rel="stylesheet" href="assets/console.css?v=2d99d575">
 </head>
 <body>
 <div class="wrap">
@@ -253,149 +23,14 @@ a{color:var(--brand)}
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=c17719b0"></script>
-<script src="js/model.js?v=3b1fab6f"></script>
+<script src="js/i18n.js?v=5f6e6076"></script>
+<script src="js/model.js?v=877bdb73"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
+<script src="js/console.js?v=77aecc45"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
-
-var app = document.getElementById("app");
-var DAY_LABEL = {
-  monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
-  friday: "Fri", saturday: "Sat", sunday: "Sun", other: "Other"
-};
-
-/* The password is only ever held here, in memory, for as long as this tab
-   stays on the page. Nothing goes into storage, so a reload asks again --
-   the right trade for a laptop a club shares. */
-var password = null;
-
-function el(tag, attrs) {
-  var n = document.createElement(tag);
-  attrs = attrs || {};
-  for (var k in attrs) {
-    if (k === "class") n.className = attrs[k];
-    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
-    else n.setAttribute(k, attrs[k]);
-  }
-  for (var i = 2; i < arguments.length; i++) {
-    var c = arguments[i];
-    if (c == null) continue;
-    if (Array.isArray(c)) { for (var j = 0; j < c.length; j++) if (c[j] != null) n.append(c[j]); }
-    else n.append(c);
-  }
-  return n;
-}
-
-/* Every console call goes through here, so the coach's login and the club
-   password are one decision made in one place rather than in nine. When a
-   coach is logged in nothing sends a password at all; the browser carries the
-   cookie and the Worker recognises it. */
-function api(route, payload) {
-  var body = Object.assign({}, payload);
-  if (password) body.password = password;
-  return fetch(route, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(body)
-  }).then(function (res) {
-    return res.json()["catch"](function () { return {}; }).then(function (data) {
-      if (res.ok) return data;
-      if (data.error === "no-db") throw new Error("No database is bound to the site yet -- run the bindings workflow (see the README).");
-      if (data.error === "has-checkins") throw new Error("Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.");
-      if (data.error === "bad-password") throw new Error("That password is not right.");
-      if (data.error === "too-often") throw new Error("Too many tries. Wait a minute.");
-      if (data.error === "qr-off") throw new Error("QR_SECRET is not set on the site, so codes cannot be signed. See the README.");
-      if (data.error === "called-off") throw new Error("That one is called off for this date. Put it back first if it is running after all.");
-      if (data.error === "not-configured") throw new Error("No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project -- see the README.");
-      throw new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
-    });
-  });
-}
-
-function renderLogin(message) {
-  app.textContent = "";
-
-  /* The coach's own account. */
-  var email = el("input", { type: "email", autocomplete: "username", placeholder: "you@example.com" });
-  var pw = el("input", { type: "password", autocomplete: "current-password", placeholder: "Password",
-    onkeydown: function (e) { if (e.key === "Enter") signIn(); } });
-  var signBtn = el("button", { class: "btn primary", onclick: function () { signIn(); } }, "Sign in");
-  var signErr = el("p", { class: "err", style: "display:none" });
-
-  function signIn() {
-    if (!email.value || !pw.value) return;
-    signBtn.disabled = true;
-    signErr.style.display = "none";
-    fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ email: email.value.trim(), password: pw.value })
-    }).then(function (res) {
-      return res.json()["catch"](function () { return {}; }).then(function (d) {
-        if (!res.ok) throw new Error(d.error === "bad-login" ? "Wrong email or password."
-          : d.error === "too-often" ? "Too many tries. Wait a minute."
-          : "The server answered " + res.status + ".");
-        if (!d.user || d.user.role !== "coach") {
-          throw new Error("That account is a member, not a coach. Unlock with the club password below and use Members to make it one.");
-        }
-        return d;
-      });
-    }).then(function () {
-      password = null; // the cookie is the credential from here on
-      load(null)["catch"](function (e) { renderLogin(e.message); });
-    })["catch"](function (e) {
-      signBtn.disabled = false;
-      signErr.textContent = e.message;
-      signErr.style.display = "";
-    });
-  }
-
-  /* The club password: the way in before there is a coach, and the way back
-     in if the coach ever loses their account. */
-  var input = el("input", {
-    type: "password",
-    autocomplete: "current-password",
-    placeholder: "Club password",
-    onkeydown: function (e) { if (e.key === "Enter") go(); }
-  });
-  var btn = el("button", { class: "btn", onclick: function () { go(); } }, "Unlock");
-
-  function go() {
-    if (!input.value) return;
-    btn.disabled = true;
-    load(input.value)["catch"](function (e) {
-      renderLogin(e.message);
-      var next = app.querySelector("input");
-      if (next) next.focus();
-    });
-  }
-
-  app.append(
-    el("div", { class: "card" },
-      el("div", { class: "ways" },
-        el("div", { class: "way first" },
-          el("h3", {}, "Sign in"),
-          el("p", {}, "With your coach account — the same login as the app."),
-          el("div", { class: "row" },
-            el("div", {}, el("label", {}, "Email"), email),
-            el("div", {}, el("label", {}, "Password"), pw),
-            el("div", { style: "flex:0 0 auto" }, signBtn)),
-          signErr),
-        el("div", { class: "way" },
-          el("h3", {}, "Or the club password"),
-          el("p", {}, "How the first coach gets in, and the way back if an account is lost."),
-          el("div", { class: "row" },
-            el("div", {}, el("label", {}, "Club password"), input),
-            el("div", { style: "flex:0 0 auto" }, btn)))),
-      message ? el("p", { class: "err" }, message) : null)
-  );
-  email.focus();
-}
 
 function load(pw) {
   // Set first so api() carries it; cleared again if it turns out to be wrong.
@@ -423,17 +58,6 @@ function loadTips() {
 function runs(text) {
   return tipRuns(text).map(function (r) {
     return r.bold ? el("b", {}, r.text) : document.createTextNode(r.text);
-  });
-}
-
-/* No locale passed: dates follow whoever is reading the dashboard. */
-function stamp(iso) {
-  if (!iso) return null;
-  var d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleString(undefined, {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit"
   });
 }
 
@@ -623,102 +247,31 @@ function feedbackCard(first) {
 
 function renderStats(data, tips) {
   app.textContent = "";
-  var weeks = data.weeks || [];
 
-  if (data.warning === "no-store") {
+  if (data.warning === "no-db") {
     app.append(el("div", { class: "card" },
-      el("h2", {}, "Nothing is being recorded yet"),
+      el("h2", {}, "No database yet"),
       el("p", { class: "muted small", style: "margin:0" },
-        "The password is right, but no KV namespace is bound to the site, so taps " +
-        "are not being counted. Bind one called STATS -- see the README.")
+        "The password is right, but no D1 database is bound to the site, so " +
+        "there is nothing to count. Run the bindings workflow -- see the README.")
     ));
     return;
   }
 
-  if (!weeks.length) {
-    app.append(el("div", { class: "card" },
-      el("h2", {}, "No taps yet"),
-      el("p", { class: "muted small", style: "margin:0" },
-        "Counting is live. This fills in the first time an athlete taps " +
-        "Share this session.")
-    ));
-    app.append(feedbackCard(data.feedback));
-    app.append(tipsCard(tips));
-    app.append(schedulePlanCard());
-    app.append(sessionsCard());
-    app.append(feedCard());
-    app.append(membersCard());
-  app.append(coachesCard());
-    app.append(shopCard());
-    app.append(ordersCard());
-    app.append(settingsCard());
-    app.append(exportCard());
-    app.append(controls());
-    return;
-  }
-
-  // Only show a day column once it has actually been used.
-  var used = (data.days || []).concat("other").filter(function (d) {
-    return weeks.some(function (w) { return (w.counts || {})[d]; });
-  });
-  var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
-
-  var latest = weeks[0];
-  app.append(
-    el("div", { class: "card" },
-      el("h2", {}, "Latest week · " + latest.week),
-      el("div", { class: "tiles" },
-        used.map(function (d) {
-          return el("div", { class: "tile" },
-            el("div", { class: "n" }, String((latest.counts || {})[d] || 0)),
-            el("div", { class: "l" }, DAY_LABEL[d] || d));
-        }),
-        el("div", { class: "tile" },
-          el("div", { class: "n" }, String(latest.total)),
-          el("div", { class: "l" }, "Total"))
-      )
-    )
-  );
-
-  var head = el("tr", {}, el("th", {}, "Week"),
-    used.map(function (d) { return el("th", {}, DAY_LABEL[d] || d); }),
-    el("th", {}, "Total"), el("th", { class: "barcell" }, ""));
-
-  var body = el("tbody", {});
-  weeks.forEach(function (w) {
-    var counts = w.counts || {};
-    body.append(el("tr", {},
-      el("td", { class: "wk" }, w.week, el("small", {}, "from " + (w.start || "?"))),
-      used.map(function (d) {
-        var n = counts[d] || 0;
-        return el("td", { class: n ? "" : "zero" }, String(n));
-      }),
-      el("td", { class: "tot" }, String(w.total)),
-      el("td", { class: "barcell" },
-        el("div", { class: "barwrap" },
-          el("div", { class: "bar", style: "width:" + Math.round((w.total / peak) * 100) + "%" })))
-    ));
-  });
-
-  app.append(
-    el("div", { class: "card" },
-      el("h2", {}, "Every week"),
-      el("div", { class: "scroll" }, el("table", {}, el("thead", {}, head), body))
-    )
-  );
+  attendanceCards(app, data.weeks);
   app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
   app.append(schedulePlanCard());
   app.append(sessionsCard());
   app.append(feedCard());
   app.append(membersCard());
+  app.append(coachesCard());
   app.append(shopCard());
   app.append(ordersCard());
   app.append(settingsCard());
   app.append(exportCard());
   app.append(controls());
 }
-
 
 /* ---- members ----
    The platform's first admin surface: who has joined, block or unblock,
@@ -1108,75 +661,6 @@ function sessionsCard() {
     body.append(el("p", { class: "muted small", style: "margin:14px 0 0" }, e.message));
   });
   return card;
-}
-
-/* ---- the code on the screen ----
-   A fresh code every thirty seconds, drawn by js/qr.js rather than fetched,
-   so it keeps working when the track has no signal to speak of. The bar
-   underneath is the slot running out; the number is who has scanned so far,
-   which is the thing a coach actually watches. */
-function qrScreen(session) {
-  var img = el("div", { class: "code" });
-  var count = el("p", { class: "qr-count" }, "0");
-  var sub = el("p", { class: "qr-sub" }, "Athletes scan this with their camera.");
-  var bar = el("i", {});
-  var screen = el("div", { class: "qr-screen" },
-    el("button", { class: "qr-close", onclick: close_ }, "Done"),
-    el("h2", { class: "qr-name" }, session.name),
-    img,
-    el("div", { class: "qr-bar" }, bar),
-    count, sub);
-
-  var timer = null, tick = null, lock = null, dead = false;
-  document.body.append(screen);
-  // The coach is holding the phone up; letting it sleep mid-session is the
-  // one failure that loses everybody's check-in.
-  if (navigator.wakeLock && navigator.wakeLock.request) {
-    navigator.wakeLock.request("screen").then(function (l) { lock = l; })["catch"](function () {});
-  }
-
-  function close_() {
-    dead = true;
-    clearTimeout(timer); clearInterval(tick);
-    if (lock && lock.release) { try { lock.release(); } catch (e) {} }
-    screen.remove();
-  }
-  document.addEventListener("keydown", function esc(e) {
-    if (e.key === "Escape") { close_(); document.removeEventListener("keydown", esc); }
-  });
-
-  function refresh() {
-    if (dead) return;
-    api("/api/admin/qr", { id: session.id }).then(function (d) {
-      if (dead) return;
-      img.innerHTML = qrSvg(d.url, "M");
-      count.textContent = String(d.came || 0);
-      sub.textContent = d.open
-        ? "Athletes scan this with their camera."
-        : "Check-in is not open for this session right now.";
-      sub.className = "qr-sub" + (d.open ? "" : " qr-shut");
-
-      // The bar empties over the life of the slot, and the next code is
-      // fetched as it runs out.
-      var left = Math.max(1, d.seconds);
-      var span = 30;
-      bar.style.transition = "none";
-      bar.style.width = Math.round((left / span) * 100) + "%";
-      clearInterval(tick);
-      tick = setInterval(function () {
-        left -= 1;
-        bar.style.transition = "width .95s linear";
-        bar.style.width = Math.max(0, Math.round((left / span) * 100)) + "%";
-      }, 1000);
-      timer = setTimeout(refresh, d.seconds * 1000 + 200);
-    })["catch"](function (e) {
-      if (dead) return;
-      img.textContent = "";
-      img.append(el("p", { class: "err" }, e.message));
-      timer = setTimeout(refresh, 5000);
-    });
-  }
-  refresh();
 }
 
 /* ---- the feed ----

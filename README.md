@@ -3,7 +3,7 @@
 **Live: <https://weruncoaching.pages.dev>** — this is the link to hand out.
 Older mirror: <https://werun.pages.dev> (a different Cloudflare account; only updates by hand).
 Mirror on GitHub Pages: <https://ahmed12abbas.github.io/werun-coaching/>
-(static only — the share counter and `/admin` need Cloudflare, so they work on
+(static only — the dashboard and `/admin` need Cloudflare, so they work on
 the Pages URL above and nowhere else).
 
 One link per week's session. The coach builds it, pastes it in the group chat, and
@@ -192,34 +192,56 @@ actually typed -- the estimates on lap-button steps and the lengths of timed
 ones -- because nothing in a session says how fast the reps are run, and a
 guessed total would read as authoritative.
 
-## Counting shares
+## Counting who came
 
-`/admin` on the live site shows how many times athletes tapped **Share this
-session**, week by week, split by the day the session is named after:
+`/admin` and `/coach` on the live site show how many athletes checked in,
+session by session and week by week:
 
-| | Mon | Thu | Total |
-|---|---|---|---|
-| **2026-W36** *from 2026-08-31* | 14 | 9 | 23 |
-| **2026-W35** *from 2026-08-24* | 11 | 12 | 23 |
+| Week | Sessions | Athletes |
+|---|---|---|
+| **Sun, 6 Sep** *9 sessions* | Community run 12 · Speed session 19 · Easy run 8 … | 61 |
+| **Sun, 30 Aug** *10 sessions* | Long run 14 · Speed session 21 · Easy run 9 … | 74 |
 
-Weeks are ISO weeks, so they start on Monday and a week's Monday and Thursday
-sessions land on the same row. The day comes from the session's *name* — a
-session called `Thursday | WeRUN` counts as Thursday, in English or Arabic —
-so renaming a session changes which column it lands in, and a name with no day
-in it is counted under **Other**.
+The number on a session is its live check-ins: a check-in the coach voided is
+one that was taken back, and it stops counting the moment it is. Weeks start on
+**Sunday**, the way the club's own week does, so a week's opening session sits
+on the same row as the rest of it.
 
-Underneath the counts the same page shows **Coach Tips read-only**: every
-article, both languages, which one is live, newest state at a glance. It is a
-viewer, not an editor -- writing still happens at `/tips`.
+This used to count taps of **Share this session** instead — a number that said
+how far a link travelled and nothing about who ran. The counter, its KV
+document and the beacon that fed it are all gone; attendance was already in the
+database and is the thing a coach actually stands at the track counting.
+
+Underneath the counts `/admin` shows **Coach Tips read-only**: every article,
+both languages, which one is live, newest state at a glance. It is a viewer,
+not an editor -- writing still happens at `/tips`.
 
 The club password (`ADMIN_PASSWORD`) opens the tips routes as well as this one,
 so the dashboard can show the articles without the coach password being copied
 into a second page. It does not work the other way round: `TIPS_PASSWORD` opens
-`/tips` only, never the share counts.
+`/tips` only, never the dashboard.
 
-It counts taps, not people: the same athlete tapping twice counts twice.
-Nothing else is recorded — no IP, no identity, not even which session — so
-there is nothing in the store worth protecting.
+### Two coach pages
+
+`/coach` is the screen a coach stands at the track with, and it only shows:
+the head count, the code for every session this week, and who scanned it.
+Nothing on it changes anything — at ten to five in the morning, holding a phone
+up in front of thirty people, the last thing anybody needs is a **Remove**
+button one thumb away from the code.
+
+`/admin` is everything else: publishing, the standing week, the news, members,
+coaches, the shop, the switches and the exports. A coach reaches it from
+**Run the club** on their **Me** screen in the app, next to **Show this week's
+codes**, which goes to `/coach`.
+
+The split is which screen fits the moment, **not** a permission boundary: both
+pages call the same routes, and every coach can open both. Anything that needs
+to be genuinely out of a coach's reach needs a second role on `users.role`,
+which does not exist yet.
+
+Both pages share `assets/console.css` and `js/console.js` — the login, the
+fetch wrapper, the QR screen and the dashboard, in one copy, because there is
+no bundler here and a second copy is a second thing to keep in step.
 
 `_worker.js` is the server side. Pages treats that filename as reserved and
 runs it in front of the static files instead of serving it, which is what keeps
@@ -227,7 +249,6 @@ the password check off the wire. It answers:
 
 | Route | |
 |---|---|
-| `POST /api/share` | public; the viewer's share button calls it and ignores the answer |
 | `POST /api/feedback` | public; one athlete's stars, name and comment |
 | `POST /api/stats` | the dashboard's only data source; needs the password |
 | `POST /api/feedback-admin` | deletes one note; needs the password |
@@ -239,11 +260,11 @@ access log. The dashboard holds it in memory only — a reload asks again.
 ### Switching it on
 
 Both live on the `weruncoaching` Pages project and neither is in this repo.
-Until they are set the site is completely unaffected: sharing still works, it
-just is not counted, and `/admin` stays locked rather than falling open.
+Until they are set the site is completely unaffected: `/admin` stays locked
+rather than falling open.
 
-1. **Somewhere to keep the counts.** Create a KV namespace and bind it to the
-   Pages project as **`STATS`** — Cloudflare dashboard → *Workers & Pages* →
+1. **Somewhere to keep the notes and articles.** Create a KV namespace and bind
+   it to the Pages project as **`STATS`** — Cloudflare dashboard → *Workers & Pages* →
    `weruncoaching` → *Settings* → *Bindings* → *KV namespace*. Or:
 
 ```bash
@@ -672,9 +693,11 @@ node tools/smoke.js https://weruncoaching.pages.dev  # or against the live site
 | `js/tips.js` | Coach Tips: the logo pop and the cloud it opens |
 | `js/sfx.js` | Every sound the page makes — one listener, no audio files |
 | `js/rate.js` | The five stars, the name and the comment at the foot of a session |
-| `admin.html` | The share dashboard at `/admin` — standalone, its own CSS |
+| `admin.html` | The console at `/admin`: everything that runs the club |
+| `coach.html` | The track screen at `/coach`: the head count, the codes for this week, and who came — read-only |
+| `js/console.js`, `assets/console.css` | What those two pages share: the login, the fetch wrapper, the QR screen, the dashboard |
 | `tips.html` | The article editor at `/tips` — standalone, its own CSS |
-| `_worker.js/` | The API: share counter, feedback, Coach Tips, health — one file per route under `routes/`, shared bits under `lib/`. Reserved name, never served; wrangler bundles it on deploy |
+| `_worker.js/` | The API: the dashboard, feedback, Coach Tips, health — one file per route under `routes/`, shared bits under `lib/`. Reserved name, never served; wrangler bundles it on deploy |
 | `migrations/` | The D1 schema, numbered SQL files; applied by every deploy and by `tools/dev.js` |
 | `app.html` | The club app for members: join, log in, the week, me — `js/app.js` is its entry point |
 | `js/api.js`, `js/auth.js` | How the app talks to `/api` and who is logged in |

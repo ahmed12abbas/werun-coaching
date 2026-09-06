@@ -8,7 +8,6 @@
    source up as downloadable assets. Wrangler bundles the directory on deploy.
 
    The routes, the public ones first:
-     POST /api/share            — beacon; counts one tap of "Share this session"
      POST /api/feedback         — one athlete's stars, name and comment
      GET  /api/tips             — the one article the coach has put live
      GET  /api/health           — which bindings are live; no data
@@ -41,7 +40,7 @@
 
    The console's routes take either a coach's login or the club password in
    the body — refuseUnlessCoach() in lib/auth.js says why it is still both:
-     POST /api/stats            — the dashboard: counts and feedback
+     POST /api/stats            — the dashboard: who came, week by week, and feedback
      POST /api/feedback-admin   — takes one note down
      POST /api/tips-admin       — the article editor
      POST /api/admin/members    — the members list, block/unblock/role
@@ -57,7 +56,7 @@
      POST /api/admin/schedule-change — one occurrence moved or called off
 
    Bindings, all set on the Pages project (see the README):
-     STATS           KV namespace holding the counts, feedback, articles and rate limits
+     STATS           KV namespace holding the feedback, articles and rate limits
      DB              D1 database for the platform (docs/PLATFORM-PLAN.md)
      ADMIN_PASSWORD  secret the dashboard checks against
      TIPS_PASSWORD   secret the article editor also accepts
@@ -66,9 +65,8 @@
      EMAIL_FROM      who that mail comes from, e.g. "WE RUN <coach@…>"
      STRIPE_SECRET_KEY      switches the shop on (optional)
      STRIPE_WEBHOOK_SECRET  what the webhook's signature is checked against
-   Without them the site still works: sharing just is not counted, the
-   dashboard stays locked rather than falling open, and the platform routes
-   answer "no-db" instead of crashing.
+   Without them the site still works: the dashboard stays locked rather than
+   falling open, and the platform routes answer "no-db" instead of crashing.
 
    Layout
      lib/     things every route needs: responses, crypto, rate limits, KV docs, auth, settings
@@ -76,7 +74,7 @@
    ========================================================================= */
 
 import { json } from "./lib/http.js";
-import { share, stats } from "./routes/share.js";
+import { stats } from "./routes/stats.js";
 import { feedback, feedbackAdmin } from "./routes/feedback.js";
 import { tips, tipsAdmin } from "./routes/tips.js";
 import { health } from "./routes/health.js";
@@ -95,7 +93,6 @@ import { adminProducts, adminOrders } from "./routes/shop.js";
 import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 
 const POST = {
-  "/api/share": share,
   "/api/feedback": feedback,
   "/api/stats": stats,
   "/api/tips-admin": tipsAdmin,
