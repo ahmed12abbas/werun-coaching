@@ -292,3 +292,13 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
   to{box-shadow:0 0 0 1px var(--brand) inset,0 0 22px -2px var(--brand)}}
 .slot.hot{animation:slotGlow 2.4s ease-in-out infinite alternate}
 @media (prefers-reduced-motion:reduce){.slot.hot{animation:none}}
+
+/* The way down to the workout. Glowing, because the line above it says to
+   tap Steps and the button has to be the thing the eye lands on. */
+.steps-btn{border-color:var(--brand);color:var(--brand);
+  box-shadow:0 0 14px -6px var(--brand)}
+@keyframes stepsGlow{
+  from{box-shadow:0 0 8px -6px var(--brand)}
+  to{box-shadow:0 0 20px -3px var(--brand)}}
+.steps-btn{animation:stepsGlow 2.4s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.steps-btn{animation:none}}

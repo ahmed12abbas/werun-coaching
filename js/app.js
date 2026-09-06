@@ -675,6 +675,26 @@ function noStepsCard(s) {
    Off only where the window is known to be shut — on a standing slot it stays
    live, because the coach may have published the session since this page was
    drawn and the code carries its own id either way. */
+/* Down to the workout. The check-in card says "tap Steps" and until now
+   there was no Steps to tap — the card is already on the page, so this
+   only takes the athlete to it. It glows because on a session with steps
+   it is the second thing worth doing after joining. */
+function stepsButton() {
+  return el(
+    "button",
+    {
+      class: "btn block steps-btn",
+      type: "button",
+      onclick: () => {
+        const head = document.querySelector(".sess-head");
+        const card = head && head.closest(".card");
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+    },
+    t("aSteps")
+  );
+}
+
 function joinButton(off) {
   return el(
     "button",
@@ -823,7 +843,8 @@ function checkinCard(s) {
       ),
       el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points }))
     ),
-    joinButton(!live)
+    joinButton(!live),
+    s.payload ? stepsButton() : null
   );
 }
 
