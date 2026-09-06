@@ -230,14 +230,62 @@ up in front of thirty people, the last thing anybody needs is a **Remove**
 button one thumb away from the code.
 
 `/admin` is everything else: publishing, the standing week, the news, members,
-coaches, the shop, the switches and the exports. A coach reaches it from
-**Run the club** on their **Me** screen in the app, next to **Show this week's
-codes**, which goes to `/coach`.
+coaches, the shop, the switches and the exports.
 
-The split is which screen fits the moment, **not** a permission boundary: both
-pages call the same routes, and every coach can open both. Anything that needs
-to be genuinely out of a coach's reach needs a second role on `users.role`,
-which does not exist yet.
+Both are reached from the **Me** screen in the app: **Show this week's codes**
+goes to `/coach` and every coach sees it, **Run the club** goes to `/admin`
+and only admins do — a button that leads to a refusal is worse than no button.
+Each page tries the login cookie before it draws a form, so somebody who tapped
+through from the app is already through the door.
+
+### Coach and admin
+
+The split is a real boundary, checked in the Worker on every call, not a
+matter of which page you happen to open.
+
+|  | Coach | Admin |
+|---|---|---|
+| `/coach` — head count, codes, who came | ✓ | ✓ |
+| Reading the week and the standing schedule | ✓ | ✓ |
+| `/admin` — publishing, members, news, shop, switches, exports | | ✓ |
+| Voiding a check-in, removing a session, editing the standing week | | ✓ |
+
+They are **two columns, not one ladder**: `users.role` says who takes the
+sessions, `users.is_admin` says who runs the club, and the club's head coach
+is usually both. Making admin a third `role` would have dropped every admin
+out of the session picker, the roster and the week the first time a query
+forgot to say `role IN ('coach','admin')` — and `role` carries a CHECK
+constraint SQLite cannot alter, so it would have meant rebuilding the whole
+`users` table by hand in the D1 console. See `migrations/0010_admin.sql`.
+
+Both are set on the **Members** screen, one button each. Nobody can take their
+own admin away — that is the one mis-tap that locks you out of the screen you
+are standing on, so somebody else does it, or the club password does.
+
+`ADMIN_PASSWORD` still opens everything. It is how the first admin gets made,
+since a club that has never had one has nobody to promote, and it is the way
+back if an account is lost.
+
+Two things are deliberately **not** behind it. `/tips` keeps its own
+`TIPS_PASSWORD` and its own audience — writing the club's articles is not
+running the club, so a coach who writes them still can, and so can an admin
+who does not coach. And a coach can still be *named* on a session by an admin;
+what they cannot do is publish, move or remove one.
+
+The coach tier is reads, with one exception: **Show the code** on a standing
+slot opens the session row it signs against, because seven of the club's ten
+weekly sessions have no published workout and nobody could check in to them
+otherwise. That write is find-or-create and bounded to ±60 days, so it cannot
+put a session on the calendar for a date nobody is standing at. The roster it
+opens carries names and not addresses — the member CSVs are admin-only.
+
+**Migration 0010 must be applied by hand**, like every migration here — the
+deploy cannot reach D1. Until it is, the column does not exist and every coach
+still runs the club, exactly as before; the moment it lands the boundary is
+real. It backfills `is_admin = 1` for everyone who is already a coach, so
+nobody loses access they were using — demote from the Members screen after.
+`node tools/schema-dump.js --bare --from 0010` writes the block to paste into
+the D1 console.
 
 Both pages share `assets/console.css` and `js/console.js` — the login, the
 fetch wrapper, the QR screen and the dashboard, in one copy, because there is

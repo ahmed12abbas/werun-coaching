@@ -96,10 +96,16 @@ function nextDate(weekday) {
   r = await admin("/api/admin/coaches", { action: "sack", id: coachId });
   check("a verb that is not a verb is refused", r.status === 400, r);
 
-  // A coach signing themselves out of the console by mis-tap: the club
-  // password is the way back, but the screen they are standing on is not.
+  // The coaches screen is the club's, not the coach's: coaching and running
+  // the club are two columns now, and only the second opens this route.
   r = await coach.call("POST", "/api/auth/login", { email: coachEmail, password: pw });
   check("the coach's own login works", r.status === 200, r.status);
+  r = await coach.call("POST", "/api/admin/coaches", { action: "list" });
+  check("a coach alone cannot open the coaches list", r.status === 403 && r.data.error === "not-admin", r);
+  await admin("/api/admin/members", { action: "admin", id: coachId, admin: true });
+
+  // An admin taking their own row off the screen they are standing on: the
+  // club password is the way back, but the screen itself is not.
   r = await coach.call("POST", "/api/admin/coaches", { action: "remove", id: coachId });
   check("a coach cannot take themselves off", r.status === 409 && r.data.error === "not-yourself", r);
 

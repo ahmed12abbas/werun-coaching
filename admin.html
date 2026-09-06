@@ -27,7 +27,7 @@
 <script src="js/model.js?v=877bdb73"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
-<script src="js/console.js?v=77aecc45"></script>
+<script src="js/console.js?v=ec608e57"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
@@ -36,14 +36,21 @@ function load(pw) {
   // Set first so api() carries it; cleared again if it turns out to be wrong.
   var had = password;
   password = pw;
-  return api("/api/stats", {}).then(function (data) {
-    // The articles are a second, softer ask: if they cannot be read the
-    // counts still render, with a line saying so.
-    return loadTips().then(function (tips) { renderStats(data, tips); });
-  })["catch"](function (e) {
-    password = had;
-    throw e;
-  });
+  // The switches first, and not for their value: it is the cheapest
+  // admin-only route there is, and something has to prove the whole page is
+  // theirs before any of it is drawn. The dashboard alone would not -- a
+  // coach may read that, and would otherwise meet a console whose thirteen
+  // cards each refuse them separately.
+  return api("/api/admin/settings", {})
+    .then(function () { return api("/api/stats", {}); })
+    .then(function (data) {
+      // The articles are a second, softer ask: if they cannot be read the
+      // counts still render, with a line saying so.
+      return loadTips().then(function (tips) { renderStats(data, tips); });
+    })["catch"](function (e) {
+      password = had;
+      throw e;
+    });
 }
 
 /* The club password opens the tips routes as well as this one, so the
@@ -275,8 +282,12 @@ function renderStats(data, tips) {
 
 /* ---- members ----
    The platform's first admin surface: who has joined, block or unblock,
-   make a coach — and the switch that closes signups. Same password as the
-   rest of the page; the Worker checks it on every call. */
+   make a coach, make an admin — and the switch that closes signups. Same
+   password as the rest of the page; the Worker checks it on every call.
+
+   Coach and admin are two columns and two buttons, not one ladder: taking
+   the sessions and running the club are different jobs the same person
+   often does. See migrations/0010_admin.sql. */
 function membersCard() {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" },
@@ -331,12 +342,21 @@ function membersCard() {
         act(m, blocked ? "unblock" : "block", null, blockBtn);
       } }, blocked ? "Unblock" : "Block");
       var roleBtn = el("button", { class: "btn sm", onclick: function () {
-        if (m.role !== "coach" && !window.confirm("Make " + m.name + " a coach? Coaches will be able to run this console.")) return;
+        if (m.role !== "coach" && !window.confirm("Make " + m.name + " a coach? They get /coach: this week's codes, the head count and who scanned.")) return;
         act(m, "role", { role: m.role === "coach" ? "athlete" : "coach" }, roleBtn);
       } }, m.role === "coach" ? "Make athlete" : "Make coach");
+      /* Two separate columns on the row, because they are two separate
+         questions: coaching is who takes the sessions, admin is who runs
+         the club. Most coaches want the first and not the second. */
+      var adminBtn = el("button", { class: "btn sm", onclick: function () {
+        if (!m.is_admin && !window.confirm("Make " + m.name + " an admin? They get this whole console -- publishing, members, the shop and the switches.")) return;
+        if (m.is_admin && !window.confirm("Take " + m.name + "'s admin away? They keep /coach if they coach.")) return;
+        act(m, "admin", { admin: !m.is_admin }, adminBtn);
+      } }, m.is_admin ? "Take admin away" : "Make admin");
       rows.append(el("tr", { class: blocked ? "blocked" : "" },
         el("td", { class: "name", dir: "auto" }, m.name,
           m.role === "coach" ? el("span", { class: "badge" }, "Coach") : null,
+          m.is_admin ? el("span", { class: "badge" }, "Admin") : null,
           blocked ? el("span", { class: "badge off" }, "Blocked") : null),
         el("td", { class: "left" }, m.email),
         el("td", {}, stamp(m.created_at) || "?"),
@@ -346,7 +366,7 @@ function membersCard() {
           : el("span", { class: "muted", title: "Not confirmed yet" }, "--")),
         el("td", {}, String(m.checkins || 0)),
         el("td", {}, String(m.points || 0)),
-        el("td", { class: "acts" }, blockBtn, roleBtn)));
+        el("td", { class: "acts" }, blockBtn, roleBtn, adminBtn)));
     });
     body.append(el("div", { class: "scroll" }, el("table", { class: "members" }, el("thead", {}, head), rows)));
   }
@@ -1422,7 +1442,7 @@ function controls() {
       "Lock forgets the club password, or signs a coach out."));
 }
 
-renderLogin(null);
+consoleBoot();
 </script>
 </body>
 </html>

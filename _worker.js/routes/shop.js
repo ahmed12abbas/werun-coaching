@@ -1,7 +1,7 @@
 /* The shop, from the coach's side: what is for sale, and who is owed one. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessAdmin } from "../lib/auth.js";
 import { storeOn } from "../lib/stripe.js";
 
 const MAX = { name: 80, desc: 600, options: 120, price: 100000000 };
@@ -20,7 +20,7 @@ async function productList(env) {
 
 export async function adminProducts(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "list");
@@ -105,7 +105,7 @@ async function orderList(env) {
 
 export async function adminOrders(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "list");

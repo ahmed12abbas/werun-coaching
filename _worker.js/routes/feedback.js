@@ -1,7 +1,7 @@
 /* What athletes said about the sessions, and the coach taking a note down. */
 
 import { json, readBody } from "../lib/http.js";
-import { refuseUnlessCoach } from "../lib/auth.js";
+import { refuseUnlessAdmin } from "../lib/auth.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { FEEDBACK_KEY, readFeedback } from "../lib/kv.js";
 
@@ -101,7 +101,7 @@ export async function feedback(request, env) {
  */
 export async function feedbackAdmin(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
   if (!env.STATS) return json({ count: 0, average: 0, spread: [0, 0, 0, 0, 0], items: [] });
 

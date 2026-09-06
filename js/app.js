@@ -1546,7 +1546,10 @@ SCREENS.me = function (args, user) {
     // it is for the four people who take the sessions, and a sixth tab on a
     // phone is a cost the whole club pays for them. Straight to coach.html,
     // which is where this week's codes and rosters are.
-    Auth.isCoach()
+    //
+    // Run the club is only for admins, because /admin only lets them in: a
+    // button that leads to a refusal is worse than no button.
+    Auth.isCoach() || Auth.isAdmin()
       ? el(
           "div",
           { class: "card pad stack" },
@@ -1556,7 +1559,7 @@ SCREENS.me = function (args, user) {
             "div",
             { class: "row-wrap" },
             el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")),
-            el("a", { class: "btn", href: "admin.html" }, t("aCoachConsole"))
+            Auth.isAdmin() ? el("a", { class: "btn", href: "admin.html" }, t("aCoachConsole")) : null
           )
         )
       : null,

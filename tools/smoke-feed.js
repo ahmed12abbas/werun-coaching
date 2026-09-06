@@ -83,7 +83,44 @@ function check(name, ok, detail) {
   r = await anon.call("POST", "/api/admin/members", { password: ADMIN, action: "role", id: coachId, role: "coach" });
   check("the club password makes a coach", r.status === 200 && r.data.members.find((m) => m.id === coachId).role === "coach", r);
 
-  /* From here the coach needs no password at all. */
+  /* Coaching is not running the club. What a coach gets is the track: the
+     head count, the week to read, the code and the roster. What they do not
+     get is anything that changes the club — and the refusal says which of
+     the two they are, rather than asking for a password they have no
+     reason to hold. */
+  r = await coach.call("POST", "/api/admin/members", {});
+  check("a coach alone cannot open members", r.status === 403 && r.data.error === "not-admin", r);
+  r = await coach.call("POST", "/api/admin/settings", {});
+  check("…nor the switches", r.status === 403, r.status);
+  r = await coach.call("POST", "/api/stats", {});
+  check("…but the dashboard is theirs", r.status === 200 && Array.isArray(r.data.weeks), r.status);
+  r = await coach.call("POST", "/api/admin/sessions", { action: "list" });
+  check("…and this week's sessions, to read", r.status === 200, r.status);
+  r = await coach.call("POST", "/api/admin/sessions", { action: "delete", id: "nothing" });
+  check("…but not to remove one", r.status === 403 && r.data.error === "not-admin", r);
+  r = await coach.call("POST", "/api/admin/schedule", { action: "list" });
+  check("…and the standing week, to read", r.status === 200, r.status);
+  r = await coach.call("POST", "/api/admin/schedule", { action: "delete", id: "nothing" });
+  check("…but not to edit it", r.status === 403, r.status);
+  r = await coach.call("POST", "/api/tips-admin", {});
+  check("…and the articles, which are not the club", r.status === 200, r.status);
+  // The one action on the coach tier that writes a row is bounded, so the
+  // calendar cannot be filled with sessions nobody asked for.
+  r = await coach.call("POST", "/api/admin/sessions", { action: "open", schedule_id: "x", date: "2087-01-01" });
+  check("…and a code cannot be opened for 2087", r.status === 400 && r.data.error === "bad-date", r);
+  // A coach cookie must not be what stops the club password working: it is
+  // the documented way back when an account is lost.
+  r = await coach.call("POST", "/api/admin/settings", { password: ADMIN });
+  check("…but the club password still gets through a coach cookie", r.status === 200, r.status);
+
+  /* The club password is the only thing that can make the first admin, for
+     the same reason it makes the first coach. */
+  r = await anon.call("POST", "/api/admin/members", { password: ADMIN, action: "admin", id: "nobody-" + stamp, admin: true });
+  check("promoting a stranger is refused", r.status === 404 && r.data.error === "no-member", r);
+  r = await anon.call("POST", "/api/admin/members", { password: ADMIN, action: "admin", id: coachId, admin: true });
+  check("the club password makes an admin", r.status === 200 && !!r.data.members.find((m) => m.id === coachId).is_admin, r);
+
+  /* From here they need no password at all. */
   r = await coach.call("POST", "/api/admin/members", {});
   check("the coach's login opens members", r.status === 200 && Array.isArray(r.data.members), r.status);
   r = await coach.call("POST", "/api/admin/sessions", {});
@@ -96,6 +133,16 @@ function check(name, ok, detail) {
   check("…and the article editor", r.status === 200, r.status);
   r = await athlete.call("POST", "/api/admin/members", {});
   check("an ordinary member still cannot", r.status === 401, r.status);
+
+  /* Taking your own admin off is the one that locks you out of the screen
+     you are standing on, so somebody else has to do it. */
+  r = await coach.call("POST", "/api/admin/members", { action: "admin", id: coachId, admin: false });
+  check("an admin cannot demote themselves", r.status === 409 && r.data.error === "not-yourself", r);
+  r = await anon.call("POST", "/api/admin/members", { password: ADMIN, action: "admin", id: coachId, admin: false });
+  check("…but the club password can", r.status === 200 && !r.data.members.find((m) => m.id === coachId).is_admin, r.status);
+  r = await coach.call("POST", "/api/admin/members", {});
+  check("…and then the console is shut to them again", r.status === 403, r.status);
+  await anon.call("POST", "/api/admin/members", { password: ADMIN, action: "admin", id: coachId, admin: true });
 
   /* Posts. */
   r = await coach.call("GET", "/api/feed");

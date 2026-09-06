@@ -42,6 +42,14 @@ function el(tag, attrs) {
    password are one decision made in one place rather than in nine. When a
    coach is logged in nothing sends a password at all; the browser carries the
    cookie and the Worker recognises it. */
+/* An Error that still says which code the Worker sent, so a caller can tell
+   "nobody is logged in here yet" from "the database is missing". */
+function coded(code, message) {
+  var e = new Error(message);
+  e.code = code;
+  return e;
+}
+
 function api(route, payload) {
   var body = Object.assign({}, payload);
   if (password) body.password = password;
@@ -53,14 +61,19 @@ function api(route, payload) {
   }).then(function (res) {
     return res.json()["catch"](function () { return {}; }).then(function (data) {
       if (res.ok) return data;
-      if (data.error === "no-db") throw new Error("No database is bound to the site yet -- run the bindings workflow (see the README).");
-      if (data.error === "has-checkins") throw new Error("Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.");
-      if (data.error === "bad-password") throw new Error("That password is not right.");
-      if (data.error === "too-often") throw new Error("Too many tries. Wait a minute.");
-      if (data.error === "qr-off") throw new Error("QR_SECRET is not set on the site, so codes cannot be signed. See the README.");
-      if (data.error === "called-off") throw new Error("That one is called off for this date. Put it back first if it is running after all.");
-      if (data.error === "not-configured") throw new Error("No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project -- see the README.");
-      throw new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
+      if (data.error === "no-db") throw coded("no-db", "No database is bound to the site yet -- run the bindings workflow (see the README).");
+      if (data.error === "has-checkins") throw coded("has-checkins", "Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.");
+      if (data.error === "bad-password") throw coded("bad-password", "That password is not right.");
+      if (data.error === "not-admin") throw coded("not-admin", "That is the club's to change, and your account coaches rather than runs it. Ask an admin, or unlock with the club password.");
+      if (data.error === "no-column") throw coded("no-column", "The database has not had migration 0010 applied yet, so there is nothing to write to. See the README.");
+      if (data.error === "not-yourself") throw coded("not-yourself", "Somebody else has to do that one — it is the screen you are standing on.");
+      if (data.error === "too-often") throw coded("too-often", "Too many tries. Wait a minute.");
+      if (data.error === "qr-off") throw coded("qr-off", "QR_SECRET is not set on the site, so codes cannot be signed. See the README.");
+      if (data.error === "called-off") throw coded("called-off", "That one is called off for this date. Put it back first if it is running after all.");
+      if (data.error === "not-configured") throw coded("not-configured", "No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project -- see the README.");
+      var err = new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
+      err.code = data.error;
+      throw err;
     });
   });
 }
@@ -89,8 +102,12 @@ function renderLogin(message) {
         if (!res.ok) throw new Error(d.error === "bad-login" ? "Wrong email or password."
           : d.error === "too-often" ? "Too many tries. Wait a minute."
           : "The server answered " + res.status + ".");
-        if (!d.user || d.user.role !== "coach") {
-          throw new Error("That account is a member, not a coach. Unlock with the club password below and use Members to make it one.");
+        // Coach or admin gets through the door here; which screens open
+        // behind it is the Worker's call, not this form's.
+        var staff = d.user && (d.user.role === "coach" || d.user.is_admin ||
+          (d.user.is_admin === undefined && d.user.role === "coach"));
+        if (!staff) {
+          throw new Error("That account is an ordinary member. Unlock with the club password below and use Members to change that.");
         }
         return d;
       });
@@ -129,7 +146,7 @@ function renderLogin(message) {
       el("div", { class: "ways" },
         el("div", { class: "way first" },
           el("h3", {}, "Sign in"),
-          el("p", {}, "With your coach account — the same login as the app."),
+          el("p", {}, "With your club account — the same login as the app."),
           el("div", { class: "row" },
             el("div", {}, el("label", {}, "Email"), email),
             el("div", {}, el("label", {}, "Password"), pw),
@@ -137,13 +154,29 @@ function renderLogin(message) {
           signErr),
         el("div", { class: "way" },
           el("h3", {}, "Or the club password"),
-          el("p", {}, "How the first coach gets in, and the way back if an account is lost."),
+          el("p", {}, "How the first admin gets in, and the way back if an account is lost."),
           el("div", { class: "row" },
             el("div", {}, el("label", {}, "Club password"), input),
             el("div", { style: "flex:0 0 auto" }, btn)))),
       message ? el("p", { class: "err" }, message) : null)
   );
   email.focus();
+}
+
+/*
+ * First paint. The cookie is tried before the form is drawn: a coach who
+ * tapped through from the app's Me screen is already logged in, and asking
+ * for a password at the gate is the friction this page exists to remove.
+ *
+ * A refusal that is only "no password was sent" drops quietly to the form.
+ * Anything else — no database, not an admin — is worth saying out loud.
+ */
+function consoleBoot() {
+  app.textContent = "";
+  app.append(el("p", { class: "muted small" }, "Opening…"));
+  load(null)["catch"](function (e) {
+    renderLogin(e.code === "bad-password" || e.code === "not-configured" ? null : e.message);
+  });
 }
 
 /* No locale passed: dates follow whoever is reading the dashboard. */

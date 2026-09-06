@@ -38,21 +38,32 @@
                                   and the only public route that changes money)
      POST /api/points/board-visibility — on or off the board         (logged in)
 
-   The console's routes take either a coach's login or the club password in
-   the body — refuseUnlessCoach() in lib/auth.js says why it is still both:
+   Two guards, both in lib/auth.js, both taking either a login or the club
+   password in the body. refuseUnlessCoach() is the track — what a coach needs
+   standing at the gate. refuseUnlessAdmin() is everything that changes the
+   club. See migrations/0010_admin.sql for why they are two columns and not
+   one ladder.
+
+   The track:
      POST /api/stats            — the dashboard: who came, week by week, and feedback
+     POST /api/admin/qr         — the code for the track
+     POST /api/admin/sessions   — list, roster, open  (the rest is the club's)
+     POST /api/admin/schedule   — list                (the rest is the club's)
+     POST /api/tips-admin       — the article editor; its own TIPS_PASSWORD as
+                                  well, and its own audience. Writing the
+                                  club's articles is not running the club.
+
+   The club, admins only:
      POST /api/feedback-admin   — takes one note down
-     POST /api/tips-admin       — the article editor
-     POST /api/admin/members    — the members list, block/unblock/role
+     POST /api/admin/members    — the members list, block/unblock/role/admin
      POST /api/admin/coaches    — who coaches, and who could
      POST /api/admin/settings   — the switches
-     POST /api/admin/sessions   — publish, roster, void, delete
-     POST /api/admin/qr         — the code for the track
+     POST /api/admin/sessions   — publish, void, delete
      POST /api/admin/posts      — the feed editor
      POST /api/admin/export     — members, points or check-ins as CSV
      POST /api/admin/products   — what is for sale
      POST /api/admin/orders     — who is owed one, and handing it over
-     POST /api/admin/schedule   — the standing week
+     POST /api/admin/schedule   — saving and deleting a standing slot
      POST /api/admin/schedule-change — one occurrence moved or called off
 
    Bindings, all set on the Pages project (see the README):

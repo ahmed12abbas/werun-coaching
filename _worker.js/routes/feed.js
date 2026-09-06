@@ -8,7 +8,7 @@
    migrated into a second copy that could disagree with it. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach, withMember } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
 import { getSetting } from "../lib/settings.js";
 
@@ -94,7 +94,7 @@ async function listAll(env) {
  */
 export async function adminPosts(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "list");

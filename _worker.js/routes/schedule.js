@@ -5,7 +5,7 @@
    Phase 3 moves this behind a coach login; the answers keep their shape. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
@@ -17,6 +17,16 @@ import { cleanCoachId, coachRoster } from "../lib/coaches.js";
    wall-clock "04:55" becomes a real instant by saying which clock it is on. */
 const CLUB_OFFSET = "+03:00";
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+
+/* The actions /coach needs, and the only ones a coach who is not an admin
+   can reach. Everything else on this route changes the club. */
+const TRACK = new Set(["list", "roster", "open"]);
+
+/* How far either side of today a code may be opened for. Wide enough for a
+   coach setting up next month's race, short enough that the calendar cannot
+   be filled with sessions nobody asked for. */
+const OPEN_DAYS = 60;
+const shiftDate = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 const MAX = { name: 80, payload: 4000 };
 const LIST = 40;
@@ -42,10 +52,16 @@ async function sessionList(env) {
 
 export async function adminSessions(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
-  if (no) return no;
-
   const action = String(body.action || "list");
+
+  // Which guard depends on the verb. Reading the week, opening a code and
+  // seeing who scanned it are what a coach is at the track to do; publishing
+  // a workout, voiding somebody's check-in and removing a session from the
+  // calendar are running the club.
+  const no = TRACK.has(action)
+    ? await refuseUnlessCoach(request, env, body)
+    : await refuseUnlessAdmin(request, env, body);
+  if (no) return no;
 
   if (action === "publish") {
     const name = String(body.name || "").replace(/\s+/g, " ").trim().slice(0, MAX.name);
@@ -104,8 +120,12 @@ export async function adminSessions(request, env) {
   }
 
   if (action === "roster") {
+    // The name, and not the email: this is the coach tier, and a name is what
+    // ticks somebody off a list. Walking every session id would otherwise be
+    // the whole membership's addresses. The CSVs in routes/export.js are the
+    // admin-only way to those.
     const rows = await env.DB.prepare(
-      "SELECT c.id, c.at, c.voided_at, u.name, u.email FROM checkins c JOIN users u ON u.id = c.user_id" +
+      "SELECT c.id, c.at, c.voided_at, u.name FROM checkins c JOIN users u ON u.id = c.user_id" +
         " WHERE c.session_id = ? ORDER BY c.at ASC"
     )
       .bind(String(body.id || ""))
@@ -132,7 +152,7 @@ export async function adminSessions(request, env) {
       if (owed) await addPoints(env, row.user_id, -owed, "void", row.id, null);
     }
     const rows = await env.DB.prepare(
-      "SELECT c.id, c.at, c.voided_at, u.name, u.email FROM checkins c JOIN users u ON u.id = c.user_id" +
+      "SELECT c.id, c.at, c.voided_at, u.name FROM checkins c JOIN users u ON u.id = c.user_id" +
         " WHERE c.session_id = ? ORDER BY c.at ASC"
     )
       .bind(row.session_id)
@@ -167,6 +187,14 @@ export async function adminSessions(request, env) {
     const scheduleId = String(body.schedule_id || "");
     const date = String(body.date || "");
     if (!ISO_DATE.test(date)) return json({ error: "bad-date" }, 400);
+    // This is the only action on the coach tier that writes, and the row it
+    // writes is a real session the whole club's week then shows. Find-or-
+    // create means one date can only ever make one row, so bounding the date
+    // bounds the lot: a code is for a session near enough to stand at, and
+    // nobody opens one for 2087.
+    if (date < shiftDate(-OPEN_DAYS) || date > shiftDate(OPEN_DAYS)) {
+      return json({ error: "bad-date" }, 400);
+    }
 
     const already = await env.DB.prepare(
       "SELECT * FROM club_sessions WHERE schedule_id = ? AND date = ?"

@@ -11,7 +11,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { safeEqual, guessingTooOften } from "../lib/crypto.js";
-import { currentUser } from "../lib/auth.js";
+import { currentUser, isCoach, isAdmin } from "../lib/auth.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
@@ -112,11 +112,19 @@ async function tipsAllows(given, env) {
   return ok;
 }
 
-/** A coach who is logged in needs neither password. */
-async function isCoach(request, env) {
+/*
+ * Somebody on the club's staff who is logged in needs neither password.
+ *
+ * Deliberately both coaches and admins, and deliberately not moved behind
+ * refuseUnlessAdmin() when the console was: writing the club's articles is not
+ * running the club, /tips has its own password and its own audience, and a
+ * coach who writes them should keep doing so. An admin who does not coach must
+ * be able to as well, which the old rule got backwards.
+ */
+async function isStaff(request, env) {
   if (!env.DB) return false;
   const user = await currentUser(request, env);
-  return !!(user && user.role === "coach" && user.status !== "blocked");
+  return isCoach(user) || isAdmin(user);
 }
 
 /*
@@ -126,7 +134,7 @@ async function isCoach(request, env) {
  */
 export async function tipsAdmin(request, env) {
   const body = await readBody(request);
-  if (!(await isCoach(request, env))) {
+  if (!(await isStaff(request, env))) {
     if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
       return json({ error: "not-configured" }, 503);
     }

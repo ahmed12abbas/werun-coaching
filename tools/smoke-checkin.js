@@ -137,7 +137,10 @@ const PAYLOAD =
   /* And the coach taking one back. */
   r = await admin({ action: "roster", id: sessionId });
   const entry = (r.data.roster || [])[0];
-  check("roster: the coach sees who came", !!entry && entry.email === email, r.data);
+  check("roster: the coach sees who came", !!entry && !!entry.name, r.data);
+  // The roster is the coach tier, so it carries a name and not an address:
+  // walking every session id would otherwise be the membership's emails.
+  check("roster: and not their email", !!entry && entry.email === undefined, entry);
 
   r = await admin({ action: "delete", id: sessionId });
   check("delete: refused while someone has checked in", r.status === 409 && r.data.error === "has-checkins", r);

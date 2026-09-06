@@ -5,7 +5,7 @@
    and Sheets alike. */
 
 import { json, readBody } from "../lib/http.js";
-import { refuseUnlessCoach } from "../lib/auth.js";
+import { refuseUnlessAdmin } from "../lib/auth.js";
 import { hasColumn } from "../lib/columns.js";
 
 const CAP = 5000;
@@ -43,7 +43,7 @@ const asFile = (name, body) =>
 
 export async function adminExport(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const what = String(body.what || "members");

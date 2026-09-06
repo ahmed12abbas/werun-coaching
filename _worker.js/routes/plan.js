@@ -1,7 +1,7 @@
 /* The coach editing the standing week, and calling one session off. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.js";
 import { validTime } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 import { hasColumn } from "../lib/columns.js";
@@ -27,10 +27,14 @@ async function list(env) {
 
 export async function adminSchedule(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
-  if (no) return no;
-
   const action = String(body.action || "list");
+
+  // /coach draws its week from this read, so a coach may have it. Saving a
+  // slot or deleting one moves every week after it, and is the club's.
+  const no = action === "list"
+    ? await refuseUnlessCoach(request, env, body)
+    : await refuseUnlessAdmin(request, env, body);
+  if (no) return no;
 
   if (action === "save") {
     const e = body.entry && typeof body.entry === "object" ? body.entry : {};
@@ -112,7 +116,7 @@ export async function adminSchedule(request, env) {
 
 export async function adminScheduleChange(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const scheduleId = String(body.schedule_id || "");

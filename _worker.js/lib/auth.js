@@ -133,6 +133,10 @@ export const publicUser = (u) => ({
   // The face beside their name, or "" for their initial. Until 0007 is
   // applied the column is not there, and "" is exactly the right answer.
   avatar: u.avatar || "",
+  // Whether the Me screen offers the console. Until 0010 is applied the
+  // column is not there, and every coach still runs the club — which is what
+  // adminUnknown() below decides, and this has to agree with it.
+  is_admin: u.is_admin === undefined ? undefined : !!u.is_admin,
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,
@@ -149,13 +153,6 @@ export const withUser = (fn) => async (request, env) => {
   return fn(request, env, user);
 };
 
-/** The same, and they must be a coach. */
-export const withCoach = (fn) =>
-  withUser((request, env, user) => {
-    if (user.role !== "coach") return json({ error: "not-coach" }, 403);
-    return fn(request, env, user);
-  });
-
 /**
  * The athlete-facing reads — the week, a session, the feed, checking in,
  * points. The same as withUser, plus the maintenance switch.
@@ -166,32 +163,90 @@ export const withCoach = (fn) =>
  */
 export const withMember = (fn) =>
   withUser(async (request, env, user) => {
-    if (user.role !== "coach" && (await getSetting(env, "maintenance"))) {
+    // An admin who does not coach is the one doing the repairing, so the
+    // switch must not hold them out either.
+    if (!isCoach(user) && !isAdmin(user) && (await getSetting(env, "maintenance"))) {
       return json({ error: "maintenance" }, 503);
     }
     return fn(request, env, user);
   });
 
 /**
- * The console's own guard: a coach, known either by their login or by the
- * club password in the body.
+ * The track guard: a coach or an admin, known either by their login or by the
+ * club password in the body. What a coach needs standing at the gate — the
+ * head count, the week, the code, the roster.
  *
  * The password is not retired along with the switch to accounts, because it
- * is the only way back in if the coach loses their account — and it is how
- * the first coach gets made in the first place, since a club that has never
- * had a coach has nobody to promote one. It is rate-limited before it is
- * compared, and a coach who is logged in never sends it at all.
+ * is the only way back in if the admin loses their account — and it is how
+ * the first one gets made in the first place, since a club that has never had
+ * one has nobody to promote. It is rate-limited before it is compared, and
+ * somebody who is logged in never sends it at all.
  *
  * Answers with the Response to send instead, or null to go on.
  */
 export async function refuseUnlessCoach(request, env, body) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   const user = await currentUser(request, env);
-  if (user && user.role === "coach" && user.status !== "blocked") return null;
+  if (isCoach(user) || isAdmin(user)) return null;
 
   if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
   const slow = await guessingTooOften(request, env);
   if (slow) return slow;
   if (await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD)) return null;
   return json({ error: "bad-password" }, 401);
+}
+
+/** A coach in good standing — the person who takes sessions. */
+export const isCoach = (u) => !!(u && u.role === "coach" && u.status !== "blocked");
+
+/** An admin in good standing — the person who runs the club. */
+export const isAdmin = (u) => !!(u && u.is_admin && u.status !== "blocked");
+
+/*
+ * The window between a deploy and the migration behind it: 0010 adds
+ * `is_admin`, and until it is applied nobody has one, which would lock every
+ * coach out of the console they had this morning. So while the column is
+ * missing the old rule stands — a coach runs the club — and the moment it
+ * lands the real boundary takes over. Take this out once 0010 is in.
+ *
+ * Read off the row rather than asked of the schema: currentUser() does
+ * SELECT u.*, so a missing column is `undefined` and a present one is 0 or 1.
+ * hasColumn() would answer this too, but it caches — and it cannot tell a
+ * column that is absent from a PRAGMA that threw, so one transient D1 error
+ * on a cold isolate would hand every coach the whole console for the life of
+ * that isolate. A row that could not be read is no user at all, and refused
+ * a line above. Fail closed, and say why.
+ */
+const adminUnknown = (u) => !!u && u.is_admin === undefined;
+
+/**
+ * The console's own guard: an admin, known either by their login or by the
+ * club password in the body.
+ *
+ * Everything that changes the club goes through this — publishing, the
+ * standing week, members, the news, the shop, the switches and the exports.
+ * What a coach needs at the track goes through refuseUnlessCoach() instead.
+ */
+export async function refuseUnlessAdmin(request, env, body) {
+  if (!env.DB) return json({ error: "no-db" }, 503);
+  const user = await currentUser(request, env);
+  if (isAdmin(user)) return null;
+  if (isCoach(user) && adminUnknown(user)) return null;
+
+  // A coach who is logged in and sent no password is told what they are,
+  // rather than asked for one they have no reason to have: they are not a
+  // stranger at the door, they are staff on the wrong screen. But a password
+  // they did send is still tried — the club password is documented as the way
+  // back when an account is lost, and a coach cookie must not be what stops
+  // it working.
+  const given = String((body && body.password) || "");
+  if (!given && isCoach(user)) return json({ error: "not-admin" }, 403);
+
+  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
+  if (await safeEqual(given, env.ADMIN_PASSWORD)) return null;
+  // A coach who guessed wrong is still told what they are rather than what the
+  // password was: which of the two failed is not theirs to learn.
+  return isCoach(user) ? json({ error: "not-admin" }, 403) : json({ error: "bad-password" }, 401);
 }

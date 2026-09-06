@@ -16,8 +16,13 @@ const Auth = {
   /** The club's own settings, as /api/auth/me hands them over. */
   club: {},
 
-  /** Coaches see the console and are never held out by maintenance. */
+  /** Coaches take the sessions, see /coach, and never meet maintenance. */
   isCoach: () => !!(Auth.user && Auth.user.role === "coach"),
+
+  /* Admins run the club, and are the only ones /admin lets in. Undefined
+     until 0010 is applied, and a coach still runs the club in that window —
+     which is what the Worker answers too, so the button and the door agree. */
+  isAdmin: () => !!(Auth.user && (Auth.user.is_admin === undefined ? Auth.user.role === "coach" : Auth.user.is_admin)),
 
   async load() {
     try {

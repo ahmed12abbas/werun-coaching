@@ -5,7 +5,7 @@
    login; the shape of the answers will not change. */
 
 import { json, readBody } from "../lib/http.js";
-import { nowISO, currentUser, refuseUnlessCoach } from "../lib/auth.js";
+import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
 import { coachList } from "../lib/coaches.js";
@@ -14,9 +14,16 @@ const MEMBER_CAP = 500;
 
 async function memberList(env) {
   const bio = (await hasColumn(env, "users", "birth_year")) ? " u.gender, u.birth_year," : " '' AS gender, NULL AS birth_year,";
+  // Until 0010 is applied there is no column to read, and every coach still
+  // runs the club — the same answer refuseUnlessAdmin() gives in that window,
+  // so the screen and the guard cannot disagree about who can do what.
+  const admin = (await hasColumn(env, "users", "is_admin"))
+    ? " u.is_admin,"
+    : " CASE WHEN u.role = 'coach' THEN 1 ELSE 0 END AS is_admin,";
   const rows = await env.DB.prepare(
     "SELECT u.id, u.email, u.name, u.role, u.lang, u.status, u.created_at, u.last_seen_at, u.email_verified_at," +
       bio +
+      admin +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
       " FROM users u ORDER BY u.created_at DESC LIMIT ?"
@@ -29,15 +36,18 @@ async function memberList(env) {
 /* ---------- POST /api/admin/members -------------------------------------- */
 
 /*
- * One route, three verbs. No `action` means "show me"; `block`/`unblock`
- * and `role` change one member and answer with the fresh list, so the page
- * never has to guess what the database now says.
+ * One route, four verbs. No `action` means "show me"; `block`/`unblock`,
+ * `role` and `admin` change one member and answer with the fresh list, so
+ * the page never has to guess what the database now says.
+ *
+ * `role` is who takes sessions; `admin` is who runs the club. Two columns,
+ * because they are two questions — see migrations/0010_admin.sql.
  *
  * Blocking ends every session the member has, on the spot.
  */
 export async function members(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "");
@@ -52,6 +62,23 @@ export async function members(request, env) {
   } else if (action === "role") {
     const role = body.role === "coach" ? "coach" : "athlete";
     await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, id).run();
+  } else if (action === "admin") {
+    // Nothing to write to until 0010 lands; saying so beats a 500 that
+    // reads like the club is broken.
+    if (!(await hasColumn(env, "users", "is_admin"))) return json({ error: "no-column" }, 503);
+    // Say so rather than writing nothing, the way /api/admin/coaches does.
+    const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+    if (!who) return json({ error: "no-member" }, 404);
+    const want = !!body.admin;
+    // Standing on the console and taking your own admin off it is a mis-tap
+    // that locks you out of the screen you are on. The club password is the
+    // way back, but somebody else has to do this one — the same rule the
+    // coaches list follows, for the same reason.
+    if (!want) {
+      const me = await currentUser(request, env);
+      if (me && me.id === id) return json({ error: "not-yourself" }, 409);
+    }
+    await env.DB.prepare("UPDATE users SET is_admin = ? WHERE id = ?").bind(want ? 1 : 0, id).run();
   } else if (action) {
     return json({ error: "bad-request" }, 400);
   }
@@ -76,7 +103,7 @@ export async function members(request, env) {
  */
 export async function coaches(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const action = String(body.action || "list");
@@ -122,7 +149,7 @@ async function coachesAndCandidates(env) {
    than stored, so a typo cannot plant a setting nothing reads. */
 export async function settings(request, env) {
   const body = await readBody(request);
-  const no = await refuseUnlessCoach(request, env, body);
+  const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   const set = body.set && typeof body.set === "object" ? body.set : {};
