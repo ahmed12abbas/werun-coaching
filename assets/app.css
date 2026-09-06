@@ -131,12 +131,16 @@ select.qty{width:100%;padding:10px 12px;font:inherit;color:var(--fg);background:
 
 /* ---- a day with more than one thing on it ---- */
 .slots{display:grid; gap:2px}
-.slot{display:flex; align-items:flex-start; gap:11px; padding:8px 0; width:100%;
+.slot{display:flex; flex-wrap:wrap; align-items:flex-start; gap:11px; padding:8px 0; width:100%;
   text-align:start; font:inherit; color:inherit; background:none; border:0}
 .slot+.slot{border-top:1px solid var(--line)}
 button.slot{cursor:pointer; border-radius:9px; padding:8px 6px; margin:0 -6px}
 button.slot:hover{background:var(--brand-soft)}
 .slot.off .slot-title,.slot.off .slot-desc,.slot.off .slot-meta{opacity:.55; text-decoration:line-through}
+/* The tag drops to its own line rather than squeezing the title to one word
+   per line: a clock, a title and CHECK-IN OPEN do not fit across 375px, and
+   the title is the part worth reading. */
+.slot .grow{flex:1 1 150px}
 .slot-at{flex:none; width:66px; font-size:13.5px; color:var(--muted); padding-top:2px}
 .slot-title{font-weight:650; line-height:1.3}
 /* Two lines in the list, however long the coach's is: the week is for
