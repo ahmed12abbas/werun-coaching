@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=eb178b66">
+<link rel="stylesheet" href="assets/console.css?v=b37eea8a">
 </head>
 <body>
 <div class="wrap">
@@ -23,14 +23,21 @@
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
 </div>
 
-<script src="js/i18n.js?v=5f6e6076"></script>
+<script src="js/i18n.js?v=bba9e3f4"></script>
 <script src="js/model.js?v=877bdb73"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=96340c26"></script>
-<script src="js/console.js?v=ec608e57"></script>
+<script src="js/console.js?v=d6eac11f"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
+
+/* This page is English, all two thousand lines of it, so the parts it shares
+   with /coach are told to be as well — half a translated page is worse than
+   none. Set on I18N directly rather than through apply(): apply() writes the
+   choice to localStorage, and the console has no business changing the
+   language the athlete app opens in. */
+I18N.lang = "en";
 
 function load(pw) {
   // Set first so api() carries it; cleared again if it turns out to be wrong.

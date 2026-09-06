@@ -320,6 +320,17 @@ Both pages share `assets/console.css` and `js/console.js` — the login, the
 fetch wrapper, the QR screen and the dashboard, in one copy, because there is
 no bundler here and a second copy is a second thing to keep in step.
 
+`/coach` is **bilingual**, with the same two toggles the athlete app carries:
+English/العربية and light/dark, top right, remembered per device and shared
+with the app. Everything on it goes through `t()`, Arabic reads right-to-left
+with Cairo carrying the headings, and neither toggle refetches anything — the
+page redraws from what it already loaded.
+
+`/admin` is English only. It pins `I18N.lang` itself rather than calling
+`I18N.apply()`, so it never changes the language the athlete app opens in.
+Translating its two thousand lines is a job for the day somebody needs it;
+half a translated console is worse than none.
+
 `_worker.js` is the server side. Pages treats that filename as reserved and
 runs it in front of the static files instead of serving it, which is what keeps
 the password check off the wire. It answers:

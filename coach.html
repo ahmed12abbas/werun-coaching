@@ -9,22 +9,21 @@
 <link rel="icon" href="assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=eb178b66">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/console.css?v=b37eea8a">
 </head>
 <body>
 <div class="wrap">
-  <h1>Coach</h1>
-  <p class="muted small" style="margin:0">
-    How many came, the code for every session this week, and who is taking it.
-    Put yourself down for a session and the other coaches will see it.
-  </p>
+  <!-- The heading, the line under it and the footer are drawn by the script,
+       because all three change language with the toggle. -->
+  <div id="head"></div>
   <div id="app"></div>
-  <footer>WE RUN Coaching · <a href="app.html">back to the app</a></footer>
+  <div id="foot"></div>
 </div>
 
+<script src="js/i18n.js?v=bba9e3f4"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
-<script src="js/console.js?v=ec608e57"></script>
+<script src="js/console.js?v=d6eac11f"></script>
 <script>
 "use strict";
 
@@ -43,8 +42,6 @@
    thing on it that is theirs to change.
    ========================================================================= */
 
-var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
 /* Sunday, not Monday: the club runs Sunday to Thursday and rests on Friday,
    so a Monday-first week would cut its opening session off from the rest. */
 function weekDates() {
@@ -60,6 +57,38 @@ function weekDates() {
   return out;
 }
 
+/* The heading, the line under it, the two toggles and the footer -- drawn
+   rather than written into the HTML, because all of it changes language.
+
+   The toggles do not refetch: LAST holds what the last load() answered, so
+   flipping to Arabic redraws the same week rather than asking for it again.
+   Before anything has loaded there is nothing to redraw and the login form
+   is drawn instead, which is the same call renderLogin() makes. */
+var LAST = null;
+
+function chrome() {
+  var head = document.getElementById("head");
+  head.textContent = "";
+  head.append(
+    el("div", { class: "conhead" },
+      el("h1", {}, t("cTitle")),
+      consoleTools(redraw)),
+    el("p", { class: "muted small", style: "margin:0" }, t("cLead"))
+  );
+  var foot = document.getElementById("foot");
+  foot.textContent = "";
+  foot.append(el("footer", {}, "WE RUN Coaching · ",
+    el("a", { href: "app.html" }, t("cBackToApp"))));
+  document.title = t("cTitle") + " · WE RUN";
+}
+
+/* What both toggles call: the chrome, and whatever the page was showing. */
+function redraw() {
+  chrome();
+  if (LAST) render(LAST[0], LAST[1], LAST[2], LAST[3]);
+  else renderLogin(null);
+}
+
 /* renderLogin() calls this once the coach is through the door; the two
    console pages differ only in what they do here. */
 function load(pw) {
@@ -73,6 +102,7 @@ function load(pw) {
     api("/api/admin/sessions", { action: "list" }),
     api("/api/coach/rota", { action: "list" })
   ]).then(function (r) {
+    LAST = r;
     render(r[0], r[1], r[2], r[3]);
   })["catch"](function (e) {
     password = had;
@@ -89,7 +119,7 @@ function render(stats, plan, sess, rota) {
 /* ---- the week, with a code on every row ---- */
 function weekCard(plan, sess, rota) {
   var card = el("div", { class: "card" },
-    el("div", { class: "tiphead" }, el("h2", {}, "Codes for this week")));
+    el("div", { class: "tiphead" }, el("h2", {}, t("cCodesWeek"))));
   var body = el("div", {});
   card.append(body);
 
@@ -111,7 +141,7 @@ function weekCard(plan, sess, rota) {
 
   if (sess.qr === false) {
     body.append(el("p", { class: "err" },
-      "QR_SECRET is not set on the site, so codes cannot be signed."));
+      t("cQrOff")));
   }
 
   /* What a slot became on one date, if anything: the row a code is signed
@@ -139,7 +169,9 @@ function weekCard(plan, sess, rota) {
     if (!mine.length && !loose.length) return;
     any = true;
 
-    var box = el("div", { class: "wk-day" }, el("h3", {}, WK_DAYS[weekday] + " · " + dayStamp(date)));
+    // The weekday name comes from the date rather than a list of seven
+    // strings: the browser already knows it in both languages.
+    var box = el("div", { class: "wk-day" }, el("h3", {}, dayHeading(date)));
     mine.forEach(function (e) {
       var change = changeFor(e.id, date);
       box.append(row({
@@ -157,7 +189,7 @@ function weekCard(plan, sess, rota) {
       box.append(row({
         at: new Date(s.starts_at).toTimeString().slice(0, 5),
         title: s.name,
-        note: s.points + " pts",
+        note: t("cPts", { n: s.points }),
         session: s,
         slot: null
       }));
@@ -167,7 +199,7 @@ function weekCard(plan, sess, rota) {
 
   if (!any) {
     body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
-      "Nothing standing this week yet. The club's weekly sessions are set up in the console."));
+      t("cNothingStanding")));
   }
 
   /* ---- who is taking it ----
@@ -192,6 +224,7 @@ function weekCard(plan, sess, rota) {
           // The answer carries the whole fortnight back, so every row on
           // screen redraws from one call rather than each asking again.
           rota = d;
+          if (LAST) LAST[3] = d;
           repaintRota();
         })["catch"](function (e) {
           box.append(el("p", { class: "err" }, e.message));
@@ -211,11 +244,11 @@ function weekCard(plan, sess, rota) {
           post({ action: tick.checked ? "join" : "leave" });
         });
         box.append(el("label", { class: "sw", for: tick.id }, tick,
-          el("span", {}, "I am taking this")));
+          el("span", {}, t("cTakingThis"))));
       }
 
       if (!mine.length) {
-        box.append(el("p", { class: "muted small nobody" }, "Nobody down yet"));
+        box.append(el("p", { class: "muted small nobody" }, t("cNobodyDown")));
         return;
       }
 
@@ -226,10 +259,10 @@ function weekCard(plan, sess, rota) {
         // A tick left by somebody who has since stopped coaching has no name
         // in the roster. It is still a tick, and still says somebody is on it.
         var chip = el("span", { class: "rota-chip" + (self ? " me" : "") },
-          names[r.user_id] || "A coach");
+          names[r.user_id] || t("cSomeCoach"));
         if (rota.can_remove || self) {
-          var drop = el("button", { class: "drop", title: "Take off this session",
-            "aria-label": "Take off this session", onclick: function () {
+          var drop = el("button", { class: "drop", title: t("cTakeOff"),
+            "aria-label": t("cTakeOff"), onclick: function () {
               drop.disabled = true;
               post({ action: "leave", user_id: r.user_id });
             } }, "\u2715");
@@ -254,8 +287,8 @@ function weekCard(plan, sess, rota) {
   function row(spec) {
     var count = el("span", { dir: "auto" });
     function say() {
-      count.textContent = spec.note + (spec.off ? " · called off" : "") +
-        (spec.session ? " · " + (spec.session.came || 0) + " came" : "");
+      count.textContent = spec.note + (spec.off ? " · " + t("cCalledOff") : "") +
+        (spec.session ? " · " + t("cCame", { n: spec.session.came || 0 }) : "");
     }
     say();
     var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") },
@@ -284,23 +317,23 @@ function weekCard(plan, sess, rota) {
           qrScreen(d.session);
         })["catch"](function (er) { line.append(el("p", { class: "err" }, er.message)); })
         .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
-    } }, "Show the code");
+    } }, t("cShowCode"));
 
     /* Who came. It never opens a session to answer: a slot nobody has shown
        a code for has nobody in it, and making a row to say so would leave
        empty sessions on days that have not happened yet. */
     var whoBtn = el("button", { class: "btn sm", onclick: function () {
       if (!spec.session) {
-        line.append(el("p", { class: "muted small" },
-          "Nobody yet — no code has been shown for this one."));
+        line.append(el("p", { class: "muted small" }, t("cNoCodeYet")));
         whoBtn.disabled = true;
         return;
       }
       whoBtn.disabled = true;
       api("/api/admin/sessions", { action: "roster", id: spec.session.id }).then(function (d) {
-        var box = el("div", { class: "roster" }, el("h3", {}, "Who came · " + spec.title));
+        var box = el("div", { class: "roster" },
+          el("h3", {}, t("cWhoCameOn", { name: spec.title })));
         var list = d.roster || [];
-        if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, "Nobody yet."));
+        if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, t("cNobodyCame")));
         else {
           var ol = el("ol", {});
           list.forEach(function (r) {
@@ -313,7 +346,7 @@ function weekCard(plan, sess, rota) {
         box.scrollIntoView({ block: "nearest" });
       })["catch"](function (e) { line.append(el("p", { class: "err" }, e.message)); })
         .then(function () { whoBtn.disabled = false; });
-    } }, "Who came");
+    } }, t("cWhoCame"));
 
     line.append(el("div", { class: "acts" }, codeBtn, whoBtn));
     return line;
@@ -322,6 +355,14 @@ function weekCard(plan, sess, rota) {
   return card;
 }
 
+Theme.apply(Theme.saved());
+I18N.apply(I18N.initial());
+// The device's own light/dark, when the reader has not chosen: the same
+// listener the app keeps, so the console follows the phone at dawn.
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+  if (!Theme.saved()) redraw();
+});
+chrome();
 consoleBoot();
 </script>
 </body>

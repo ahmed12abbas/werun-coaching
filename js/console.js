@@ -12,6 +12,11 @@
    Each page defines its own load(pw): renderLogin() calls it once the coach
    is through the door, and that is the only thing the two pages differ on
    at this level.
+
+   Every string here goes through t(), the same table the athlete app uses.
+   /coach draws in whichever language the reader picked; /admin pins English
+   (it sets I18N.lang itself), because its own two thousand lines are English
+   and half a translated page is worse than none.
    ========================================================================= */
 
 var app = document.getElementById("app");
@@ -42,6 +47,22 @@ function el(tag, attrs) {
    password are one decision made in one place rather than in nine. When a
    coach is logged in nothing sends a password at all; the browser carries the
    cookie and the Worker recognises it. */
+/* One sentence per code the Worker sends, in the reader's language. Anything
+   not in here is a code nobody wrote a sentence for, and says so with its
+   number -- which is what a coach reads out over the phone. */
+var SAYS = {
+  "no-db": "cErrNoDb",
+  "has-checkins": "cErrHasCheckins",
+  "bad-password": "cErrBadPassword",
+  "not-admin": "cErrNotAdmin",
+  "no-column": "cErrNoColumn",
+  "not-yourself": "cErrNotYourself",
+  "too-often": "cErrTooOften",
+  "qr-off": "cErrQrOff",
+  "called-off": "cErrCalledOff",
+  "not-configured": "cErrNotConfigured"
+};
+
 /* An Error that still says which code the Worker sent, so a caller can tell
    "nobody is logged in here yet" from "the database is missing". */
 function coded(code, message) {
@@ -61,17 +82,9 @@ function api(route, payload) {
   }).then(function (res) {
     return res.json()["catch"](function () { return {}; }).then(function (data) {
       if (res.ok) return data;
-      if (data.error === "no-db") throw coded("no-db", "No database is bound to the site yet -- run the bindings workflow (see the README).");
-      if (data.error === "has-checkins") throw coded("has-checkins", "Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.");
-      if (data.error === "bad-password") throw coded("bad-password", "That password is not right.");
-      if (data.error === "not-admin") throw coded("not-admin", "That is the club's to change, and your account coaches rather than runs it. Ask an admin, or unlock with the club password.");
-      if (data.error === "no-column") throw coded("no-column", "The database has not had migration 0010 applied yet, so there is nothing to write to. See the README.");
-      if (data.error === "not-yourself") throw coded("not-yourself", "Somebody else has to do that one — it is the screen you are standing on.");
-      if (data.error === "too-often") throw coded("too-often", "Too many tries. Wait a minute.");
-      if (data.error === "qr-off") throw coded("qr-off", "QR_SECRET is not set on the site, so codes cannot be signed. See the README.");
-      if (data.error === "called-off") throw coded("called-off", "That one is called off for this date. Put it back first if it is running after all.");
-      if (data.error === "not-configured") throw coded("not-configured", "No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project -- see the README.");
-      var err = new Error("The server answered " + res.status + " (" + (data.error || "?") + ").");
+      var said = SAYS[data.error];
+      if (said) throw coded(data.error, t(said));
+      var err = new Error(t("cErrServer", { status: res.status, code: data.error || "?" }));
       err.code = data.error;
       throw err;
     });
@@ -83,9 +96,9 @@ function renderLogin(message) {
 
   /* The coach's own account. */
   var email = el("input", { type: "email", autocomplete: "username", placeholder: "you@example.com" });
-  var pw = el("input", { type: "password", autocomplete: "current-password", placeholder: "Password",
+  var pw = el("input", { type: "password", autocomplete: "current-password", placeholder: t("cPassword"),
     onkeydown: function (e) { if (e.key === "Enter") signIn(); } });
-  var signBtn = el("button", { class: "btn primary", onclick: function () { signIn(); } }, "Sign in");
+  var signBtn = el("button", { class: "btn primary", onclick: function () { signIn(); } }, t("cSignIn"));
   var signErr = el("p", { class: "err", style: "display:none" });
 
   function signIn() {
@@ -99,15 +112,15 @@ function renderLogin(message) {
       body: JSON.stringify({ email: email.value.trim(), password: pw.value })
     }).then(function (res) {
       return res.json()["catch"](function () { return {}; }).then(function (d) {
-        if (!res.ok) throw new Error(d.error === "bad-login" ? "Wrong email or password."
-          : d.error === "too-often" ? "Too many tries. Wait a minute."
-          : "The server answered " + res.status + ".");
+        if (!res.ok) throw new Error(d.error === "bad-login" ? t("cBadLogin")
+          : d.error === "too-often" ? t("cErrTooOften")
+          : t("cErrServer", { status: res.status, code: d.error || "?" }));
         // Coach or admin gets through the door here; which screens open
         // behind it is the Worker's call, not this form's.
         var staff = d.user && (d.user.role === "coach" || d.user.is_admin ||
           (d.user.is_admin === undefined && d.user.role === "coach"));
         if (!staff) {
-          throw new Error("That account is an ordinary member. Unlock with the club password below and use Members to change that.");
+          throw new Error(t("cNotStaff"));
         }
         return d;
       });
@@ -126,10 +139,10 @@ function renderLogin(message) {
   var input = el("input", {
     type: "password",
     autocomplete: "current-password",
-    placeholder: "Club password",
+    placeholder: t("cClubPassword"),
     onkeydown: function (e) { if (e.key === "Enter") go(); }
   });
-  var btn = el("button", { class: "btn", onclick: function () { go(); } }, "Unlock");
+  var btn = el("button", { class: "btn", onclick: function () { go(); } }, t("cUnlock"));
 
   function go() {
     if (!input.value) return;
@@ -145,18 +158,18 @@ function renderLogin(message) {
     el("div", { class: "card" },
       el("div", { class: "ways" },
         el("div", { class: "way first" },
-          el("h3", {}, "Sign in"),
-          el("p", {}, "With your club account — the same login as the app."),
+          el("h3", {}, t("cSignIn")),
+          el("p", {}, t("cSignInLead")),
           el("div", { class: "row" },
-            el("div", {}, el("label", {}, "Email"), email),
-            el("div", {}, el("label", {}, "Password"), pw),
+            el("div", {}, el("label", {}, t("cEmail")), email),
+            el("div", {}, el("label", {}, t("cPassword")), pw),
             el("div", { style: "flex:0 0 auto" }, signBtn)),
           signErr),
         el("div", { class: "way" },
-          el("h3", {}, "Or the club password"),
-          el("p", {}, "How the first admin gets in, and the way back if an account is lost."),
+          el("h3", {}, t("cOrClub")),
+          el("p", {}, t("cOrClubLead")),
           el("div", { class: "row" },
-            el("div", {}, el("label", {}, "Club password"), input),
+            el("div", {}, el("label", {}, t("cClubPassword")), input),
             el("div", { style: "flex:0 0 auto" }, btn)))),
       message ? el("p", { class: "err" }, message) : null)
   );
@@ -173,18 +186,23 @@ function renderLogin(message) {
  */
 function consoleBoot() {
   app.textContent = "";
-  app.append(el("p", { class: "muted small" }, "Opening…"));
+  app.append(el("p", { class: "muted small" }, t("cOpening")));
   load(null)["catch"](function (e) {
     renderLogin(e.code === "bad-password" || e.code === "not-configured" ? null : e.message);
   });
 }
 
-/* No locale passed: dates follow whoever is reading the dashboard. */
+/* The reader's language, or their browser's when it is English: the club's
+   English is not necessarily en-GB, and only Arabic needs saying. */
+function consoleLocale() {
+  return I18N.lang === "ar" ? "ar" : undefined;
+}
+
 function stamp(iso) {
   if (!iso) return null;
   var d = new Date(iso);
   if (isNaN(d.getTime())) return null;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(consoleLocale(), {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit"
   });
@@ -198,10 +216,10 @@ function stamp(iso) {
 function qrScreen(session) {
   var img = el("div", { class: "code" });
   var count = el("p", { class: "qr-count" }, "0");
-  var sub = el("p", { class: "qr-sub" }, "Athletes scan this with their camera.");
+  var sub = el("p", { class: "qr-sub" }, t("cScanIt"));
   var bar = el("i", {});
   var screen = el("div", { class: "qr-screen" },
-    el("button", { class: "qr-close", onclick: close_ }, "Done"),
+    el("button", { class: "qr-close", onclick: close_ }, t("cDone")),
     el("h2", { class: "qr-name" }, session.name),
     img,
     el("div", { class: "qr-bar" }, bar),
@@ -231,9 +249,7 @@ function qrScreen(session) {
       if (dead) return;
       img.innerHTML = qrSvg(d.url, "M");
       count.textContent = String(d.came || 0);
-      sub.textContent = d.open
-        ? "Athletes scan this with their camera."
-        : "Check-in is not open for this session right now.";
+      sub.textContent = d.open ? t("cScanIt") : t("cCheckinShut");
       sub.className = "qr-sub" + (d.open ? "" : " qr-shut");
 
       // The bar empties over the life of the slot, and the next code is
@@ -259,6 +275,41 @@ function qrScreen(session) {
   refresh();
 }
 
+/* The light switch and the language switch, the same two the athlete app
+   carries. Drawn here rather than borrowed from js/brand.js: that one wants
+   the app's el(), which understands an `html` attribute this one does not,
+   and two buttons are smaller than the difference.
+
+   `rerender` is the page redrawing itself from what it already has: neither
+   toggle refetches anything. */
+function consoleTools(rerender) {
+  var dark = Theme.current() === "dark";
+  var moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>';
+  var sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4' +
+    'm11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+
+  var light = el("button", {
+    class: "tool",
+    title: dark ? t("themeLight") : t("themeDark"),
+    "aria-label": dark ? t("themeLight") : t("themeDark"),
+    onclick: function () { Theme.toggle(); rerender(); }
+  });
+  light.innerHTML = dark ? sun : moon;
+
+  var lang = el("button", {
+    class: "tool text",
+    title: t("langLabel"),
+    "aria-label": t("langLabel"),
+    onclick: function () { I18N.toggle(); rerender(); }
+  }, t("langLabel"));
+
+  return el("div", { class: "brand-tools" }, light, lang);
+}
+
 /* ---- the dashboard ----
    How many athletes came, per session and per week. Sessions are the unit a
    coach thinks in — "Tuesday had nineteen" — so the tiles are sessions and
@@ -271,7 +322,14 @@ var CHIPS = 8;
 function dayStamp(iso) {
   var d = new Date(String(iso) + "T00:00:00");
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return d.toLocaleDateString(consoleLocale(), { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** "Sunday 6 September" — the heading a day of the week gets. */
+function dayHeading(iso) {
+  var d = new Date(String(iso) + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(consoleLocale(), { weekday: "long", day: "numeric", month: "long" });
 }
 
 /**
@@ -283,9 +341,8 @@ function attendanceCards(into, weeks) {
 
   if (!weeks.length) {
     into.append(el("div", { class: "card" },
-      el("h2", {}, "Nobody has checked in yet"),
-      el("p", { class: "muted small", style: "margin:0" },
-        "This fills in the first time an athlete scans the code at the track.")));
+      el("h2", {}, t("cNoneYet")),
+      el("p", { class: "muted small", style: "margin:0" }, t("cNoneYetLead"))));
     return;
   }
 
@@ -305,10 +362,10 @@ function attendanceCards(into, weeks) {
   // The week's own total last, so it reads as the sum of the row before it.
   tiles.append(el("div", { class: "tile" },
     el("div", { class: "n" }, String(latest.total)),
-    el("div", { class: "l" }, "The week", el("small", {}, "athletes counted"))));
+    el("div", { class: "l" }, t("cTheWeek"), el("small", {}, t("cCounted")))));
 
   into.append(el("div", { class: "card" },
-    el("h2", {}, "Athletes this week · from " + dayStamp(latest.start)),
+    el("h2", {}, t("cThisWeek", { date: dayStamp(latest.start) })),
     tiles));
 
   var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
@@ -316,7 +373,7 @@ function attendanceCards(into, weeks) {
   weeks.forEach(function (w) {
     rows.append(el("tr", {},
       el("td", { class: "wk" }, dayStamp(w.start),
-        el("small", {}, w.sessions.length + (w.sessions.length === 1 ? " session" : " sessions"))),
+        el("small", {}, t(w.sessions.length === 1 ? "cNSession" : "cNSessions", { n: w.sessions.length }))),
       // Enough sessions to see the shape of the week, not so many that a
       // fortnight of them turns the table into a wall.
       el("td", { class: "left", dir: "auto" },
@@ -324,7 +381,7 @@ function attendanceCards(into, weeks) {
           return el("span", { class: "sess-chip" }, s.name + " " + (s.came || 0));
         }),
         w.sessions.length > CHIPS
-          ? el("span", { class: "muted small" }, "+" + (w.sessions.length - CHIPS) + " more")
+          ? el("span", { class: "muted small" }, t("cMore", { n: w.sessions.length - CHIPS }))
           : null),
       el("td", { class: "tot" }, String(w.total)),
       el("td", { class: "barcell" },
@@ -333,11 +390,11 @@ function attendanceCards(into, weeks) {
   });
 
   into.append(el("div", { class: "card" },
-    el("h2", {}, "Every week"),
+    el("h2", {}, t("cEveryWeek")),
     el("div", { class: "scroll" },
       el("table", {},
         el("thead", {}, el("tr", {},
-          el("th", {}, "Week"), el("th", { class: "left" }, "Sessions"),
-          el("th", {}, "Athletes"), el("th", { class: "barcell" }, ""))),
+          el("th", {}, t("cWeek")), el("th", { class: "left" }, t("cSessions")),
+          el("th", {}, t("cAthletes")), el("th", { class: "barcell" }, ""))),
         rows))));
 }

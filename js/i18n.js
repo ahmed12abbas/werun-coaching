@@ -292,6 +292,75 @@ const STRINGS = {
     aCoachCodes: "Show this week's codes",
     aCoachConsole: "Run the club",
 
+    /* the coach console at /coach — English only on /admin, both here */
+    cTitle: "Coach",
+    cLead: "How many came, the code for every session this week, and who is taking it. Put yourself down for a session and the other coaches will see it.",
+    cBackToApp: "back to the app",
+
+    /* the way in */
+    cSignIn: "Sign in",
+    cSignInLead: "With your club account — the same login as the app.",
+    cEmail: "Email",
+    cPassword: "Password",
+    cOrClub: "Or the club password",
+    cOrClubLead: "How the first admin gets in, and the way back if an account is lost.",
+    cClubPassword: "Club password",
+    cUnlock: "Unlock",
+    cOpening: "Opening…",
+    cBadLogin: "Wrong email or password.",
+    cNotStaff: "That account is an ordinary member. Unlock with the club password below and use Members to change that.",
+
+    /* what the Worker said, one sentence per code */
+    cErrNoDb: "No database is bound to the site yet — run the bindings workflow (see the README).",
+    cErrHasCheckins: "Athletes have checked in to that one. Void their check-ins first if you really mean to remove it.",
+    cErrBadPassword: "That password is not right.",
+    cErrNotAdmin: "That is the club's to change, and your account coaches rather than runs it. Ask an admin, or unlock with the club password.",
+    cErrNoColumn: "The database has not had migration 0010 applied yet, so there is nothing to write to. See the README.",
+    cErrNotYourself: "Somebody else has to do that one — it is the screen you are standing on.",
+    cErrTooOften: "Too many tries. Wait a minute.",
+    cErrQrOff: "QR_SECRET is not set on the site, so codes cannot be signed. See the README.",
+    cErrCalledOff: "That one is called off for this date. Put it back first if it is running after all.",
+    cErrNotConfigured: "No club password is set on the site yet. Set ADMIN_PASSWORD on the Pages project — see the README.",
+    cErrServer: "The server answered {status} ({code}).",
+
+    /* the head count */
+    cNoneYet: "Nobody has checked in yet",
+    cNoneYetLead: "This fills in the first time an athlete scans the code at the track.",
+    cThisWeek: "Athletes this week · from {date}",
+    cTheWeek: "The week",
+    cCounted: "athletes counted",
+    cEveryWeek: "Every week",
+    cWeek: "Week",
+    cSessions: "Sessions",
+    cAthletes: "Athletes",
+    cNSession: "{n} session",
+    cNSessions: "{n} sessions",
+    cMore: "+{n} more",
+
+    /* the week, and the code at the track */
+    cCodesWeek: "Codes for this week",
+    cShowCode: "Show the code",
+    cWhoCame: "Who came",
+    cWhoCameOn: "Who came · {name}",
+    cNobodyCame: "Nobody yet.",
+    cNoCodeYet: "Nobody yet — no code has been shown for this one.",
+    cCame: "{n} came",
+    cCalledOff: "called off",
+    cPts: "{n} pts",
+    cNothingStanding: "Nothing standing this week yet. The club's weekly sessions are set up in the console.",
+    cQrOff: "QR_SECRET is not set on the site, so codes cannot be signed.",
+
+    /* the coaches' own rota */
+    cTakingThis: "I am taking this",
+    cNobodyDown: "Nobody down yet",
+    cSomeCoach: "A coach",
+    cTakeOff: "Take off this session",
+
+    /* the code on the screen */
+    cDone: "Done",
+    cScanIt: "Athletes scan this with their camera.",
+    cCheckinShut: "Check-in is not open for this session right now.",
+
     /* the app: what went wrong, one sentence per code the Worker sends */
     e_generic: "Something went wrong — try again.",
     e_offline: "No connection — check your network.",
@@ -750,6 +819,70 @@ const STRINGS = {
     aCoachLead: "حصص هذا الأسبوع، ورمز كل حصة، ومن سجّل حضوره.",
     aCoachCodes: "اعرض رموز هذا الأسبوع",
     aCoachConsole: "إدارة النادي",
+
+    /* لوحة المدرب */
+    cTitle: "المدرب",
+    cLead: "كم عدد من حضر، ورمز كل حصة هذا الأسبوع، ومن يأخذها. سجّل نفسك على حصة وسيراها بقية المدربين.",
+    cBackToApp: "العودة إلى التطبيق",
+
+    cSignIn: "تسجيل الدخول",
+    cSignInLead: "بحساب النادي — نفس تسجيل الدخول في التطبيق.",
+    cEmail: "البريد الإلكتروني",
+    cPassword: "كلمة المرور",
+    cOrClub: "أو كلمة مرور النادي",
+    cOrClubLead: "بها يدخل أول مسؤول، وبها تعود إذا فُقد حساب.",
+    cClubPassword: "كلمة مرور النادي",
+    cUnlock: "فتح",
+    cOpening: "جارٍ الفتح…",
+    cBadLogin: "البريد أو كلمة المرور غير صحيحة.",
+    cNotStaff: "هذا الحساب لعضو عادي. افتح بكلمة مرور النادي بالأسفل وغيّر ذلك من شاشة الأعضاء.",
+
+    cErrNoDb: "لا توجد قاعدة بيانات مربوطة بالموقع بعد — شغّل إجراء الربط (انظر README).",
+    cErrHasCheckins: "هناك رياضيون سجّلوا حضورهم فيها. ألغِ تسجيلاتهم أولًا إن كنت تريد حذفها فعلًا.",
+    cErrBadPassword: "كلمة المرور غير صحيحة.",
+    cErrNotAdmin: "هذا من شأن النادي، وحسابك يدرّب ولا يديره. اطلب من مسؤول، أو افتح بكلمة مرور النادي.",
+    cErrNoColumn: "لم يُطبَّق تحديث قاعدة البيانات 0010 بعد، فلا مكان للكتابة. انظر README.",
+    cErrNotYourself: "على شخص آخر أن يفعل ذلك — هذه هي الشاشة التي تقف عليها.",
+    cErrTooOften: "محاولات كثيرة. انتظر دقيقة.",
+    cErrQrOff: "QR_SECRET غير مضبوط على الموقع، فلا يمكن توقيع الرموز. انظر README.",
+    cErrCalledOff: "هذه ملغاة في هذا التاريخ. أعِدها أولًا إن كانت ستُقام.",
+    cErrNotConfigured: "لم تُضبَط كلمة مرور النادي بعد. اضبط ADMIN_PASSWORD في مشروع Pages — انظر README.",
+    cErrServer: "أجاب الخادم بـ {status} ({code}).",
+
+    cNoneYet: "لا أحد سجّل حضوره بعد",
+    cNoneYetLead: "يمتلئ هذا أول ما يمسح رياضي الرمز في المضمار.",
+    cThisWeek: "رياضيو هذا الأسبوع · من {date}",
+    cTheWeek: "الأسبوع",
+    cCounted: "إجمالي الحضور",
+    cEveryWeek: "كل أسبوع",
+    cWeek: "الأسبوع",
+    cSessions: "الحصص",
+    cAthletes: "الرياضيون",
+    // العربية لا تفرّق هنا كما تفعل الإنجليزية، فالمفتاحان بنص واحد.
+    cNSession: "{n} حصة",
+    cNSessions: "{n} حصة",
+    cMore: "+{n} غيرها",
+
+    cCodesWeek: "رموز هذا الأسبوع",
+    cShowCode: "اعرض الرمز",
+    cWhoCame: "من حضر",
+    cWhoCameOn: "من حضر · {name}",
+    cNobodyCame: "لا أحد بعد.",
+    cNoCodeYet: "لا أحد بعد — لم يُعرض رمز لهذه الحصة.",
+    cCame: "حضر {n}",
+    cCalledOff: "ملغاة",
+    cPts: "{n} نقطة",
+    cNothingStanding: "لا توجد حصص ثابتة هذا الأسبوع بعد. تُضبَط حصص النادي الأسبوعية من لوحة الإدارة.",
+    cQrOff: "QR_SECRET غير مضبوط على الموقع، فلا يمكن توقيع الرموز.",
+
+    cTakingThis: "أنا آخذ هذه",
+    cNobodyDown: "لا أحد مسجّل بعد",
+    cSomeCoach: "أحد المدربين",
+    cTakeOff: "أزل من هذه الحصة",
+
+    cDone: "تم",
+    cScanIt: "يمسح الرياضيون هذا بكاميرا الجوال.",
+    cCheckinShut: "تسجيل الحضور غير مفتوح لهذه الحصة الآن.",
 
     /* the app: what went wrong */
     e_generic: "حدث خطأ — حاول مرة أخرى.",
