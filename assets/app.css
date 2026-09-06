@@ -257,3 +257,18 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .avatar .av-zip{animation:av-zip calc(var(--av-t,.46s) * 2.4) infinite linear}
 /* Asked for less movement: they all stand still, and the drawings still read. */
 @media (prefers-reduced-motion:reduce){.avatar *{animation:none}}
+
+/* ---------- splash --------------------------------------------------------
+   The logo on open, in the markup rather than drawn by app.js, so it is on
+   screen before any script parses and there is no blank frame to cover. All
+   CSS: it fades itself out and stops taking the pointer, so nothing has to
+   remember to remove it. */
+.splash{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
+  background:var(--bg);animation:splashOut .45s ease 1.15s forwards}
+.splash img{width:min(46vw,190px);animation:splashIn .7s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes splashIn{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
+@keyframes splashOut{to{opacity:0;visibility:hidden;pointer-events:none}}
+@media (prefers-reduced-motion:reduce){
+  .splash{animation-duration:.01s;animation-delay:.6s}
+  .splash img{animation:none}
+}
