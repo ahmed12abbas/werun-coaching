@@ -290,7 +290,6 @@ const STRINGS = {
     aCoachTools: "Coaching",
     aCoachLead: "This week's sessions, the code for each one, and who scanned it.",
     aCoachCodes: "Show this week's codes",
-    aCoachConsole: "Run the club",
 
     /* the coach console at /coach — English only on /admin, both here */
     cTitle: "Coach",
@@ -818,7 +817,6 @@ const STRINGS = {
     aCoachTools: "التدريب",
     aCoachLead: "حصص هذا الأسبوع، ورمز كل حصة، ومن سجّل حضوره.",
     aCoachCodes: "اعرض رموز هذا الأسبوع",
-    aCoachConsole: "إدارة النادي",
 
     /* لوحة المدرب */
     cTitle: "المدرب",
@@ -851,7 +849,7 @@ const STRINGS = {
 
     cNoneYet: "لا أحد سجّل حضوره بعد",
     cNoneYetLead: "يمتلئ هذا أول ما يمسح رياضي الرمز في المضمار.",
-    cThisWeek: "رياضيو هذا الأسبوع · من {date}",
+    cThisWeek: "هذا الأسبوع · من {date}",
     cTheWeek: "الأسبوع",
     cCounted: "إجمالي الحضور",
     cEveryWeek: "كل أسبوع",
@@ -875,7 +873,7 @@ const STRINGS = {
     cNothingStanding: "لا توجد حصص ثابتة هذا الأسبوع بعد. تُضبَط حصص النادي الأسبوعية من لوحة الإدارة.",
     cQrOff: "QR_SECRET غير مضبوط على الموقع، فلا يمكن توقيع الرموز.",
 
-    cTakingThis: "أنا آخذ هذه",
+    cTakingThis: "سوف أحضر",
     cNobodyDown: "لا أحد مسجّل بعد",
     cSomeCoach: "أحد المدربين",
     cTakeOff: "أزل من هذه الحصة",

@@ -1547,20 +1547,16 @@ SCREENS.me = function (args, user) {
     // phone is a cost the whole club pays for them. Straight to coach.html,
     // which is where this week's codes and rosters are.
     //
-    // Run the club is only for admins, because /admin only lets them in: a
-    // button that leads to a refusal is worse than no button.
+    // Only this one button. /admin is reached by its own address, and nothing
+    // in the app links to it: the console is a thing you go to deliberately,
+    // at a desk, and not a tap away from the screen a coach opens at the gate.
     Auth.isCoach() || Auth.isAdmin()
       ? el(
           "div",
           { class: "card pad stack" },
           el("h3", {}, t("aCoachTools")),
           el("p", { class: "muted" }, t("aCoachLead")),
-          el(
-            "div",
-            { class: "row-wrap" },
-            el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")),
-            Auth.isAdmin() ? el("a", { class: "btn", href: "admin.html" }, t("aCoachConsole")) : null
-          )
+          el("div", { class: "row-wrap" }, el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")))
         )
       : null,
     // Nothing is gated on this — signups are open and mail may never be

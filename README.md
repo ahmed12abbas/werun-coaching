@@ -232,11 +232,12 @@ button one thumb away from the code.
 `/admin` is everything else: publishing, the standing week, the news, members,
 coaches, the shop, the switches and the exports.
 
-Both are reached from the **Me** screen in the app: **Show this week's codes**
-goes to `/coach` and every coach sees it, **Run the club** goes to `/admin`
-and only admins do — a button that leads to a refusal is worse than no button.
-Each page tries the login cookie before it draws a form, so somebody who tapped
-through from the app is already through the door.
+`/coach` is reached from the **Me** screen in the app: **Show this week's
+codes**, which every coach sees. `/admin` is reached by its own address and
+nothing in the app links to it — the console is somewhere you go deliberately,
+at a desk, not a tap away from the screen a coach opens at the gate. Both pages
+try the login cookie before drawing a form, so somebody who tapped through from
+the app is already in.
 
 ### Coach and admin
 
