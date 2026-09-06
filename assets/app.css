@@ -280,3 +280,15 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 /* The sparks over a check-in. Above the card, under nothing — it is gone in
    a second and a half and never takes a tap while it is there. */
 .fireworks{position:fixed;inset:0;width:100%;height:100%;z-index:70;pointer-events:none}
+
+/* A session about to happen. Lit from a quarter of an hour before the start
+   until check-in shuts — the same window the tag answers from — so a phone
+   held at the track shows the right row without reading a clock. */
+.slot.hot{background:var(--brand-soft);border-radius:9px;
+  box-shadow:0 0 0 1px var(--brand) inset,0 0 16px -5px var(--brand)}
+.slot.hot+.slot,.slot.hot{border-top-color:transparent}
+@keyframes slotGlow{
+  from{box-shadow:0 0 0 1px var(--brand) inset,0 0 9px -6px var(--brand)}
+  to{box-shadow:0 0 0 1px var(--brand) inset,0 0 22px -2px var(--brand)}}
+.slot.hot{animation:slotGlow 2.4s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.slot.hot{animation:none}}

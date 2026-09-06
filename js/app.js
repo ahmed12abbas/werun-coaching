@@ -485,17 +485,35 @@ function slotRow(item, date) {
   const soon = item.cancelled ? null : countdownPill(item, date);
   if (soon) meta.append(soon);
 
-  if (item.kind === "session") {
-    return el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag);
+  const node =
+    item.kind === "session"
+      ? el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag)
+      : item.cancelled
+      ? el("div", { class: "slot off" }, clock, body, tag)
+      : el("button", { class: "slot", type: "button", onclick: () => go("plan/" + item.schedule_id + "/" + date) },
+          clock, body, tag);
+
+  // Lit from a quarter of an hour out until check-in shuts. On a phone held
+  // at the track the row you want is the one glowing, and it is the same
+  // window the check-in tag is already answering from.
+  if (!item.cancelled) {
+    const from = startsAt(item, date);
+    const till = closesTime(item, date);
+    if (from && till !== null) {
+      node.dataset.hot = from.getTime() + "," + till;
+      markHot(node);
+    }
   }
-  if (item.cancelled) return el("div", { class: "slot off" }, clock, body, tag);
-  return el(
-    "button",
-    { class: "slot", type: "button", onclick: () => go("plan/" + item.schedule_id + "/" + date) },
-    clock,
-    body,
-    tag
-  );
+  return node;
+}
+
+/* The glow on or off, from the window written on the row. Fifteen minutes,
+   because that is when people are arriving, not when they are deciding. */
+const HOT_BEFORE = 15 * 60000;
+function markHot(node) {
+  const at = String(node.dataset.hot).split(",");
+  const now = Date.now();
+  node.classList.toggle("hot", now >= Number(at[0]) - HOT_BEFORE && now <= Number(at[1]));
 }
 
 /* ---------- one standing session -----------------------------------------
@@ -1124,7 +1142,9 @@ function startCountdowns() {
   clearInterval(countdownTicker);
   countdownTicker = setInterval(() => {
     const pills = document.querySelectorAll(".countdown");
-    if (!pills.length) return clearInterval(countdownTicker);
+    const hot = document.querySelectorAll(".slot[data-hot]");
+    if (!pills.length && !hot.length) return clearInterval(countdownTicker);
+    for (const node of hot) markHot(node);
     for (const pill of pills) {
       const when = new Date(Number(pill.dataset.at));
       pill.textContent = countdownText(when);
