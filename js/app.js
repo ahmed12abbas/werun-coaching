@@ -816,6 +816,57 @@ function checkinCard(s) {
  * done the only thing they need to do, so this screen asks nothing: it posts
  * the code and says what happened.
  */
+/**
+ * Three shells over the check-in card. Canvas rather than a pile of divs:
+ * ninety sparks each moving every frame is one draw call here and ninety
+ * style recalculations there. It takes no clicks, cleans itself up when the
+ * last spark has fallen, and does nothing at all for an athlete who has
+ * asked for less movement.
+ */
+function fireworks() {
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  const cv = el('canvas', { class: 'fireworks', 'aria-hidden': 'true' });
+  cv.width = innerWidth * 2;
+  cv.height = innerHeight * 2;
+  document.body.append(cv);
+
+  const g = cv.getContext('2d');
+  const colours = ['#8851f4', '#f5b841', '#ffffff', '#c7a4ff', '#ff7ab8'];
+  const bits = [];
+  const shell = (x, y, n) => {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.2 + Math.random() * 4.2;
+      bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.2,
+        life: 1, fade: 0.008 + Math.random() * 0.012, r: 1.4 + Math.random() * 2.4,
+        c: colours[(Math.random() * colours.length) | 0] });
+    }
+  };
+  shell(cv.width * 0.5, cv.height * 0.34, 70);
+  setTimeout(() => shell(cv.width * 0.26, cv.height * 0.26, 45), 170);
+  setTimeout(() => shell(cv.width * 0.75, cv.height * 0.3, 45), 300);
+
+  const born = performance.now();
+  (function frame() {
+    g.clearRect(0, 0, cv.width, cv.height);
+    for (let i = bits.length - 1; i >= 0; i--) {
+      const b = bits[i];
+      b.x += b.vx; b.y += b.vy; b.vy += 0.075; b.vx *= 0.992; b.life -= b.fade;
+      if (b.life <= 0) { bits.splice(i, 1); continue; }
+      g.globalAlpha = b.life;
+      g.fillStyle = b.c;
+      g.beginPath();
+      g.arc(b.x, b.y, b.r * b.life + 0.4, 0, 6.284);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    // The two later shells have not been fired yet on the first few frames,
+    // so an empty list is only the end after they have been.
+    if (bits.length || performance.now() - born < 500) requestAnimationFrame(frame);
+    else cv.remove();
+  })();
+}
+
 SCREENS.c = function (args, user) {
   const box = el(
     "div",
@@ -830,7 +881,8 @@ SCREENS.c = function (args, user) {
       box.textContent = "";
       // The noise the share button makes: the one on this site that means
       // "that went through". Nothing was clicked, so it is played by hand.
-      SFX.share();
+      SFX.checkin();
+      fireworks();
       box.append(
         el("div", { class: "landed" }, "🎉"),
         el("h2", {}, t("aWelcomeBack")),

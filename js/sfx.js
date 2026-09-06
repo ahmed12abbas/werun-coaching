@@ -199,6 +199,45 @@ const SFX = (function () {
     },
 
     /**
+     * Checked in at the track. A run up a major triad with the octave over
+     * each note, then the octave held on its own and one breath of air off
+     * the top — the only sound on the site that is allowed to be a fanfare,
+     * because it is the only tap that is a thing achieved rather than a
+     * thing operated.
+     */
+    checkin() {
+      if (!audio()) return;
+      const c = ctx;
+      const at = c.currentTime;
+      const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
+      notes.forEach((f, i) => {
+        const t = at + i * 0.09;
+        burst(t, 2600, 6, 0.1, 0.012);
+        tone(t, 'triangle', f, f, 0.19, 0.3);
+        tone(t, 'sine', f * 2, f * 2, 0.055, 0.16);
+      });
+      tone(at + 0.27, 'triangle', 1046.5, 1046.5, 0.2, 0.55);
+      tone(at + 0.27, 'sine', 2093, 2093, 0.05, 0.3);
+
+      // The wash: noise climbing out of the top of the chord, which is what
+      // turns three notes into something that finished rather than stopped.
+      const src = c.createBufferSource();
+      src.buffer = noise(c);
+      const band = c.createBiquadFilter();
+      band.type = 'bandpass';
+      band.Q.value = 0.8;
+      band.frequency.setValueAtTime(3000, at + 0.26);
+      band.frequency.exponentialRampToValueAtTime(7000, at + 0.76);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, at + 0.26);
+      g.gain.exponentialRampToValueAtTime(0.05, at + 0.46);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.76);
+      src.connect(band).connect(g).connect(master);
+      src.start(at + 0.26, Math.random() * 0.5, 0.54);
+      src.stop(at + 0.8);
+    },
+
+    /**
      * The theme toggle: a wall switch, which is two sounds and not one — the
      * throw of the lever, then the seat of it a moment later. A single clack
      * is a mouse button; the pair is what makes it a switch on a wall.
