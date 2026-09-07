@@ -303,3 +303,8 @@ table.members td.conf{text-align:center;font-weight:700;color:var(--ok)}
 
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
 a{color:var(--brand)}
+
+/* The three speed days on one line: tick, name, and the date it lands on. */
+.speed-row .row{align-items:center;gap:8px}
+.speed-day{display:flex;align-items:center;gap:6px;flex:0 0 auto;font-size:13px}
+.speed-day input[type=date]{width:auto;flex:0 0 auto}
