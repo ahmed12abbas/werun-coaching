@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=b37eea8a">
+<link rel="stylesheet" href="assets/console.css?v=d5f3d110">
 </head>
 <body>
 <div class="wrap">
@@ -574,6 +574,21 @@ function sessionsCard() {
   link.addEventListener("change", readLink);
   link.addEventListener("blur", readLink);
 
+  /* One day, from a link already read. Built from the coach's own clock, so
+     the athletes' phones and the check-in window all agree about when
+     "18:30" was. */
+  function sendOne(read, dateStr, timeStr) {
+    return post({
+      action: "publish",
+      name: name.value.trim() || read.w.name,
+      payload: read.payload,
+      date: dateStr,
+      starts_at: new Date(dateStr + "T" + timeStr).toISOString(),
+      points: Number(points.value),
+      coach_id: coach.value
+    });
+  }
+
   function publish() {
     pubErr.style.display = "none";
     var read = readLink();
@@ -581,18 +596,7 @@ function sessionsCard() {
     if (!date.value) { pubErr.textContent = "Which day is it?"; pubErr.style.display = ""; return; }
     if (!time.value) { pubErr.textContent = "What time does it start?"; pubErr.style.display = ""; return; }
     go.disabled = true;
-    // Built from the coach's own clock, so the athletes' phones and the
-    // check-in window all agree about when "18:30" was.
-    var startsAt = new Date(date.value + "T" + time.value);
-    post({
-      action: "publish",
-      name: name.value.trim() || read.w.name,
-      payload: read.payload,
-      date: date.value,
-      starts_at: startsAt.toISOString(),
-      points: Number(points.value),
-      coach_id: coach.value
-    }).then(function (d) {
+    sendOne(read, date.value, time.value).then(function (d) {
       link.value = ""; name.value = ""; decoded.textContent = "";
       paint(d);
     })["catch"](function (e) {
@@ -600,8 +604,56 @@ function sessionsCard() {
     }).then(function () { go.disabled = false; });
   }
 
+  /* ---- the three speed sessions ----
+     The club runs the same speed workout on Monday, Tuesday and Thursday and
+     the coach rewrites it every week. Publishing it three times by hand is
+     the same paste and two date pickers thrice, so this is the one paste:
+     tick the days, and each gets its own row at its own standing time. */
+  var SPEED = [
+    { label: "Mon", weekday: 1, at: "19:00" },
+    { label: "Tue", weekday: 2, at: "04:55" },
+    { label: "Thu", weekday: 4, at: "04:55" }
+  ];
+  /** The next of that weekday, today included, as the date input writes it. */
+  function nextDate(weekday) {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+  var speedDays = SPEED.map(function (s) {
+    var when = el("input", { type: "date", value: nextDate(s.weekday), style: "width:auto" });
+    var tick = el("input", { type: "checkbox" });
+    tick.checked = true;
+    return { spec: s, tick: tick, when: when,
+      node: el("label", { class: "speed-day" }, tick, el("span", {}, s.label + " " + s.at), when) };
+  });
+  var speedGo = el("button", { class: "btn primary" }, "Publish the speed session");
+  speedGo.addEventListener("click", function () {
+    pubErr.style.display = "none";
+    var read = readLink();
+    if (!read) { pubErr.textContent = "Paste the share link first."; pubErr.style.display = ""; return; }
+    var want = speedDays.filter(function (d) { return d.tick.checked && d.when.value; });
+    if (!want.length) { pubErr.textContent = "Tick at least one day."; pubErr.style.display = ""; return; }
+    speedGo.disabled = true;
+    // One after another rather than all at once: three writes to the same
+    // table, and the last answer is the list the screen redraws from.
+    want.reduce(function (chain, d) {
+      return chain.then(function () { return sendOne(read, d.when.value, d.spec.at); });
+    }, Promise.resolve()).then(function (d) {
+      link.value = ""; name.value = ""; decoded.textContent = "";
+      paint(d);
+    })["catch"](function (e) {
+      pubErr.textContent = e.message; pubErr.style.display = "";
+    }).then(function () { speedGo.disabled = false; });
+  });
+
   pub.append(
     el("div", {}, el("label", {}, "Share link"), link, decoded),
+    el("div", { class: "speed-row" },
+      el("label", {}, "Speed session · publish to all three"),
+      el("div", { class: "row" }, speedDays.map(function (d) { return d.node; }), speedGo)),
     el("div", { class: "row" },
       el("div", {}, el("label", {}, "Session name"), name),
       el("div", {}, el("label", {}, "Date"), date),
@@ -655,6 +707,9 @@ function sessionsCard() {
 
   /* ---- who came ---- */
   function roster(s, btn) {
+    // Tapped again, shut it again: the list is already on screen and a second
+    // copy of it under the first is not a second answer.
+    if (btn._box) { btn._box.remove(); btn._box = null; return; }
     btn.disabled = true;
     post({ action: "roster", id: s.id }).then(function (d) {
       var box = el("div", { class: "roster" }, el("h3", {}, "Who came \u00b7 " + s.name));
@@ -669,6 +724,7 @@ function sessionsCard() {
               drop.disabled = true;
               post({ action: "void", id: r.id }).then(function (d2) {
                 box.replaceWith(el("div", {}));
+                btn._box = null;
                 paint(d2); roster(s, btn);
               })["catch"](function (e) { drop.disabled = false; box.append(el("p", { class: "err" }, e.message)); });
             } }, "\u2715");
@@ -678,6 +734,7 @@ function sessionsCard() {
         });
         box.append(ol);
       }
+      btn._box = box;
       body.append(box);
       box.scrollIntoView({ block: "nearest" });
     })["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); })
