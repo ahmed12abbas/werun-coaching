@@ -179,6 +179,7 @@ function standingItem(row, change, steps, names, mins) {
     // A standing slot has a wall-clock time and no instant — the page that
     // knows the reader's own clock makes one. So it is handed the rule rather
     // than an answer: check-in shuts this many minutes after the start.
+    window_before_min: mins ? mins.before : null,
     window_after_min: mins ? mins.after : null,
     coach: coachNameFor(names, null, row.coach_id),
     cancelled: false,

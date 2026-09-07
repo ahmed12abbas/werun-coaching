@@ -480,7 +480,7 @@ function slotRow(item, date) {
   );
 
   const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
-  const tag = slotTag(item);
+  const tag = slotTag(item, date);
   // Not on one that has been called off: there is nothing to count down to.
   const soon = item.cancelled ? null : countdownPill(item, date);
   if (soon) meta.append(soon);
@@ -631,7 +631,12 @@ function planCard(item, date) {
   // and a live button on it is an invitation to scan a code that no longer
   // exists. Called off is called off for the same reason — there is no code
   // to scan for a session nobody is holding.
-  const shut = checkinShut(item, date);
+  // Before it opens is as dead as after it shuts — the Worker refuses both —
+  // so the button says so rather than sending an athlete at a code that will
+  // be turned away.
+  const opens = opensTime(item, date);
+  const early = opens !== null && Date.now() < opens;
+  const shut = checkinShut(item, date) || early;
   const closed = closesAt(item, date);
   return el(
     "div",
@@ -645,7 +650,10 @@ function planCard(item, date) {
     item.cancelled ? null : joinButton(shut),
     item.cancelled
       ? null
-      : el("p", { class: "hint" }, shut ? t("aClosedAt", { time: closed }) : t("aScanLead"))
+      : el("p", { class: "hint" },
+          early
+            ? t("aOpensAt", { time: new Date(opens).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) })
+            : shut ? t("aClosedAt", { time: closed }) : t("aScanLead"))
   );
 }
 
@@ -735,10 +743,20 @@ function prettyTime(item, date) {
   return isNaN(at) ? item.at : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 }
 
-function slotTag(item) {
+function slotTag(item, date) {
   if (item.kind === "standing") {
     if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
     if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+    // A slot the coach has not published a workout for is still a session
+    // with a code at the track, so it says when that code is live — the same
+    // window a published one is answering from. Nothing before or after: the
+    // week already counts down to it, and "missed" on every past standing
+    // slot would paint half the week red.
+    const from = opensTime(item, date);
+    const till = closesTime(item, date);
+    if (from !== null && till !== null && Date.now() >= from && Date.now() <= till) {
+      return el("span", { class: "tag open" }, t("aOpenNow"));
+    }
     return null;
   }
   return statusTag(item);
@@ -1126,6 +1144,19 @@ function startsAt(item, date) {
    rule instead — a wall-clock "04:55" is not an instant until somebody says
    which day and whose clock, and that is this page, not the Worker. */
 const SHUTS_AFTER = 120 * 60000; // only if the week did not say
+const OPENS_BEFORE = 60 * 60000; // ditto
+
+/** When check-in opens, as an instant — the mirror of closesTime(). */
+function opensTime(item, date) {
+  if (item.window_open_at) {
+    const at = Date.parse(item.window_open_at);
+    if (Number.isFinite(at)) return at;
+  }
+  const when = startsAt(item, date);
+  if (!when) return null;
+  const before = Number(item.window_before_min);
+  return when.getTime() - (Number.isFinite(before) ? before * 60000 : OPENS_BEFORE);
+}
 
 function closesTime(item, date) {
   if (item.window_close_at) {

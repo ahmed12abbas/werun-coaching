@@ -153,19 +153,28 @@ const PAYLOAD =
   r = await call("POST", "/api/checkin", { session: sessionId, slot: Number(slot), sig });
   check("void: scanning again does not undo the coach", r.status === 403 && r.data.error === "voided", r);
 
-  /* The two ends of the club's rule: open all month before a session, shut
-     two hours after it started. Neither of these reads the columns the row
-     was written with — both are worked out from the start, so widening the
-     window in the console reaches sessions already on the calendar. */
+  /* The two ends of the club's rule: open an hour before a session, shut two
+     hours after it started. Neither of these reads the columns the row was
+     written with — both are worked out from the start, so moving the window
+     in the console reaches sessions already on the calendar. */
   const soon = new Date(Date.now() + 5 * 86400 * 1000);
   const soonDate = soon.toISOString().slice(0, 10);
   r = await admin({ action: "publish", name: "Next week | WeRUN", payload: PAYLOAD, date: soonDate, starts_at: soon.toISOString(), points: 10 });
   const soonId = r.data && r.data.id;
   r = await call("POST", "/api/admin/qr", { password: ADMIN, id: soonId });
-  check("qr: a session five days out is already open", r.data && r.data.open === true, r.data);
+  check("qr: a session five days out is not open yet", r.data && r.data.open === false, r.data);
   const soonParts = String(r.data.url).split("#/c/")[1].split("/");
   r = await call("POST", "/api/checkin", { session: soonId, slot: Number(soonParts[1]), sig: soonParts[2] });
-  check("checkin: and its code is taken", r.status === 200 && r.data.ok === true, r);
+  check("checkin: and its code is refused", r.status === 403 && r.data.error === "too-early", r);
+
+  const nearly = new Date(Date.now() + 30 * 60000);
+  r = await admin({ action: "publish", name: "Half an hour away | WeRUN", payload: PAYLOAD, date: nearly.toISOString().slice(0, 10), starts_at: nearly.toISOString(), points: 10 });
+  const nearlyId = r.data && r.data.id;
+  r = await call("POST", "/api/admin/qr", { password: ADMIN, id: nearlyId });
+  // No scan of this one: the happy path is proved above, and an athlete only
+  // gets ten check-ins a minute — twelve of them here would be the limiter's
+  // answer rather than the window's.
+  check("qr: half an hour before the start it is open", r.data && r.data.open === true, r.data);
 
   const over = new Date(Date.now() - 3 * 3600 * 1000);
   r = await admin({ action: "publish", name: "Three hours ago | WeRUN", payload: PAYLOAD, date: over.toISOString().slice(0, 10), starts_at: over.toISOString(), points: 10 });
@@ -178,6 +187,8 @@ const PAYLOAD =
 
   await admin({ action: "delete", id: oldId });
   await admin({ action: "delete", id: overId });
+  await admin({ action: "delete", id: soonId });
+  await admin({ action: "delete", id: nearlyId });
   console.log(failures ? "\n" + failures + " failure(s)." : "\nAll passed.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => {

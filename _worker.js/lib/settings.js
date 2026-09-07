@@ -10,13 +10,11 @@ export const DEFAULTS = {
   points_per_checkin: 10,
   streak_every: 4, // every N consecutive sessions…
   streak_bonus: 5, // …earns this on top
-  // Check-in opens this long before the start. A month, which is to say it
-  // is simply open: an athlete looking at Saturday's card on a Tuesday gets
-  // a live Join button rather than a dead one, and nothing is lost by it —
-  // the code on the coach's screen is signed and dies in thirty seconds, so
-  // an open window is more time to be *at* the session, never more time to
-  // check in from home.
-  window_before_min: 30 * 24 * 60,
+  // Check-in opens an hour before the start. The signed code is what stops a
+  // check-in from the sofa, not the window — but a week of cards all saying
+  // "check-in open" says nothing about which one is on this morning, and the
+  // coach asked for the badge to mean today. Longer is a number in /admin.
+  window_before_min: 60,
   // …and closes two hours after the start. Long enough for a long run and
   // the coffee afterwards, short enough that yesterday's session is shut by
   // the time anybody thinks to try it.
