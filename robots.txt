@@ -1,0 +1,8 @@
+# The members' app and the two console pages are nobody's business but the
+# club's; the front page is the one thing meant to be found.
+User-agent: *
+Disallow: /app
+Disallow: /admin
+Disallow: /coach
+Disallow: /api/
+Allow: /

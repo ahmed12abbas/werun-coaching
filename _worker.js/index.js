@@ -151,28 +151,64 @@ const GET = {
   "/api/store/order": order,
 };
 
+/* What every answer carries, static file and API alike.
+
+   Not a `_headers` file: in Pages advanced mode this Worker answers first and
+   `_headers` is never applied to what it returns, so the one place certain to
+   be on every response is here.
+
+   The policy allows inline script because admin.html and tips.html are
+   written that way and there is no build step to hash them. What it still
+   stops is the half that matters: a script, a fetch or a form reaching an
+   origin that is not this one, so an injected string has nowhere to send a
+   cookie or a roster. The camera is the check-in scanner (js/scan.js);
+   nothing else on the page is wanted. */
+const SECURITY = {
+  "content-security-policy":
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data:; connect-src 'self'; media-src 'self'; " +
+    "frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(self), microphone=(), geolocation=(), payment=()",
+  "cross-origin-opener-policy": "same-origin",
+};
+
 export default {
   async fetch(request, env) {
-    const { pathname } = new URL(request.url);
-    try {
-      if (GET[pathname]) {
-        if (request.method !== "GET") return json({ error: "method-not-allowed" }, 405);
-        return await GET[pathname](request, env);
-      }
-      const handler = POST[pathname];
-      if (handler) {
-        if (request.method !== "POST") return json({ error: "method-not-allowed" }, 405);
-        return await handler(request, env);
-      }
-    } catch (e) {
-      // The message goes to the Worker log, never to the page: an athlete
-      // gets a plain "try again", a coach reads the details in the dashboard.
-      console.error("api " + pathname + ": " + (e && e.stack ? e.stack : e));
-      return json({ error: "server" }, 500);
-    }
-    // Pages leaves _worker.js/ out of the uploaded assets, but the local dev
-    // server does not, and the source has no business on the wire either way.
-    if (pathname.startsWith("/_worker.js")) return new Response("Not found", { status: 404 });
-    return env.ASSETS.fetch(request); // every real page and file
+    const res = await route(request, env);
+    // Asset responses arrive with immutable headers, so harden a copy.
+    const out = new Response(res.body, res);
+    for (const k in SECURITY) out.headers.set(k, SECURITY[k]);
+    return out;
   },
 };
+
+async function route(request, env) {
+  const { pathname } = new URL(request.url);
+  try {
+    if (GET[pathname]) {
+      if (request.method !== "GET") return json({ error: "method-not-allowed" }, 405);
+      return await GET[pathname](request, env);
+    }
+    const handler = POST[pathname];
+    if (handler) {
+      if (request.method !== "POST") return json({ error: "method-not-allowed" }, 405);
+      return await handler(request, env);
+    }
+  } catch (e) {
+    // The message goes to the Worker log, never to the page: an athlete
+    // gets a plain "try again", a coach reads the details in the dashboard.
+    console.error("api " + pathname + ": " + (e && e.stack ? e.stack : e));
+    return json({ error: "server" }, 500);
+  }
+  // Pages leaves _worker.js/ out of the uploaded assets, but the local dev
+  // server does not, and the source has no business on the wire either way.
+  if (pathname.startsWith("/_worker.js")) return new Response("Not found", { status: 404 });
+  return env.ASSETS.fetch(request); // every real page and file
+}
