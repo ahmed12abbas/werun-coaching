@@ -577,7 +577,7 @@ function sessionsCard() {
   /* One day, from a link already read. Built from the coach's own clock, so
      the athletes' phones and the check-in window all agree about when
      "18:30" was. */
-  function sendOne(read, dateStr, timeStr) {
+  function sendOne(read, dateStr, timeStr, slotId) {
     return post({
       action: "publish",
       name: name.value.trim() || read.w.name,
@@ -585,7 +585,10 @@ function sessionsCard() {
       date: dateStr,
       starts_at: new Date(dateStr + "T" + timeStr).toISOString(),
       points: Number(points.value),
-      coach_id: coach.value
+      coach_id: coach.value,
+      // The slot it fills, when it fills one: the week then shows the workout
+      // in the standing session's place rather than under it.
+      schedule_id: slotId || ""
     });
   }
 
@@ -609,10 +612,14 @@ function sessionsCard() {
      the coach rewrites it every week. Publishing it three times by hand is
      the same paste and two date pickers thrice, so this is the one paste:
      tick the days, and each gets its own row at its own standing time. */
+  var DAY3 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  // What the club's speed slots are, until the schedule itself says. The
+  // real ones come with their slot id, which is what stops a published
+  // workout from landing *beside* the standing session instead of in it.
   var SPEED = [
-    { label: "Mon", weekday: 1, at: "19:00" },
-    { label: "Tue", weekday: 2, at: "04:55" },
-    { label: "Thu", weekday: 4, at: "04:55" }
+    { weekday: 1, at: "19:00" },
+    { weekday: 2, at: "04:55" },
+    { weekday: 4, at: "04:55" }
   ];
   /** The next of that weekday, today included, as the date input writes it. */
   function nextDate(weekday) {
@@ -622,14 +629,31 @@ function sessionsCard() {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
       String(d.getDate()).padStart(2, "0");
   }
-  var speedDays = SPEED.map(function (s) {
-    var when = el("input", { type: "date", value: nextDate(s.weekday), style: "width:auto" });
-    var tick = el("input", { type: "checkbox" });
-    tick.checked = true;
-    return { spec: s, tick: tick, when: when,
-      node: el("label", { class: "speed-day" }, tick, el("span", {}, s.label + " " + s.at), when) };
-  });
   var speedGo = el("button", { class: "btn primary" }, "Publish the speed session");
+  var speedBox = el("div", { class: "row" });
+  var speedDays = [];
+  function paintSpeed(slots) {
+    speedBox.textContent = "";
+    speedDays = slots.map(function (s) {
+      var when = el("input", { type: "date", value: nextDate(s.weekday), style: "width:auto" });
+      var tick = el("input", { type: "checkbox" });
+      tick.checked = true;
+      speedBox.append(el("label", { class: "speed-day" }, tick,
+        el("span", {}, DAY3[s.weekday] + " " + s.at), when));
+      return { spec: s, tick: tick, when: when };
+    });
+    speedBox.append(speedGo);
+  }
+  paintSpeed(SPEED);
+  // The standing week is where the speed slots actually live — their times,
+  // and the ids a workout is published into. A database that has not had the
+  // schedule migration yet leaves the three above, which still publish.
+  api("/api/admin/schedule", { action: "list" }).then(function (d) {
+    var speed = (d.schedule || []).filter(function (e) {
+      return e.active && /speed/i.test(e.title_en || "");
+    });
+    if (speed.length) paintSpeed(speed);
+  })["catch"](function () {});
   speedGo.addEventListener("click", function () {
     pubErr.style.display = "none";
     var read = readLink();
@@ -640,7 +664,7 @@ function sessionsCard() {
     // One after another rather than all at once: three writes to the same
     // table, and the last answer is the list the screen redraws from.
     want.reduce(function (chain, d) {
-      return chain.then(function () { return sendOne(read, d.when.value, d.spec.at); });
+      return chain.then(function () { return sendOne(read, d.when.value, d.spec.at, d.spec.id); });
     }, Promise.resolve()).then(function (d) {
       link.value = ""; name.value = ""; decoded.textContent = "";
       paint(d);
@@ -653,7 +677,7 @@ function sessionsCard() {
     el("div", {}, el("label", {}, "Share link"), link, decoded),
     el("div", { class: "speed-row" },
       el("label", {}, "Speed session · publish to all three"),
-      el("div", { class: "row" }, speedDays.map(function (d) { return d.node; }), speedGo)),
+      speedBox),
     el("div", { class: "row" },
       el("div", {}, el("label", {}, "Session name"), name),
       el("div", {}, el("label", {}, "Date"), date),

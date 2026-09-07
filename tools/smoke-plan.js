@@ -187,6 +187,17 @@ function nextDates(weekday) {
   check("…keeping the place it is held at", swapped && swapped.place_en === "Wadi Hanifa Park", swapped);
   check("…and the slot's line about what it is", swapped && swapped.desc_en === "Long run 80min", swapped);
 
+  /* Publishing it again is the coach correcting it, not a second session. */
+  r = await anon.call("POST", "/api/admin/sessions", {
+    password: ADMIN, action: "publish", schedule_id: mine.id,
+    name: "Test workout " + stamp + " v2", payload: "1.test2", date: first, starts_at: startsAt, points: 10,
+  });
+  check("publishing the same slot again rewrites the row", r.status === 200 && r.data.id === published, r.data);
+  r = await athlete.call("GET", "/api/week?start=" + first);
+  const again = (((r.data.days || []).find((d) => d.date === first) || {}).items || [])
+    .filter((i) => i.schedule_id === mine.id);
+  check("…and the day still has one of it", again.length === 1 && again[0].title_en === "Test workout " + stamp + " v2", again);
+
   /* The same slot a week later has no workout of its own, so it carries the
      steps of the one that does — that is the Steps button on the summary. */
   const nextWeek = addDays(first, 7);

@@ -95,6 +95,53 @@ export async function adminSessions(request, env) {
     // stops coaching does not take this session's history with them.
     const coachId = cleanCoachId(body.coach_id) || cleanCoachId(slot && slot.coach_id) || null;
 
+    /* Publishing the same session twice is the coach correcting it, not the
+       club running it twice: a row already on that date, in that slot or at
+       that minute, is this one and gets rewritten. Rewritten rather than
+       deleted and replaced, because anybody who has already scanned the code
+       checked in to *this* session and their row points at this id. */
+    const same = await env.DB.prepare(
+      "SELECT s.id, s.schedule_id," +
+        " (SELECT COUNT(*) FROM checkins c WHERE c.session_id = s.id AND c.voided_at IS NULL) AS came" +
+        " FROM club_sessions s WHERE s.date = ?" +
+        " AND (s.starts_at = ? OR (s.schedule_id IS NOT NULL AND s.schedule_id = ?))" +
+        " ORDER BY came DESC, s.created_at DESC"
+    )
+      .bind(date, startsAt.toISOString(), scheduleId)
+      .all();
+    const dup = (same.results || [])[0];
+    if (dup) {
+      await env.DB.prepare(
+        "UPDATE club_sessions SET day = ?, name = ?, payload = ?, starts_at = ?," +
+          " window_open_at = ?, window_close_at = ?, points = ?, schedule_id = ?, coach_id = ?" +
+          " WHERE id = ?"
+      )
+        .bind(
+          dayFromName(name),
+          name,
+          payload,
+          startsAt.toISOString(),
+          new Date(startsAt.getTime() - before * 60000).toISOString(),
+          new Date(startsAt.getTime() + after * 60000).toISOString(),
+          points,
+          // A form with no slot picker must not un-slot a session it is only
+          // correcting: the row keeps whichever slot it already filled.
+          scheduleId || dup.schedule_id || null,
+          coachId,
+          dup.id
+        )
+        .run();
+      /* Anything else already sitting on that minute is the double this is
+         here to end — gone, unless somebody scanned it. A row with check-ins
+         is a session that happened, and attendance is not ours to delete; the
+         coach is left to sort those two out by hand. */
+      for (const other of (same.results || []).slice(1)) {
+        if (other.came) continue;
+        await env.DB.prepare("DELETE FROM club_sessions WHERE id = ?").bind(other.id).run();
+      }
+      return json({ id: dup.id, replaced: true, sessions: await sessionList(env), coaches: await coachRoster(env) });
+    }
+
     const id = uid();
     await env.DB.prepare(
       "INSERT INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at," +
