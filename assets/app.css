@@ -40,6 +40,15 @@ button.day:hover{background:var(--brand-soft)}
 .day-title{font-weight:650;line-height:1.3}
 .day-meta{font-size:13px;color:var(--muted)}
 .day-rest{color:var(--muted);font-size:14px}
+/* Friday: one sheep, hopping the fence, because the club counts them on the
+   day it does not run. A glyph rather than a drawn SVG — it is one line of
+   decoration, not a twelfth avatar. */
+.day-rest::before{content:"\1F411\FE0F";display:inline-block;margin-inline-end:7px;
+  animation:restHop 1.9s ease-in-out infinite}
+@keyframes restHop{0%,55%,100%{transform:translateY(0) rotate(0)}
+  25%{transform:translateY(-7px) rotate(-8deg)}
+  40%{transform:translateY(-2px) rotate(4deg)}}
+@media (prefers-reduced-motion:reduce){.day-rest::before{animation:none}}
 .day .tag{flex:none;font-size:13px;padding:2px 9px 0}
 .tag.done{background:var(--ok)}
 .tag.open{background:var(--brand)}
