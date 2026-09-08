@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=d5f3d110">
+<link rel="stylesheet" href="assets/console.css?v=85cb79ba">
 </head>
 <body>
 <div class="wrap">
@@ -23,7 +23,7 @@
 
 <script src="js/i18n.js?v=dd17b47d"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
-<script src="js/console.js?v=d6eac11f"></script>
+<script src="js/console.js?v=19d5de43"></script>
 <script>
 "use strict";
 
@@ -114,6 +114,8 @@ function render(stats, plan, sess, rota) {
   app.textContent = "";
   attendanceCards(app, stats.weeks);
   app.append(weekCard(plan, sess, rota));
+  foldCards(app);
+  hotClock(app);
 }
 
 /* ---- the week, with a code on every row ---- */
@@ -138,6 +140,11 @@ function weekCard(plan, sess, rota) {
      down this function but earlier than that point in the source, and a var
      is hoisted without its value. */
   var ROTA_BOXES = [];
+
+  /* How long after the start check-in stays open, in minutes: the club's own
+     number, worked out from the start rather than read back off a row — the
+     same rule lib/checkin.js applies. */
+  var shutsAfter = Number.isFinite(Number(plan.window_after_min)) ? Number(plan.window_after_min) : 120;
 
   if (sess.qr === false) {
     body.append(el("p", { class: "err" },
@@ -177,6 +184,7 @@ function weekCard(plan, sess, rota) {
       box.append(row({
         off: !!(change && change.cancelled),
         at: (change && change.at) || e.at,
+        date: date,
         title: e.title_en || e.title_ar,
         note: (e.desc_en || e.desc_ar ? (e.desc_en || e.desc_ar) + " · " : "") +
           (e.place_en || e.place_ar || "—"),
@@ -188,6 +196,7 @@ function weekCard(plan, sess, rota) {
     loose.forEach(function (s) {
       box.append(row({
         at: new Date(s.starts_at).toTimeString().slice(0, 5),
+        date: date,
         title: s.name,
         note: t("cPts", { n: s.points }),
         session: s,
@@ -301,6 +310,17 @@ function weekCard(plan, sess, rota) {
     if (spec.rota && !spec.off) line.append(rotaColumn(spec.slot));
 
     if (spec.off) return line;
+
+    /* Lit while check-in is open, the same way the athlete's week lights the
+       same session up: a published session's own start, or the slot's
+       wall-clock time on this date, and the club's two numbers either side. */
+    var starts = spec.session && spec.session.starts_at
+      ? new Date(spec.session.starts_at)
+      : new Date(spec.date + "T" + spec.at + ":00");
+    if (!isNaN(starts.getTime())) {
+      line.dataset.hot = starts.getTime() + "," + (starts.getTime() + shutsAfter * 60000);
+      markHot(line);
+    }
 
     /* The code. A standing slot has no session row until somebody asks for
        one, so this opens it — find-or-create, the same call the console

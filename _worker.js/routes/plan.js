@@ -5,6 +5,7 @@ import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.j
 import { validTime } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 import { hasColumn } from "../lib/columns.js";
+import { windowMinutes } from "../lib/checkin.js";
 
 const MAX = { title: 80, place: 100, url: 300, note: 200, desc: 200 };
 const clean = (s, n) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, n);
@@ -107,6 +108,9 @@ export async function adminSchedule(request, env) {
     schedule: await list(env),
     changes: await changesAround(env, nowISO().slice(0, 10)),
     coaches: await coachRoster(env),
+    // The club's check-in window, so the coach's week can light the session
+    // that is open now on the same rule the athlete's week uses.
+    window_after_min: (await windowMinutes(env)).after,
   });
 }
 

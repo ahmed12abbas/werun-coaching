@@ -846,14 +846,21 @@ function checkinCard(s) {
   const what = s.payload ? side(s, "desc") : "";
   const whatLine = what ? el("div", { class: "ci-what", dir: "auto" }, what) : null;
 
+  // Checked in with the run still ahead: the steps stay. The card said to tap
+  // Steps a second ago, and scanning must not take the button away.
   if (s.checked_in) {
     return el(
       "div",
-      { class: "card pad checkin-strip done" },
-      el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
-        el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time),
-        whatLine),
-      el("span", { class: "tag done" }, t("aPts", { n: s.points }))
+      { class: "card pad stack" },
+      el(
+        "div",
+        { class: "checkin-strip done" },
+        el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
+          el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time),
+          whatLine),
+        el("span", { class: "tag done" }, t("aPts", { n: s.points }))
+      ),
+      s.payload ? stepsButton() : null
     );
   }
 

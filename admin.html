@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=d5f3d110">
+<link rel="stylesheet" href="assets/console.css?v=85cb79ba">
 </head>
 <body>
 <div class="wrap">
@@ -27,7 +27,7 @@
 <script src="js/model.js?v=4af345ea"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=e0221a23"></script>
-<script src="js/console.js?v=d6eac11f"></script>
+<script src="js/console.js?v=19d5de43"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
@@ -285,6 +285,9 @@ function renderStats(data, tips) {
   app.append(settingsCard());
   app.append(exportCard());
   app.append(controls());
+  // Every card shut but the week's head count: thirteen open at once is a
+  // page nobody reaches the bottom of.
+  foldCards(app);
 }
 
 /* ---- members ----
@@ -674,7 +677,12 @@ function sessionsCard() {
   });
 
   pub.append(
-    el("div", {}, el("label", {}, "Share link"), link, decoded),
+    el("div", {}, el("label", {}, "Share link"), link,
+      // Where that link is made. A new tab, because the half-filled form
+      // under it is not worth losing to build one.
+      el("a", { class: "btn sm", href: "index.html", target: "_blank", rel: "noopener" },
+        "Open the builder"),
+      decoded),
     el("div", { class: "speed-row" },
       el("label", {}, "Speed session · publish to all three"),
       speedBox),

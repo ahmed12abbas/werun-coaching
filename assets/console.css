@@ -308,3 +308,25 @@ a{color:var(--brand)}
 .speed-row .row{align-items:center;gap:8px}
 .speed-day{display:flex;align-items:center;gap:6px;flex:0 0 auto;font-size:13px}
 .speed-day input[type=date]{width:auto;flex:0 0 auto}
+
+/* A card folded shut: the heading becomes the button, everything under it
+   waits to be asked for. Nothing is hidden when it is open, so each card
+   keeps whatever layout its own rules give it. */
+.card.fold:not(.open) > :not(:first-child){display:none}
+.fold-btn{display:flex;align-items:center;gap:10px;width:100%;flex:1 1 auto;
+  padding:0;margin:0;background:none;border:0;color:inherit;font:inherit;
+  text-align:start;cursor:pointer}
+.fold-btn::after{content:"";flex:none;width:9px;height:9px;margin-inline-start:auto;
+  border:2px solid var(--muted);border-top:0;border-inline-start:0;
+  transform:rotate(45deg);transition:transform .18s ease}
+.card.fold.open .fold-btn::after{transform:rotate(-135deg)}
+
+/* The session happening now, glowing the way the same session glows in the
+   athlete's week — same fifteen minutes before, same effect, same 2.4s. */
+.wk-row.hot{background:var(--brand-soft);border-color:var(--brand)}
+@keyframes slotGlow{
+  from{box-shadow:0 0 0 1px var(--brand) inset,0 0 9px -6px var(--brand)}
+  to{box-shadow:0 0 0 1px var(--brand) inset,0 0 22px -2px var(--brand)}}
+.wk-row.hot{animation:slotGlow 2.4s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){
+  .wk-row.hot{animation:none;box-shadow:0 0 0 1px var(--brand) inset}}

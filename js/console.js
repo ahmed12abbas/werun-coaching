@@ -364,7 +364,8 @@ function attendanceCards(into, weeks) {
     el("div", { class: "n" }, String(latest.total)),
     el("div", { class: "l" }, t("cTheWeek"), el("small", {}, t("cCounted")))));
 
-  into.append(el("div", { class: "card" },
+  // The one card that never folds: the head count is what both pages are for.
+  into.append(el("div", { class: "card keep" },
     el("h2", {}, t("cThisWeek", { date: dayStamp(latest.start) })),
     tiles));
 
@@ -397,4 +398,61 @@ function attendanceCards(into, weeks) {
           el("th", {}, t("cWeek")), el("th", { class: "left" }, t("cSessions")),
           el("th", {}, t("cAthletes")), el("th", { class: "barcell" }, ""))),
         rows))));
+}
+
+/* ---- folding the page up ----
+   Thirteen cards open at once is a page nobody scrolls to the bottom of, and
+   at the track a coach wants one of them. Every card shuts behind its own
+   heading; the head count above keeps its `keep` class and stays open. */
+function foldCards(root) {
+  var cards = root.querySelectorAll(".card:not(.keep)");
+  for (var i = 0; i < cards.length; i++) foldCard(cards[i]);
+}
+
+function foldCard(card) {
+  if (card.classList.contains("fold")) return;
+  var head = card.firstElementChild;
+  if (!head) return;
+  // A card whose first child is not its heading has nothing to fold behind.
+  var h = head.tagName === "H2" ? head : head.querySelector("h2");
+  if (!h) return;
+  card.classList.add("fold");
+  var btn = el("button", {
+    class: "fold-btn",
+    type: "button",
+    "aria-expanded": "false",
+    onclick: function () {
+      var open = !card.classList.contains("open");
+      card.classList.toggle("open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+  });
+  h.parentNode.insertBefore(btn, h);
+  btn.append(h);
+}
+
+/* ---- the row that is happening now ----
+   The same glow the athlete's week lights up with, on the same clock: a
+   quarter of an hour before the start until check-in shuts. The two screens
+   have to agree, or the coach's phone and the athlete's disagree about which
+   session is the one in front of them. */
+var HOT_BEFORE = 15 * 60000;
+
+function markHot(node) {
+  var at = String(node.dataset.hot).split(",");
+  var now = Date.now();
+  node.classList.toggle("hot", now >= Number(at[0]) - HOT_BEFORE && now <= Number(at[1]));
+}
+
+/* One timer for the page rather than one per row. */
+var hotTicker = null;
+function hotClock(root) {
+  clearInterval(hotTicker);
+  function tick() {
+    var rows = root.querySelectorAll("[data-hot]");
+    if (!rows.length) return clearInterval(hotTicker);
+    for (var i = 0; i < rows.length; i++) markHot(rows[i]);
+  }
+  tick();
+  hotTicker = setInterval(tick, 30000);
 }
