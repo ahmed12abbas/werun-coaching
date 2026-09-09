@@ -721,7 +721,7 @@ function openCode() {
         }).then((d) => d.session.id);
 
   session
-    .then((id) => codeLoop(box, id))
+    .then((id) => codeLoop(box, id, target.date))
     .catch((e) => {
       box.textContent = "";
       box.append(el("p", { class: "form-err" }, errorText(e)));
@@ -732,13 +732,26 @@ function openCode() {
    off the page is the stop signal — there is one sheet and closing it is the
    only way out — and the screen is held awake while it is up, because a phone
    that sleeps mid-session is the one failure that loses everybody's check-in. */
-function codeLoop(box, id) {
+function codeLoop(box, id, date) {
   const name = el("h2", { dir: "auto" });
+  // Which morning this code is for, under the name it is for: two sessions
+  // in a week carry the same title, and the one on the screen has to say
+  // which of them the coach is holding up.
+  const day = new Date(date + "T00:00:00");
+  const when = el(
+    "p",
+    { class: "qr-when" },
+    isNaN(day)
+      ? ""
+      : day.toLocaleDateString(locale(), { weekday: "short" }) +
+        " " +
+        day.toLocaleDateString(locale(), { day: "2-digit", month: "2-digit" })
+  );
   const code = el("div", { class: "qr-code" });
   const came = el("p", { class: "qr-came num" });
   const note = el("p", { class: "muted small" });
   box.textContent = "";
-  box.append(name, code, came, note);
+  box.append(name, when, code, came, note);
 
   let lock = null;
   if (navigator.wakeLock && navigator.wakeLock.request) {
@@ -1141,7 +1154,7 @@ function planCard(item, date) {
           t("aSteps")
         ),
       ]
-    : [el("p", { class: "muted small" }, t("aNoWorkoutYet"))];
+    : [];
   // Steps stay on a session that has been called off, where Join does not:
   // there is no code to scan for a session nobody is holding, but the workout
   // is still a workout and an athlete may well go and run it alone.
@@ -1190,8 +1203,7 @@ function noStepsCard(s) {
       el("span", { class: "num" }, isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })),
       el("span", { class: "muted" }, longDate(s.date))
     ),
-    whereAndWorth(s),
-    el("p", { class: "muted small" }, t("aNoWorkoutYet"))
+    whereAndWorth(s)
   );
 }
 
