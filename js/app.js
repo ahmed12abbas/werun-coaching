@@ -641,7 +641,7 @@ function goalCard(done, user) {
    there. Not offered to athletes at all. */
 function coachCodeButton() {
   if (!Auth.isCoach()) return null;
-  return el("a", { class: "btn sm code-btn", href: "/coach" }, t("aWeekCode"));
+  return el("button", { class: "btn sm code-btn", type: "button", onclick: openCode }, t("aWeekCode"));
 }
 
 /* Which of this coach's own ticks the button should burn for: the first one
@@ -654,27 +654,120 @@ function coachCodeButton() {
 function lightCoachCode(root, days) {
   const btn = root.querySelector(".code-btn");
   if (!btn || !Auth.user) return;
+
+  // Everything still to come this week, soonest first. The club's next
+  // session is what the button opens until the rota names a better answer,
+  // so a coach standing in for somebody still has a code to hand out.
+  const ahead = [];
+  for (const day of days || []) {
+    for (const it of day.items || []) {
+      if (it.cancelled) continue;
+      const from = startsAt(it, day.date);
+      const till = closesTime(it, day.date);
+      if (!from || till === null || Date.now() > till) continue;
+      ahead.push({ it: it, date: day.date, from: from, till: till });
+    }
+  }
+  ahead.sort((a, b) => a.from - b.from);
+  CODE_TARGET = ahead[0] || null;
+
   API.post("/api/coach/rota", { action: "list" })
     .then((d) => {
       const mine = new Set(
         (d.rota || []).filter((r) => r.user_id === Auth.user.id).map((r) => r.schedule_id + "|" + r.date)
       );
-      let best = null;
-      for (const day of days || []) {
-        for (const it of day.items || []) {
-          if (it.cancelled || !mine.has(it.schedule_id + "|" + day.date)) continue;
-          const from = startsAt(it, day.date);
-          const till = closesTime(it, day.date);
-          if (!from || till === null || Date.now() > till) continue;
-          if (!best || from < best.from) best = { from: from, till: till };
-        }
-      }
-      if (!best) return;
-      btn.dataset.hot = best.from.getTime() + "," + best.till;
+      const ticked = ahead.find((x) => x.it.schedule_id && mine.has(x.it.schedule_id + "|" + x.date));
+      if (!ticked) return;
+      CODE_TARGET = ticked;
+      btn.dataset.hot = ticked.from.getTime() + "," + ticked.till;
       markHot(btn);
       startCountdowns();
     })
     .catch(() => {});
+}
+
+/* ---------- the code, in the app ------------------------------------------
+
+   What /coach does for the whole week, for the one session the button is
+   armed for: a fresh signature every thirty seconds, drawn here by js/qr.js
+   rather than fetched as an image, and the count of who has scanned it. The
+   coach is already holding this phone; walking them to another page to hold
+   it up was one tap too many.
+   ------------------------------------------------------------------------- */
+
+/* Which session the button opens: the one this coach is down for, or failing
+   that the club's next. Set when the home screen draws. */
+let CODE_TARGET = null;
+
+function openCode() {
+  const target = CODE_TARGET;
+  if (!target) return toast(t("aNoCode"));
+  const box = el(
+    "div",
+    { class: "card pad stack qr-card" },
+    el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" }))
+  );
+  openSheet(t("aWeekCode"), box);
+
+  // A standing slot has no session row until somebody asks for a code, which
+  // is what this is: find-or-create, the same call the console makes.
+  const session =
+    target.it.kind === "session" && target.it.id
+      ? Promise.resolve(target.it.id)
+      : API.post("/api/admin/sessions", {
+          action: "open",
+          schedule_id: target.it.schedule_id,
+          date: target.date,
+        }).then((d) => d.session.id);
+
+  session
+    .then((id) => codeLoop(box, id))
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("p", { class: "form-err" }, errorText(e)));
+    });
+}
+
+/* A new code every thirty seconds until the sheet goes away. The sheet being
+   off the page is the stop signal — there is one sheet and closing it is the
+   only way out — and the screen is held awake while it is up, because a phone
+   that sleeps mid-session is the one failure that loses everybody's check-in. */
+function codeLoop(box, id) {
+  const name = el("h2", { dir: "auto" });
+  const code = el("div", { class: "qr-code" });
+  const came = el("p", { class: "qr-came num" });
+  const note = el("p", { class: "muted small" });
+  box.textContent = "";
+  box.append(name, code, came, note);
+
+  let lock = null;
+  if (navigator.wakeLock && navigator.wakeLock.request) {
+    navigator.wakeLock.request("screen").then((l) => { lock = l; }).catch(() => {});
+  }
+  const stop = () => {
+    if (lock && lock.release) { try { lock.release(); } catch (e) {} }
+    lock = null;
+  };
+
+  const tick = () => {
+    if (!box.isConnected) return stop();
+    API.post("/api/admin/qr", { id: id })
+      .then((d) => {
+        if (!box.isConnected) return stop();
+        name.textContent = d.name || "";
+        code.innerHTML = qrSvg(d.url, "M");
+        came.textContent = t("cCame", { n: d.came || 0 });
+        note.textContent = d.open ? t("cScanIt") : t("cCheckinShut");
+        setTimeout(tick, (d.seconds || 30) * 1000 + 200);
+      })
+      .catch((e) => {
+        if (!box.isConnected) return stop();
+        code.textContent = "";
+        note.textContent = errorText(e);
+        setTimeout(tick, 5000);
+      });
+  };
+  tick();
 }
 
 function homeList(titleKey, rows, emptyKey) {

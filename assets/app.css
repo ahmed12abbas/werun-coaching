@@ -225,6 +225,15 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 @media (prefers-reduced-motion:reduce){.code-btn.hot{animation:none;
   box-shadow:0 0 0 1px var(--brand) inset,0 0 16px -5px var(--brand)}}
 
+/* The code, in the sheet the coach opened it from. White behind the squares
+   whatever the theme is: a camera reads black on white, and a dark card with
+   a light QR on it is the one that will not scan. */
+.qr-card{align-items:center;text-align:center}
+.qr-card h2{margin:0}
+.qr-code{width:min(72vw,340px);aspect-ratio:1;background:#fff;border-radius:12px;padding:10px}
+.qr-code svg{width:100%;height:100%;display:block}
+.qr-came{font-family:var(--display);font-size:34px;line-height:1;font-weight:600;margin:0}
+
 /* One runner, in the sheet: their face and line above where they stand. */
 .runner-head{display:flex;align-items:center;gap:14px}
 .runner-head h2{margin:0}
