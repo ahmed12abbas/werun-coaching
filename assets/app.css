@@ -237,6 +237,12 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
   border-radius:12px;padding:10px}
 .qr-code svg{width:100%;height:100%;display:block}
 .qr-came{font-family:var(--display);font-size:34px;line-height:1;font-weight:600;margin:0}
+/* Who has scanned it. Left-aligned inside a card that centres everything
+   else: a list of names is read down its own edge. */
+.qr-who{width:100%;text-align:start}
+.qr-row{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.qr-row:first-child{border-top:0}
+.qr-row.off{text-decoration:line-through;opacity:.55}
 
 /* One runner, in the sheet: their face and line above where they stand. */
 .runner-head{display:flex;align-items:center;gap:14px}

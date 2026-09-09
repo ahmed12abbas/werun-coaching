@@ -206,6 +206,30 @@ function appNav(current) {
   );
 }
 
+/* Who has scanned it, newest at the top: the coach is watching for the name
+   that just went in, not reading from the beginning. A check-in the coach
+   took back stays on the list, struck through — a name that quietly vanishes
+   is a name they will go looking for again. */
+function drawRoster(into, rows) {
+  into.textContent = "";
+  if (!rows.length) return into.append(el("p", { class: "muted small" }, t("cNobodyCame")));
+  for (const r of rows.slice().reverse()) {
+    const at = new Date(r.at);
+    into.append(
+      el(
+        "div",
+        { class: "qr-row" + (r.voided_at ? " off" : "") },
+        el("span", { class: "grow", dir: "auto" }, r.name),
+        el(
+          "span",
+          { class: "muted small num" },
+          isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+        )
+      )
+    );
+  }
+}
+
 /* ---------- the badge in the corner, and what it opens -------------------- */
 
 /** Their own face, top corner, opposite the logo. Opens the Me sheet. */
@@ -750,8 +774,9 @@ function codeLoop(box, id, date) {
   const code = el("div", { class: "qr-code" });
   const came = el("p", { class: "qr-came num" });
   const note = el("p", { class: "muted small" });
+  const who = el("div", { class: "qr-who" });
   box.textContent = "";
-  box.append(name, when, code, came, note);
+  box.append(name, when, code, came, note, el("h3", {}, t("cWhoCame")), who);
 
   let lock = null;
   if (navigator.wakeLock && navigator.wakeLock.request) {
@@ -771,6 +796,13 @@ function codeLoop(box, id, date) {
         code.innerHTML = qrSvg(d.url, "M");
         came.textContent = t("cCame", { n: d.came || 0 });
         note.textContent = d.open ? t("cScanIt") : t("cCheckinShut");
+        // Names on the same beat as the code: the count above already says how
+        // many, and the coach ticking people off wants to read who.
+        API.post("/api/admin/sessions", { action: "roster", id: id })
+          .then((r) => {
+            if (box.isConnected) drawRoster(who, r.roster || []);
+          })
+          .catch(() => {}); // the code is the point; the list can miss a beat
         setTimeout(tick, (d.seconds || 30) * 1000 + 200);
       })
       .catch((e) => {
