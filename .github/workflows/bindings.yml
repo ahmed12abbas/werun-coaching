@@ -59,6 +59,7 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      PUSH_SECRET: ${{ secrets.PUSH_SECRET }}
       EMAIL_FROM: ${{ vars.EMAIL_FROM }}
       PROJECT: weruncoaching
       KV_TITLE: werun-stats
@@ -69,6 +70,10 @@ jobs:
       SITE: https://weruncoaching.pages.dev
 
     steps:
+      # For tools/vapid-keys.js, which mints the push pair below. Nothing else
+      # here reads the repo.
+      - uses: actions/checkout@v4
+
       # Masking before anything else runs: a secret that reaches the log once
       # is burned, and this workflow exists because that already happened to a
       # token in this repo.
@@ -77,6 +82,7 @@ jobs:
           set -euo pipefail
           [ -n "${TIPS_PASSWORD}" ] && echo "::add-mask::${TIPS_PASSWORD}" || true
           [ -n "${ADMIN_PASSWORD}" ] && echo "::add-mask::${ADMIN_PASSWORD}" || true
+          [ -n "${PUSH_SECRET}" ] && echo "::add-mask::${PUSH_SECRET}" || true
           [ -n "${QR_SECRET}" ] && echo "::add-mask::${QR_SECRET}" || true
           [ -n "${RESEND_API_KEY}" ] && echo "::add-mask::${RESEND_API_KEY}" || true
           [ -n "${STRIPE_SECRET_KEY}" ] && echo "::add-mask::${STRIPE_SECRET_KEY}" || true
@@ -303,6 +309,33 @@ jobs:
             fi
           fi
 
+          # The VAPID pair is the same kind of secret as QR_SECRET — it only
+          # has to exist and stay the same — with one extra reason not to
+          # rotate it: a new pair silently unsubscribes every athlete who has
+          # turned reminders on, and nothing arrives until each of them turns
+          # them on again. So mint one only when the project has neither half.
+          VAPID_PUBLIC=""
+          VAPID_PRIVATE=""
+          if [ "${UNBIND}" != "true" ]; then
+            if jq -e '.result.deployment_configs.production.env_vars.VAPID_PRIVATE' /tmp/p.json >/dev/null 2>&1; then
+              echo "The project already has a VAPID pair — leaving it alone."
+            else
+              keys=$(node tools/vapid-keys.js)
+              VAPID_PUBLIC=$(echo "$keys" | awk '/^VAPID_PUBLIC/{print $2}')
+              VAPID_PRIVATE=$(echo "$keys" | awk '/^VAPID_PRIVATE/{print $2}')
+              echo "::add-mask::$VAPID_PRIVATE"
+              echo "No VAPID pair on the project, so one was minted."
+            fi
+          fi
+
+          # The one push secret that is not minted here: the scheduled job in
+          # remind.yml has to send the same string, so it comes from the repo
+          # and both sides read the one value.
+          if [ -z "${PUSH_SECRET}" ]; then
+            echo "No PUSH_SECRET repo secret — the reminder job cannot poke the sender."
+            echo "Set one with: gh secret set PUSH_SECRET"
+          fi
+
           if [ "${UNBIND}" = "true" ]; then
             # null deletes the key rather than setting it empty.
             echo '{"deployment_configs":{"production":{"kv_namespaces":{"STATS":null}}}}' > /tmp/patch.json
@@ -317,7 +350,10 @@ jobs:
             --arg resend "${RESEND_API_KEY}" \
             --arg mailfrom "${EMAIL_FROM}" \
             --arg sk "${STRIPE_SECRET_KEY}" \
-            --arg whsec "${STRIPE_WEBHOOK_SECRET}" '
+            --arg whsec "${STRIPE_WEBHOOK_SECRET}" \
+            --arg vapidpub "${VAPID_PUBLIC}" \
+            --arg vapidpriv "${VAPID_PRIVATE}" \
+            --arg pushsecret "${PUSH_SECRET}" '
             {
               deployment_configs: {
                 production: (
@@ -331,6 +367,9 @@ jobs:
                   | if $mailfrom != "" then .env_vars.EMAIL_FROM  = { type: "plain_text",  value: $mailfrom } else . end
                   | if $sk     != "" then .env_vars.STRIPE_SECRET_KEY     = { type: "secret_text", value: $sk     } else . end
                   | if $whsec  != "" then .env_vars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: $whsec  } else . end
+                  | if $vapidpub  != "" then .env_vars.VAPID_PUBLIC  = { type: "secret_text", value: $vapidpub  } else . end
+                  | if $vapidpriv != "" then .env_vars.VAPID_PRIVATE = { type: "secret_text", value: $vapidpriv } else . end
+                  | if $pushsecret != "" then .env_vars.PUSH_SECRET  = { type: "secret_text", value: $pushsecret } else . end
                 )
               }
             }' > /tmp/patch.json
