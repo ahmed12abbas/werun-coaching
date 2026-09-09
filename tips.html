@@ -352,11 +352,22 @@ function articleCard(article, index) {
   var pick = el("label", { class: "livepick" + (isLive ? " on" : "") }, radio,
     isLive ? "Live — athletes see this" : "Show this one");
 
+  /* The feed is a list, not a slot: any number of articles can be on it, and
+     the newest sits at the top. Separate from live, which is the one the
+     logo beside the session opens. */
+  var inFeed = el("input", {
+    type: "checkbox",
+    checked: !!article.feed,
+    onchange: function () { article.feed = inFeed.checked; touch(); render(); }
+  });
+  var feedPick = el("label", { class: "livepick" + (article.feed ? " on" : "") }, inFeed, "In the news feed");
+
   var head = el("div", { class: "head" },
     el("div", { class: "grow" },
       el("h2", {}, "Article " + (index + 1)),
       articleTimes(article)),
     isLive ? el("span", { class: "badge" }, "Live") : null,
+    feedPick,
     pick,
     el("button", {
       class: "btn sm danger", type: "button",
@@ -430,16 +441,16 @@ function render(warning) {
 }
 
 function addOne() {
-  var a = { id: newId(), en: { title: "", body: "" }, ar: { title: "", body: "" } };
-  state.articles.push(a);
+  // Newest first, the way the feed reads it.
+  var a = { id: newId(), feed: true, en: { title: "", body: "" }, ar: { title: "", body: "" } };
+  state.articles.unshift(a);
   if (!state.liveId) state.liveId = a.id; // the first one written is the one they want live
   touch();
   render();
   // Straight into the new card rather than making her hunt for it.
-  var cards = app.querySelectorAll(".card");
-  var last = cards[cards.length - 1];
-  var first = last && last.querySelector("input[type=text]");
-  if (first) { first.focus(); last.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  var card = app.querySelector(".card");
+  var first = card && card.querySelector("input[type=text]");
+  if (first) { first.focus(); card.scrollIntoView({ block: "center", behavior: "smooth" }); }
 }
 
 function saveBar() {

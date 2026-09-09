@@ -153,7 +153,7 @@ function logoNode(height) {
       fallback.classList.remove("hidden");
     },
   });
-  return el("div", { class: "row", style: "gap:10px" }, img, fallback);
+  return el("div", { class: "row brand-mark", style: "gap:10px" }, img, fallback);
 }
 
 /**

@@ -86,6 +86,11 @@ function afterLogin() {
   go(pending ? "c/" + pending : "home");
 }
 
+function goHomeFresh() {
+  location.hash = "#/home";
+  location.reload();
+}
+
 function render() {
   const app = $("#app");
   const r = parseRoute();
@@ -117,6 +122,18 @@ function render() {
   if (user) {
     bar.classList.add("appbar");
     bar.prepend(meBadge(user));
+  }
+
+  // The mark goes home, and reloads on the way: one tap out of anything.
+  const mark = bar.querySelector(".brand-mark");
+  if (mark) {
+    mark.setAttribute("role", "button");
+    mark.setAttribute("tabindex", "0");
+    mark.setAttribute("title", t("navHome"));
+    mark.addEventListener("click", goHomeFresh);
+    mark.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHomeFresh(); }
+    });
   }
   app.append(bar);
   if (user) app.append(appNav(r.name));
@@ -200,12 +217,13 @@ function meBadge(user) {
   );
 }
 
-/* The Me screen, over the page rather than instead of it.
+/* One sheet, up from the bottom, over the page rather than instead of it.
 
-   The very same node SCREENS.me builds — there is one account screen, and a
-   second copy of it kept in step by hand is the thing that goes wrong. The
-   route stays too, for #/me links and for maintenance, where an athlete must
-   be able to log out of a club that is mid-repair. */
+   Two things ride in it: the Me screen — the very same node SCREENS.me builds,
+   because a second copy of the account screen kept in step by hand is the
+   thing that goes wrong — and a runner's card, tapped off the club board.
+   The #/me route stays, for links that point at it and for maintenance, where
+   an athlete must be able to log out of a club that is mid-repair. */
 let meSheet = null;
 
 function closeMe() {
@@ -219,24 +237,78 @@ const meKey = (e) => {
   if (e.key === "Escape") closeMe();
 };
 
-function openMe() {
-  const user = Auth.user;
-  if (!user) return go("login");
-  if (meSheet) return closeMe(); // a second tap on the badge puts it away
+/** Whatever the sheet is holding this time, under the grip and a Close. */
+function openSheet(label, body) {
+  closeMe();
   const card = el(
     "div",
-    { class: "sheet-card", role: "dialog", "aria-modal": "true", "aria-label": t("navMe") },
+    { class: "sheet-card", role: "dialog", "aria-modal": "true", "aria-label": label },
     el(
       "div",
       { class: "sheet-head" },
       el("span", { class: "sheet-grip", "aria-hidden": "true" }),
       el("button", { class: "btn sm", type: "button", onclick: closeMe }, t("aClose"))
     ),
-    SCREENS.me([], user)
+    body
   );
   meSheet = el("div", { class: "sheet", onclick: (e) => { if (e.target === meSheet) closeMe(); } }, card);
   document.body.append(meSheet);
   document.addEventListener("keydown", meKey);
+  return card;
+}
+
+/* The badge in the corner opens the same card a board row does — one card for
+   a runner, whether the club tapped it or you did — with the account screen a
+   button away. The two numbers are not on the account, so the card goes up
+   with them blank and fills them in when the board answers: a tap that waits
+   on the network before anything moves reads as a tap that missed. */
+function openMe() {
+  const user = Auth.user;
+  if (!user) return go("login");
+  if (meSheet) return closeMe(); // a second tap on the badge puts it away
+  const card = openRunner({ me: true, name: user.name, avatar: user.avatar, bio: user.bio, place: "—", points: "—" });
+  const tiles = card.querySelector(".tiles");
+  API.get("/api/points/board")
+    .then((d) => {
+      // Off the board by choice still has a place and a total; the row is only
+      // the shorter way to them.
+      const row = (d.board || []).find((x) => x.me) || d.mine || {};
+      tiles.replaceWith(el("div", { class: "tiles" }, tile(row.place || "—", t("aPlace")), tile(row.points || 0, t("aPoints"))));
+    })
+    .catch(() => {}); // the card is still their card without the numbers
+}
+
+/* One runner, as the club sees them: their face, their line, where they stand
+   and what they have. Their own card carries the way into the account screen;
+   somebody else's carries nothing to press, because a board row is a name and
+   a number and this is the whole of what the club may know. */
+function openRunner(r) {
+  return openSheet(
+    r.me ? t("navMe") : r.name,
+    el(
+      "div",
+      { class: "card pad stack runner" },
+      el(
+        "div",
+        { class: "runner-head" },
+        avatarNode(r.avatar, r.name, "lg"),
+        el(
+          "div",
+          { class: "grow" },
+          el("h2", { dir: "auto" }, r.name),
+          r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
+        )
+      ),
+      el("div", { class: "tiles" }, tile(r.place, t("aPlace")), tile(r.points, t("aPoints"))),
+      r.me
+        ? el(
+            "button",
+            { class: "btn primary block", type: "button", onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)) },
+            t("aSettings")
+          )
+        : null
+    )
+  );
 }
 
 /* ---------- small parts -------------------------------------------------- */
@@ -1677,9 +1749,10 @@ SCREENS.feed = function () {
   API.get("/api/feed")
     .then((d) => {
       list.textContent = "";
-      if (d.tip) list.append(tipCard(d.tip));
+      const tips = d.tips || [];
+      for (const tip of tips) list.append(tipCard(tip));
       for (const p of d.posts) list.append(postCard(p));
-      if (!d.posts.length && !d.tip) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews"))));
+      if (!d.posts.length && !tips.length) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews"))));
       if (d.whatsapp) {
         list.append(
           el(
@@ -1822,7 +1895,15 @@ SCREENS.points = function () {
           list.append(
             el(
               "div",
-              { class: "board-row" + (r.me ? " me" : "") },
+              {
+                class: "board-row" + (r.me ? " me" : ""),
+                role: "button",
+                tabindex: "0",
+                onclick: () => openRunner(r),
+                onkeydown: (e) => {
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openRunner(r); }
+                },
+              },
               el("span", { class: "place num" }, String(r.place)),
               avatarNode(r.avatar, r.name, "sm"),
               // The name, and under it the line they wrote about themselves.

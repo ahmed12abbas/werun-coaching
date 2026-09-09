@@ -58,6 +58,8 @@ function cleanArticle(raw, prev) {
 
   return {
     id: id || "a" + Math.random().toString(36).slice(2, 10),
+    // On the club's news feed or not — nothing to do with which one is live.
+    feed: !!a.feed,
     // Articles written before this field existed fall back to their last known
     // edit, which is the closest thing to a posting date they have.
     created: (prev && (prev.created || prev.updated)) || now,

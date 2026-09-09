@@ -53,19 +53,22 @@ export const feed = withMember(async (request, env, user) => {
     .bind(nowISO(), MAX.list)
     .all();
 
-  // The live article, if there is one. No KV bound is not an error here — the
-  // feed is still a feed without it.
-  let tip = null;
+  // The articles the coach has ticked for the feed, newest first. The live
+  // one is always among them: it was on this screen before the tick existed,
+  // and articles written back then carry no flag to read.
+  //
+  // No KV bound is not an error here — the feed is still a feed without it.
+  let tips = [];
   if (env.STATS) {
     try {
       const doc = await readTips(env.STATS);
-      const live = doc.articles.find((a) => a && a.id === doc.liveId);
       // created is the day it went up and updated the day it was last
       // touched; the feed shows the first, and older articles have only the
       // second — the same fallback /api/tips makes.
-      if (live) {
-        tip = { id: live.id, created: live.created || live.updated, updated: live.updated, en: live.en, ar: live.ar };
-      }
+      tips = doc.articles
+        .filter((a) => a && (a.feed || a.id === doc.liveId))
+        .map((a) => ({ id: a.id, created: a.created || a.updated, updated: a.updated, en: a.en, ar: a.ar }))
+        .sort((a, b) => String(b.created || "").localeCompare(String(a.created || "")));
     } catch (e) {
       /* the posts are the point; a missing article is not worth a 500 */
     }
@@ -73,7 +76,7 @@ export const feed = withMember(async (request, env, user) => {
 
   return json({
     posts: (rows.results || []).map(publicPost),
-    tip: tip,
+    tips: tips,
     whatsapp: await getSetting(env, "whatsapp_url"),
   });
 });
