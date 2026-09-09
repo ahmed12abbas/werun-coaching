@@ -110,6 +110,9 @@ function render() {
   if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("home");
 
   app.textContent = "";
+  // A new screen starts at its top: with the bar pinned there is nothing to
+  // tell you the page changed if you stay halfway down the old one.
+  window.scrollTo(0, 0);
   document.title = "WE RUN Club";
   closeMe();
   // The mark in the middle, the badge in the corner it starts from — left in
@@ -135,8 +138,10 @@ function render() {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHomeFresh(); }
     });
   }
-  app.append(bar);
-  if (user) app.append(appNav(r.name));
+  // Bar and tabs ride along at the top of the scroll, as one sticky block.
+  const top = el("div", { class: "apptop" }, bar);
+  if (user) top.append(appNav(r.name));
+  app.append(top);
 
   const banner = announcement();
   if (banner) app.append(banner);

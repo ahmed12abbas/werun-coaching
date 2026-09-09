@@ -2,12 +2,32 @@
    Only what the app adds: the tab row, the forms, the week. Everything the
    session detail needs is already in site.css, because it is the viewer. */
 
+/* ---- the bar and the tabs stay put while the screen scrolls ----
+   One sticky block rather than two, so the tabs cannot slide under the bar.
+   The negative margins take it out to the edges of .wrap's padding, or the
+   rows underneath would show through at the sides as they pass. */
+.apptop{position:sticky;top:0;z-index:20;background:var(--bg);
+  margin:-18px -16px 16px;padding:14px 16px 12px}
+.apptop .brand{margin-bottom:13px}
+/* The gap under the tabs is the block's padding, not the nav's margin: a
+   margin sits outside the background and the rows would scroll through it. */
+.apptop .appnav{margin-bottom:0}
+
 /* ---- tabs under the brand bar ---- */
 .appnav{display:flex;gap:6px;margin:-8px 0 16px}
 .appnav a{flex:1;text-align:center;padding:9px 6px;border-radius:12px;border:1px solid var(--line);
   background:var(--card);font-family:var(--display);font-size:19px;font-weight:600;
   text-transform:uppercase;letter-spacing:.04em;text-decoration:none;color:var(--muted);line-height:1.1}
 .appnav a[aria-current="page"]{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+/* A tap answers on the way down instead of after the redraw: the 300ms grey
+   box the phone draws is what "slow" was, not the render. */
+.appnav a,button.day,.btn,.tool,.card button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.appnav a{transition:transform .1s ease,background .15s ease,color .15s ease}
+.appnav a:active,button.day:active,.tool:active{transform:scale(.97)}
+button.day:active{background:var(--brand-soft)}
+@media (prefers-reduced-motion:reduce){
+  .appnav a:active,button.day:active,.tool:active{transform:none}
+}
 [dir="rtl"] .appnav a{font-size:15px;letter-spacing:0}
 
 /* ---- forms ---- */
@@ -336,12 +356,12 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    CSS: it fades itself out and stops taking the pointer, so nothing has to
    remember to remove it. */
 .splash{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
-  background:var(--bg);animation:splashOut .45s ease 1.15s forwards}
-.splash img{width:min(46vw,190px);animation:splashIn .7s cubic-bezier(.34,1.56,.64,1) both}
+  background:var(--bg);animation:splashOut .25s ease .35s forwards}
+.splash img{width:min(46vw,190px);animation:splashIn .34s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes splashIn{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
 @keyframes splashOut{to{opacity:0;visibility:hidden;pointer-events:none}}
 @media (prefers-reduced-motion:reduce){
-  .splash{animation-duration:.01s;animation-delay:.6s}
+  .splash{animation-duration:.01s;animation-delay:.2s}
   .splash img{animation:none}
 }
 
