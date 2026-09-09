@@ -74,7 +74,7 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html admin.html coach.html tips.html app.html manifest.webmanifest robots.txt _site/
+          cp index.html admin.html coach.html tips.html app.html manifest.webmanifest robots.txt sw.js _site/
           cp -r js assets _worker.js _site/
           find _site -type f | sort
 

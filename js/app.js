@@ -224,10 +224,39 @@ function drawRoster(into, rows) {
           "span",
           { class: "muted small num" },
           isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
-        )
+        ),
+        // Taking one back is the club's, not every coach's: the route behind
+        // it is admin-tier, so offering the button to a coach who cannot use
+        // it would only be a refusal one tap later.
+        r.voided_at || !Auth.isAdmin() ? null : voidButton(into, r)
       )
     );
   }
+}
+
+/* One check-in, taken back. The points go with it as a reversing row, which
+   is the Worker's business; here it is a confirm, because the name beside
+   the button is somebody who thinks they have their ten points. */
+function voidButton(into, row) {
+  const btn = el(
+    "button",
+    {
+      class: "btn sm qr-void",
+      type: "button",
+      onclick: () => {
+        if (!confirm(t("aVoidAsk", { name: row.name }))) return;
+        btn.disabled = true;
+        API.post("/api/admin/sessions", { action: "void", id: row.id })
+          .then((d) => drawRoster(into, d.roster || []))
+          .catch((e) => {
+            btn.disabled = false;
+            toast(errorText(e));
+          });
+      },
+    },
+    t("aVoid")
+  );
+  return btn;
 }
 
 /* ---------- the badge in the corner, and what it opens -------------------- */
@@ -2370,6 +2399,13 @@ const ICON_PATH = {
 };
 
 /* ---------- go ------------------------------------------------------------ */
+
+/* The offline shell. Registered after first paint, because it is for the
+   next visit rather than this one, and a phone that refuses it (a private
+   window, an old browser) simply carries on without. */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
 
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());

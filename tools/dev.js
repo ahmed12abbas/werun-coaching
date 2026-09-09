@@ -22,7 +22,11 @@ const { spawn, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const SITE = path.join(ROOT, "_site");
 const PORT = process.argv[2] || "4323";
-const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html"];
+/* sw.js and the manifest sit beside the pages rather than in js/: the
+   service worker only controls what it is served alongside, so it has to be
+   at the root here exactly as it is on Pages. */
+const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html",
+  "sw.js", "manifest.webmanifest"];
 const DIRS = ["js", "assets", "_worker.js"];
 const STATE = ".wrangler/state";
 

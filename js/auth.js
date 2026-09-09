@@ -62,6 +62,12 @@ const Auth = {
       await API.post(everywhere ? "/api/auth/logout-all" : "/api/auth/logout");
     } catch (e) {}
     Auth.user = null;
+    // The offline shelf holds this athlete's own week and points. A shared
+    // phone at the club is exactly the case logging out is for, so it goes
+    // out with them — see sw.js.
+    try {
+      if (self.caches) caches.delete("werun-data-v1");
+    } catch (e) {}
   },
 
   async update(fields) {

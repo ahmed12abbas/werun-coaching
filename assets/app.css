@@ -243,6 +243,8 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .qr-row{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
 .qr-row:first-child{border-top:0}
 .qr-row.off{text-decoration:line-through;opacity:.55}
+.qr-void{flex:none;padding:4px 10px;font-size:12.5px;color:var(--err);border-color:var(--line)}
+.qr-void:hover{border-color:var(--err)}
 
 /* One runner, in the sheet: their face and line above where they stand. */
 .runner-head{display:flex;align-items:center;gap:14px}
