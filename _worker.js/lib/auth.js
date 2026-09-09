@@ -149,6 +149,11 @@ export const publicUser = (u) => ({
   // the board was showing every line, so false is both the fallback and what
   // was actually happening.
   bio_hidden: !!u.bio_hidden,
+  // Their Instagram, and whether the club may have it. 0015 lands after the
+  // deploy that reads it: no column means no handle, which is what every
+  // member has until they type one.
+  instagram: u.instagram || "",
+  instagram_hidden: !!u.instagram_hidden,
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,

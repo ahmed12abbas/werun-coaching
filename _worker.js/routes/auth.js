@@ -12,7 +12,7 @@ import {
   jsonWithCookie, withUser,
 } from "../lib/auth.js";
 
-const MAX = { email: 120, name: 40, password: 200, bio: 160 };
+const MAX = { email: 120, name: 40, password: 200, bio: 160, instagram: 30 };
 const MIN_PASSWORD = 8;
 
 const cleanEmail = (s) => String(s || "").trim().toLowerCase().slice(0, MAX.email);
@@ -22,6 +22,19 @@ const cleanLang = (s) => (s === "ar" ? "ar" : "en");
 /* One line, on one line: newlines out, runs of space squeezed, then cut. A
    bio that arrives as a paragraph is still a bio — it is just a shorter one. */
 const cleanBio = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.bio);
+
+/* An Instagram handle, however it was written down: people paste the whole
+   address, and people type the @. What is kept is the handle itself, so the
+   link is built where it is drawn and nothing else can ride in on this field.
+   Whatever is left that is not a handle becomes "". */
+const cleanHandle = (s) =>
+  String(s || "")
+    .trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/^@+/, "")
+    .split(/[/?#]/)[0]
+    .replace(/[^A-Za-z0-9._]/g, "")
+    .slice(0, MAX.instagram);
 
 /* Empty is a real answer: someone who would rather not say still runs with
    the club, so anything unrecognised becomes "" rather than an error. */
@@ -210,6 +223,8 @@ export const profile = withUser(async (request, env, user) => {
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
   const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
   const bio = body.bio !== undefined ? cleanBio(body.bio) : user.bio || "";
+  const instagram = body.instagram !== undefined ? cleanHandle(body.instagram) : user.instagram || "";
+  const igHidden = (body.instagram_hidden !== undefined ? body.instagram_hidden : user.instagram_hidden) ? 1 : 0;
   const bioHidden = (body.bio_hidden !== undefined ? body.bio_hidden : user.bio_hidden) ? 1 : 0;
   // Not `user.week_goal` on its own: before 0012 there is no column to read
   // back, and undefined there would look exactly like a refused number.
@@ -252,6 +267,16 @@ export const profile = withUser(async (request, env, user) => {
     sets.push("bio_hidden = ?");
     vals.push(bioHidden);
     saved.bio_hidden = bioHidden;
+  }
+  if (await hasColumn(env, "users", "instagram")) {
+    sets.push("instagram = ?");
+    vals.push(instagram);
+    saved.instagram = instagram;
+  }
+  if (await hasColumn(env, "users", "instagram_hidden")) {
+    sets.push("instagram_hidden = ?");
+    vals.push(igHidden);
+    saved.instagram_hidden = igHidden;
   }
   await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
     .bind(...vals, user.id)

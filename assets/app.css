@@ -215,9 +215,23 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    instruction to "that is not our code". */
 .scan-note{margin:0;font-size:13.5px;color:var(--muted);min-height:2.8em}
 
+/* The line under the pips, and the coach's button at the end of it. */
+.goal-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.goal-foot p{margin:0}
+.code-btn{flex:none;text-decoration:none;white-space:nowrap}
+/* Lit on the same window, and by the same ticker, as the week's hot row. */
+.code-btn.hot{border-color:var(--brand);color:var(--brand);
+  animation:slotGlow 2.4s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.code-btn.hot{animation:none;
+  box-shadow:0 0 0 1px var(--brand) inset,0 0 16px -5px var(--brand)}}
+
 /* One runner, in the sheet: their face and line above where they stand. */
 .runner-head{display:flex;align-items:center;gap:14px}
 .runner-head h2{margin:0}
+/* Their name, and their Instagram beside it if the club may have it. */
+.runner-name{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ig-btn{width:32px;height:32px;flex:none}
+.ig-btn svg{width:17px;height:17px}
 .runner-head p{margin:4px 0 0;font-size:13.5px}
 
 /* ---- avatars ----

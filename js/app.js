@@ -266,7 +266,15 @@ function openMe() {
   const user = Auth.user;
   if (!user) return go("login");
   if (meSheet) return closeMe(); // a second tap on the badge puts it away
-  const card = openRunner({ me: true, name: user.name, avatar: user.avatar, bio: user.bio, place: "—", points: "—" });
+  const card = openRunner({
+    me: true,
+    name: user.name,
+    avatar: user.avatar,
+    bio: user.bio,
+    instagram: user.instagram,
+    place: "—",
+    points: "—",
+  });
   const tiles = card.querySelector(".tiles");
   API.get("/api/points/board")
     .then((d) => {
@@ -276,6 +284,23 @@ function openMe() {
       tiles.replaceWith(el("div", { class: "tiles" }, tile(row.place || "—", t("aPlace")), tile(row.points || 0, t("aPoints"))));
     })
     .catch(() => {}); // the card is still their card without the numbers
+}
+
+/* Their Instagram, beside their name, when they have one and have left it
+   showing. The club's own icon set already carries the glyph, and the link is
+   built here rather than stored, so what the database holds stays a handle. */
+function igLink(handle) {
+  if (!handle) return null;
+  const ig = SOCIAL.find((s) => s.id === "instagram");
+  return el("a", {
+    class: "social ig-btn",
+    href: "https://instagram.com/" + encodeURIComponent(handle),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    title: "@" + handle,
+    "aria-label": "@" + handle,
+    html: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + ig.svg + "</svg>",
+  });
 }
 
 /* One runner, as the club sees them: their face, their line, where they stand
@@ -295,7 +320,7 @@ function openRunner(r) {
         el(
           "div",
           { class: "grow" },
-          el("h2", { dir: "auto" }, r.name),
+          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), igLink(r.instagram)),
           r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
         )
       ),
@@ -569,6 +594,7 @@ SCREENS.home = function (args, user) {
         homeList("aMySessions", ahead.filter((x) => x.it.registered), "aNoneDown"),
         homeList("aOpenSessions", ahead.filter((x) => !x.it.registered), "aNoneOpen")
       );
+      lightCoachCode(box, data.days);
       startCountdowns();
     })
     .catch((e) => {
@@ -597,8 +623,58 @@ function goalCard(done, user) {
       el("span", { class: "goal-n num", dir: "ltr" }, done + " / " + goal)
     ),
     pips,
-    el("p", { class: "muted small" }, done >= goal ? t("aGoalHit") : t("aGoalLeft", { n: goal - done }))
+    el(
+      "div",
+      { class: "goal-foot" },
+      el("p", { class: "muted small grow" }, done >= goal ? t("aGoalHit") : t("aGoalLeft", { n: goal - done })),
+      coachCodeButton()
+    )
   );
+}
+
+/* The coach's way to the track screen, on the screen they open on.
+
+   It lights up when a session they put themselves down for is the one lighting
+   up in the week — the same quarter-hour window every hot row answers from —
+   so the coach standing at the track finds the code lit. Every other coach has
+   the same button, unlit: any of them can hand out a code, only one of them is
+   there. Not offered to athletes at all. */
+function coachCodeButton() {
+  if (!Auth.isCoach()) return null;
+  return el("a", { class: "btn sm code-btn", href: "/coach" }, t("aWeekCode"));
+}
+
+/* Which of this coach's own ticks the button should burn for: the first one
+   whose window has not shut yet. The ticker does the rest, so a button drawn
+   an hour early lights itself when the hour comes.
+
+   The rota arrived after the code that reads it and its table may not be
+   there yet, so a refusal here leaves an ordinary button rather than no
+   button — see lib/weekplan.js for the same shape. */
+function lightCoachCode(root, days) {
+  const btn = root.querySelector(".code-btn");
+  if (!btn || !Auth.user) return;
+  API.post("/api/coach/rota", { action: "list" })
+    .then((d) => {
+      const mine = new Set(
+        (d.rota || []).filter((r) => r.user_id === Auth.user.id).map((r) => r.schedule_id + "|" + r.date)
+      );
+      let best = null;
+      for (const day of days || []) {
+        for (const it of day.items || []) {
+          if (it.cancelled || !mine.has(it.schedule_id + "|" + day.date)) continue;
+          const from = startsAt(it, day.date);
+          const till = closesTime(it, day.date);
+          if (!from || till === null || Date.now() > till) continue;
+          if (!best || from < best.from) best = { from: from, till: till };
+        }
+      }
+      if (!best) return;
+      btn.dataset.hot = best.from.getTime() + "," + best.till;
+      markHot(btn);
+      startCountdowns();
+    })
+    .catch(() => {});
 }
 
 function homeList(titleKey, rows, emptyKey) {
@@ -1579,7 +1655,7 @@ function startCountdowns() {
   clearInterval(countdownTicker);
   countdownTicker = setInterval(() => {
     const pills = document.querySelectorAll(".countdown");
-    const hot = document.querySelectorAll(".slot[data-hot]");
+    const hot = document.querySelectorAll("[data-hot]");
     if (!pills.length && !hot.length) return clearInterval(countdownTicker);
     for (const node of hot) markHot(node);
     for (const pill of pills) {
@@ -1996,6 +2072,15 @@ SCREENS.me = function (args, user) {
       el("label", { class: "sw", for: "f-bio-show" }, bioShow, el("span", {}, t("aBioShow")))
     )
   );
+  // Their Instagram, and whether the club may have it. The tick sits under
+  // the box for the same reason the bio's does: whether it is for anybody
+  // else is decided while you are typing it, not on another screen. The box
+  // takes a pasted address as happily as a handle — the Worker keeps the
+  // handle out of whatever arrives.
+  const ig = el("input", { type: "text", id: "f-ig", value: user.instagram || "", maxlength: "90", placeholder: t("aIgPh"), autocapitalize: "none", spellcheck: "false" });
+  const igShow = el("input", { type: "checkbox", id: "f-ig-show" });
+  if (!user.instagram_hidden) igShow.setAttribute("checked", "");
+
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
   const goal = el("input", {
@@ -2039,6 +2124,8 @@ SCREENS.me = function (args, user) {
             avatar: avatar.value(),
             bio: bio.value,
             bio_hidden: !bioShow.checked,
+            instagram: ig.value,
+            instagram_hidden: !igShow.checked,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
@@ -2052,6 +2139,13 @@ SCREENS.me = function (args, user) {
     field("aName", name),
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
+    el(
+      "div",
+      {},
+      el("label", { for: "f-ig" }, t("aIg")),
+      ig,
+      el("label", { class: "sw", for: "f-ig-show" }, igShow, el("span", {}, t("aIgShow")))
+    ),
     field("aGoal", goal, t("aGoalHint")),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),

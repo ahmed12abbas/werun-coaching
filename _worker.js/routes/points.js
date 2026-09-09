@@ -62,8 +62,16 @@ export const pointsBoard = withMember(async (request, env, user) => {
     : (await hasColumn(env, "users", "bio_hidden"))
     ? " CASE WHEN u.bio_hidden = 1 THEN '' ELSE u.bio END AS bio,"
     : " u.bio,";
+  /* Their Instagram, on the same terms as the line: 0015 is applied by hand
+     and lands after this, and a handle the athlete has hidden is dropped in
+     the SELECT so it never reaches a browser at all. */
+  const ig = !(await hasColumn(env, "users", "instagram"))
+    ? " '' AS instagram,"
+    : (await hasColumn(env, "users", "instagram_hidden"))
+    ? " CASE WHEN u.instagram_hidden = 1 THEN '' ELSE u.instagram END AS instagram,"
+    : " u.instagram,";
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name," + face + line + " COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name," + face + line + ig + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" +
@@ -77,6 +85,7 @@ export const pointsBoard = withMember(async (request, env, user) => {
     name: r.name,
     avatar: r.avatar || "",
     bio: r.bio || "",
+    instagram: r.instagram || "",
     points: r.points,
     sessions: r.sessions,
     me: r.id === user.id,
