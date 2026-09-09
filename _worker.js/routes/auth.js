@@ -12,13 +12,16 @@ import {
   jsonWithCookie, withUser,
 } from "../lib/auth.js";
 
-const MAX = { email: 120, name: 40, password: 200 };
+const MAX = { email: 120, name: 40, password: 200, bio: 160 };
 const MIN_PASSWORD = 8;
 
 const cleanEmail = (s) => String(s || "").trim().toLowerCase().slice(0, MAX.email);
 const emailLooksRight = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const cleanName = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.name);
 const cleanLang = (s) => (s === "ar" ? "ar" : "en");
+/* One line, on one line: newlines out, runs of space squeezed, then cut. A
+   bio that arrives as a paragraph is still a bio — it is just a shorter one. */
+const cleanBio = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.bio);
 
 /* Empty is a real answer: someone who would rather not say still runs with
    the club, so anything unrecognised becomes "" rather than an error. */
@@ -206,6 +209,7 @@ export const profile = withUser(async (request, env, user) => {
   const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
   const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
+  const bio = body.bio !== undefined ? cleanBio(body.bio) : user.bio || "";
   // Not `user.week_goal` on its own: before 0012 there is no column to read
   // back, and undefined there would look exactly like a refused number.
   const goal =
@@ -237,6 +241,11 @@ export const profile = withUser(async (request, env, user) => {
     sets.push("week_goal = ?");
     vals.push(goal);
     saved.week_goal = goal;
+  }
+  if (await hasColumn(env, "users", "bio")) {
+    sets.push("bio = ?");
+    vals.push(bio);
+    saved.bio = bio;
   }
   await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
     .bind(...vals, user.id)

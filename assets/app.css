@@ -312,11 +312,21 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 /* Open, it has done its job and stops asking for attention. */
 .steps-btn.on{animation:none;background:var(--brand-soft);box-shadow:none}
 
-/* ---- the badge in the corner ----
-   Their own face, opposite the logo: at the left in English and at the right
-   in Arabic, because the brand bar is a flex row and the page turns round
-   with the language. It sits after the two toggles, which are pushed to the
-   end by `.brand-tools`. */
+/* ---- the app's brand bar ----
+   Three columns: their own badge in the corner it starts from, the mark in
+   the middle, the two toggles at the end. Grid rather than the link page's
+   flex row, because "in the middle" has to mean the middle of the bar and
+   not the middle of whatever is left over. Everything mirrors on its own —
+   column one is the left in English and the right in Arabic.
+
+   "Coaching" comes off: it is the landing page's line, and at 375px the
+   three columns and the tagline do not both fit. Hidden rather than dropped
+   in brand.js, so index.html keeps it — and a display:none child is not a
+   grid item, which is what keeps this to three columns. */
+.appbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.appbar .brand-sub{display:none}
+.appbar .me-badge{justify-self:start}
+.appbar .brand-tools{justify-self:end;margin-inline-start:0}
 .me-badge{padding:0;border:1px solid var(--line);background:var(--card);border-radius:50%;
   cursor:pointer;line-height:0;display:block}
 .me-badge:hover{border-color:var(--brand)}
@@ -367,3 +377,8 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .hrow-do{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap}
 .hrow-do .btn{flex:1 1 auto}
 .hrow .tag{flex:none;font-size:12px;padding:2px 9px 0}
+
+/* The face and the line beside it. Top-aligned, because a two-line box next
+   to a 78px circle centres into a wobble. */
+.avrow-me{gap:14px;align-items:flex-start}
+.avrow-me textarea{min-height:60px}

@@ -142,6 +142,9 @@ export const publicUser = (u) => ({
   // is the club's own week — the same answer the migration's default gives,
   // so the number does not change under them when it lands.
   week_goal: u.week_goal === null || u.week_goal === undefined ? 3 : u.week_goal,
+  // The line they wrote about themselves. Until 0013 is applied there is no
+  // column, and "" is exactly what an athlete who has written nothing has.
+  bio: u.bio || "",
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,

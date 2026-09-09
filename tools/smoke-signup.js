@@ -163,6 +163,17 @@ async function itemOn(athlete, slotId, date) {
   r = await amal.call("POST", "/api/auth/profile", { name: "Amal" });
   check("…and a save that never mentions it leaves it alone", r.data.user.week_goal === 5, r.data.user);
 
+  /* ---- the bio ---- */
+
+  r = await amal.call("POST", "/api/auth/profile", { name: "Amal", bio: "  Marathon in\n  March.  " });
+  check("a bio saves, squeezed onto one line", r.data.user.bio === "Marathon in March.", r.data.user);
+
+  r = await amal.call("POST", "/api/auth/profile", { name: "Amal", bio: "x".repeat(400) });
+  check("…and a long one is cut, not refused", r.status === 200 && r.data.user.bio.length === 160, r.data.user.bio.length);
+
+  r = await amal.call("POST", "/api/auth/profile", { name: "Amal" });
+  check("…and is left alone by a save that never mentions it", r.data.user.bio.length === 160, r.data.user.bio.length);
+
   /* Clean up: the slot the signups hang off. */
   r = await admin("/api/admin/schedule", { action: "delete", id: slot.id });
   check("the slot can be removed", r.status === 200, r.status);

@@ -471,8 +471,8 @@ const STRINGS = {
     "e_bad-year": "That age does not look right.",
 
     /* the app: the face beside your name */
-    aAvatar: "Avatar",
-    aAvatarHint: "It runs beside your name on the club board. Yours to change whenever.",
+    aBio: "About you",
+    aBioPh: "Marathon in March. Slow on hills.",
     aAvNone: "Just my initial",
     aAvMen: "Men",
     aAvWomen: "Women",
@@ -987,8 +987,8 @@ const STRINGS = {
     "e_bad-year": "هذا العمر لا يبدو صحيحًا.",
 
     /* the app: صورتك بجانب اسمك */
-    aAvatar: "صورتك",
-    aAvatarHint: "تجري بجانب اسمك في لوحة النادي. غيّرها متى شئت.",
+    aBio: "نبذة عنك",
+    aBioPh: "ماراثون في مارس. بطيء في الصعود.",
     aAvNone: "الحرف الأول فقط",
     aAvMen: "رجال",
     aAvWomen: "نساء",

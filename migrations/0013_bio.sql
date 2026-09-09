@@ -1,0 +1,11 @@
+-- A line about themselves, beside the face they picked.
+--
+-- Where the avatar hint used to sit on the Me screen: the picker below says
+-- what an avatar is far better than a sentence did, so the space went to the
+-- one thing an athlete had no way to say. Short on purpose -- it is a line
+-- under a name, not a profile page, and the cap is enforced in the Worker as
+-- well because a TEXT column would hold whatever it was sent.
+--
+-- NOT NULL DEFAULT '' rather than nullable: every read of it is "print this
+-- or print nothing", and "" is already that answer.
+ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';

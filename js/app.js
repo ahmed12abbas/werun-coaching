@@ -107,10 +107,18 @@ function render() {
   app.textContent = "";
   document.title = "WE RUN Club";
   closeMe();
-  // The badge in the corner, opposite the logo — so it mirrors with the page
-  // when the language does. Me is a sheet over whatever you were reading
-  // rather than a tab you leave the club to visit.
-  app.append(brandBar(user ? meBadge(user) : null, appBoot));
+  // The mark in the middle, the badge in the corner it starts from — left in
+  // English, right in Arabic, because the row turns round with the page. It
+  // is prepended rather than passed as brandBar's trailing node so that the
+  // three of them (badge, mark, toggles) are the three columns `.appbar`
+  // lays out; the link page's own bar is untouched. Me is a sheet over
+  // whatever you were reading rather than a tab you leave the club to visit.
+  const bar = brandBar(null, appBoot);
+  if (user) {
+    bar.classList.add("appbar");
+    bar.prepend(meBadge(user));
+  }
+  app.append(bar);
   if (user) app.append(appNav(r.name));
 
   const banner = announcement();
@@ -327,8 +335,12 @@ function avatarNode(id, name, size) {
  * The pick rides on the profile form rather than saving on the tap, so trying
  * them all costs one write and a stray tap costs none. Hands back the node
  * and a reader for what is selected.
+ *
+ * `beside` is what sits to the right of the chosen face — the bio. The twelve
+ * tiles below say what an avatar is better than the sentence that used to be
+ * there, so the space went to the one thing an athlete had no way to say.
  */
-function avatarPicker(user) {
+function avatarPicker(user, beside) {
   let chosen = Avatars.has(user.avatar) ? user.avatar : "";
   const face = el("span", { class: "avatar lg" });
   const opts = [];
@@ -356,8 +368,7 @@ function avatarPicker(user) {
   const node = el(
     "div",
     { class: "stack" },
-    el("div", { class: "row", style: "gap:14px;align-items:center" }, face,
-      el("div", {}, el("label", {}, t("aAvatar")), el("p", { class: "hint" }, t("aAvatarHint")))),
+    el("div", { class: "row avrow-me" }, face, el("div", { class: "grow" }, beside)),
     el("div", { class: "avpick" }, Avatars.GROUPS.map((g) =>
       el("div", { class: "avgroup" },
         el("span", { class: "avlabel" }, t(g.label)),
@@ -1845,7 +1856,12 @@ SCREENS.me = function (args, user) {
   const name = el("input", { type: "text", id: "f-name", value: user.name, maxlength: 40, autocomplete: "name" });
   const gender = genderSelect(user.gender);
   const age = ageInput(user.birth_year);
-  const avatar = avatarPicker(user);
+  // A line about themselves, beside the face they picked. One line: the
+  // Worker squeezes whatever arrives onto one and cuts it at 160, and a box
+  // that looks like an essay invites one.
+  const bio = el("textarea", { id: "f-bio", rows: "2", maxlength: "160", placeholder: t("aBioPh") });
+  bio.value = user.bio || "";
+  const avatar = avatarPicker(user, el("div", {}, el("label", { for: "f-bio" }, t("aBio")), bio));
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
   const goal = el("input", {
@@ -1887,6 +1903,7 @@ SCREENS.me = function (args, user) {
             gender: gender.value,
             birth_year: yearOfAge(age.value),
             avatar: avatar.value(),
+            bio: bio.value,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
