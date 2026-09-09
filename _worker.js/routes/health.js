@@ -19,7 +19,12 @@ export async function health(request, env) {
     tips: !!(env.TIPS_PASSWORD || env.ADMIN_PASSWORD),
     qr: !!env.QR_SECRET,
     email: !!env.RESEND_API_KEY,
-    store: !!env.STRIPE_SECRET_KEY,
+    // `store` is the KV namespace, above — the shop's own key gets its own
+    // name. They were both called `store` for a while, and since an object
+    // literal keeps the last of two identical keys, the KV answer was the
+    // one being thrown away: the bindings workflow polls `.store` to see the
+    // namespace and waited five minutes for a key it was never being shown.
+    stripe: !!env.STRIPE_SECRET_KEY,
     webhook: !!env.STRIPE_WEBHOOK_SECRET,
     push: !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE),
   };
