@@ -1869,7 +1869,21 @@ SCREENS.me = function (args, user) {
   // that looks like an essay invites one.
   const bio = el("textarea", { id: "f-bio", rows: "2", maxlength: "160", placeholder: t("aBioPh") });
   bio.value = user.bio || "";
-  const avatar = avatarPicker(user, el("div", {}, el("label", { for: "f-bio" }, t("aBio")), bio));
+  // Whose line it is. Beside the box they write it in, because that is when
+  // somebody decides who it is for — and it saves with the rest of the form,
+  // unlike the board tick on the points screen, which is its own errand.
+  const bioShow = el("input", { type: "checkbox", id: "f-bio-show" });
+  if (!user.bio_hidden) bioShow.setAttribute("checked", "");
+  const avatar = avatarPicker(
+    user,
+    el(
+      "div",
+      {},
+      el("label", { for: "f-bio" }, t("aBio")),
+      bio,
+      el("label", { class: "sw", for: "f-bio-show" }, bioShow, el("span", {}, t("aBioShow")))
+    )
+  );
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
   const goal = el("input", {
@@ -1912,6 +1926,7 @@ SCREENS.me = function (args, user) {
             birth_year: yearOfAge(age.value),
             avatar: avatar.value(),
             bio: bio.value,
+            bio_hidden: !bioShow.checked,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");

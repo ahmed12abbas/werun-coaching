@@ -1,0 +1,13 @@
+-- On the board, but the line stays yours.
+--
+-- `board_hidden` (0002) is the whole row: a member who ticks it is not on the
+-- club board at all, and their line goes with them. This is the smaller
+-- choice underneath it -- be on the board, be counted, and keep the sentence
+-- about yourself to yourself.
+--
+-- Default 0, which is what the board has been doing since the bio arrived:
+-- the field is called "about you" and the switch beside it is ticked, so
+-- nobody's line quietly changes visibility under them. The hiding is done in
+-- the board's own SELECT rather than in the page, so a hidden line never
+-- leaves the database at all.
+ALTER TABLE users ADD COLUMN bio_hidden INTEGER NOT NULL DEFAULT 0;

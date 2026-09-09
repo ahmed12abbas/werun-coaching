@@ -47,10 +47,21 @@ export const pointsBoard = withMember(async (request, env, user) => {
   // Until 0007 is applied there is no column to read, and everyone is on the
   // board as their initial — which is what an empty avatar means anyway.
   const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
-  // The line they wrote about themselves, under their name. Same guard, same
-  // reason: 0013 lands after the deploy that reads it, and a board that will
-  // not draw at all is a worse answer than a board without the lines.
-  const line = (await hasColumn(env, "users", "bio")) ? " u.bio," : " '' AS bio,";
+  /* The line they wrote about themselves, under their name. Same guard, same
+     reason: 0013 lands after the deploy that reads it, and a board that will
+     not draw at all is a worse answer than a board without the lines.
+
+     A member who has asked for their line to stay theirs is dropped here, in
+     the SELECT, and not in the page: the row that reaches the browser has to
+     be the row the club is allowed to read, or "hidden" only means "hidden
+     from anyone who does not open the network tab". Being on the board and
+     keeping the line to yourself are two separate answers — board_hidden
+     takes the whole row away, this takes one sentence off it. */
+  const line = !(await hasColumn(env, "users", "bio"))
+    ? " '' AS bio,"
+    : (await hasColumn(env, "users", "bio_hidden"))
+    ? " CASE WHEN u.bio_hidden = 1 THEN '' ELSE u.bio END AS bio,"
+    : " u.bio,";
   const rows = await env.DB.prepare(
     "SELECT u.id, u.name," + face + line + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +

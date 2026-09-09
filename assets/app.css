@@ -388,3 +388,7 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .board-row .who{display:block}
 .board-bio{font-size:12.5px;font-weight:400;color:var(--muted);opacity:.8;line-height:1.35;margin-top:1px;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+/* The switch under it, in a column 213px wide: smaller than the one on the
+   points screen, and allowed to wrap onto a second line. */
+.avrow-me .sw{font-size:12.5px;font-weight:600;margin-top:7px;align-items:flex-start}
+.avrow-me .sw input[type="checkbox"]{margin-top:1px}

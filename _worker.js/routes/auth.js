@@ -210,6 +210,7 @@ export const profile = withUser(async (request, env, user) => {
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
   const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
   const bio = body.bio !== undefined ? cleanBio(body.bio) : user.bio || "";
+  const bioHidden = (body.bio_hidden !== undefined ? body.bio_hidden : user.bio_hidden) ? 1 : 0;
   // Not `user.week_goal` on its own: before 0012 there is no column to read
   // back, and undefined there would look exactly like a refused number.
   const goal =
@@ -246,6 +247,11 @@ export const profile = withUser(async (request, env, user) => {
     sets.push("bio = ?");
     vals.push(bio);
     saved.bio = bio;
+  }
+  if (await hasColumn(env, "users", "bio_hidden")) {
+    sets.push("bio_hidden = ?");
+    vals.push(bioHidden);
+    saved.bio_hidden = bioHidden;
   }
   await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
     .bind(...vals, user.id)

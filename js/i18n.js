@@ -473,6 +473,7 @@ const STRINGS = {
     /* the app: the face beside your name */
     aBio: "About you",
     aBioPh: "Marathon in March. Slow on hills.",
+    aBioShow: "Show it on the club board",
     aAvNone: "Just my initial",
     aAvMen: "Men",
     aAvWomen: "Women",
@@ -989,6 +990,7 @@ const STRINGS = {
     /* the app: صورتك بجانب اسمك */
     aBio: "نبذة عنك",
     aBioPh: "ماراثون في مارس. بطيء في الصعود.",
+    aBioShow: "أظهرها في لوحة النادي",
     aAvNone: "الحرف الأول فقط",
     aAvMen: "رجال",
     aAvWomen: "نساء",

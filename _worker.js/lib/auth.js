@@ -145,6 +145,10 @@ export const publicUser = (u) => ({
   // The line they wrote about themselves. Until 0013 is applied there is no
   // column, and "" is exactly what an athlete who has written nothing has.
   bio: u.bio || "",
+  // Whether it stays off the club board. Before 0014 there is no column and
+  // the board was showing every line, so false is both the fallback and what
+  // was actually happening.
+  bio_hidden: !!u.bio_hidden,
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,

@@ -50,6 +50,11 @@ function check(name, ok, detail) {
 
 const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 
+/* A payload the real encoder produced, so publish has something to accept —
+   the same one tools/smoke-checkin.js uses. Nothing here decodes it. */
+const PAYLOAD =
+  "1.gzjGNz8P0y0QE2AmI9tvaKqQm5mnBDMMpgQk5ejkDA1KBW2F4pKizJTUYrBCoHsNjZBcDHGsKcxIB1MFb3BYI5laDNIClc_KT9cvT8zJVoK73Bify2Ih0Q6PXqVaAA";
+
 /** Friday is the club's rest day, so a test slot there disturbs nothing. */
 function nextDate(weekday) {
   const d = new Date();
@@ -173,6 +178,62 @@ async function itemOn(athlete, slotId, date) {
 
   r = await amal.call("POST", "/api/auth/profile", { name: "Amal" });
   check("…and is left alone by a save that never mentions it", r.data.user.bio.length === 160, r.data.user.bio.length);
+
+  /* ---- on the board, but the line stays yours ----
+
+     Worth the trouble of a real check-in: the whole point of the switch is
+     that a hidden line does not reach another member, and only the board as
+     an actual second athlete sees it can say whether it does. */
+
+  const mine = "Marathon in March " + stamp;
+  await amal.call("POST", "/api/auth/profile", { name: "Amal", bio: mine, bio_hidden: false });
+
+  /* An hour and a half ago: still inside the check-in window (it opens an
+     hour before and shuts two hours after), and comfortably older than the
+     session tools/smoke-checkin.js publishes a minute back. A session with a
+     check-in on it cannot be deleted — that is the club's rule and that suite
+     asserts it — so this row outlives the test, and a newer one would sit at
+     the top of every other athlete's streak and break it. */
+  const startsAt = new Date(Date.now() - 90 * 60000);
+  const today = iso(startsAt);
+  r = await admin("/api/admin/sessions", {
+    action: "publish", name: "Bio test " + stamp, payload: PAYLOAD,
+    date: today, starts_at: startsAt.toISOString(), points: 10,
+  });
+  const sessionId = r.data && r.data.id;
+  check("a session to check in to", r.status === 200 && !!sessionId, r.status);
+
+  r = await anon.call("POST", "/api/admin/qr", { password: ADMIN, id: sessionId });
+  const [, slotN, sig] = String((r.data && r.data.url) || "").split("#/c/")[1].split("/");
+  r = await amal.call("POST", "/api/checkin", { session: sessionId, slot: Number(slotN), sig: sig });
+  check("…and points, so she is on the board", r.status === 200 && r.data.earned === 10, r);
+
+  /* Omar's board, not Amal's: what one member is allowed to read of another. */
+  const bioOnBoard = async () => {
+    const b = await omar.call("GET", "/api/points/board");
+    const row = ((b.data && b.data.board) || []).find((x) => x.name === "Amal");
+    return row ? row.bio : null;
+  };
+  check("another member reads her line", (await bioOnBoard()) === mine);
+
+  r = await amal.call("POST", "/api/auth/profile", { name: "Amal", bio_hidden: true });
+  check("she takes it off the board", r.status === 200 && r.data.user.bio_hidden === true, r.data.user);
+  check("…and it is gone from what he can read", (await bioOnBoard()) === "");
+  r = await omar.call("GET", "/api/points/board");
+  check("…while she is still on the board", ((r.data.board || []).some((x) => x.name === "Amal")), r.data.board);
+
+  r = await amal.call("GET", "/api/auth/me");
+  check("…and she still has her own line", r.data.user.bio === mine, r.data.user);
+
+  /* Give the points back on the way out. The session itself stays — see the
+     note on startsAt above — but nobody should be left holding points for a
+     session that only existed to prove a checkbox. */
+  r = await admin("/api/admin/sessions", { action: "roster", id: sessionId });
+  for (const entry of r.data.roster || []) {
+    await admin("/api/admin/sessions", { action: "void", id: entry.id });
+  }
+  r = await amal.call("GET", "/api/points/me");
+  check("the test points are handed back", r.status === 200 && r.data.total === 0, r.data);
 
   /* Clean up: the slot the signups hang off. */
   r = await admin("/api/admin/schedule", { action: "delete", id: slot.id });
