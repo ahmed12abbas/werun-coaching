@@ -21,6 +21,7 @@ export async function health(request, env) {
     email: !!env.RESEND_API_KEY,
     store: !!env.STRIPE_SECRET_KEY,
     webhook: !!env.STRIPE_WEBHOOK_SECRET,
+    push: !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE),
   };
   /* A list, not one field: the site can be wrong in more than one way at a
      time, and a check that reports only the last of them is a check that
@@ -35,6 +36,10 @@ export async function health(request, env) {
   // A shop that can take money but cannot hear that it was paid leaves every
   // order stuck at pending for ever.
   if (env.STRIPE_SECRET_KEY && !env.STRIPE_WEBHOOK_SECRET) out.warnings.push("stripe-webhook-missing");
+  // Half a push setup: athletes can turn reminders on and nothing will ever
+  // knock, or the sender is pokeable by nobody. Both fail in silence.
+  if (!!env.VAPID_PUBLIC !== !!env.VAPID_PRIVATE) out.warnings.push("vapid-half-set");
+  if (env.VAPID_PUBLIC && env.VAPID_PRIVATE && !env.PUSH_SECRET) out.warnings.push("push-secret-missing");
   if (env.DB) {
     try {
       const row = await env.DB.prepare(

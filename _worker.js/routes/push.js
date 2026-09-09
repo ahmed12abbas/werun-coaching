@@ -1,0 +1,218 @@
+/* The reminder, an hour before the session.
+
+   Three parties: the browser, which subscribes and stores an endpoint here;
+   the sender, which the scheduled job outside pokes every quarter of an hour
+   and which knocks on the endpoints of everybody down for a session that is
+   about to start; and the service worker, which answers the knock by asking
+   /api/push/next what to say. Nothing about the session travels over the
+   push service at all — see lib/push.js.
+
+   Who gets one: whoever put their name down. A signup is the athlete saying
+   they mean to be there, which is exactly the list worth interrupting; the
+   whole club at 03:55 is a notification people turn off for good.
+
+   The tables arrive after the code that reads them, as everything does here,
+   so every read is wrapped and answers "off" rather than 500. */
+
+import { json, readBody } from "../lib/http.js";
+import { withMember, nowISO, uid } from "../lib/auth.js";
+import { safeEqual } from "../lib/crypto.js";
+import { pushReady, pushTo } from "../lib/push.js";
+
+const CLUB_OFFSET = "+03:00";
+const MAX_ENDPOINT = 600;
+const LIST = 500;
+
+/* How far ahead a reminder goes out. The scheduled job runs every quarter of
+   an hour and is not punctual, so the mouth of the window is wider than the
+   gap between runs; push_sent is what keeps a session to one buzz however
+   many times the job sees it. */
+const SOON_FROM = 40 * 60000;
+const SOON_TO = 80 * 60000;
+
+/* The club's own day, whatever the server thinks the date is. */
+const clubDate = (shiftDays) =>
+  new Date(Date.now() + 3 * 3600000 + (shiftDays || 0) * 86400000).toISOString().slice(0, 10);
+
+const startsAt = (date, at) => new Date(date + "T" + at + ":00" + CLUB_OFFSET).getTime();
+
+/**
+ * Everybody down for a session on these dates, with the time it starts —
+ * the pattern's, or the one a change moved this occurrence to, and never a
+ * session that was called off.
+ */
+async function signupsOn(env, dates) {
+  const rows = await env.DB.prepare(
+    "SELECT g.user_id, g.schedule_id, g.date, s.title_en, s.title_ar, s.place_en, s.place_ar," +
+      " COALESCE(c.at, s.at) AS at, COALESCE(c.cancelled, 0) AS called_off" +
+      " FROM session_signups g JOIN schedule s ON s.id = g.schedule_id" +
+      " LEFT JOIN schedule_changes c ON c.schedule_id = g.schedule_id AND c.date = g.date" +
+      " WHERE g.date IN (" + dates.map(() => "?").join(", ") + ") LIMIT ?"
+  )
+    .bind(...dates, LIST)
+    .all();
+  return (rows.results || []).filter((r) => !r.called_off);
+}
+
+/* ---------- POST /api/push ------------------------------------------------ */
+
+export async function push(request, env) {
+  const body = await readBody(request);
+  const action = String(body.action || "key");
+
+  // The sender is not an athlete and carries no cookie: it is the scheduled
+  // job outside, and the shared secret is the whole of what it is.
+  if (action === "run") return run(env, body);
+
+  if (!env.DB) return json({ error: "push-off" }, 503);
+  if (!pushReady(env)) return json({ error: "push-off" }, 503);
+
+  return withMember(async (req, e, user) => {
+    if (action === "key") return json({ key: e.VAPID_PUBLIC });
+
+    const endpoint = String(body.endpoint || "");
+    if (!/^https:\/\//.test(endpoint) || endpoint.length > MAX_ENDPOINT) {
+      return json({ error: "bad-endpoint" }, 400);
+    }
+
+    try {
+      if (action === "subscribe") {
+        // One row per browser: the endpoint is unique, so a phone that comes
+        // back after a reinstall replaces its own row rather than collecting.
+        await e.DB.prepare(
+          "INSERT INTO push_subs (id, user_id, endpoint, at) VALUES (?, ?, ?, ?)" +
+            " ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, at = excluded.at"
+        )
+          .bind(uid(), user.id, endpoint, nowISO())
+          .run();
+        return json({ on: true });
+      }
+      if (action === "unsubscribe") {
+        // Their own row only: an endpoint is a browser, and taking somebody
+        // else's off would be silencing them.
+        await e.DB.prepare("DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?")
+          .bind(endpoint, user.id)
+          .run();
+        return json({ on: false });
+      }
+    } catch (err) {
+      console.error("push: no push_subs yet (" + (err && err.message) + ")");
+      return json({ error: "push-off" }, 503);
+    }
+    return json({ error: "bad-request" }, 400);
+  })(request, env);
+}
+
+/* ---------- GET /api/push/next -------------------------------------------- */
+
+/*
+ * What the notification should say, asked for by the service worker at the
+ * moment it shows it. Their own next session and nobody else's, in their own
+ * language, and nothing at all if there isn't one — a knock that arrives
+ * after the session was called off says so by having nothing to say.
+ */
+export const pushNext = withMember(async (request, env, user) => {
+  let rows = [];
+  try {
+    rows = await signupsOn(env, [clubDate(0), clubDate(1)]);
+  } catch (e) {
+    return json({ session: null });
+  }
+  const now = Date.now();
+  const mine = rows
+    .filter((r) => r.user_id === user.id)
+    .map((r) => Object.assign({}, r, { when: startsAt(r.date, r.at) }))
+    // Still to come, or started within the last quarter hour: a reminder that
+    // arrives a little late is still the one they asked for.
+    .filter((r) => r.when > now - 15 * 60000 && r.when < now + 3 * 3600000)
+    .sort((a, b) => a.when - b.when);
+
+  const next = mine[0];
+  if (!next) return json({ session: null });
+
+  const ar = user.lang === "ar";
+  const at = new Date(next.when).toLocaleTimeString(ar ? "ar" : "en-GB", {
+    timeZone: "Asia/Riyadh",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const place = (ar ? next.place_ar : next.place_en) || next.place_en || "";
+  return json({
+    session: {
+      title: (ar ? next.title_ar : next.title_en) || next.title_en || "WE RUN",
+      body: (ar ? "الساعة " + at : at) + (place ? " · " + place : ""),
+      url: "/app#/home",
+    },
+  });
+});
+
+/* ---------- the sender ---------------------------------------------------- */
+
+/*
+ * Poked from outside on a schedule (see .github/workflows/remind.yml), with
+ * the shared secret in the body — never in the URL, like every other password
+ * here. It answers what it did, so a failing run is visible in the job log
+ * rather than only in the absence of buzzing phones.
+ */
+async function run(env, body) {
+  if (!env.PUSH_SECRET) return json({ error: "push-off" }, 503);
+  if (!(await safeEqual(String(body.secret || ""), env.PUSH_SECRET))) {
+    return json({ error: "bad-password" }, 401);
+  }
+  if (!pushReady(env) || !env.DB) return json({ error: "push-off" }, 503);
+
+  let rows = [];
+  try {
+    rows = await signupsOn(env, [clubDate(0), clubDate(1)]);
+  } catch (e) {
+    console.error("push: could not read signups (" + (e && e.message) + ")");
+    return json({ error: "no-table" }, 503);
+  }
+
+  const now = Date.now();
+  const due = rows.filter((r) => {
+    const when = startsAt(r.date, r.at);
+    return when > now + SOON_FROM && when < now + SOON_TO;
+  });
+
+  let sent = 0;
+  let dropped = 0;
+  for (const row of due) {
+    const ref = row.schedule_id + "|" + row.date;
+    try {
+      // The primary key is the guard: an insert that changes nothing means
+      // this athlete has already been told about this session.
+      const mark = await env.DB.prepare(
+        "INSERT OR IGNORE INTO push_sent (ref, kind, user_id, at) VALUES (?, 'soon', ?, ?)"
+      )
+        .bind(ref, row.user_id, nowISO())
+        .run();
+      if (!mark.meta || !mark.meta.changes) continue;
+    } catch (e) {
+      console.error("push: could not write push_sent (" + (e && e.message) + ")");
+      return json({ error: "no-table" }, 503);
+    }
+
+    const subs = await env.DB.prepare("SELECT id, endpoint FROM push_subs WHERE user_id = ?")
+      .bind(row.user_id)
+      .all();
+    for (const sub of subs.results || []) {
+      let status = 0;
+      try {
+        status = await pushTo(env, sub.endpoint);
+      } catch (e) {
+        console.error("push: send failed (" + (e && e.message) + ")");
+        continue;
+      }
+      // Gone means gone: the browser was wiped or has revoked us, and a row
+      // kept after that is a knock into the dark on every run from now on.
+      if (status === 404 || status === 410) {
+        await env.DB.prepare("DELETE FROM push_subs WHERE id = ?").bind(sub.id).run();
+        dropped++;
+      } else if (status >= 200 && status < 300) {
+        sent++;
+      }
+    }
+  }
+  return json({ due: due.length, sent: sent, dropped: dropped });
+}

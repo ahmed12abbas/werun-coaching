@@ -1,0 +1,53 @@
+name: Send session reminders
+
+# Cloudflare Pages has no cron of its own — Cron Triggers belong to Workers,
+# and this site's Worker is a Pages one. So the clock lives here: every
+# quarter of an hour this pokes /api/push/run, which finds the sessions
+# starting in about an hour and knocks on the phones of everyone down for
+# them. The Worker decides who and whether; this only says "now".
+#
+# GitHub's schedule is not punctual — a run can be ten minutes late under
+# load — which is why the Worker's window is wide and why push_sent, not the
+# clock, is what stops anybody being told twice.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: push-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poke the sender
+        env:
+          SECRET: ${{ secrets.PUSH_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::notice::PUSH_SECRET is not set — no reminders will go out."\
+                 "Run 'node tools/vapid-keys.js', set the three secrets on Pages,"\
+                 "then 'gh secret set PUSH_SECRET' with the same value."
+            exit 0
+          fi
+          # The secret goes in the body, never the URL — the same rule the
+          # rest of the API follows, and query strings end up in logs.
+          out=$(curl -sS -X POST https://weruncoaching.pages.dev/api/push \
+            -H 'content-type: application/json' \
+            -d "{\"action\":\"run\",\"secret\":\"$SECRET\"}" \
+            -w '\n%{http_code}')
+          body=$(echo "$out" | head -n -1)
+          code=$(echo "$out" | tail -n 1)
+          echo "$body"
+          # 503 is a club with no VAPID keys yet: nothing to do, not a failure.
+          if [ "$code" = "503" ]; then
+            echo "::notice::Push is off (no VAPID keys set)."
+            exit 0
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::The sender answered $code."
+            exit 1
+          fi

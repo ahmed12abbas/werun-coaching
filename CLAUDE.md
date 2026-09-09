@@ -45,6 +45,8 @@ share link, plus two small server pieces:
 - The shop never sees a card: paying happens on Stripe's own page, and an order becomes `paid` only from a webhook whose HMAC signature and timestamp both check out (`_worker.js/lib/stripe.js`). Nothing the browser says on the way back is taken as proof.
 - Prices are read from the database at checkout, never from the request, and stock comes down in the webhook rather than at checkout — a payment page that was opened and abandoned must not hold a shirt.
 - `STRIPE_API_BASE` exists so `tools/smoke-store.js` can point the flow at its own stub. Like `EMAIL_ECHO` it belongs in `.dev.vars` only; `/api/health` lists both in `warnings`.
+- **The app opens without signal.** `sw.js` at the root (shipped by both `tools/dev.js` and the deploy workflow — it only controls what it is served beside) keeps the pages, the `?v=`-stamped scripts, and a short list of reads: the week, the feed, one session, `/api/auth/me`, the points. Writes are never cached, so a check-in fails honestly rather than out of yesterday's answer. Nothing is precached — the first online visit fills the shelf — and `Auth.logout()` drops the data cache, because a shared phone at the club is what logging out is for.
+- **Reminders are a knock with nothing in it.** A push carries no payload at all (`_worker.js/lib/push.js` signs only the VAPID token, which is one WebCrypto call; the encrypted-payload path would be ECDH + HKDF + AES128GCM by hand with no bundler). The service worker answers the knock by asking `/api/push/next` what to say with the athlete's own cookie, so the text is written at the moment it is shown and a session called off in between says nothing. Who gets one: whoever put their name down (`session_signups`), an hour out. Pages has no cron — Cron Triggers are a Workers thing — so the clock is `.github/workflows/remind.yml` poking `/api/push` with `PUSH_SECRET` every quarter of an hour, and `push_sent` (0016), not the clock, is what stops anybody being told twice. Secrets: `node tools/vapid-keys.js`, then `VAPID_PUBLIC`, `VAPID_PRIVATE`, `PUSH_SECRET` on Pages and the same `PUSH_SECRET` in the repo. None set means every push route answers `push-off`, the switch in Me says so, and `/api/health` reports a half-set pair.
 - `docs/PLATFORM-PLAN.md` — the platform plan (accounts, QR check-in, points, feed, store) and which decisions are settled.
 - `garmin-mcp/` — the coach's personal Garmin tooling. Gitignored on purpose; never commit it or reference its paths in shipped code.
 
@@ -90,6 +92,7 @@ node tools/smoke-plan.js       # the standing week, and one occurrence moved
 node tools/smoke-coach.js      # the coaches list, and a coach put on a session
 node tools/smoke-rota.js       # the coaches' rota: who is taking what this week
 node tools/smoke-signup.js     # putting your name down for a session, and the weekly goal
+node tools/smoke-push.js       # reminders: subscribing, the sender's guard, the VAPID signature
 node tools/seed-schedule.js    # writes the club's ten standing sessions
 node tools/seed-week.js        # September's wording, and this week's dated bits
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder

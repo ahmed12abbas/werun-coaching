@@ -334,6 +334,9 @@ const STRINGS = {
 
     /* the app: what went wrong, one sentence per code the Worker sends */
     e_generic: "Something went wrong — try again.",
+    "e_push-off": "Reminders aren't set up for the club yet.",
+    "e_push-refused": "Your phone refused notifications — turn them on for this site in its settings.",
+    "e_bad-endpoint": "That browser can't be reminded — try again from the app.",
     e_offline: "No connection — check your network.",
     e_server: "The server hit a problem — try again in a moment.",
     "e_bad-login": "Wrong email or password.",
@@ -383,6 +386,9 @@ const STRINGS = {
     aIgShow: "Show my Instagram on my card",
     aWeekCode: "This week's code",
     aNoCode: "Nothing left to hand out a code for this week.",
+    aRemind: "Reminders",
+    aRemindOn: "Remind me before a session I'm down for",
+    aRemindHint: "One notification, about an hour before it starts. Only for sessions you've put your name down for.",
     aVoid: "Void",
     aVoidAsk: "Take {name}'s check-in back? Their points for it go too.",
     rCheckin: "+{n} for {name}",
@@ -857,6 +863,9 @@ const STRINGS = {
 
     /* the app: what went wrong */
     e_generic: "حدث خطأ — حاول مرة أخرى.",
+    "e_push-off": "التذكيرات غير مفعّلة في النادي بعد.",
+    "e_push-refused": "جوالك رفض الإشعارات — فعّلها لهذا الموقع من الإعدادات.",
+    "e_bad-endpoint": "لا يمكن تذكير هذا المتصفح — جرّب من التطبيق.",
     e_offline: "لا يوجد اتصال — تحقق من الشبكة.",
     e_server: "الخادم واجه مشكلة — حاول بعد قليل.",
     "e_bad-login": "البريد أو كلمة المرور غير صحيحة.",
@@ -908,6 +917,9 @@ const STRINGS = {
     aIgShow: "أظهر إنستقرامي على بطاقتي",
     aWeekCode: "كود هذا الأسبوع",
     aNoCode: "ما بقي شيء هذا الأسبوع لعرض كود له.",
+    aRemind: "التذكيرات",
+    aRemindOn: "ذكّرني قبل الحصة اللي سجلت فيها",
+    aRemindHint: "إشعار واحد قبل البداية بساعة تقريباً. فقط للحصص اللي حطيت اسمك فيها.",
     aVoid: "إلغاء",
     aVoidAsk: "نلغي حضور {name}؟ نقاط الحصة تروح معه.",
     rCheckin: "+{n} لـ {name}",

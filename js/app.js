@@ -259,6 +259,96 @@ function voidButton(into, row) {
   return btn;
 }
 
+/* ---------- reminders ------------------------------------------------------
+
+   An hour before a session they are down for, on the phone in their pocket.
+   The switch is the whole of it: saying yes asks the browser for permission,
+   subscribes with the club's public key and hands the endpoint over; saying
+   no takes the row back off. Nothing is remembered on this device — the
+   browser's own subscription is the state, so a phone that was wiped or a
+   permission that was revoked in Settings shows as off, which is the truth.
+   ------------------------------------------------------------------------- */
+
+/* The applicationServerKey the browser wants is bytes, not the base64url the
+   club hands out. */
+function keyBytes(base64url) {
+  const pad = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(pad + "===".slice((pad.length + 3) % 4));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+function remindCard() {
+  // Not offered where it cannot work: iOS before 16.4, a private window, a
+  // desktop browser with push switched off. An athlete meeting a switch that
+  // does nothing is worse than not meeting one.
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return null;
+  }
+  const box = el("input", { type: "checkbox", id: "f-remind" });
+  const note = el("p", { class: "muted small" }, t("aRemindHint"));
+  const card = el(
+    "div",
+    { class: "card pad stack" },
+    el("h3", {}, t("aRemind")),
+    el("label", { class: "sw", for: "f-remind" }, box, el("span", {}, t("aRemindOn"))),
+    note
+  );
+
+  // What the browser says is the state, not what the club last heard.
+  navigator.serviceWorker.ready
+    .then((reg) => reg.pushManager.getSubscription())
+    .then((sub) => {
+      box.checked = !!sub && Notification.permission === "granted";
+    })
+    .catch(() => {});
+
+  box.addEventListener("change", () => {
+    const wanted = box.checked;
+    box.disabled = true;
+    (wanted ? remindOn() : remindOff())
+      .then(() => {
+        note.textContent = t("aRemindHint");
+        toast(t("aSaved"));
+      })
+      .catch((e) => {
+        box.checked = !wanted;
+        note.textContent = errorText(e);
+      })
+      .finally(() => {
+        box.disabled = false;
+      });
+  });
+  return card;
+}
+
+async function remindOn() {
+  // The key first: a club with no VAPID secrets answers push-off, and asking
+  // for permission before finding that out spends the one prompt a browser
+  // gives you on nothing.
+  const d = await API.post("/api/push", { action: "key" });
+  if (Notification.permission !== "granted") {
+    const asked = await Notification.requestPermission();
+    if (asked !== "granted") throw new Error("push-refused");
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub =
+    (await reg.pushManager.getSubscription()) ||
+    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(d.key) }));
+  await API.post("/api/push", { action: "subscribe", endpoint: sub.endpoint });
+}
+
+async function remindOff() {
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return;
+  // The club is told first: a browser that has already forgotten the
+  // subscription cannot tell us which endpoint to drop.
+  await API.post("/api/push", { action: "unsubscribe", endpoint: sub.endpoint }).catch(() => {});
+  await sub.unsubscribe();
+}
+
 /* ---------- the badge in the corner, and what it opens -------------------- */
 
 /** Their own face, top corner, opposite the logo. Opens the Me sheet. */
@@ -2374,6 +2464,7 @@ SCREENS.me = function (args, user) {
           el("div", { class: "row-wrap" }, el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")))
         )
       : null,
+    remindCard(),
     // Nothing is gated on this — signups are open and mail may never be
     // configured — so it asks once, here, where someone came to change
     // their own details anyway.

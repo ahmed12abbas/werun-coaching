@@ -108,6 +108,7 @@ import { adminProducts, adminOrders } from "./routes/shop.js";
 import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 import { coachRota } from "./routes/rota.js";
 import { signups } from "./routes/signups.js";
+import { push, pushNext } from "./routes/push.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -141,6 +142,7 @@ const POST = {
   "/api/admin/schedule-change": adminScheduleChange,
   "/api/coach/rota": coachRota,
   "/api/signups": signups,
+  "/api/push": push,
 };
 const GET = {
   "/api/tips": tips,
@@ -153,6 +155,7 @@ const GET = {
   "/api/feed": feed,
   "/api/store": store,
   "/api/store/order": order,
+  "/api/push/next": pushNext,
 };
 
 /* What every answer carries, static file and API alike.

@@ -86,3 +86,58 @@ async function staleWhileRevalidate(req, cacheName) {
     .catch(() => kept); // offline: whatever is on the shelf, or nothing
   return kept || fresh;
 }
+
+/* ---------- the reminder --------------------------------------------------
+
+   The push carries nothing (see _worker.js/lib/push.js), so the first thing
+   this does is ask the club what to say — with the athlete's own cookie, on
+   their own phone. A session called off in the meantime therefore says
+   nothing at all rather than sending people to a car park.
+
+   A push event must end in a notification or the browser shows its own "this
+   site was updated in the background", so the fallback is not optional: if
+   the club cannot be reached, say the plain thing.
+   ------------------------------------------------------------------------- */
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(
+    fetch("/api/push/next", { headers: { accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const s = d && d.session;
+        if (!s) return null; // called off, or nothing of theirs is near
+        return self.registration.showNotification(s.title, {
+          body: s.body,
+          icon: "/assets/logo.png",
+          badge: "/assets/favicon.svg",
+          tag: "werun-soon", // one session, one notification, however many knocks
+          data: { url: s.url || "/app#/home" },
+        });
+      })
+      .catch(() =>
+        self.registration.showNotification("WE RUN", {
+          body: "Your session is coming up.",
+          icon: "/assets/logo.png",
+          tag: "werun-soon",
+          data: { url: "/app#/home" },
+        })
+      )
+  );
+});
+
+/* Tapping it lands on the app that is already open, if one is. */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/app#/home";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((all) => {
+      for (const client of all) {
+        if (client.url.includes("/app") && client.focus) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
