@@ -28,6 +28,8 @@
                                   published                        (logged in)
      GET  /api/session?id=      — one session, payload and all (logged in)
      POST /api/checkin          — a scanned code, into points        (logged in)
+     POST /api/signups          — put my name down for a session, or take it
+                                  off again                         (logged in)
      GET  /api/points/me        — total, streak, history             (logged in)
      GET  /api/points/board     — the club leaderboard               (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
@@ -105,6 +107,7 @@ import { stripeWebhook } from "./routes/stripe.js";
 import { adminProducts, adminOrders } from "./routes/shop.js";
 import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 import { coachRota } from "./routes/rota.js";
+import { signups } from "./routes/signups.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -137,6 +140,7 @@ const POST = {
   "/api/admin/schedule": adminSchedule,
   "/api/admin/schedule-change": adminScheduleChange,
   "/api/coach/rota": coachRota,
+  "/api/signups": signups,
 };
 const GET = {
   "/api/tips": tips,

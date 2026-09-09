@@ -36,6 +36,15 @@ const AVATARS = [
 ];
 const cleanAvatar = (s) => (AVATARS.includes(String(s || "")) ? String(s) : "");
 
+/* Sessions a week to aim for. The club runs ten, so anything above that is
+   a typo rather than an ambition, and nought is not a goal — an athlete who
+   wants no target simply stops looking at the bar. */
+function cleanGoal(v) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n < 1 || n > 10) return undefined; // undefined = refuse
+  return n;
+}
+
 /* A birth year, or nothing. The bounds are the ones a person could
    plausibly have: a typo of 1090 or 2190 is not a runner. */
 function cleanYear(v) {
@@ -197,6 +206,11 @@ export const profile = withUser(async (request, env, user) => {
   const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
   if (birthYear === undefined) return json({ error: "bad-year" }, 400);
   const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
+  // Not `user.week_goal` on its own: before 0012 there is no column to read
+  // back, and undefined there would look exactly like a refused number.
+  const goal =
+    body.week_goal !== undefined ? cleanGoal(body.week_goal) : user.week_goal == null ? 3 : user.week_goal;
+  if (goal === undefined) return json({ error: "bad-goal" }, 400);
 
   // Only the columns this database actually has: 0006 and 0007 are applied by
   // hand here, so between a deploy and its migration the name and the language
@@ -218,6 +232,11 @@ export const profile = withUser(async (request, env, user) => {
     sets.push("avatar = ?");
     vals.push(avatar);
     saved.avatar = avatar;
+  }
+  if (await hasColumn(env, "users", "week_goal")) {
+    sets.push("week_goal = ?");
+    vals.push(goal);
+    saved.week_goal = goal;
   }
   await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
     .bind(...vals, user.id)

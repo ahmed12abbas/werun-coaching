@@ -518,6 +518,25 @@ const STRINGS = {
     aScanDenied: "The camera is blocked. Allow it in your browser settings, or scan the code with your phone's camera app.",
     aScanWrong: "That isn't a WE RUN check-in code — still looking.",
     aClose: "Close",
+
+    /* the app: home, and what you are down for */
+    navHome: "Home",
+    aMySessions: "You're going",
+    aOpenSessions: "Open to join",
+    aNoneDown: "You haven't put your name down for anything this week.",
+    aNoneOpen: "Nothing else left this week.",
+    aRegister: "I'm coming",
+    aCancelReg: "Can't make it",
+    aRegistered: "You are down for it",
+    aCancelled: "Taken off",
+    aGoalHit: "Goal met this week — nice running.",
+    aGoalLeft: "{n} more to hit your goal.",
+    aGoal: "Sessions a week",
+    aGoalHint: "Your own target. Nobody else sees it.",
+    "e_bad-goal": "Pick a number between 1 and 10.",
+    "e_no-entry": "That session isn't on the plan any more.",
+    "e_bad-date": "That date is too far off.",
+    "e_no-table": "That isn't switched on yet — try again in a little while.",
   },
 
   ar: {
@@ -1015,6 +1034,25 @@ const STRINGS = {
     aScanDenied: "الكاميرا محجوبة. اسمح لها من إعدادات المتصفح، أو امسح الكود بكاميرا جوالك.",
     aScanWrong: "هذا مو كود حضور WE RUN — لسه ندوّر.",
     aClose: "إغلاق",
+
+    /* the app: الرئيسية والتسجيل في الجلسات */
+    navHome: "الرئيسية",
+    aMySessions: "أنت مسجّل",
+    aOpenSessions: "متاحة للتسجيل",
+    aNoneDown: "ما سجّلت في أي جلسة هذا الأسبوع.",
+    aNoneOpen: "ما بقي شيء آخر هذا الأسبوع.",
+    aRegister: "سجّلني",
+    aCancelReg: "ما أقدر",
+    aRegistered: "سجّلناك",
+    aCancelled: "شلنا اسمك",
+    aGoalHit: "وصلت هدفك هذا الأسبوع — أحسنت.",
+    aGoalLeft: "باقي {n} للوصول لهدفك.",
+    aGoal: "جلسات في الأسبوع",
+    aGoalHint: "هدفك أنت. ما يشوفه أحد غيرك.",
+    "e_bad-goal": "اختر رقماً بين 1 و 10.",
+    "e_no-entry": "هذه الجلسة ما عادت ضمن الخطة.",
+    "e_bad-date": "هذا التاريخ بعيد جداً.",
+    "e_no-table": "هذه الميزة ما فُعّلت بعد — حاول بعد قليل.",
   },
 };
 

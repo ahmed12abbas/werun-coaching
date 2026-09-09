@@ -5,6 +5,8 @@
 
    One page, hash routes:
      #/login  #/signup            anyone
+     #/home                       where the app opens: this week against your
+                                  goal, what you are down for, what is left
      #/week   #/week/2026-09-07   the plan, one week at a time   (logged in)
      #/plan/<slot>/<date>         one standing session, at a glance
      #/session/<id>               one session, in full
@@ -15,7 +17,10 @@
      #/reset  #/reset/<token>     ask for a new password, then set it
      #/store                      the club shop
      #/order/<id>                 where Stripe sends them back to
-     #/me                         name, language, password, log out
+     #/me                         name, language, password, log out — normally
+                                  opened as a sheet from the badge in the
+                                  corner, and still its own address for the
+                                  links that point at it
 
    Everything visible goes through t() in js/i18n.js. The header comes from
    brandBar() like the link page, and its language and theme toggles call
@@ -75,10 +80,10 @@ function takeCheckin() {
   }
 }
 
-/** After a login, go where they were headed rather than to the week. */
+/** After a login, go where they were headed rather than to the home screen. */
 function afterLogin() {
   const pending = takeCheckin();
-  go(pending ? "c/" + pending : "week");
+  go(pending ? "c/" + pending : "home");
 }
 
 function render() {
@@ -97,11 +102,15 @@ function render() {
   }
   // verify and reset are reachable logged in as well as out: an athlete who
   // is already signed in still clicks the link in their mail.
-  if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("week");
+  if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("home");
 
   app.textContent = "";
   document.title = "WE RUN Club";
-  app.append(brandBar(null, appBoot));
+  closeMe();
+  // The badge in the corner, opposite the logo — so it mirrors with the page
+  // when the language does. Me is a sheet over whatever you were reading
+  // rather than a tab you leave the club to visit.
+  app.append(brandBar(user ? meBadge(user) : null, appBoot));
   if (user) app.append(appNav(r.name));
 
   const banner = announcement();
@@ -124,7 +133,7 @@ function render() {
   }
 
   // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
-  const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.week;
+  const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.home;
   app.append(screen(r.args, user));
   appendFoot(app, r.name);
 }
@@ -156,16 +165,70 @@ function appNav(current) {
     el("a", { href: "#/" + name, "aria-current": current === name ? "page" : null }, label);
   // "Week" rather than "This week" here: with five tabs on a phone the long
   // label is what pushes the row onto two lines.
+  //
+  // Me is not among them: it is the badge in the corner, because an account
+  // screen is somewhere you dip into and come back from, and the tab it used
+  // to hold is what the home screen has now.
   return el(
     "nav",
     { class: "appnav" },
+    link("home", t("navHome")),
     link("week", t("navWeekShort")),
     link("feed", t("navFeed2")),
     link("points", t("navPointsShort")),
     // Only when there is a shop behind it.
-    Auth.club.store ? link("store", t("navStore")) : null,
-    link("me", t("navMe"))
+    Auth.club.store ? link("store", t("navStore")) : null
   );
+}
+
+/* ---------- the badge in the corner, and what it opens -------------------- */
+
+/** Their own face, top corner, opposite the logo. Opens the Me sheet. */
+function meBadge(user) {
+  return el(
+    "button",
+    { class: "me-badge", type: "button", title: t("navMe"), "aria-label": t("navMe"), onclick: openMe },
+    avatarNode(user.avatar, user.name, "sm")
+  );
+}
+
+/* The Me screen, over the page rather than instead of it.
+
+   The very same node SCREENS.me builds — there is one account screen, and a
+   second copy of it kept in step by hand is the thing that goes wrong. The
+   route stays too, for #/me links and for maintenance, where an athlete must
+   be able to log out of a club that is mid-repair. */
+let meSheet = null;
+
+function closeMe() {
+  if (!meSheet) return;
+  meSheet.remove();
+  document.removeEventListener("keydown", meKey);
+  meSheet = null;
+}
+
+const meKey = (e) => {
+  if (e.key === "Escape") closeMe();
+};
+
+function openMe() {
+  const user = Auth.user;
+  if (!user) return go("login");
+  if (meSheet) return closeMe(); // a second tap on the badge puts it away
+  const card = el(
+    "div",
+    { class: "sheet-card", role: "dialog", "aria-modal": "true", "aria-label": t("navMe") },
+    el(
+      "div",
+      { class: "sheet-head" },
+      el("span", { class: "sheet-grip", "aria-hidden": "true" }),
+      el("button", { class: "btn sm", type: "button", onclick: closeMe }, t("aClose"))
+    ),
+    SCREENS.me([], user)
+  );
+  meSheet = el("div", { class: "sheet", onclick: (e) => { if (e.target === meSheet) closeMe(); } }, card);
+  document.body.append(meSheet);
+  document.addEventListener("keydown", meKey);
 }
 
 /* ---------- small parts -------------------------------------------------- */
@@ -380,6 +443,184 @@ SCREENS.signup = function () {
     el("p", { class: "switch-link" }, t("aHaveAccount") + " ", el("a", { href: "#/login" }, t("aLogin")))
   );
 };
+
+/* ---------- home ----------------------------------------------------------
+
+   Where the app opens, and the three questions an athlete has on a Tuesday
+   morning, in the order they have them: how am I doing this week, what am I
+   down for, and what is left that I could still join.
+
+   One request. /api/week already merges the standing pattern, the changes,
+   the published sessions, whether this athlete checked in and now whether
+   they have put their name down — so the home screen is that week read three
+   ways rather than three endpoints of its own.
+   ------------------------------------------------------------------------- */
+
+SCREENS.home = function (args, user) {
+  const start = localISO(weekStartOf(new Date()));
+  const today = localISO(new Date());
+  const box = el(
+    "div",
+    { class: "stack" },
+    el("div", { class: "card pad" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })))
+  );
+
+  API.get("/api/week?start=" + start)
+    .then((data) => {
+      let done = 0;
+      const ahead = [];
+      for (const d of data.days || []) {
+        for (const it of d.items || []) {
+          if (it.checked_in) done++;
+          if (it.cancelled || d.date < today) continue;
+          // This morning's session, two hours after it started, is behind
+          // them however much of today is left.
+          const shuts = closesTime(it, d.date);
+          if (shuts !== null && Date.now() > shuts) continue;
+          ahead.push({ it: it, date: d.date });
+        }
+      }
+      box.textContent = "";
+      box.append(
+        goalCard(done, user),
+        homeList("aMySessions", ahead.filter((x) => x.it.registered), "aNoneDown"),
+        homeList("aOpenSessions", ahead.filter((x) => !x.it.registered), "aNoneOpen")
+      );
+      startCountdowns();
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+
+  return box;
+};
+
+/* Sessions run against sessions meant. The pips rather than a bar, because
+   three of five is a thing you count at a glance and 60% is not; a week that
+   went past the goal grows a pip rather than overflowing. */
+function goalCard(done, user) {
+  const goal = Math.max(1, Number(user.week_goal) || 3);
+  const pips = el("div", { class: "pips" });
+  for (let i = 0; i < Math.max(goal, done); i++) pips.append(el("span", { class: "pip" + (i < done ? " on" : "") }));
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el(
+      "div",
+      { class: "goal-head" },
+      el("h2", { class: "grow" }, t("aThisWeek")),
+      // Two numbers and a slash read backwards in an Arabic line otherwise.
+      el("span", { class: "goal-n num", dir: "ltr" }, done + " / " + goal)
+    ),
+    pips,
+    el("p", { class: "muted small" }, done >= goal ? t("aGoalHit") : t("aGoalLeft", { n: goal - done }))
+  );
+}
+
+function homeList(titleKey, rows, emptyKey) {
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("h3", {}, t(titleKey)),
+    rows.length ? el("div", { class: "hrows" }, rows.map(homeRow)) : el("p", { class: "empty" }, t(emptyKey))
+  );
+}
+
+/** The way in to whatever a row is: a workout, or a standing slot's summary. */
+const openItem = (item, date) =>
+  go(item.kind === "session" ? "session/" + item.id : "plan/" + item.schedule_id + "/" + date);
+
+function homeRow(x) {
+  const it = x.it;
+  const day = new Date(x.date + "T00:00:00");
+  const place = side(it, "place");
+  const what = side(it, "desc");
+
+  // No coach name here. The home screen is the athlete's own three lines —
+  // where, what it is worth, how long until it starts — and who is taking it
+  // is the same name on nearly every row of the week; it is on the session's
+  // own card a tap away, where it means something.
+  const meta = el(
+    "div",
+    { class: "slot-meta" },
+    place ? el("span", { class: "place" }, place) : null,
+    el("span", {}, t("aPts", { n: it.points }))
+  );
+  const soon = countdownPill(it, x.date);
+  if (soon) meta.append(soon);
+
+  return el(
+    "div",
+    { class: "hrow" },
+    el(
+      "div",
+      { class: "hrow-when" },
+      el("span", { class: "wd" }, day.toLocaleDateString(locale(), { weekday: "short" })),
+      el("span", { class: "num" }, prettyTime(it, x.date))
+    ),
+    el(
+      "div",
+      { class: "grow" },
+      el("button", { class: "hrow-title", type: "button", onclick: () => openItem(it, x.date) }, side(it, "title")),
+      what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
+      meta
+    ),
+    homeActions(x)
+  );
+}
+
+/* What you can do about a row, from where you stand: nothing once you have
+   scanned, the code and a way out once you are down for it, and otherwise
+   the one tap that puts you down. */
+function homeActions(x) {
+  const it = x.it;
+  if (it.checked_in) return el("span", { class: "tag done" }, t("aCheckedIn"));
+
+  if (!it.registered) return el("div", { class: "hrow-do" }, signupButton(x, true));
+
+  const opens = opensTime(it, x.date);
+  const shuts = closesTime(it, x.date);
+  const live = opens !== null && shuts !== null && Date.now() >= opens && Date.now() <= shuts;
+  return el(
+    "div",
+    { class: "hrow-do" },
+    // The same scan the session screen offers, off until the code is live —
+    // the Worker refuses a code outside the window either way.
+    el(
+      "button",
+      {
+        class: "btn sm primary",
+        type: "button",
+        disabled: !live,
+        onclick: () => Scan.open((c) => go("c/" + c.session + "/" + c.slot + "/" + c.sig)),
+      },
+      t("aCheckIn")
+    ),
+    signupButton(x, false)
+  );
+}
+
+/* Putting a name down, and taking it off again. Nothing to offer on a session
+   the coach opened outside the standing week: it has no slot to sign against,
+   and turning up to it was never something you said in advance. */
+function signupButton(x, on) {
+  if (!x.it.schedule_id) return null;
+  const btn = el("button", { class: "btn sm" + (on ? " primary" : ""), type: "button" }, t(on ? "aRegister" : "aCancelReg"));
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    API.post("/api/signups", { action: on ? "join" : "leave", schedule_id: x.it.schedule_id, date: x.date })
+      .then(() => {
+        toast(t(on ? "aRegistered" : "aCancelled"));
+        render();
+      })
+      .catch((e) => {
+        toast(errorText(e));
+        btn.disabled = false;
+      });
+  });
+  return btn;
+}
 
 /* The week: seven cards, Monday first, the coach's sessions on the days
    they happen. Today is outlined; a session is a button into its detail. */
@@ -1605,6 +1846,12 @@ SCREENS.me = function (args, user) {
   const gender = genderSelect(user.gender);
   const age = ageInput(user.birth_year);
   const avatar = avatarPicker(user);
+  // What the home screen counts against. The club runs ten sessions a week
+  // and nobody runs all ten, so the bounds are the ones the Worker keeps.
+  const goal = el("input", {
+    type: "number", id: "f-goal", inputmode: "numeric",
+    min: "1", max: "10", step: "1", value: String(user.week_goal || 3),
+  });
   const saveErr = el("p", { class: "form-err hidden" });
   const saveOk = el("p", { class: "form-ok hidden" });
   const saveBtn = el("button", { class: "btn primary", type: "submit" }, t("aSave"));
@@ -1640,6 +1887,7 @@ SCREENS.me = function (args, user) {
             gender: gender.value,
             birth_year: yearOfAge(age.value),
             avatar: avatar.value(),
+            week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
             saveOk.classList.remove("hidden");
@@ -1652,6 +1900,7 @@ SCREENS.me = function (args, user) {
     field("aName", name),
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
+    field("aGoal", goal, t("aGoalHint")),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),
     saveErr,

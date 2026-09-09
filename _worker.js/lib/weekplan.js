@@ -88,6 +88,22 @@ export async function loadWeek(env, from, to, userId) {
     console.error("week: no standing schedule yet (" + (e && e.message) + ")");
   }
 
+  // Which of them this athlete has said they are coming to. Its own try
+  // rather than the one above: session_signups (0012) is younger than the
+  // standing week, so a database between the two must still draw the week —
+  // with nobody signed up rather than not at all.
+  let signups = [];
+  try {
+    const s = await env.DB.prepare(
+      "SELECT schedule_id, date FROM session_signups WHERE user_id = ? AND date BETWEEN ? AND ?"
+    )
+      .bind(userId || "", from, to)
+      .all();
+    signups = s.results || [];
+  } catch (e) {
+    console.error("week: no session_signups yet (" + (e && e.message) + ")");
+  }
+
   // Outside the try above on purpose: `users` has always been there, and a
   // database still waiting for the standing-week migration should still put
   // a name on the sessions the coach has published.
@@ -96,6 +112,7 @@ export async function loadWeek(env, from, to, userId) {
     changes: changes,
     published: published.results || [],
     nearby: nearby,
+    signups: signups,
     coaches: await coachRoster(env),
     // The club's check-in window, so buildDays can work each session's out
     // rather than read back what its row was written with.
@@ -232,6 +249,8 @@ export function buildDays(dates, data) {
   const slotById = new Map();
   for (const row of data.schedule) slotById.set(row.id, row);
 
+  const signed = new Set((data.signups || []).map((s) => s.schedule_id + "|" + s.date));
+
   // Every workout published near this week, grouped by the slot it belongs
   // to. Which one a given day gets is nearestSteps()'s business, per day.
   const stepsFor = new Map();
@@ -256,6 +275,14 @@ export function buildDays(dates, data) {
       .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id), names, data.window)));
 
     items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    // Whether this athlete has said they are coming. Set here rather than in
+    // the two item builders because it is the one field that depends on the
+    // date as well as the row, and both kinds answer it the same way: a
+    // published session keeps the slot it was published into, so a name put
+    // down on Tuesday's slot is still down once the workout goes out.
+    for (const item of items) {
+      item.registered = !!(item.schedule_id && signed.has(item.schedule_id + "|" + date));
+    }
     return { date: date, items: items };
   });
 }

@@ -311,3 +311,59 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 @media (prefers-reduced-motion:reduce){.steps-btn{animation:none}}
 /* Open, it has done its job and stops asking for attention. */
 .steps-btn.on{animation:none;background:var(--brand-soft);box-shadow:none}
+
+/* ---- the badge in the corner ----
+   Their own face, opposite the logo: at the left in English and at the right
+   in Arabic, because the brand bar is a flex row and the page turns round
+   with the language. It sits after the two toggles, which are pushed to the
+   end by `.brand-tools`. */
+.me-badge{padding:0;border:1px solid var(--line);background:var(--card);border-radius:50%;
+  cursor:pointer;line-height:0;display:block}
+.me-badge:hover{border-color:var(--brand)}
+.me-badge .avatar{width:34px;height:34px}
+.me-badge:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ---- Me, as a sheet ----
+   Over whatever they were reading rather than instead of it: an account
+   screen is somewhere you dip into and come straight back from. Up from the
+   bottom on a phone, which is where the thumb is and where the badge sends
+   them back to. */
+.sheet{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.5);animation:sheetIn .18s ease both}
+.sheet-card{width:100%;max-width:660px;max-height:92vh;overflow-y:auto;
+  background:var(--bg);border:1px solid var(--line);border-bottom:0;
+  border-radius:20px 20px 0 0;padding:10px 16px 26px;
+  animation:sheetUp .24s cubic-bezier(.34,1.2,.64,1) both}
+.sheet-head{display:flex;align-items:center;gap:10px;padding:2px 0 10px;
+  position:sticky;top:0;background:var(--bg);z-index:1}
+.sheet-grip{flex:1;height:4px;border-radius:2px;background:var(--line);max-width:52px;margin-inline:auto}
+@keyframes sheetIn{from{opacity:0}to{opacity:1}}
+@keyframes sheetUp{from{transform:translateY(22px)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.sheet,.sheet-card{animation:none}}
+
+/* ---- home ----
+   Sessions run against sessions meant, then the two lists: what you are down
+   for, and what is left. */
+.goal-head{display:flex;align-items:baseline;gap:10px}
+.goal-head h2{margin:0}
+.goal-n{font-family:var(--display);font-size:34px;font-weight:600;line-height:1;color:var(--brand)}
+.pips{display:flex;gap:6px;flex-wrap:wrap}
+.pip{flex:1 1 0;min-width:14px;height:10px;border-radius:5px;background:var(--line)}
+.pip.on{background:var(--brand)}
+
+.hrows{display:grid;gap:2px}
+.hrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:11px;padding:10px 0}
+.hrow+.hrow{border-top:1px solid var(--line)}
+.hrow .grow{flex:1 1 150px;min-width:0}
+.hrow-when{flex:none;width:66px;padding-top:2px}
+.hrow-when .wd{display:block;font-family:var(--display);font-size:17px;font-weight:600;
+  text-transform:uppercase;line-height:1.1;color:var(--muted)}
+.hrow-when .num{font-size:13.5px;color:var(--muted)}
+/* The title is the way into the session, so it is a button — and looks like
+   the line of text it replaced, not like a button. */
+.hrow-title{padding:0;border:0;background:none;font:inherit;font-weight:650;line-height:1.3;
+  color:inherit;text-align:start;cursor:pointer}
+.hrow-title:hover{color:var(--brand)}
+.hrow-do{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap}
+.hrow-do .btn{flex:1 1 auto}
+.hrow .tag{flex:none;font-size:12px;padding:2px 9px 0}

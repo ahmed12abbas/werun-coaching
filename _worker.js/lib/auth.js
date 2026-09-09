@@ -137,6 +137,11 @@ export const publicUser = (u) => ({
   // column is not there, and every coach still runs the club — which is what
   // adminUnknown() below decides, and this has to agree with it.
   is_admin: u.is_admin === undefined ? undefined : !!u.is_admin,
+  // How many sessions a week they are aiming for, which the home screen
+  // counts against. Until 0012 is applied the column is not there and three
+  // is the club's own week — the same answer the migration's default gives,
+  // so the number does not change under them when it lands.
+  week_goal: u.week_goal === null || u.week_goal === undefined ? 3 : u.week_goal,
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,
