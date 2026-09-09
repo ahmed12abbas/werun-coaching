@@ -23,7 +23,7 @@
 
 <script src="js/i18n.js?v=1f2342e8"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
-<script src="js/console.js?v=19d5de43"></script>
+<script src="js/console.js?v=ae9c3a13"></script>
 <script>
 "use strict";
 
@@ -41,21 +41,6 @@
    rota — a coach putting themselves down for a session, which is the one
    thing on it that is theirs to change.
    ========================================================================= */
-
-/* Sunday, not Monday: the club runs Sunday to Thursday and rests on Friday,
-   so a Monday-first week would cut its opening session off from the rest. */
-function weekDates() {
-  var d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - d.getDay());
-  var out = [];
-  for (var i = 0; i < 7; i++) {
-    out.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
-      "-" + String(d.getDate()).padStart(2, "0"));
-    d.setDate(d.getDate() + 1);
-  }
-  return out;
-}
 
 /* The heading, the line under it, the two toggles and the footer -- drawn
    rather than written into the HTML, because all of it changes language.
@@ -125,7 +110,7 @@ function weekCard(plan, sess, rota) {
   var body = el("div", {});
   card.append(body);
 
-  var dates = weekDates();
+  var dates = clubWeekDates();
   var standing = (plan.schedule || []).filter(function (e) { return e.active; });
   var changes = plan.changes || [];
   var sessions = sess.sessions || [];

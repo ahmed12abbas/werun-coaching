@@ -198,6 +198,48 @@ function consoleLocale() {
   return I18N.lang === "ar" ? "ar" : undefined;
 }
 
+/* ---- dates, arithmetic rather than wording ----
+
+   The formatting helpers below (stamp, dayStamp, dayHeading) turn an instant
+   into words. These two turn one date into another, and they live here for
+   the reason everything else does: there is no bundler, and a second copy is
+   a second thing to keep in step. Both pages had their own — admin.html had
+   three of the same weekday sum — and the club's Sunday-start week was
+   written out once per copy.
+
+   The date a session carries is a wall-clock day in one city, never an
+   instant, so this is the local Y-M-D and deliberately not toISOString(),
+   which would answer in UTC and hand back yesterday for anything before
+   03:00 Riyadh. */
+function isoDate(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+    "-" + String(d.getDate()).padStart(2, "0");
+}
+
+/* The next date a weekday falls on, today included — because the morning the
+   coach is at the track holding the phone up is the one they mean. */
+function nextOfWeekday(weekday) {
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
+  return isoDate(d);
+}
+
+/* The club's week, Sunday first: it runs Sunday to Thursday and rests on
+   Friday, so a Monday-first week would cut its opening session off from the
+   rest. The same rule clubWeekStart() keeps on the server. */
+function clubWeekDates() {
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  var out = [];
+  for (var i = 0; i < 7; i++) {
+    out.push(isoDate(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
 function stamp(iso) {
   if (!iso) return null;
   var d = new Date(iso);

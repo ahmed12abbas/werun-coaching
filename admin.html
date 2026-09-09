@@ -27,7 +27,7 @@
 <script src="js/model.js?v=4af345ea"></script>
 <script src="js/qr.js?v=0d34ae98"></script>
 <script src="js/sfx.js?v=e0221a23"></script>
-<script src="js/console.js?v=19d5de43"></script>
+<script src="js/console.js?v=ae9c3a13"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script>
 "use strict";
@@ -624,21 +624,13 @@ function sessionsCard() {
     { weekday: 2, at: "04:55" },
     { weekday: 4, at: "04:55" }
   ];
-  /** The next of that weekday, today included, as the date input writes it. */
-  function nextDate(weekday) {
-    var d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
-      String(d.getDate()).padStart(2, "0");
-  }
   var speedGo = el("button", { class: "btn primary" }, "Publish the speed session");
   var speedBox = el("div", { class: "row" });
   var speedDays = [];
   function paintSpeed(slots) {
     speedBox.textContent = "";
     speedDays = slots.map(function (s) {
-      var when = el("input", { type: "date", value: nextDate(s.weekday), style: "width:auto" });
+      var when = el("input", { type: "date", value: nextOfWeekday(s.weekday), style: "width:auto" });
       var tick = el("input", { type: "checkbox" });
       tick.checked = true;
       speedBox.append(el("label", { class: "speed-day" }, tick,
@@ -1287,17 +1279,6 @@ function ordersCard() {
    coach means by "this week we are at the other gate". */
 var WK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/* The date a standing session next falls on -- today, when today is its day,
-   because that is the morning the coach is at the track holding the phone up
-   and the whole point of the button. */
-function nextOccurrence(weekday) {
-  var d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
-    "-" + String(d.getDate()).padStart(2, "0");
-}
-
 function schedulePlanCard() {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" }, el("h2", {}, "The standing week")));
@@ -1389,16 +1370,8 @@ function schedulePlanCard() {
         el("button", { class: "btn", onclick: function () { editing = null; form(); } }, "New session")) : null));
   }
 
-  /* The next date a given weekday falls on, so "call one off" defaults to the
-     one the coach is most likely to mean. */
-  function nextDate(weekday) {
-    var d = new Date();
-    d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
-
   function changeOne(entry, row) {
-    var date = el("input", { type: "date", value: nextDate(entry.weekday) });
+    var date = el("input", { type: "date", value: nextOfWeekday(entry.weekday) });
     var at = el("input", { type: "time", value: entry.at });
     var place = el("input", { type: "text", maxlength: 100, placeholder: entry.place_en || "somewhere else" });
     var note = el("input", { type: "text", maxlength: 200, placeholder: "Meeting at the far gate" });
@@ -1487,7 +1460,7 @@ function schedulePlanCard() {
           var was = codeBtn.textContent;
           codeBtn.disabled = true;
           codeBtn.textContent = "...";
-          api("/api/admin/sessions", { action: "open", schedule_id: e.id, date: nextOccurrence(e.weekday) })
+          api("/api/admin/sessions", { action: "open", schedule_id: e.id, date: nextOfWeekday(e.weekday) })
             .then(function (d) { qrScreen(d.session); })
             ["catch"](function (er) { row.append(el("p", { class: "err" }, er.message)); })
             .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
