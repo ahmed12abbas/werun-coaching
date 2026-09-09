@@ -71,12 +71,33 @@ export const session = withMember(async (request, env, user) => {
     .first();
   if (!row) return json({ error: "no-session" }, 404);
 
+  // Has this athlete said they are coming? The signup is against the standing
+  // slot and the date, not the session row — see migrations/0012_signups.sql —
+  // so a slot the workout was published into keeps whatever was said before
+  // it went out. Wrapped, like every other read of a table younger than the
+  // code: a database between releases still draws the session.
+  let registered = false;
+  if (row.schedule_id) {
+    try {
+      const s = await env.DB.prepare(
+        "SELECT 1 AS yes FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?"
+      )
+        .bind(row.schedule_id, row.date, user.id)
+        .first();
+      registered = !!s;
+    } catch (e) {
+      console.error("session: no session_signups yet (" + (e && e.message) + ")");
+    }
+  }
+
   const w = windowFor(row, await windowMinutes(env));
   return json({
     session: {
       id: row.id,
       name: row.name,
       date: row.date,
+      schedule_id: row.schedule_id || null,
+      registered: registered,
       day: row.day,
       payload: row.payload,
       place_en: row.place_en || "",

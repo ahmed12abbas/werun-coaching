@@ -188,12 +188,10 @@ async function itemOn(athlete, slotId, date) {
   const mine = "Marathon in March " + stamp;
   await amal.call("POST", "/api/auth/profile", { name: "Amal", bio: mine, bio_hidden: false });
 
-  /* An hour and a half ago: still inside the check-in window (it opens an
-     hour before and shuts two hours after), and comfortably older than the
-     session tools/smoke-checkin.js publishes a minute back. A session with a
-     check-in on it cannot be deleted — that is the club's rule and that suite
-     asserts it — so this row outlives the test, and a newer one would sit at
-     the top of every other athlete's streak and break it. */
+  /* An hour and a half ago: still inside the check-in window, which opens an
+     hour before the start and shuts two hours after. Cleaned up at the end of
+     the test — a session left lying about with a start in the recent past
+     sits at the top of every other athlete's streak and breaks it. */
   const startsAt = new Date(Date.now() - 90 * 60000);
   const today = iso(startsAt);
   r = await admin("/api/admin/sessions", {
@@ -225,15 +223,22 @@ async function itemOn(athlete, slotId, date) {
   r = await amal.call("GET", "/api/auth/me");
   check("…and she still has her own line", r.data.user.bio === mine, r.data.user);
 
-  /* Give the points back on the way out. The session itself stays — see the
-     note on startsAt above — but nobody should be left holding points for a
-     session that only existed to prove a checkbox. */
+  /* The documented way to remove a session somebody was counted at: void the
+     check-ins, which hands the points back as a reversing row, and then it
+     will go. A live check-in still holds it, which is the point of the
+     guard — nobody's points vanish quietly. */
+  r = await admin("/api/admin/sessions", { action: "delete", id: sessionId });
+  check("a session with a live check-in will not delete", r.status === 409 && r.data.error === "has-checkins", r);
+
   r = await admin("/api/admin/sessions", { action: "roster", id: sessionId });
   for (const entry of r.data.roster || []) {
     await admin("/api/admin/sessions", { action: "void", id: entry.id });
   }
   r = await amal.call("GET", "/api/points/me");
-  check("the test points are handed back", r.status === 200 && r.data.total === 0, r.data);
+  check("voiding hands the points back", r.status === 200 && r.data.total === 0, r.data);
+
+  r = await admin("/api/admin/sessions", { action: "delete", id: sessionId });
+  check("…and then the session can go", r.status === 200, r);
 
   /* Clean up: the slot the signups hang off. */
   r = await admin("/api/admin/schedule", { action: "delete", id: slot.id });

@@ -392,3 +392,17 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    points screen, and allowed to wrap onto a second line. */
 .avrow-me .sw{font-size:12.5px;font-weight:600;margin-top:7px;align-items:flex-start}
 .avrow-me .sw input[type="checkbox"]{margin-top:1px}
+
+/* ---- "I'm coming", on a session's own card ----
+   The button in the corner of the head, and their own face in its place once
+   they have said yes — ringed, so a badge that is a state reads as one and
+   not as decoration. */
+.plan-head .btn,.plan-head .signup-on{flex:none}
+.signup-on{flex:none;padding:2px;border:2px solid var(--brand);background:var(--brand-soft);
+  border-radius:50%;cursor:pointer;line-height:0}
+.signup-on:hover{background:var(--brand)}
+.signup-on .avatar{width:32px;height:32px;background:transparent}
+.signup-on:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+/* The points tag and the control stack in the check-in strip, which is a row
+   of two and would otherwise put them side by side and squeeze the title. */
+.ci-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}

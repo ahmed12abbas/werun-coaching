@@ -618,19 +618,44 @@ function homeActions(x) {
 function signupButton(x, on) {
   if (!x.it.schedule_id) return null;
   const btn = el("button", { class: "btn sm" + (on ? " primary" : ""), type: "button" }, t(on ? "aRegister" : "aCancelReg"));
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    API.post("/api/signups", { action: on ? "join" : "leave", schedule_id: x.it.schedule_id, date: x.date })
-      .then(() => {
-        toast(t(on ? "aRegistered" : "aCancelled"));
-        render();
-      })
-      .catch((e) => {
-        toast(errorText(e));
-        btn.disabled = false;
-      });
-  });
+  btn.addEventListener("click", () => saveSignup(btn, x.it.schedule_id, x.date, on));
   return btn;
+}
+
+/* The one write behind every one of these buttons. Redraws the screen from
+   the server rather than patching the row it was tapped on: the home screen
+   moves it between two lists and a session card changes shape, and both are
+   the same answer read again. */
+function saveSignup(node, scheduleId, date, on) {
+  node.disabled = true;
+  API.post("/api/signups", { action: on ? "join" : "leave", schedule_id: scheduleId, date: date })
+    .then(() => {
+      toast(t(on ? "aRegistered" : "aCancelled"));
+      render();
+    })
+    .catch((e) => {
+      toast(errorText(e));
+      node.disabled = false;
+    });
+}
+
+/* The same choice, in the corner of a session's own card: "I'm coming", and
+   your own face once you are. It writes the row the home screen writes, so
+   the two can never disagree — and tapping the face takes the name off.
+   Nothing to offer on a session called off, or on one the coach opened
+   outside the standing week, which has no slot to sign against. */
+function signupControl(item, date) {
+  if (!item.schedule_id || item.cancelled) return null;
+  const on = !item.registered;
+  const node = item.registered
+    ? el(
+        "button",
+        { class: "signup-on", type: "button", title: t("aCancelReg"), "aria-label": t("aCancelReg") },
+        avatarNode(Auth.user.avatar, Auth.user.name, "sm")
+      )
+    : el("button", { class: "btn sm primary", type: "button" }, t("aRegister"));
+  node.addEventListener("click", () => saveSignup(node, item.schedule_id, date, on));
+  return node;
 }
 
 /* The week: seven cards, Monday first, the coach's sessions on the days
@@ -849,7 +874,8 @@ function planCard(item, date) {
     { class: "plan-head" },
     el("h2", {}, side(item, "title")),
     item.cancelled ? el("span", { class: "tag miss" }, t("aCalledOff"))
-      : item.moved ? el("span", { class: "tag open" }, t("aChanged")) : null
+      : item.moved ? el("span", { class: "tag open" }, t("aChanged")) : null,
+    signupControl(item, date)
   );
 
   const when = el(
@@ -1141,7 +1167,12 @@ function checkinCard(s) {
         whatLine,
         soon
       ),
-      el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points }))
+      el(
+        "div",
+        { class: "ci-side" },
+        el("span", { class: "tag " + (live ? "open" : "soon") }, t("aPts", { n: s.points })),
+        signupControl(s, s.date)
+      )
     ),
     joinButton(!live),
     s.payload ? stepsButton() : null

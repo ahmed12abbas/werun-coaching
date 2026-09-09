@@ -212,7 +212,13 @@ export async function adminSessions(request, env) {
     // people's points, and deleting it would take them away silently. Void
     // the check-ins first, deliberately, and then it can go.
     const id = String(body.id || "");
-    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM checkins WHERE session_id = ?").bind(id).first();
+    // Voided ones do not count: their points have already gone back as a
+    // reversing row, so there is nothing left to take away silently — which
+    // is what makes "void them first, then it can go" true rather than just
+    // written down.
+    const n = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM checkins WHERE session_id = ? AND voided_at IS NULL"
+    ).bind(id).first();
     if ((n && n.n) || 0) return json({ error: "has-checkins" }, 409);
     await env.DB.prepare("DELETE FROM club_sessions WHERE id = ?").bind(id).run();
     return json({ sessions: await sessionList(env) });
