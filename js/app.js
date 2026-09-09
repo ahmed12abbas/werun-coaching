@@ -2082,6 +2082,7 @@ SCREENS.feed = function () {
     .then((d) => {
       list.textContent = "";
       const tips = d.tips || [];
+      FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
       for (const tip of tips) list.append(tipCard(tip));
       for (const p of d.posts) list.append(postCard(p));
       if (!d.posts.length && !tips.length) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews"))));
@@ -2140,18 +2141,114 @@ function published(iso) {
 }
 
 function postCard(p) {
-  return el(
-    "article",
-    { class: "card pad stack post", dir: "auto" },
+  return reactable(
+    "post:" + p.id,
     el(
-      "div",
-      { class: "post-head" },
-      p.pinned ? el("span", { class: "tag open" }, t("aPinned")) : null,
-      published(p.published_at)
-    ),
-    el("h2", {}, side(p, "title")),
-    el("div", { class: "post-body" }, written(side(p, "body")))
+      "article",
+      { class: "card pad stack post", dir: "auto" },
+      el(
+        "div",
+        { class: "post-head" },
+        p.pinned ? el("span", { class: "tag open" }, t("aPinned")) : null,
+        published(p.published_at)
+      ),
+      el("h2", {}, side(p, "title")),
+      el("div", { class: "post-body" }, written(side(p, "body")))
+    )
   );
+}
+
+/* ---------- reactions ------------------------------------------------------
+
+   A double tap on a card opens three faces; one of them sticks, in the corner
+   of the card, with how many other people chose it. Tapping your own again
+   takes it back. Double tap rather than a button because the faces are not
+   what the news screen is for — they are what you do when something lands.
+   ------------------------------------------------------------------------- */
+
+const FACES = ["👍", "💜", "🔥"];
+let FEED_FACES = { counts: {}, mine: {} };
+
+/** The card, with its own corner of faces and the gesture that opens them. */
+function reactable(target, card) {
+  const corner = el("div", { class: "reacts" });
+  const draw = () => {
+    corner.textContent = "";
+    const counts = FEED_FACES.counts[target] || {};
+    const mine = FEED_FACES.mine[target] || null;
+    for (const face of FACES) {
+      if (!counts[face]) continue;
+      corner.append(
+        el(
+          "button",
+          {
+            class: "react" + (mine === face ? " mine" : ""),
+            type: "button",
+            onclick: (e) => {
+              e.stopPropagation();
+              react(target, face, draw);
+            },
+          },
+          face,
+          el("span", { class: "num" }, String(counts[face]))
+        )
+      );
+    }
+  };
+  draw();
+
+  const pick = () => {
+    if (card.querySelector(".react-pick")) return; // already open
+    const box = el(
+      "div",
+      { class: "react-pick" },
+      FACES.map((face) =>
+        el(
+          "button",
+          {
+            class: "react-big",
+            type: "button",
+            onclick: (e) => {
+              e.stopPropagation();
+              box.remove();
+              react(target, face, draw);
+            },
+          },
+          face
+        )
+      )
+    );
+    card.append(box);
+    // It closes itself: a picker left open on every card an athlete
+    // double-tapped past would be the screen filling up with faces.
+    setTimeout(() => box.remove(), 4000);
+  };
+
+  card.classList.add("reactable");
+  card.append(corner);
+  card.addEventListener("dblclick", pick);
+  // A phone sends no dblclick on some browsers, so two taps inside half a
+  // second count as one here too.
+  let last = 0;
+  card.addEventListener("touchend", () => {
+    const now = Date.now();
+    if (now - last < 500) pick();
+    last = now;
+  });
+  return card;
+}
+
+/* The server's answer is what is drawn — a reaction that did not save must
+   not sit on screen looking as though it did. */
+function react(target, face, draw) {
+  API.post("/api/reactions", { target: target, emoji: face })
+    .then((d) => {
+      FEED_FACES.counts[target] = d.counts || {};
+      if (d.mine) FEED_FACES.mine[target] = d.mine;
+      else delete FEED_FACES.mine[target];
+      draw();
+    })
+    .catch((e) => toast(errorText(e)));
 }
 
 /* The live article, shown here as well as beside the session — the same
@@ -2159,7 +2256,9 @@ function postCard(p) {
 function tipCard(tip) {
   const s = (tip[I18N.lang] && tip[I18N.lang].title ? tip[I18N.lang] : tip.en.title ? tip.en : tip.ar) || {};
   if (!s.title && !s.body) return el("div");
-  return el(
+  return reactable(
+    "tip:" + tip.id,
+    el(
     "article",
     { class: "card pad stack post tip", dir: "auto" },
     // The day it went up, not the day it was last touched: fixing a typo in
@@ -2176,6 +2275,7 @@ function tipCard(tip) {
       "div",
       { class: "sign-wrap" },
       el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))
+    )
     )
   );
 }

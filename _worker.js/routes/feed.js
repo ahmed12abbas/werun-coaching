@@ -10,6 +10,7 @@
 import { json, readBody } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
+import { reactionsFor } from "./reactions.js";
 import { getSetting } from "../lib/settings.js";
 
 const MAX = { title: 140, body: 9000, posts: 200, list: 40 };
@@ -74,9 +75,19 @@ export const feed = withMember(async (request, env, user) => {
     }
   }
 
+  const posts = (rows.results || []).map(publicPost);
+  // Every face on the screen in one read, keyed the way the page draws them.
+  const faces = await reactionsFor(
+    env,
+    user,
+    posts.map((p) => "post:" + p.id).concat(tips.map((a) => "tip:" + a.id))
+  );
+
   return json({
-    posts: (rows.results || []).map(publicPost),
+    posts: posts,
     tips: tips,
+    reactions: faces.counts,
+    my_reactions: faces.mine,
     whatsapp: await getSetting(env, "whatsapp_url"),
   });
 });

@@ -109,6 +109,7 @@ import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 import { coachRota } from "./routes/rota.js";
 import { signups } from "./routes/signups.js";
 import { push, pushNext } from "./routes/push.js";
+import { reactions } from "./routes/reactions.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -143,6 +144,7 @@ const POST = {
   "/api/coach/rota": coachRota,
   "/api/signups": signups,
   "/api/push": push,
+  "/api/reactions": reactions,
 };
 const GET = {
   "/api/tips": tips,

@@ -225,6 +225,24 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 @media (prefers-reduced-motion:reduce){.code-btn.hot{animation:none;
   box-shadow:0 0 0 1px var(--brand) inset,0 0 16px -5px var(--brand)}}
 
+/* Faces on a post. The corner they sit in is the one the card's date leaves
+   empty; the picker a double tap opens sits over it. */
+.reactable{position:relative}
+.reacts{position:absolute;top:10px;inset-inline-end:12px;display:flex;gap:6px}
+.react{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;font-size:14px;
+  line-height:1.4;border:1px solid var(--line);border-radius:999px;background:var(--bg);
+  color:var(--fg);cursor:pointer}
+.react.mine{border-color:var(--brand);background:var(--brand-soft)}
+.react .num{font-size:12.5px;color:var(--muted)}
+.react.mine .num{color:var(--brand)}
+.react-pick{position:absolute;top:6px;inset-inline-end:10px;display:flex;gap:4px;padding:4px;
+  background:var(--card);border:1px solid var(--line);border-radius:999px;
+  box-shadow:0 6px 20px -8px rgba(0,0,0,.5);animation:sheetIn .12s ease both;z-index:2}
+.react-big{font-size:22px;line-height:1;padding:5px 7px;border:0;border-radius:999px;
+  background:transparent;cursor:pointer}
+.react-big:hover{background:var(--brand-soft)}
+@media (prefers-reduced-motion:reduce){.react-pick{animation:none}}
+
 /* The code, in the sheet the coach opened it from. White behind the squares
    whatever the theme is: a camera reads black on white, and a dark card with
    a light QR on it is the one that will not scan. */
