@@ -382,3 +382,9 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    to a 78px circle centres into a wobble. */
 .avrow-me{gap:14px;align-items:flex-start}
 .avrow-me textarea{min-height:60px}
+
+/* Their line under their name on the board. Two lines at most: the club is a
+   list to scan, and 160 characters at this size is three. */
+.board-row .who{display:block}
+.board-bio{font-size:12.5px;font-weight:400;color:var(--muted);opacity:.8;line-height:1.35;margin-top:1px;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}

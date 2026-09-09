@@ -47,8 +47,12 @@ export const pointsBoard = withMember(async (request, env, user) => {
   // Until 0007 is applied there is no column to read, and everyone is on the
   // board as their initial — which is what an empty avatar means anyway.
   const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
+  // The line they wrote about themselves, under their name. Same guard, same
+  // reason: 0013 lands after the deploy that reads it, and a board that will
+  // not draw at all is a worse answer than a board without the lines.
+  const line = (await hasColumn(env, "users", "bio")) ? " u.bio," : " '' AS bio,";
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name," + face + " COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name," + face + line + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" +
@@ -61,6 +65,7 @@ export const pointsBoard = withMember(async (request, env, user) => {
     place: i + 1,
     name: r.name,
     avatar: r.avatar || "",
+    bio: r.bio || "",
     points: r.points,
     sessions: r.sessions,
     me: r.id === user.id,

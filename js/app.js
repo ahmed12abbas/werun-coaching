@@ -1794,7 +1794,15 @@ SCREENS.points = function () {
               { class: "board-row" + (r.me ? " me" : "") },
               el("span", { class: "place num" }, String(r.place)),
               avatarNode(r.avatar, r.name, "sm"),
-              el("span", { class: "who grow", dir: "auto" }, r.me ? t("aYouAre") : r.name),
+              // The name, and under it the line they wrote about themselves.
+              // This is the club looking at itself, so it is the one place a
+              // bio is worth anything — a row of names is a row of names.
+              el(
+                "div",
+                { class: "grow" },
+                el("span", { class: "who", dir: "auto" }, r.me ? t("aYouAre") : r.name),
+                r.bio ? el("div", { class: "board-bio", dir: "auto" }, r.bio) : null
+              ),
               el("span", { class: "pts num" }, String(r.points))
             )
           );
