@@ -15,7 +15,6 @@ const STRINGS = {
     dir: "ltr",
     /* chrome */
     coaching: "Coaching",
-    newSession: "New session",
     langLabel: "العربية",
     themeLight: "Light mode",
     themeDark: "Dark mode",
@@ -163,7 +162,6 @@ const STRINGS = {
     brokenTitle: "That link looks broken",
     brokenLead: "The session couldn't be read. Ask your coach to send it again — chat apps sometimes cut long links in half.",
     brokenCta: "Build a session instead",
-    copied: "Copied",
     fitFailed: "Could not build the file",
     downloaded: "Downloaded ",
 
@@ -214,10 +212,7 @@ const STRINGS = {
     /* the app: chrome */
     aLoading: "One moment…",
     aWorking: "Working…",
-    navWeek: "This week",
     navMe: "Me",
-    navPoints: "Points",
-    navFeed: "Feed",
 
     /* the app: join and log in */
     aLogin: "Log in",
@@ -236,8 +231,6 @@ const STRINGS = {
     aThisWeek: "This week",
     aPrevWeek: "Last week",
     aNextWeek: "Next week",
-    aRest: "Rest or easy run",
-    aNoSessions: "Nothing published for this week yet — the coach posts the sessions here.",
     aPts: "{n} pts",
     aCheckedIn: "Checked in",
     aOpenNow: "Check-in open",
@@ -246,7 +239,6 @@ const STRINGS = {
 
     /* the app: me */
     aHello: "Hello, {name}",
-    aAccount: "Account",
     aEmailFixed: "Your email is your login and can't be changed here.",
     aLang: "Language",
     aSave: "Save",
@@ -365,7 +357,6 @@ const STRINGS = {
     aSeePoints: "See your points",
     aWindowShut: "Check-in isn't open for this session.",
     aOpensAt: "Check-in opens {time}.",
-    aClosesAt: "Check-in closes {time}.",
     aClosedAt: "Check-in closed at {time}.",
     navPointsShort: "Points",
     aPoints: "Points",
@@ -409,7 +400,6 @@ const STRINGS = {
 
     /* the app: the feed */
     navFeed2: "News",
-    aFeed: "Club news",
     aNoNews: "Nothing from the coach yet.",
     aPinned: "Pinned",
     aCoachTip: "Coach Tips",
@@ -430,9 +420,7 @@ const STRINGS = {
     aResetTitle: "Set a new password",
     aResetLead: "Give us the email you joined with and we'll send a link.",
     aResetSent: "If that address has an account, a link is on its way. It works for one hour.",
-    aResetting: "Setting it…",
     aResetDone: "Done — log in with the new password.",
-    aResetBad: "That link has expired or has already been used. Ask for another.",
     aNewPassword: "New password",
     aBackToLogin: "Back to logging in",
     "e_bad-token": "That link has expired or has already been used.",
@@ -558,7 +546,6 @@ const STRINGS = {
     dir: "rtl",
     // The wordmark reads the same in both languages — it is part of the logo lockup.
     coaching: "Coaching",
-    newSession: "جلسة جديدة",
     langLabel: "English",
     themeLight: "الوضع الفاتح",
     themeDark: "الوضع الداكن",
@@ -699,7 +686,6 @@ const STRINGS = {
     brokenTitle: "يبدو أن الرابط تالف",
     brokenLead: "تعذّرت قراءة الجلسة. اطلب من مدربك إرسالها مرة أخرى — تطبيقات المحادثة تقص الروابط الطويلة أحيانًا.",
     brokenCta: "ابنِ جلسة بدلًا من ذلك",
-    copied: "تم النسخ",
     fitFailed: "تعذّر إنشاء الملف",
     downloaded: "تم تحميل ",
 
@@ -748,10 +734,7 @@ const STRINGS = {
     /* the app: chrome */
     aLoading: "لحظة…",
     aWorking: "جارٍ…",
-    navWeek: "هذا الأسبوع",
     navMe: "حسابي",
-    navPoints: "النقاط",
-    navFeed: "الأخبار",
 
     /* the app: join and log in */
     aLogin: "تسجيل الدخول",
@@ -770,8 +753,6 @@ const STRINGS = {
     aThisWeek: "هذا الأسبوع",
     aPrevWeek: "الأسبوع الماضي",
     aNextWeek: "الأسبوع القادم",
-    aRest: "راحة أو جري خفيف",
-    aNoSessions: "لم تُنشر جلسات لهذا الأسبوع بعد — الكوتش ينشرها هنا.",
     aPts: "{n} نقطة",
     aCheckedIn: "تم التسجيل",
     aOpenNow: "التسجيل مفتوح",
@@ -780,7 +761,6 @@ const STRINGS = {
 
     /* the app: me */
     aHello: "أهلاً {name}",
-    aAccount: "الحساب",
     aEmailFixed: "بريدك هو اسم الدخول ولا يتغير من هنا.",
     aLang: "اللغة",
     aSave: "حفظ",
@@ -896,7 +876,6 @@ const STRINGS = {
     aSeePoints: "شوف نقاطك",
     aWindowShut: "التسجيل غير مفتوح لهذه الجلسة.",
     aOpensAt: "التسجيل يفتح {time}.",
-    aClosesAt: "التسجيل يقفل {time}.",
     aClosedAt: "التسجيل أُقفل الساعة {time}.",
     navPointsShort: "النقاط",
     aPoints: "النقاط",
@@ -940,7 +919,6 @@ const STRINGS = {
 
     /* the app: الأخبار */
     navFeed2: "الأخبار",
-    aFeed: "أخبار النادي",
     aNoNews: "لا جديد من الكوتش بعد.",
     aPinned: "مثبّت",
     aCoachTip: "نصائح الكوتش",
@@ -961,9 +939,7 @@ const STRINGS = {
     aResetTitle: "تعيين كلمة مرور جديدة",
     aResetLead: "اكتب البريد الذي سجّلت به ونرسل لك رابطاً.",
     aResetSent: "إذا كان لهذا البريد حساب، فالرابط في طريقه إليك. صالح لمدة ساعة.",
-    aResetting: "جارٍ التعيين…",
     aResetDone: "تم — سجّل الدخول بكلمة المرور الجديدة.",
-    aResetBad: "انتهت صلاحية هذا الرابط أو استُخدم من قبل. اطلب واحداً آخر.",
     aNewPassword: "كلمة المرور الجديدة",
     aBackToLogin: "رجوع لتسجيل الدخول",
     "e_bad-token": "انتهت صلاحية هذا الرابط أو استُخدم من قبل.",

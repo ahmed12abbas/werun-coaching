@@ -288,16 +288,6 @@ function estimate(w) {
     exact: exact,
   };
 }
-/** Steps as the athlete experiences them, repeats expanded. */
-function flatSteps(w) {
-  const out = [];
-  for (const b of w.blocks) {
-    if (b.kind === "repeat") {
-      for (let i = 0; i < b.reps; i++) for (const s of b.steps) out.push(s);
-    } else out.push(b);
-  }
-  return out;
-}
 
 /* ---------- raw DEFLATE (RFC 1951) ---------------------------------------
    The link is rebuilt on every keystroke, so this has to be synchronous —
