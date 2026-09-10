@@ -256,24 +256,29 @@ function estimate(w) {
     return easyMetersFor(s.estSeconds);
   };
 
+  /** Time: as set, or — for anything that is not a timed step — only an estimate. */
+  const addTime = (s, times) => {
+    if (s.durType === "time") {
+      seconds += s.seconds * times;
+      return;
+    }
+    exact = false;
+    if (s.durType === "distance") {
+      // Derived from the target pace, when there is one.
+      if (s.target && s.target.kind === "pace") {
+        seconds += (s.meters / unit) * ((s.target.fast + s.target.slow) / 2) * times;
+      }
+      return;
+    }
+    // Lap-button step: only as good as the coach's estimate, if they gave one.
+    seconds += (s.estSeconds || 0) * times;
+  };
+
   const add = (s, times, inherited) => {
     steps += times;
     if (s.type === "work" && s.durType === "distance") workMeters += s.meters * times;
     else easyMeters += easyOf(s, inherited) * times;
-
-    if (s.durType === "time") {
-      seconds += s.seconds * times;
-    } else if (s.durType === "distance") {
-      if (s.target && s.target.kind === "pace") {
-        // Derived from the target pace, so the total is an estimate.
-        seconds += (s.meters / unit) * ((s.target.fast + s.target.slow) / 2) * times;
-      }
-      exact = false;
-    } else {
-      // Lap-button step: only as good as the coach's estimate, if they gave one.
-      seconds += (s.estSeconds || 0) * times;
-      exact = false;
-    }
+    addTime(s, times);
   };
 
   for (const b of w.blocks) {
@@ -689,13 +694,13 @@ function encodeWorkout(w) {
 }
 
 function decodeWorkout(payload) {
-  const json =
-    payload.slice(0, PAYLOAD_V1.length) === PAYLOAD_V1
-      ? new TextDecoder().decode(
-          inflateRaw(b64url.toBytes(payload.slice(PAYLOAD_V1.length)), linkDictBytes)
-        )
-      : b64url.decode(payload);
-  const d = JSON.parse(json);
+  // The JSON a link carries: deflated against the frozen dictionary behind a
+  // "1." since v1, bare base64 before that — and those still decode.
+  const payloadJson = (p) => {
+    if (p.slice(0, PAYLOAD_V1.length) !== PAYLOAD_V1) return b64url.decode(p);
+    return new TextDecoder().decode(inflateRaw(b64url.toBytes(p.slice(PAYLOAD_V1.length)), linkDictBytes));
+  };
+  const d = JSON.parse(payloadJson(payload));
   // How the step ends: a time or a distance when the link names one, the lap
   // button otherwise.
   const unpackDuration = (s, o) => {
@@ -742,8 +747,14 @@ function shareUrl(w) {
 /* ---------- plain-text version (for WhatsApp / the group chat) ------------- */
 
 function asText(w) {
-  const lines = [];
-  lines.push(w.name.toUpperCase());
+  // "About 45 min, ~8 km, 2 km of it hard". "of it hard" needs the total in
+  // front of it to refer to.
+  const aboutLine = (est) =>
+    t("txtAbout") + fmtDuration(est.seconds) +
+    (est.easyMeters ? ", ~" + fmtDistanceRough(est.totalMeters, w.units) : "") +
+    (est.workMeters ? ", " + fmtDistance(est.workMeters, w.units) + t("txtHard") : "");
+
+  const lines = [w.name.toUpperCase()];
   if (w.date) lines.push(prettyDate(w.date));
   lines.push("");
   const line = (s, prefix) => {
@@ -762,18 +773,8 @@ function asText(w) {
       lines.push(line(b, "- "));
     }
   }
-  const est = estimate(w);
-  lines.push("");
-  lines.push(
-    t("txtAbout") + fmtDuration(est.seconds) +
-      // "of it hard" needs the total in front of it to refer to.
-      (est.easyMeters ? ", ~" + fmtDistanceRough(est.totalMeters, w.units) : "") +
-      (est.workMeters ? ", " + fmtDistance(est.workMeters, w.units) + t("txtHard") : "")
-  );
-  if (w.note) {
-    lines.push("");
-    lines.push(w.note);
-  }
+  lines.push("", aboutLine(estimate(w)));
+  if (w.note) lines.push("", w.note);
   return lines.join("\n");
 }
 

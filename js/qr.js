@@ -158,11 +158,16 @@ function eccFor(data, version, level) {
     blocks.push({ data: chunk, ec: remainder(chunk, ec) });
   }
 
+  // The data column by column across the blocks — the first byte of each,
+  // then the second — skipping a block once it has run out, since the two
+  // block sizes can differ by one.
   const out = [];
-  const longest = Math.max(d1, d2);
-  for (let i = 0; i < longest; i++) {
-    for (const b of blocks) if (i < b.data.length) out.push(b.data[i]);
-  }
+  const dataColumns = (longest) => {
+    for (let i = 0; i < longest; i++) {
+      for (const b of blocks) if (i < b.data.length) out.push(b.data[i]);
+    }
+  };
+  dataColumns(Math.max(d1, d2));
   for (let i = 0; i < ec; i++) {
     for (const b of blocks) out.push(b.ec[i]);
   }
@@ -254,20 +259,24 @@ function reserveInfo(g, size, version) {
 
 /** The zigzag: two columns at a time, right to left, skipping column 6. */
 function placeData(g, size, bytes) {
-  let bit = 0;
   const total = bytes.length * 8;
+  // Bit n of the data, most significant first in each byte, and 0 once the
+  // data has run out.
+  const dataBit = (n) => (n < total ? (bytes[n >> 3] >>> (7 - (n % 8))) & 1 : 0);
+  let bit = 0;
+  // One module: the patterns are stepped over, anything else takes the next bit.
+  const put = (r, c) => {
+    if (g.fixed[r][c]) return;
+    g.grid[r][c] = dataBit(bit);
+    bit++;
+  };
   let up = true;
   for (let right = size - 1; right > 0; right -= 2) {
     if (right === 6) right = 5; // the vertical timing line is not a data column
     for (let step = 0; step < size; step++) {
       const r = up ? size - 1 - step : step;
-      for (const c of [right, right - 1]) {
-        if (g.fixed[r][c]) continue;
-        let on = 0;
-        if (bit < total) on = (bytes[bit >> 3] >>> (7 - (bit % 8))) & 1;
-        g.grid[r][c] = on;
-        bit++;
-      }
+      put(r, right);
+      put(r, right - 1);
     }
     up = !up;
   }

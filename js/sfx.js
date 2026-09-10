@@ -299,6 +299,14 @@ const SFX = (function () {
    answer like them.
    ------------------------------------------------------------------------- */
 
+/* The sound a pressed control makes, from what is written on it: its own for
+   "flip" and "share", none for "off", and the click for anything else. */
+function soundFor(hit) {
+  const how = hit.getAttribute("data-sfx");
+  if (how === "off") return null;
+  return how === "flip" || how === "share" ? how : "click";
+}
+
 document.addEventListener(
   "click",
   (e) => {
@@ -306,11 +314,8 @@ document.addEventListener(
     if (!t || !t.closest) return; // a click on the document itself
     const hit = t.closest("button, .btn, [role='button'], summary, .appnav a");
     if (!hit || hit.disabled) return;
-    const how = hit.getAttribute("data-sfx");
-    if (how === "off") return;
-    if (how === "flip") SFX.flip();
-    else if (how === "share") SFX.share();
-    else SFX.click();
+    const sound = soundFor(hit);
+    if (sound) SFX[sound]();
   },
   true
 );
