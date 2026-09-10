@@ -26,6 +26,99 @@ async function list(env) {
 
 /* ---------- POST /api/admin/schedule -------------------------------------- */
 
+const slotPoints = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1000, Math.round(Number(v)))) : 10);
+
+/* The columns a save writes, in the order the UPDATE and INSERT name them —
+   or why the form cannot be saved. */
+function readEntry(e) {
+  const title_en = clean(e.title_en, MAX.title);
+  const title_ar = clean(e.title_ar, MAX.title);
+  if (!title_en && !title_ar) return { error: "bad-title" };
+  const weekday = Math.round(Number(e.weekday));
+  if (!(weekday >= 0 && weekday <= 6)) return { error: "bad-day" };
+  if (!validTime(e.at)) return { error: "bad-time" };
+  const map_url = cleanUrl(e.map_url);
+  if (map_url === null) return { error: "bad-url" };
+  return {
+    fields: [
+      weekday, String(e.at), title_en, title_ar,
+      clean(e.place_en, MAX.place), clean(e.place_ar, MAX.place),
+      map_url, slotPoints(e.points), e.active ? 1 : 0,
+      cleanCoachId(e.coach_id) || null, // who usually takes it
+    ],
+  };
+}
+
+/* The line about what the session is, once the migration that adds it is in —
+   and only when the caller actually named it. seed-schedule.js writes the
+   printed schedule and says nothing about descriptions; a re-run of it must
+   not wipe what the coach has written. */
+async function descColumns(env, e) {
+  const said = e.desc_en !== undefined || e.desc_ar !== undefined;
+  if (!said || !(await hasColumn(env, "schedule", "desc_en"))) return { sql: "", set: "", values: [] };
+  return {
+    sql: ", desc_en, desc_ar",
+    set: ", desc_en = ?, desc_ar = ?",
+    values: [clean(e.desc_en, MAX.desc), clean(e.desc_ar, MAX.desc)],
+  };
+}
+
+async function updateEntry(env, id, fields, cols) {
+  const before = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(id).first();
+  if (!before) return json({ error: "no-entry" }, 404);
+  await env.DB.prepare(
+    "UPDATE schedule SET weekday = ?, at = ?, title_en = ?, title_ar = ?, place_en = ?," +
+      " place_ar = ?, map_url = ?, points = ?, active = ?, coach_id = ?" + cols.set +
+      ", updated_at = ? WHERE id = ?"
+  )
+    .bind(...fields, ...cols.values, nowISO(), id)
+    .run();
+  return null;
+}
+
+async function insertEntry(env, fields, cols) {
+  const now = nowISO();
+  await env.DB.prepare(
+    "INSERT INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url," +
+      " points, active, coach_id" + cols.sql + ", created_at, updated_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + cols.values.map(() => ", ?").join("") + ", ?, ?)"
+  )
+    .bind(uid(), ...fields, ...cols.values, now, now)
+    .run();
+}
+
+async function saveEntry(body, env) {
+  const e = body.entry && typeof body.entry === "object" ? body.entry : {};
+  const entry = readEntry(e);
+  if (entry.error) return json({ error: entry.error }, 400);
+  const cols = await descColumns(env, e);
+  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(e.id || "")) ? String(e.id) : null;
+  const failed = id ? await updateEntry(env, id, entry.fields, cols) : await insertEntry(env, entry.fields, cols);
+  return failed || json({ schedule: await list(env), coaches: await coachRoster(env) });
+}
+
+/* Changes recorded against it go with it, which is right: they described an
+   occurrence of something that no longer happens. */
+async function deleteEntry(body, env) {
+  await env.DB.prepare("DELETE FROM schedule WHERE id = ?").bind(String(body.id || "")).run();
+  return json({ schedule: await list(env), coaches: await coachRoster(env) });
+}
+
+/* The upcoming changes ride along: the console needs both to draw the card,
+   and a second request to learn "nothing has moved" is a wasted one. */
+async function listWeek(body, env) {
+  return json({
+    schedule: await list(env),
+    changes: await changesAround(env, nowISO().slice(0, 10)),
+    coaches: await coachRoster(env),
+    // The club's check-in window, so the coach's week can light the session
+    // that is open now on the same rule the athlete's week uses.
+    window_after_min: (await windowMinutes(env)).after,
+  });
+}
+
+const SCHEDULE_ACTIONS = new Map([["save", saveEntry], ["delete", deleteEntry], ["list", listWeek]]);
+
 export async function adminSchedule(request, env) {
   const body = await readBody(request);
   const action = String(body.action || "list");
@@ -37,81 +130,8 @@ export async function adminSchedule(request, env) {
     : await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
-  if (action === "save") {
-    const e = body.entry && typeof body.entry === "object" ? body.entry : {};
-    const title_en = clean(e.title_en, MAX.title);
-    const title_ar = clean(e.title_ar, MAX.title);
-    if (!title_en && !title_ar) return json({ error: "bad-title" }, 400);
-
-    const weekday = Math.round(Number(e.weekday));
-    if (!(weekday >= 0 && weekday <= 6)) return json({ error: "bad-day" }, 400);
-    if (!validTime(e.at)) return json({ error: "bad-time" }, 400);
-
-    const map_url = cleanUrl(e.map_url);
-    if (map_url === null) return json({ error: "bad-url" }, 400);
-
-    const points = Number.isFinite(Number(e.points))
-      ? Math.max(0, Math.min(1000, Math.round(Number(e.points))))
-      : 10;
-
-    const fields = [
-      weekday, String(e.at), title_en, title_ar,
-      clean(e.place_en, MAX.place), clean(e.place_ar, MAX.place),
-      map_url, points, e.active ? 1 : 0,
-      cleanCoachId(e.coach_id) || null, // who usually takes it
-    ];
-    // The line about what the session is, once the migration that adds it is
-    // in — and only when the caller actually named it. seed-schedule.js writes
-    // the printed schedule and says nothing about descriptions; a re-run of it
-    // must not wipe what the coach has written.
-    const said = e.desc_en !== undefined || e.desc_ar !== undefined;
-    const cols = said && (await hasColumn(env, "schedule", "desc_en"))
-      ? { sql: ", desc_en, desc_ar", set: ", desc_en = ?, desc_ar = ?", values: [clean(e.desc_en, MAX.desc), clean(e.desc_ar, MAX.desc)] }
-      : { sql: "", set: "", values: [] };
-
-    const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(e.id || "")) ? String(e.id) : null;
-    const now = nowISO();
-
-    if (id) {
-      const before = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(id).first();
-      if (!before) return json({ error: "no-entry" }, 404);
-      await env.DB.prepare(
-        "UPDATE schedule SET weekday = ?, at = ?, title_en = ?, title_ar = ?, place_en = ?," +
-          " place_ar = ?, map_url = ?, points = ?, active = ?, coach_id = ?" + cols.set +
-          ", updated_at = ? WHERE id = ?"
-      )
-        .bind(...fields, ...cols.values, now, id)
-        .run();
-    } else {
-      await env.DB.prepare(
-        "INSERT INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url," +
-          " points, active, coach_id" + cols.sql + ", created_at, updated_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + cols.values.map(() => ", ?").join("") + ", ?, ?)"
-      )
-        .bind(uid(), ...fields, ...cols.values, now, now)
-        .run();
-    }
-    return json({ schedule: await list(env), coaches: await coachRoster(env) });
-  }
-
-  if (action === "delete") {
-    // Changes recorded against it go with it, which is right: they described
-    // an occurrence of something that no longer happens.
-    await env.DB.prepare("DELETE FROM schedule WHERE id = ?").bind(String(body.id || "")).run();
-    return json({ schedule: await list(env), coaches: await coachRoster(env) });
-  }
-
-  if (action !== "list") return json({ error: "bad-request" }, 400);
-  // The upcoming changes ride along: the console needs both to draw the card,
-  // and a second request to learn "nothing has moved" is a wasted one.
-  return json({
-    schedule: await list(env),
-    changes: await changesAround(env, nowISO().slice(0, 10)),
-    coaches: await coachRoster(env),
-    // The club's check-in window, so the coach's week can light the session
-    // that is open now on the same rule the athlete's week uses.
-    window_after_min: (await windowMinutes(env)).after,
-  });
+  const run = SCHEDULE_ACTIONS.get(action);
+  return run ? run(body, env) : json({ error: "bad-request" }, 400);
 }
 
 /* ---------- POST /api/admin/schedule-change -------------------------------

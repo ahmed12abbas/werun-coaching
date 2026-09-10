@@ -74,6 +74,63 @@ export async function rotaBetween(env, from, to) {
 
 /* ---------- POST /api/coach/rota ------------------------------------------ */
 
+const dateOr = (v, fallback) => (ISO_DATE.test(String(v || "")) ? String(v) : fallback);
+
+/* A write to the rota, or the answer for a database that has no rota yet. */
+async function rotaWrite(env, sql, ...values) {
+  try {
+    await env.DB.prepare(sql).bind(...values).run();
+    return null;
+  } catch (e) {
+    console.error("rota: could not write coach_rota (" + (e && e.message) + ")");
+    return json({ error: "no-table" }, 503);
+  }
+}
+
+/* Only yourself, and only if you coach. An admin who does not take sessions
+   has no business on the rota for one, and the club password is nobody in
+   particular — it cannot say who it is putting down. */
+async function join(env, tick, body, me, boss) {
+  if (!isCoach(me)) return json({ error: "not-coach" }, 403);
+  const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(tick.scheduleId).first();
+  if (!slot) return json({ error: "no-entry" }, 404);
+  // The primary key makes ticking twice the same as ticking once, so a double
+  // tap on a cold morning cannot put anybody on twice.
+  const failed = await rotaWrite(env,
+    "INSERT OR IGNORE INTO coach_rota (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)",
+    tick.scheduleId, tick.date, me.id, nowISO());
+  return failed || json(await answerAround(env, tick.date, me, boss));
+}
+
+/* Whose tick is coming off: the one named, or the caller's own. */
+function leaverFrom(body, me) {
+  if (ID.test(String(body.user_id || ""))) return String(body.user_id);
+  return (me && me.id) || "";
+}
+
+/* Your own tick is yours. Somebody else's is the club's — for the coach who
+   put themselves down for the wrong day and has gone to bed. */
+async function leave(env, tick, body, me, boss) {
+  const who = leaverFrom(body, me);
+  if (!who) return json({ error: "bad-request" }, 400);
+  const mine = me && who === me.id;
+  if (!mine && !boss) return json({ error: "not-admin" }, 403);
+  const failed = await rotaWrite(env,
+    "DELETE FROM coach_rota WHERE schedule_id = ? AND date = ? AND user_id = ?",
+    tick.scheduleId, tick.date, who);
+  return failed || json(await answerAround(env, tick.date, me, boss));
+}
+
+const WRITES = new Map([["join", join], ["leave", leave]]);
+
+/* The slot and date a join or leave is about, or why it cannot be. */
+function readTick(body) {
+  const tick = { scheduleId: String(body.schedule_id || ""), date: String(body.date || "") };
+  if (!ID.test(tick.scheduleId) || !ISO_DATE.test(tick.date)) return { error: "bad-request" };
+  if (!inRange(tick.date)) return { error: "bad-date" };
+  return tick;
+}
+
 export async function coachRota(request, env) {
   const body = await readBody(request);
   const no = await refuseUnlessCoach(request, env, body);
@@ -84,59 +141,15 @@ export async function coachRota(request, env) {
   const boss = await adminHere(env, body, me);
 
   if (action === "list") {
-    const from = ISO_DATE.test(String(body.from || "")) ? String(body.from) : shiftDate(-7);
-    const to = ISO_DATE.test(String(body.to || "")) ? String(body.to) : shiftDate(14);
-    return json(await answer(env, from, to, me, boss));
+    return json(await answer(env, dateOr(body.from, shiftDate(-7)), dateOr(body.to, shiftDate(14)), me, boss));
   }
 
-  const scheduleId = String(body.schedule_id || "");
-  const date = String(body.date || "");
-  if (!ID.test(scheduleId) || !ISO_DATE.test(date)) return json({ error: "bad-request" }, 400);
-  if (!inRange(date)) return json({ error: "bad-date" }, 400);
-
-  if (action === "join") {
-    // Only yourself, and only if you coach. An admin who does not take
-    // sessions has no business on the rota for one, and the club password is
-    // nobody in particular — it cannot say who it is putting down.
-    if (!isCoach(me)) return json({ error: "not-coach" }, 403);
-    const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(scheduleId).first();
-    if (!slot) return json({ error: "no-entry" }, 404);
-    try {
-      // The primary key makes ticking twice the same as ticking once, so a
-      // double tap on a cold morning cannot put anybody on twice.
-      await env.DB.prepare(
-        "INSERT OR IGNORE INTO coach_rota (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)"
-      )
-        .bind(scheduleId, date, me.id, nowISO())
-        .run();
-    } catch (e) {
-      console.error("rota: could not write coach_rota (" + (e && e.message) + ")");
-      return json({ error: "no-table" }, 503);
-    }
-    return json(await answerAround(env, date, me, boss));
-  }
-
-  if (action === "leave") {
-    // Your own tick is yours. Somebody else's is the club's — for the coach
-    // who put themselves down for the wrong day and has gone to bed.
-    const who = ID.test(String(body.user_id || "")) ? String(body.user_id) : (me && me.id) || "";
-    if (!who) return json({ error: "bad-request" }, 400);
-    const mine = me && who === me.id;
-    if (!mine && !boss) return json({ error: "not-admin" }, 403);
-    try {
-      await env.DB.prepare(
-        "DELETE FROM coach_rota WHERE schedule_id = ? AND date = ? AND user_id = ?"
-      )
-        .bind(scheduleId, date, who)
-        .run();
-    } catch (e) {
-      console.error("rota: could not write coach_rota (" + (e && e.message) + ")");
-      return json({ error: "no-table" }, 503);
-    }
-    return json(await answerAround(env, date, me, boss));
-  }
-
-  return json({ error: "bad-request" }, 400);
+  // Checked before the verb, as it always was: an unknown action with a bad
+  // date still answers bad-date.
+  const tick = readTick(body);
+  if (tick.error) return json({ error: tick.error }, 400);
+  const write = WRITES.get(action);
+  return write ? write(env, tick, body, me, boss) : json({ error: "bad-request" }, 400);
 }
 
 /* The whole fortnight back, rather than the one row that changed: the page

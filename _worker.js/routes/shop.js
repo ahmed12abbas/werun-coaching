@@ -18,30 +18,28 @@ async function productList(env) {
 
 /* ---------- POST /api/admin/products -------------------------------------- */
 
-export async function adminProducts(request, env) {
-  const body = await readBody(request);
-  const no = await refuseUnlessAdmin(request, env, body);
-  if (no) return no;
+const validPrice = (n) => Number.isFinite(n) && n >= 1 && n <= MAX.price;
 
-  const action = String(body.action || "list");
+/* NULL means "as many as they want"; a number means count it down; undefined
+   means refuse. */
+function stockFrom(v) {
+  if (v === null || v === undefined || String(v) === "") return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 && n <= 100000 ? n : undefined;
+}
 
-  if (action === "save") {
-    const p = body.product && typeof body.product === "object" ? body.product : {};
-    const name_en = clean(p.name_en, MAX.name);
-    const name_ar = clean(p.name_ar, MAX.name);
-    if (!name_en && !name_ar) return json({ error: "bad-name" }, 400);
-
-    const price = Math.round(Number(p.price));
-    if (!Number.isFinite(price) || price < 1 || price > MAX.price) return json({ error: "bad-price" }, 400);
-
-    // NULL means "as many as they want"; a number means count it down.
-    let stock = null;
-    if (p.stock !== null && p.stock !== undefined && String(p.stock) !== "") {
-      stock = Math.round(Number(p.stock));
-      if (!Number.isFinite(stock) || stock < 0 || stock > 100000) return json({ error: "bad-stock" }, 400);
-    }
-
-    const fields = [
+/* The columns a save writes, in the order the UPDATE and INSERT name them —
+   or why the form cannot be saved. */
+function readProduct(p) {
+  const name_en = clean(p.name_en, MAX.name);
+  const name_ar = clean(p.name_ar, MAX.name);
+  if (!name_en && !name_ar) return { error: "bad-name" };
+  const price = Math.round(Number(p.price));
+  if (!validPrice(price)) return { error: "bad-price" };
+  const stock = stockFrom(p.stock);
+  if (stock === undefined) return { error: "bad-stock" };
+  return {
+    fields: [
       name_en,
       name_ar,
       clean(p.desc_en, MAX.desc),
@@ -51,42 +49,64 @@ export async function adminProducts(request, env) {
       stock,
       p.active ? 1 : 0,
       Math.round(Number(p.sort) || 0),
-    ];
-    const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(p.id || "")) ? String(p.id) : null;
-    const now = nowISO();
+    ],
+  };
+}
 
-    if (id) {
-      const before = await env.DB.prepare("SELECT id FROM products WHERE id = ?").bind(id).first();
-      if (!before) return json({ error: "no-product" }, 404);
-      await env.DB.prepare(
-        "UPDATE products SET name_en = ?, name_ar = ?, desc_en = ?, desc_ar = ?, price = ?," +
-          " options = ?, stock = ?, active = ?, sort = ?, updated_at = ? WHERE id = ?"
-      )
-        .bind(...fields, now, id)
-        .run();
-    } else {
-      await env.DB.prepare(
-        "INSERT INTO products (id, name_en, name_ar, desc_en, desc_ar, price, options, stock, active, sort, created_at, updated_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      )
-        .bind(uid(), ...fields, now, now)
-        .run();
-    }
-    return json({ products: await productList(env) });
-  }
+async function updateProduct(env, id, fields) {
+  const before = await env.DB.prepare("SELECT id FROM products WHERE id = ?").bind(id).first();
+  if (!before) return json({ error: "no-product" }, 404);
+  await env.DB.prepare(
+    "UPDATE products SET name_en = ?, name_ar = ?, desc_en = ?, desc_ar = ?, price = ?," +
+      " options = ?, stock = ?, active = ?, sort = ?, updated_at = ? WHERE id = ?"
+  )
+    .bind(...fields, nowISO(), id)
+    .run();
+  return null;
+}
 
-  if (action === "delete") {
-    // A product somebody has bought stays, or their order would stop making
-    // sense. Taking it off sale is what the coach actually wants anyway.
-    const id = String(body.id || "");
-    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE product_id = ?").bind(id).first();
-    if (((n && n.n) || 0) > 0) return json({ error: "has-orders" }, 409);
-    await env.DB.prepare("DELETE FROM products WHERE id = ?").bind(id).run();
-    return json({ products: await productList(env) });
-  }
+async function insertProduct(env, fields) {
+  const now = nowISO();
+  await env.DB.prepare(
+    "INSERT INTO products (id, name_en, name_ar, desc_en, desc_ar, price, options, stock, active, sort, created_at, updated_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  )
+    .bind(uid(), ...fields, now, now)
+    .run();
+}
 
-  if (action !== "list") return json({ error: "bad-request" }, 400);
+async function saveProduct(body, env) {
+  const p = body.product && typeof body.product === "object" ? body.product : {};
+  const product = readProduct(p);
+  if (product.error) return json({ error: product.error }, 400);
+  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(p.id || "")) ? String(p.id) : null;
+  const failed = id ? await updateProduct(env, id, product.fields) : await insertProduct(env, product.fields);
+  return failed || json({ products: await productList(env) });
+}
+
+/* A product somebody has bought stays, or their order would stop making
+   sense. Taking it off sale is what the coach actually wants anyway. */
+async function deleteProduct(body, env) {
+  const id = String(body.id || "");
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE product_id = ?").bind(id).first();
+  if (((n && n.n) || 0) > 0) return json({ error: "has-orders" }, 409);
+  await env.DB.prepare("DELETE FROM products WHERE id = ?").bind(id).run();
+  return json({ products: await productList(env) });
+}
+
+async function listProducts(body, env) {
   return json({ products: await productList(env), stripe: storeOn(env) });
+}
+
+const PRODUCT_ACTIONS = new Map([["save", saveProduct], ["delete", deleteProduct], ["list", listProducts]]);
+
+export async function adminProducts(request, env) {
+  const body = await readBody(request);
+  const no = await refuseUnlessAdmin(request, env, body);
+  if (no) return no;
+
+  const run = PRODUCT_ACTIONS.get(String(body.action || "list"));
+  return run ? run(body, env) : json({ error: "bad-request" }, 400);
 }
 
 /* ---------- POST /api/admin/orders ---------------------------------------- */

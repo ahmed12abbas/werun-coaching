@@ -212,74 +212,72 @@ export async function me(request, env) {
 
 /* ---------- POST /api/auth/profile --------------------------------------- */
 
+/* What the form sent, cleaned — or, for a field it left out, what the account
+   already says. */
+const sentOr = (body, key, clean, kept) => (body[key] !== undefined ? clean(body[key]) : kept);
+const flag = (v) => (v ? 1 : 0);
+
+function readProfile(body, user) {
+  return {
+    name: body.name != null ? cleanName(body.name) : user.name,
+    lang: body.lang != null ? cleanLang(body.lang) : user.lang,
+    gender: body.gender != null ? cleanGender(body.gender) : user.gender || "",
+    birth_year: sentOr(body, "birth_year", cleanYear, user.birth_year),
+    avatar: sentOr(body, "avatar", cleanAvatar, user.avatar || ""),
+    bio: sentOr(body, "bio", cleanBio, user.bio || ""),
+    instagram: sentOr(body, "instagram", cleanHandle, user.instagram || ""),
+    instagram_hidden: flag(sentOr(body, "instagram_hidden", Boolean, user.instagram_hidden)),
+    bio_hidden: flag(sentOr(body, "bio_hidden", Boolean, user.bio_hidden)),
+    // Not `user.week_goal` on its own: before 0012 there is no column to read
+    // back, and undefined there would look exactly like a refused number.
+    week_goal: sentOr(body, "week_goal", cleanGoal, user.week_goal == null ? 3 : user.week_goal),
+  };
+}
+
+function refusedField(p) {
+  if (!p.name) return "bad-name";
+  if (p.birth_year === undefined) return "bad-year";
+  if (p.week_goal === undefined) return "bad-goal";
+  return null;
+}
+
+/* Only the columns this database actually has: 0006 and 0007 are applied by
+   hand here, so between a deploy and its migration the name and the language
+   must still save rather than the whole form failing on a column nobody made
+   yet. Each row comes out once its migration is in. `probe` is the column
+   whose presence says the migration ran. */
+const OPTIONAL_COLUMNS = [
+  { probe: "birth_year", cols: ["gender", "birth_year"] },
+  { probe: "avatar", cols: ["avatar"] },
+  { probe: "week_goal", cols: ["week_goal"] },
+  { probe: "bio", cols: ["bio"] },
+  { probe: "bio_hidden", cols: ["bio_hidden"] },
+  { probe: "instagram", cols: ["instagram"] },
+  { probe: "instagram_hidden", cols: ["instagram_hidden"] },
+];
+
+/* What went in is what comes back: a field the database could not hold is not
+   echoed as though it had been kept, or the app shows an avatar that the next
+   reload takes away again. */
+async function columnsHeld(env, p) {
+  const saved = { name: p.name, lang: p.lang };
+  for (const { probe, cols } of OPTIONAL_COLUMNS) {
+    if (!(await hasColumn(env, "users", probe))) continue;
+    for (const col of cols) saved[col] = p[col];
+  }
+  return saved;
+}
+
 export const profile = withUser(async (request, env, user) => {
-  const body = await readBody(request);
-  const name = body.name != null ? cleanName(body.name) : user.name;
-  const lang = body.lang != null ? cleanLang(body.lang) : user.lang;
-  if (!name) return json({ error: "bad-name" }, 400);
+  const p = readProfile(await readBody(request), user);
+  const refused = refusedField(p);
+  if (refused) return json({ error: refused }, 400);
 
-  const gender = body.gender != null ? cleanGender(body.gender) : user.gender || "";
-  const birthYear = body.birth_year !== undefined ? cleanYear(body.birth_year) : user.birth_year;
-  if (birthYear === undefined) return json({ error: "bad-year" }, 400);
-  const avatar = body.avatar !== undefined ? cleanAvatar(body.avatar) : user.avatar || "";
-  const bio = body.bio !== undefined ? cleanBio(body.bio) : user.bio || "";
-  const instagram = body.instagram !== undefined ? cleanHandle(body.instagram) : user.instagram || "";
-  const igHidden = (body.instagram_hidden !== undefined ? body.instagram_hidden : user.instagram_hidden) ? 1 : 0;
-  const bioHidden = (body.bio_hidden !== undefined ? body.bio_hidden : user.bio_hidden) ? 1 : 0;
-  // Not `user.week_goal` on its own: before 0012 there is no column to read
-  // back, and undefined there would look exactly like a refused number.
-  const goal =
-    body.week_goal !== undefined ? cleanGoal(body.week_goal) : user.week_goal == null ? 3 : user.week_goal;
-  if (goal === undefined) return json({ error: "bad-goal" }, 400);
-
-  // Only the columns this database actually has: 0006 and 0007 are applied by
-  // hand here, so between a deploy and its migration the name and the language
-  // must still save rather than the whole form failing on a column nobody made
-  // yet. Both branches come out once the migrations are in.
-  const sets = ["name = ?", "lang = ?"];
-  const vals = [name, lang];
-  // What went in is what comes back: a field the database could not hold is
-  // not echoed as though it had been kept, or the app shows an avatar that
-  // the next reload takes away again.
-  const saved = { name: name, lang: lang };
-  if (await hasColumn(env, "users", "birth_year")) {
-    sets.push("gender = ?", "birth_year = ?");
-    vals.push(gender, birthYear);
-    saved.gender = gender;
-    saved.birth_year = birthYear;
-  }
-  if (await hasColumn(env, "users", "avatar")) {
-    sets.push("avatar = ?");
-    vals.push(avatar);
-    saved.avatar = avatar;
-  }
-  if (await hasColumn(env, "users", "week_goal")) {
-    sets.push("week_goal = ?");
-    vals.push(goal);
-    saved.week_goal = goal;
-  }
-  if (await hasColumn(env, "users", "bio")) {
-    sets.push("bio = ?");
-    vals.push(bio);
-    saved.bio = bio;
-  }
-  if (await hasColumn(env, "users", "bio_hidden")) {
-    sets.push("bio_hidden = ?");
-    vals.push(bioHidden);
-    saved.bio_hidden = bioHidden;
-  }
-  if (await hasColumn(env, "users", "instagram")) {
-    sets.push("instagram = ?");
-    vals.push(instagram);
-    saved.instagram = instagram;
-  }
-  if (await hasColumn(env, "users", "instagram_hidden")) {
-    sets.push("instagram_hidden = ?");
-    vals.push(igHidden);
-    saved.instagram_hidden = igHidden;
-  }
-  await env.DB.prepare("UPDATE users SET " + sets.join(", ") + " WHERE id = ?")
-    .bind(...vals, user.id)
+  // Column names come only from OPTIONAL_COLUMNS above, never from the body.
+  const saved = await columnsHeld(env, p);
+  const cols = Object.keys(saved);
+  await env.DB.prepare("UPDATE users SET " + cols.map((c) => c + " = ?").join(", ") + " WHERE id = ?")
+    .bind(...cols.map((c) => saved[c]), user.id)
     .run();
 
   return json({ user: publicUser(Object.assign({}, user, saved)) });
