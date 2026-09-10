@@ -26,47 +26,52 @@ const shiftDate = (n) => new Date(Date.now() + n * 86400000).toISOString().slice
 
 /* ---------- POST /api/signups --------------------------------------------- */
 
+/* The slot and date a signup is about, or why it cannot be. */
+function readPick(body) {
+  const pick = { scheduleId: String(body.schedule_id || ""), date: String(body.date || "") };
+  if (!ID.test(pick.scheduleId) || !ISO_DATE.test(pick.date)) return { error: "bad-request" };
+  if (pick.date < shiftDate(-SIGNUP_DAYS) || pick.date > shiftDate(SIGNUP_DAYS)) return { error: "bad-date" };
+  return pick;
+}
+
+/* A write to session_signups, or the answer for a database without it yet.
+   The table arrived after the code that writes it, and migrations here are
+   applied by hand — so say so plainly rather than five hundred. */
+async function signupWrite(env, sql, ...values) {
+  try {
+    await env.DB.prepare(sql).bind(...values).run();
+    return null;
+  } catch (e) {
+    console.error("signups: could not write session_signups (" + (e && e.message) + ")");
+    return json({ error: "no-table" }, 503);
+  }
+}
+
+async function join(env, pick, user) {
+  const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(pick.scheduleId).first();
+  if (!slot) return json({ error: "no-entry" }, 404);
+  // The primary key makes tapping twice the same as tapping once.
+  const failed = await signupWrite(env,
+    "INSERT OR IGNORE INTO session_signups (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)",
+    pick.scheduleId, pick.date, user.id, nowISO());
+  return failed || json({ registered: true });
+}
+
+async function leave(env, pick, user) {
+  const failed = await signupWrite(env,
+    "DELETE FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?",
+    pick.scheduleId, pick.date, user.id);
+  return failed || json({ registered: false });
+}
+
+const SIGNUP_ACTIONS = new Map([["join", join], ["leave", leave]]);
+
 export const signups = withMember(async (request, env, user) => {
   const body = await readBody(request);
-  const action = String(body.action || "");
-  const scheduleId = String(body.schedule_id || "");
-  const date = String(body.date || "");
-
-  if (!ID.test(scheduleId) || !ISO_DATE.test(date)) return json({ error: "bad-request" }, 400);
-  if (date < shiftDate(-SIGNUP_DAYS) || date > shiftDate(SIGNUP_DAYS)) return json({ error: "bad-date" }, 400);
-
-  if (action === "join") {
-    const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(scheduleId).first();
-    if (!slot) return json({ error: "no-entry" }, 404);
-    try {
-      // The primary key makes tapping twice the same as tapping once.
-      await env.DB.prepare(
-        "INSERT OR IGNORE INTO session_signups (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)"
-      )
-        .bind(scheduleId, date, user.id, nowISO())
-        .run();
-    } catch (e) {
-      // The table arrived after the code that writes it, and migrations here
-      // are applied by hand — so say so plainly rather than five hundred.
-      console.error("signups: could not write session_signups (" + (e && e.message) + ")");
-      return json({ error: "no-table" }, 503);
-    }
-    return json({ registered: true });
-  }
-
-  if (action === "leave") {
-    try {
-      await env.DB.prepare(
-        "DELETE FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?"
-      )
-        .bind(scheduleId, date, user.id)
-        .run();
-    } catch (e) {
-      console.error("signups: could not write session_signups (" + (e && e.message) + ")");
-      return json({ error: "no-table" }, 503);
-    }
-    return json({ registered: false });
-  }
-
-  return json({ error: "bad-request" }, 400);
+  // Checked before the verb, as it always was: an unknown action with a bad
+  // date still answers bad-date.
+  const pick = readPick(body);
+  if (pick.error) return json({ error: pick.error }, 400);
+  const run = SIGNUP_ACTIONS.get(String(body.action || ""));
+  return run ? run(env, pick, user) : json({ error: "bad-request" }, 400);
 });

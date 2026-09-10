@@ -148,6 +148,9 @@ function nearestSteps(list, date) {
    against, when there was one. Its place comes along with it: the session
    carrying the workout is the one an athlete most needs the address for,
    and dropping it because a workout was attached would be backwards. */
+/* A field off the standing slot, or "" when there is no slot or no value. */
+const slotField = (slot, key) => (slot && slot[key]) || "";
+
 function publishedItem(s, slot, names, mins) {
   // When check-in opens and shuts is worked out from the start and the club's
   // rule, not read back off the row — see lib/checkin.js.
@@ -158,11 +161,11 @@ function publishedItem(s, slot, names, mins) {
     schedule_id: s.schedule_id || null,
     title_en: s.name,
     title_ar: s.name,
-    place_en: (slot && slot.place_en) || "",
-    place_ar: (slot && slot.place_ar) || "",
-    desc_en: (slot && slot.desc_en) || "",
-    desc_ar: (slot && slot.desc_ar) || "",
-    map_url: (slot && slot.map_url) || "",
+    place_en: slotField(slot, "place_en"),
+    place_ar: slotField(slot, "place_ar"),
+    desc_en: slotField(slot, "desc_en"),
+    desc_ar: slotField(slot, "desc_ar"),
+    map_url: slotField(slot, "map_url"),
     // Who took it — what it was published under, or the slot's usual coach.
     coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
     at: (s.starts_at || "").slice(11, 16), // as a fallback; the page uses starts_at

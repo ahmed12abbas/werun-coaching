@@ -103,49 +103,70 @@ async function clubFor(env) {
  * route on the site, and the coach has a switch to close it. Three accounts
  * an hour from one address is a family on one router; more is a script.
  */
-export async function signup(request, env) {
+async function signupRefusal(env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   // Without KV there is nowhere to keep the count, and an open signup route
   // with no limit at all is worse than one that is briefly shut.
   if (!env.STATS) return json({ error: "no-store" }, 503);
   if (!(await getSetting(env, "signups_open"))) return json({ error: "signups-closed" }, 403);
+  return null;
+}
+
+/* The join form as it came in, or why it cannot make an account. */
+function readSignup(body) {
+  const form = {
+    email: cleanEmail(body.email),
+    name: cleanName(body.name),
+    password: String(body.password || ""),
+    birthYear: cleanYear(body.birth_year),
+  };
+  if (!emailLooksRight(form.email)) return { error: "bad-email" };
+  if (!form.name) return { error: "bad-name" };
+  if (form.password.length < MIN_PASSWORD || form.password.length > MAX.password) return { error: "bad-password" };
+  if (form.birthYear === undefined) return { error: "bad-year" };
+  return form;
+}
+
+/* Until 0006 is applied, gender and birth year are not there — and joining
+   the club matters far more than recording an age group, so the row goes in
+   without them rather than the whole signup failing. */
+async function insertUser(env, u) {
+  const now = nowISO();
+  if (await hasColumn(env, "users", "birth_year")) {
+    await env.DB.prepare(
+      "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
+        " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
+    )
+      .bind(u.id, u.email, u.name, u.salt, u.hash, u.lang, now, now, u.gender, u.birthYear)
+      .run();
+    return;
+  }
+  await env.DB.prepare(
+    "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at)" +
+      " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?)"
+  )
+    .bind(u.id, u.email, u.name, u.salt, u.hash, u.lang, now, now)
+    .run();
+}
+
+export async function signup(request, env) {
+  const shut = await signupRefusal(env);
+  if (shut) return shut;
 
   const body = await readBody(request);
-  const email = cleanEmail(body.email);
-  const name = cleanName(body.name);
-  const password = String(body.password || "");
-  if (!emailLooksRight(email)) return json({ error: "bad-email" }, 400);
-  if (!name) return json({ error: "bad-name" }, 400);
-  if (password.length < MIN_PASSWORD || password.length > MAX.password) return json({ error: "bad-password" }, 400);
-  const birthYear = cleanYear(body.birth_year);
-  if (birthYear === undefined) return json({ error: "bad-year" }, 400);
+  const form = readSignup(body);
+  if (form.error) return json({ error: form.error }, 400);
   // Counted once the form is right, so two typos and a short password do not
   // cost an hour, and it is the expensive half -- hashing, then the insert --
   // that the cap actually protects.
   if (await tooOften(env.STATS, "su", ipOf(request), 3, 3600)) return json({ error: "too-often" }, 429);
 
-  const { salt, hash } = await hashPassword(password);
+  const { salt, hash } = await hashPassword(form.password);
   const id = uid();
-  const now = nowISO();
   try {
-    // Until 0006 is applied, these columns are not there — and joining the
-    // club matters far more than recording an age group, so the row goes in
-    // without them rather than the whole signup failing.
-    if (await hasColumn(env, "users", "birth_year")) {
-      await env.DB.prepare(
-        "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
-          " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
-      )
-        .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now, cleanGender(body.gender), birthYear)
-        .run();
-    } else {
-      await env.DB.prepare(
-        "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at)" +
-          " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?)"
-      )
-        .bind(id, email, name, salt, hash, cleanLang(body.lang), now, now)
-        .run();
-    }
+    await insertUser(env, Object.assign({}, form, {
+      id, salt, hash, lang: cleanLang(body.lang), gender: cleanGender(body.gender),
+    }));
   } catch (e) {
     if (/UNIQUE/i.test(String(e && e.message))) return json({ error: "email-taken" }, 409);
     throw e;

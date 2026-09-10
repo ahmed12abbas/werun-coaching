@@ -47,19 +47,19 @@ export const week = withMember(async (request, env, user) => {
  * and the same .fit file the share link gives. Members only, because the
  * club's calendar is the club's.
  */
-export const session = withMember(async (request, env, user) => {
-  const id = new URL(request.url).searchParams.get("id") || "";
-  // The slot's place and its line about what the session is both ride along.
-  // A session the coach opened only to hand out a code has no workout to
-  // draw, so where to stand and what it is are the only things the page has
-  // left to say — and dropping them there would be backwards.
-  //
-  // The description is behind hasColumn until the migration that adds it is
-  // in: until then the column is not there to select.
+/* The session, this athlete's check-in on it, and the slot it fills.
+   The slot's place and its line about what the session is both ride along.
+   A session the coach opened only to hand out a code has no workout to draw,
+   so where to stand and what it is are the only things the page has left to
+   say — and dropping them there would be backwards.
+
+   The description is behind hasColumn until the migration that adds it is
+   in: until then the column is not there to select. */
+async function sessionRow(env, userId, id) {
   const desc = (await hasColumn(env, "schedule", "desc_en"))
     ? " e.desc_en AS desc_en, e.desc_ar AS desc_ar,"
     : " '' AS desc_en, '' AS desc_ar,";
-  const row = await env.DB.prepare(
+  return env.DB.prepare(
     "SELECT s.*, c.at AS checked_in_at, c.voided_at, e.coach_id AS slot_coach_id," +
       desc +
       " e.place_en AS place_en, e.place_ar AS place_ar, e.map_url AS map_url FROM club_sessions s" +
@@ -67,51 +67,62 @@ export const session = withMember(async (request, env, user) => {
       " LEFT JOIN schedule e ON e.id = s.schedule_id" +
       " WHERE s.id = ?"
   )
-    .bind(user.id, id)
+    .bind(userId, id)
     .first();
+}
+
+/* Has this athlete said they are coming? The signup is against the standing
+   slot and the date, not the session row — see migrations/0012_signups.sql —
+   so a slot the workout was published into keeps whatever was said before it
+   went out. Wrapped, like every other read of a table younger than the code:
+   a database between releases still draws the session. */
+async function isRegistered(env, row, userId) {
+  if (!row.schedule_id) return false;
+  try {
+    const s = await env.DB.prepare(
+      "SELECT 1 AS yes FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?"
+    )
+      .bind(row.schedule_id, row.date, userId)
+      .first();
+    return !!s;
+  } catch (e) {
+    console.error("session: no session_signups yet (" + (e && e.message) + ")");
+    return false;
+  }
+}
+
+/* The slot's text fields, "" where the slot said nothing. */
+const SLOT_TEXT = ["place_en", "place_ar", "desc_en", "desc_ar", "map_url"];
+const slotText = (row) => Object.fromEntries(SLOT_TEXT.map((k) => [k, row[k] || ""]));
+
+export const session = withMember(async (request, env, user) => {
+  const id = new URL(request.url).searchParams.get("id") || "";
+  const row = await sessionRow(env, user.id, id);
   if (!row) return json({ error: "no-session" }, 404);
 
-  // Has this athlete said they are coming? The signup is against the standing
-  // slot and the date, not the session row — see migrations/0012_signups.sql —
-  // so a slot the workout was published into keeps whatever was said before
-  // it went out. Wrapped, like every other read of a table younger than the
-  // code: a database between releases still draws the session.
-  let registered = false;
-  if (row.schedule_id) {
-    try {
-      const s = await env.DB.prepare(
-        "SELECT 1 AS yes FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?"
-      )
-        .bind(row.schedule_id, row.date, user.id)
-        .first();
-      registered = !!s;
-    } catch (e) {
-      console.error("session: no session_signups yet (" + (e && e.message) + ")");
-    }
-  }
-
+  const registered = await isRegistered(env, row, user.id);
   const w = windowFor(row, await windowMinutes(env));
   return json({
-    session: {
-      id: row.id,
-      name: row.name,
-      date: row.date,
-      schedule_id: row.schedule_id || null,
-      registered: registered,
-      day: row.day,
-      payload: row.payload,
-      place_en: row.place_en || "",
-      place_ar: row.place_ar || "",
-      desc_en: row.desc_en || "",
-      desc_ar: row.desc_ar || "",
-      map_url: row.map_url || "",
-      coach: coachNameFor(await coachNames(env), row.coach_id, row.slot_coach_id),
-      starts_at: row.starts_at,
-      window_open_at: w.open,
-      window_close_at: w.close,
-      points: row.points,
-      checked_in: !!(row.checked_in_at && !row.voided_at),
-      checked_in_at: row.voided_at ? null : row.checked_in_at,
-    },
+    session: Object.assign(
+      {
+        id: row.id,
+        name: row.name,
+        date: row.date,
+        schedule_id: row.schedule_id || null,
+        registered: registered,
+        day: row.day,
+        payload: row.payload,
+      },
+      slotText(row),
+      {
+        coach: coachNameFor(await coachNames(env), row.coach_id, row.slot_coach_id),
+        starts_at: row.starts_at,
+        window_open_at: w.open,
+        window_close_at: w.close,
+        points: row.points,
+        checked_in: !!(row.checked_in_at && !row.voided_at),
+        checked_in_at: row.voided_at ? null : row.checked_in_at,
+      }
+    ),
   });
 });
