@@ -154,14 +154,66 @@ export const pushNext = withMember(async (request, env, user) => {
  * here. It answers what it did, so a failing run is visible in the job log
  * rather than only in the absence of buzzing phones.
  */
-async function run(env, body) {
+async function senderRefusal(env, body) {
   if (!env.PUSH_SECRET) return json({ error: "push-off" }, 503);
   if (!(await safeEqual(String(body.secret || ""), env.PUSH_SECRET))) {
     return json({ error: "bad-password" }, 401);
   }
   if (!pushReady(env) || !env.DB) return json({ error: "push-off" }, 503);
+  return null;
+}
 
-  let rows = [];
+const dueSoon = (rows, now) =>
+  rows.filter((r) => {
+    const when = startsAt(r.date, r.at);
+    return when > now + SOON_FROM && when < now + SOON_TO;
+  });
+
+/* The primary key is the guard: an insert that changes nothing means this
+   athlete has already been told about this session. True if this is the
+   first time. */
+async function markSent(env, row) {
+  const mark = await env.DB.prepare(
+    "INSERT OR IGNORE INTO push_sent (ref, kind, user_id, at) VALUES (?, 'soon', ?, ?)"
+  )
+    .bind(row.schedule_id + "|" + row.date, row.user_id, nowISO())
+    .run();
+  return !!(mark.meta && mark.meta.changes);
+}
+
+/* One browser: "sent", "dropped", or null for a knock that went nowhere. */
+async function knock(env, sub) {
+  let status;
+  try {
+    status = await pushTo(env, sub.endpoint);
+  } catch (e) {
+    console.error("push: send failed (" + (e && e.message) + ")");
+    return null;
+  }
+  // Gone means gone: the browser was wiped or has revoked us, and a row kept
+  // after that is a knock into the dark on every run from now on.
+  if (status === 404 || status === 410) {
+    await env.DB.prepare("DELETE FROM push_subs WHERE id = ?").bind(sub.id).run();
+    return "dropped";
+  }
+  return status >= 200 && status < 300 ? "sent" : null;
+}
+
+async function knockAll(env, userId, tally) {
+  const subs = await env.DB.prepare("SELECT id, endpoint FROM push_subs WHERE user_id = ?")
+    .bind(userId)
+    .all();
+  for (const sub of subs.results || []) {
+    const outcome = await knock(env, sub);
+    if (outcome) tally[outcome]++;
+  }
+}
+
+async function run(env, body) {
+  const no = await senderRefusal(env, body);
+  if (no) return no;
+
+  let rows;
   try {
     rows = await signupsOn(env, [clubDate(0), clubDate(1)]);
   } catch (e) {
@@ -169,50 +221,17 @@ async function run(env, body) {
     return json({ error: "no-table" }, 503);
   }
 
-  const now = Date.now();
-  const due = rows.filter((r) => {
-    const when = startsAt(r.date, r.at);
-    return when > now + SOON_FROM && when < now + SOON_TO;
-  });
-
-  let sent = 0;
-  let dropped = 0;
+  const due = dueSoon(rows, Date.now());
+  const tally = { due: due.length, sent: 0, dropped: 0 };
   for (const row of due) {
-    const ref = row.schedule_id + "|" + row.date;
+    let first;
     try {
-      // The primary key is the guard: an insert that changes nothing means
-      // this athlete has already been told about this session.
-      const mark = await env.DB.prepare(
-        "INSERT OR IGNORE INTO push_sent (ref, kind, user_id, at) VALUES (?, 'soon', ?, ?)"
-      )
-        .bind(ref, row.user_id, nowISO())
-        .run();
-      if (!mark.meta || !mark.meta.changes) continue;
+      first = await markSent(env, row);
     } catch (e) {
       console.error("push: could not write push_sent (" + (e && e.message) + ")");
       return json({ error: "no-table" }, 503);
     }
-
-    const subs = await env.DB.prepare("SELECT id, endpoint FROM push_subs WHERE user_id = ?")
-      .bind(row.user_id)
-      .all();
-    for (const sub of subs.results || []) {
-      let status = 0;
-      try {
-        status = await pushTo(env, sub.endpoint);
-      } catch (e) {
-        console.error("push: send failed (" + (e && e.message) + ")");
-        continue;
-      }
-      // Gone means gone: the browser was wiped or has revoked us, and a row
-      // kept after that is a knock into the dark on every run from now on.
-      if (status === 404 || status === 410) {
-        await env.DB.prepare("DELETE FROM push_subs WHERE id = ?").bind(sub.id).run();
-        dropped++;
-      } else if (status >= 200 && status < 300) {
-        sent++;
-      }
-    }
+    if (first) await knockAll(env, row.user_id, tally);
   }
-  return json({ due: due.length, sent: sent, dropped: dropped });
+  return json(tally);
 }

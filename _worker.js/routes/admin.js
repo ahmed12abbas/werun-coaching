@@ -45,6 +45,49 @@ async function memberList(env) {
  *
  * Blocking ends every session the member has, on the spot.
  */
+/* Each verb changes one member and answers null, or refuses with a response. */
+async function setStatus(request, env, body, action, id) {
+  const blocking = action === "block";
+  await env.DB.prepare("UPDATE users SET status = ? WHERE id = ?")
+    .bind(blocking ? "blocked" : "active", id)
+    .run();
+  if (blocking) await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run();
+  return null;
+}
+
+async function setRole(request, env, body, action, id) {
+  const role = body.role === "coach" ? "coach" : "athlete";
+  await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, id).run();
+  return null;
+}
+
+async function setAdmin(request, env, body, action, id) {
+  // Nothing to write to until 0010 lands; saying so beats a 500 that reads
+  // like the club is broken.
+  if (!(await hasColumn(env, "users", "is_admin"))) return json({ error: "no-column" }, 503);
+  // Say so rather than writing nothing, the way /api/admin/coaches does.
+  const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+  if (!who) return json({ error: "no-member" }, 404);
+  const want = !!body.admin;
+  // Standing on the console and taking your own admin off it is a mis-tap
+  // that locks you out of the screen you are on. The club password is the
+  // way back, but somebody else has to do this one — the same rule the
+  // coaches list follows, for the same reason.
+  if (!want) {
+    const me = await currentUser(request, env);
+    if (me && me.id === id) return json({ error: "not-yourself" }, 409);
+  }
+  await env.DB.prepare("UPDATE users SET is_admin = ? WHERE id = ?").bind(want ? 1 : 0, id).run();
+  return null;
+}
+
+const MEMBER_ACTIONS = new Map([
+  ["block", setStatus],
+  ["unblock", setStatus],
+  ["role", setRole],
+  ["admin", setAdmin],
+]);
+
 export async function members(request, env) {
   const body = await readBody(request);
   const no = await refuseUnlessAdmin(request, env, body);
@@ -54,33 +97,12 @@ export async function members(request, env) {
   const id = String(body.id || "");
   if (action && !id) return json({ error: "bad-request" }, 400);
 
-  if (action === "block" || action === "unblock") {
-    await env.DB.prepare("UPDATE users SET status = ? WHERE id = ?")
-      .bind(action === "block" ? "blocked" : "active", id)
-      .run();
-    if (action === "block") await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run();
-  } else if (action === "role") {
-    const role = body.role === "coach" ? "coach" : "athlete";
-    await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, id).run();
-  } else if (action === "admin") {
-    // Nothing to write to until 0010 lands; saying so beats a 500 that
-    // reads like the club is broken.
-    if (!(await hasColumn(env, "users", "is_admin"))) return json({ error: "no-column" }, 503);
-    // Say so rather than writing nothing, the way /api/admin/coaches does.
-    const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
-    if (!who) return json({ error: "no-member" }, 404);
-    const want = !!body.admin;
-    // Standing on the console and taking your own admin off it is a mis-tap
-    // that locks you out of the screen you are on. The club password is the
-    // way back, but somebody else has to do this one — the same rule the
-    // coaches list follows, for the same reason.
-    if (!want) {
-      const me = await currentUser(request, env);
-      if (me && me.id === id) return json({ error: "not-yourself" }, 409);
-    }
-    await env.DB.prepare("UPDATE users SET is_admin = ? WHERE id = ?").bind(want ? 1 : 0, id).run();
-  } else if (action) {
-    return json({ error: "bad-request" }, 400);
+  // No action is "show me": straight to the list.
+  if (action) {
+    const change = MEMBER_ACTIONS.get(action);
+    if (!change) return json({ error: "bad-request" }, 400);
+    const refused = await change(request, env, body, action, id);
+    if (refused) return refused;
   }
 
   return json({ members: await memberList(env), at: nowISO() });

@@ -138,6 +138,45 @@ export async function adminSchedule(request, env) {
    Moving or calling off one occurrence, and putting it back.
    ------------------------------------------------------------------------- */
 
+/* A place left out means "where it usually is"; a note left empty means none. */
+const optionalPlace = (v) => (v === undefined ? null : clean(v, MAX.place));
+const optionalNote = (v) => clean(v, MAX.note) || null;
+
+/* One occurrence as the form describes it, or why it cannot be saved. */
+function readChange(body) {
+  const at = body.at ? String(body.at) : null;
+  if (at !== null && !validTime(at)) return { error: "bad-time" };
+  const map_url = body.map_url === undefined ? null : cleanUrl(body.map_url);
+  if (map_url === null && body.map_url) return { error: "bad-url" };
+  return {
+    cancelled: body.cancelled ? 1 : 0,
+    at: at,
+    place_en: optionalPlace(body.place_en),
+    place_ar: optionalPlace(body.place_ar),
+    map_url: map_url,
+    note_en: optionalNote(body.note_en),
+    note_ar: optionalNote(body.note_ar),
+  };
+}
+
+async function upsertChange(env, scheduleId, date, c) {
+  await env.DB.prepare(
+    "INSERT INTO schedule_changes (id, schedule_id, date, cancelled, at, place_en, place_ar, map_url, note_en, note_ar, created_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+      " ON CONFLICT(schedule_id, date) DO UPDATE SET cancelled = excluded.cancelled, at = excluded.at," +
+      " place_en = excluded.place_en, place_ar = excluded.place_ar, map_url = excluded.map_url," +
+      " note_en = excluded.note_en, note_ar = excluded.note_ar"
+  )
+    .bind(uid(), scheduleId, date, c.cancelled, c.at, c.place_en, c.place_ar, c.map_url, c.note_en, c.note_ar, nowISO())
+    .run();
+}
+
+async function clearChange(env, scheduleId, date) {
+  await env.DB.prepare("DELETE FROM schedule_changes WHERE schedule_id = ? AND date = ?")
+    .bind(scheduleId, date)
+    .run();
+}
+
 export async function adminScheduleChange(request, env) {
   const body = await readBody(request);
   const no = await refuseUnlessAdmin(request, env, body);
@@ -151,39 +190,15 @@ export async function adminScheduleChange(request, env) {
   if (!entry) return json({ error: "no-entry" }, 404);
 
   const action = String(body.action || "set");
-
   if (action === "clear") {
-    await env.DB.prepare("DELETE FROM schedule_changes WHERE schedule_id = ? AND date = ?")
-      .bind(scheduleId, date)
-      .run();
+    await clearChange(env, scheduleId, date);
     return json({ changes: await changesAround(env, date) });
   }
-
   if (action !== "set") return json({ error: "bad-request" }, 400);
 
-  const at = body.at ? String(body.at) : null;
-  if (at !== null && !validTime(at)) return json({ error: "bad-time" }, 400);
-  const map_url = body.map_url === undefined ? null : cleanUrl(body.map_url);
-  if (map_url === null && body.map_url) return json({ error: "bad-url" }, 400);
-
-  await env.DB.prepare(
-    "INSERT INTO schedule_changes (id, schedule_id, date, cancelled, at, place_en, place_ar, map_url, note_en, note_ar, created_at)" +
-      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
-      " ON CONFLICT(schedule_id, date) DO UPDATE SET cancelled = excluded.cancelled, at = excluded.at," +
-      " place_en = excluded.place_en, place_ar = excluded.place_ar, map_url = excluded.map_url," +
-      " note_en = excluded.note_en, note_ar = excluded.note_ar"
-  )
-    .bind(
-      uid(), scheduleId, date, body.cancelled ? 1 : 0, at,
-      body.place_en === undefined ? null : clean(body.place_en, MAX.place),
-      body.place_ar === undefined ? null : clean(body.place_ar, MAX.place),
-      map_url,
-      clean(body.note_en, MAX.note) || null,
-      clean(body.note_ar, MAX.note) || null,
-      nowISO()
-    )
-    .run();
-
+  const change = readChange(body);
+  if (change.error) return json({ error: change.error }, 400);
+  await upsertChange(env, scheduleId, date, change);
   return json({ changes: await changesAround(env, date) });
 }
 

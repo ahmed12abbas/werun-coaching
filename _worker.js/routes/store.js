@@ -8,6 +8,9 @@ import { storeOn, createCheckout } from "../lib/stripe.js";
 
 const MAX_QTY = 5;
 
+/* "S, M, L" as the coach typed it, as a list. */
+const optionsOf = (options) => (options ? options.split(",").map((s) => s.trim()).filter(Boolean) : []);
+
 const publicProduct = (p) => ({
   id: p.id,
   name_en: p.name_en,
@@ -15,7 +18,7 @@ const publicProduct = (p) => ({
   desc_en: p.desc_en,
   desc_ar: p.desc_ar,
   price: p.price,
-  options: p.options ? p.options.split(",").map((s) => s.trim()).filter(Boolean) : [],
+  options: optionsOf(p.options),
   // The number itself is the coach's business; an athlete needs to know
   // whether they can have one, and how close it is to going.
   sold_out: p.stock !== null && p.stock <= 0,
@@ -54,46 +57,74 @@ export const store = withMember(async (request, env, user) => {
  * The price is read from the database here rather than taken from the
  * request, for the same reason.
  */
-export const checkout = withMember(async (request, env, user) => {
+async function shopRefusal(env, user) {
   if (!storeOn(env)) return json({ error: "store-off" }, 503);
   if (!(await getSetting(env, "store_open"))) return json({ error: "store-shut" }, 403);
   if (env.STATS && (await tooOften(env.STATS, "co", user.id, 6, 3600))) return json({ error: "too-often" }, 429);
+  return null;
+}
 
-  const body = await readBody(request);
-  const qty = Math.max(1, Math.min(MAX_QTY, Math.round(Number(body.qty) || 1)));
-  const product = await env.DB.prepare("SELECT * FROM products WHERE id = ? AND active = 1")
-    .bind(String(body.product || ""))
-    .first();
-  if (!product) return json({ error: "no-product" }, 404);
+const quantityFrom = (body) => Math.max(1, Math.min(MAX_QTY, Math.round(Number(body.qty) || 1)));
+
+/* Enough on the shelf, and a size from the list when there is one — none
+   when there is not. */
+function orderProblem(product, qty, variant) {
   if (product.stock !== null && product.stock < qty) return json({ error: "sold-out" }, 409);
+  const choices = optionsOf(product.options);
+  const fits = choices.length ? choices.includes(variant) : !variant;
+  return fits ? null : json({ error: "pick-a-size" }, 400);
+}
 
-  const choices = product.options ? product.options.split(",").map((s) => s.trim()).filter(Boolean) : [];
-  const variant = String(body.variant || "");
-  if (choices.length && !choices.includes(variant)) return json({ error: "pick-a-size" }, 400);
-  if (!choices.length && variant) return json({ error: "pick-a-size" }, 400);
-
-  const currency = await getSetting(env, "currency");
-  const name = product.name_en || product.name_ar;
-  const id = uid();
+async function insertOrder(env, user, product, o) {
   await env.DB.prepare(
     "INSERT INTO orders (id, user_id, product_id, name, variant, qty, amount, currency, status, created_at)" +
       " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)"
   )
-    .bind(id, user.id, product.id, name, variant, qty, product.price * qty, currency, nowISO())
+    .bind(o.id, user.id, product.id, o.name, o.variant, o.qty, product.price * o.qty, o.currency, nowISO())
     .run();
+}
 
+/* What Stripe's page shows, and where it sends the athlete afterwards. */
+function paymentPage(request, user, product, o) {
   const origin = new URL(request.url).origin;
-  const out = await createCheckout(env, {
-    orderId: id,
+  return {
+    orderId: o.id,
     email: user.email,
-    qty: qty,
-    currency: currency,
+    qty: o.qty,
+    currency: o.currency,
     unitAmount: product.price,
-    name: name + (variant ? " (" + variant + ")" : ""),
+    name: o.name + (o.variant ? " (" + o.variant + ")" : ""),
     description: product.desc_en || product.desc_ar || "",
-    successUrl: origin + "/app#/order/" + id,
+    successUrl: origin + "/app#/order/" + o.id,
     cancelUrl: origin + "/app#/store",
-  });
+  };
+}
+
+export const checkout = withMember(async (request, env, user) => {
+  const shut = await shopRefusal(env, user);
+  if (shut) return shut;
+
+  const body = await readBody(request);
+  const qty = quantityFrom(body);
+  const product = await env.DB.prepare("SELECT * FROM products WHERE id = ? AND active = 1")
+    .bind(String(body.product || ""))
+    .first();
+  if (!product) return json({ error: "no-product" }, 404);
+  const variant = String(body.variant || "");
+  const wrong = orderProblem(product, qty, variant);
+  if (wrong) return wrong;
+
+  const o = {
+    id: uid(),
+    name: product.name_en || product.name_ar,
+    variant: variant,
+    qty: qty,
+    currency: await getSetting(env, "currency"),
+  };
+  const id = o.id;
+  await insertOrder(env, user, product, o);
+
+  const out = await createCheckout(env, paymentPage(request, user, product, o));
   if (!out.ok) {
     // A page that never opened is not an order. Clearing it keeps the coach's
     // list free of rows that were never going anywhere.
