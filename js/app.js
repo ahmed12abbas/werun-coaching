@@ -1298,74 +1298,82 @@ function whereAndWorth(item) {
 }
 
 function planCard(item, date) {
-  const day = new Date(date + "T00:00:00");
-  const note = I18N.lang === "ar" ? item.note_ar || item.note_en : item.note_en || item.note_ar;
   const soon = item.cancelled ? null : countdownPill(item, date);
-
-  const head = el(
+  const note = side(item, "note");
+  return el(
     "div",
-    { class: "plan-head" },
-    el("h2", {}, side(item, "title")),
-    item.cancelled ? el("span", { class: "tag miss" }, t("aCalledOff"))
-      : item.moved ? el("span", { class: "tag open" }, t("aChanged")) : null,
-    signupControl(item, date)
+    { class: "card pad stack" },
+    planHead(item, date),
+    planWhen(item, date),
+    soon,
+    whereAndWorth(item),
+    note ? el("p", { class: "slot-note" }, note) : null,
+    stepsLink(item),
+    joinParts(item, date)
   );
+}
 
-  const when = el(
+/* The title, whether this one occurrence is off or has moved, and the
+   control for putting your name down. */
+function planHead(item, date) {
+  return el("div", { class: "plan-head" }, el("h2", {}, side(item, "title")), planTag(item), signupControl(item, date));
+}
+
+function planTag(item) {
+  if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
+  if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+  return null;
+}
+
+function planWhen(item, date) {
+  const day = new Date(date + "T00:00:00");
+  return el(
     "div",
     { class: "plan-when" },
     el("span", { class: "num" }, prettyTime(item, date)),
     el("span", { class: "muted" }, day.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }))
   );
+}
 
-  const facts = whereAndWorth(item);
+/* The steps the coach has for this slot on some other date. The club runs the
+   same speed session three times a week, so the workout is nearly always the
+   one an athlete came for — say plainly which date it is from rather than let
+   them read it as this one's. Steps stay on a session that has been called
+   off, where Join does not: there is no code to scan for a session nobody is
+   holding, but the workout is still a workout and an athlete may well go and
+   run it alone. */
+function stepsLink(item) {
+  if (!item.steps_id) return [];
+  return [
+    el("p", { class: "muted small" }, t("aStepsLead", { date: longDate(item.steps_date) })),
+    el(
+      "button",
+      { class: "btn block", type: "button", onclick: () => go("session/" + item.steps_id) },
+      t("aSteps")
+    ),
+  ];
+}
 
-  // The steps the coach has for this slot on some other date. The club runs
-  // the same speed session three times a week, so the workout is nearly
-  // always the one an athlete came for — say plainly which date it is from
-  // rather than let them read it as this one's.
-  const steps = item.steps_id
-    ? [
-        el("p", { class: "muted small" }, t("aStepsLead", { date: longDate(item.steps_date) })),
-        el(
-          "button",
-          { class: "btn block", type: "button", onclick: () => go("session/" + item.steps_id) },
-          t("aSteps")
-        ),
-      ]
-    : [];
-  // Steps stay on a session that has been called off, where Join does not:
-  // there is no code to scan for a session nobody is holding, but the workout
-  // is still a workout and an athlete may well go and run it alone.
-
-  // Yesterday's session is over: check-in shut two hours after it started,
-  // and a live button on it is an invitation to scan a code that no longer
-  // exists. Called off is called off for the same reason — there is no code
-  // to scan for a session nobody is holding.
-  // Before it opens is as dead as after it shuts — the Worker refuses both —
-  // so the button says so rather than sending an athlete at a code that will
-  // be turned away.
+/* Join, and the line under it. Yesterday's session is over: check-in shut two
+   hours after it started, and a live button on it is an invitation to scan a
+   code that no longer exists. Called off is called off for the same reason —
+   there is no code to scan for a session nobody is holding. Before it opens
+   is as dead as after it shuts — the Worker refuses both — so the button says
+   so rather than sending an athlete at a code that will be turned away. */
+function joinParts(item, date) {
+  if (item.cancelled) return [];
   const opens = opensTime(item, date);
   const early = opens !== null && Date.now() < opens;
   const shut = checkinShut(item, date) || early;
-  const closed = closesAt(item, date);
-  return el(
-    "div",
-    { class: "card pad stack" },
-    head,
-    when,
-    soon,
-    facts,
-    note ? el("p", { class: "slot-note" }, note) : null,
-    steps,
-    item.cancelled ? null : joinButton(shut),
-    item.cancelled
-      ? null
-      : el("p", { class: "hint" },
-          early
-            ? t("aOpensAt", { time: new Date(opens).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) })
-            : shut ? t("aClosedAt", { time: closed }) : t("aScanLead"))
-  );
+  return [joinButton(shut), el("p", { class: "hint" }, joinHint(item, date, opens, early, shut))];
+}
+
+function joinHint(item, date, opens, early, shut) {
+  if (early) {
+    return t("aOpensAt", { time: new Date(opens).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) });
+  }
+  if (shut) return t("aClosedAt", { time: closesAt(item, date) });
+  return t("aScanLead");
 }
 
 /* A published session with no steps behind it: the same four facts the

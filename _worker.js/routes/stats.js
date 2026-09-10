@@ -62,11 +62,14 @@ const shiftDay = (iso, n) =>
 async function fillStanding(env, byWeek) {
   if (!byWeek.size) return;
   const starts = [...byWeek.keys()].sort();
-  const from = starts[0];
-  const to = shiftDay(starts[starts.length - 1], 6);
+  const standing = await readStanding(env, starts[0], shiftDay(starts[starts.length - 1], 6));
+  if (!standing) return;
+  for (const week of byWeek.values()) fillWeek(week, standing);
+}
 
-  let slots = [];
-  let changes = [];
+/* The active slots and the changes between two dates, or null for a database
+   that has no standing week yet. */
+async function readStanding(env, from, to) {
   try {
     const [a, b] = await Promise.all([
       env.DB.prepare("SELECT id, weekday, at, title_en FROM schedule WHERE active = 1").all(),
@@ -76,36 +79,40 @@ async function fillStanding(env, byWeek) {
         .bind(from, to)
         .all(),
     ]);
-    slots = a.results || [];
-    changes = b.results || [];
+    return { slots: a.results || [], changes: b.results || [] };
   } catch (e) {
     console.error("stats: no standing schedule yet (" + (e && e.message) + ")");
-    return;
+    return null;
   }
+}
 
-  for (const week of byWeek.values()) {
-    const taken = new Set(week.sessions.map((s) => s.schedule_id + "|" + s.date));
-    for (let i = 0; i < 7; i++) {
-      const date = shiftDay(week.start, i);
-      const weekday = new Date(date + "T00:00:00Z").getUTCDay();
-      for (const slot of slots) {
-        if (slot.weekday !== weekday) continue;
-        if (taken.has(slot.id + "|" + date)) continue;
-        const change = changes.find((c) => c.schedule_id === slot.id && c.date === date);
-        if (change && change.cancelled) continue;
-        week.sessions.push({
-          id: null,
-          date: date,
-          name: slot.title_en,
-          // Riyadh, UTC+3 all year — the club's clock, not the server's.
-          starts_at: date + "T" + ((change && change.at) || slot.at) + ":00+03:00",
-          coach_id: null,
-          schedule_id: slot.id,
-          came: 0,
-        });
-      }
+/* Every slot on each of the week's seven days that has no session row and
+   was not called off, added at nought. */
+function fillWeek(week, { slots, changes }) {
+  const taken = new Set(week.sessions.map((s) => s.schedule_id + "|" + s.date));
+  for (let i = 0; i < 7; i++) {
+    const date = shiftDay(week.start, i);
+    const weekday = new Date(date + "T00:00:00Z").getUTCDay();
+    for (const slot of slots) {
+      if (slot.weekday !== weekday || taken.has(slot.id + "|" + date)) continue;
+      const change = changes.find((c) => c.schedule_id === slot.id && c.date === date);
+      if (change && change.cancelled) continue;
+      week.sessions.push(unscanned(slot, date, change));
     }
   }
+}
+
+function unscanned(slot, date, change) {
+  return {
+    id: null,
+    date: date,
+    name: slot.title_en,
+    // Riyadh, UTC+3 all year — the club's clock, not the server's.
+    starts_at: date + "T" + ((change && change.at) || slot.at) + ":00+03:00",
+    coach_id: null,
+    schedule_id: slot.id,
+    came: 0,
+  };
 }
 
 /* ---------- POST /api/stats ---------------------------------------------- */

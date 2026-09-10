@@ -24,22 +24,30 @@ export async function stripeWebhook(request, env) {
     return json({ error: out.error }, 400);
   }
 
-  const event = out.event || {};
-  if (event.type !== "checkout.session.completed") {
-    // Everything else is acknowledged and ignored, so Stripe stops resending
-    // events this club has no use for.
-    return json({ ok: true, ignored: event.type || null });
-  }
+  const found = await orderFor(env, out.event || {});
+  if (!found.order) return json({ ok: true, ignored: found.ignored });
+  // Webhooks retry, and a retry must not take a second shirt off the shelf.
+  if (found.order.status !== "pending") return json({ ok: true, already: found.order.status });
 
+  await markPaid(env, found.order, found.session);
+  return json({ ok: true });
+}
+
+/* The order a verified event is about, or why it is being ignored. Only
+   ever called once the signature has checked out. */
+async function orderFor(env, event) {
+  // Everything but a completed checkout is acknowledged and ignored, so
+  // Stripe stops resending events this club has no use for.
+  if (event.type !== "checkout.session.completed") return { ignored: event.type || null };
   const session = (event.data && event.data.object) || {};
   const orderId = session.client_reference_id || (session.metadata && session.metadata.order_id);
-  if (!orderId) return json({ ok: true, ignored: "no-order-ref" });
-
+  if (!orderId) return { ignored: "no-order-ref" };
   const order = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(String(orderId)).first();
-  if (!order) return json({ ok: true, ignored: "unknown-order" });
-  // Webhooks retry, and a retry must not take a second shirt off the shelf.
-  if (order.status !== "pending") return json({ ok: true, already: order.status });
+  if (!order) return { ignored: "unknown-order" };
+  return { order, session };
+}
 
+async function markPaid(env, order, session) {
   await env.DB.prepare(
     "UPDATE orders SET status = 'paid', paid_at = ?, payment_id = ? WHERE id = ? AND status = 'pending'"
   )
@@ -53,6 +61,4 @@ export async function stripeWebhook(request, env) {
   )
     .bind(order.qty, order.product_id, order.qty)
     .run();
-
-  return json({ ok: true });
 }

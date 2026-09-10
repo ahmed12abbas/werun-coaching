@@ -112,17 +112,28 @@ export async function verify(request, env) {
  * The work is the same either way too: an unknown address still costs a
  * lookup, so the answer's timing says as little as its wording.
  */
-export async function resetRequest(request, env) {
+function resetRefusal(env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   if (!emailOn(env) && !echoing(env)) return json({ error: "email-off" }, 503);
+  return null;
+}
+
+/* Per address, and per address and email together — the second only when
+   there is an email to key it on. */
+async function tooManyResets(env, request, email) {
+  if (!env.STATS) return false;
+  const byIp = await tooOften(env.STATS, "rq", ipOf(request), 5, 3600);
+  const byWho = email && (await tooOften(env.STATS, "rw", ipOf(request) + ":" + email, 3, 3600));
+  return !!(byIp || byWho);
+}
+
+export async function resetRequest(request, env) {
+  const no = resetRefusal(env);
+  if (no) return no;
 
   const body = await readBody(request);
   const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
-  if (env.STATS) {
-    const byIp = await tooOften(env.STATS, "rq", ipOf(request), 5, 3600);
-    const byWho = email && (await tooOften(env.STATS, "rw", ipOf(request) + ":" + email, 3, 3600));
-    if (byIp || byWho) return json({ error: "too-often" }, 429);
-  }
+  if (await tooManyResets(env, request, email)) return json({ error: "too-often" }, 429);
 
   const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
   if (!user || user.status === "blocked") return json({ ok: true });
