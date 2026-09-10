@@ -2173,20 +2173,9 @@ SCREENS.feed = function () {
   API.get("/api/feed")
     .then((d) => {
       list.textContent = "";
-      const tips = d.tips || [];
       FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
-      for (const tip of tips) list.append(tipCard(tip));
-      for (const p of d.posts) list.append(postCard(p));
-      if (!d.posts.length && !tips.length) list.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews"))));
-      if (d.whatsapp) {
-        list.append(
-          el(
-            "a",
-            { class: "btn block", href: d.whatsapp, target: "_blank", rel: "noopener noreferrer" },
-            t("aWhatsapp")
-          )
-        );
-      }
+      list.append(...feedCards(d.tips || [], d.posts));
+      if (d.whatsapp) list.append(whatsappButton(d.whatsapp));
     })
     .catch((e) => {
       list.textContent = "";
@@ -2195,6 +2184,17 @@ SCREENS.feed = function () {
 
   return list;
 };
+
+/* The live article first, then the posts — or, with neither, a line saying
+   there is no news yet. */
+function feedCards(tips, posts) {
+  const cards = tips.map((tip) => tipCard(tip)).concat(posts.map((p) => postCard(p)));
+  return cards.length ? cards : [el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews")))];
+}
+
+function whatsappButton(url) {
+  return el("a", { class: "btn block", href: url, target: "_blank", rel: "noopener noreferrer" }, t("aWhatsapp"));
+}
 
 /** Whichever side the reader can read, theirs first. */
 function side(obj, key) {
@@ -2345,8 +2345,16 @@ function react(target, face, draw) {
 
 /* The live article, shown here as well as beside the session — the same
    words, and the same byline the cloud carries. */
+/* The reader's language when it has a title, English when that does, Arabic
+   otherwise — and an empty side when there is nothing at all. */
+function tipInLang(tip) {
+  const mine = tip[I18N.lang];
+  if (mine && mine.title) return mine;
+  return (tip.en.title ? tip.en : tip.ar) || {};
+}
+
 function tipCard(tip) {
-  const s = (tip[I18N.lang] && tip[I18N.lang].title ? tip[I18N.lang] : tip.en.title ? tip.en : tip.ar) || {};
+  const s = tipInLang(tip);
   if (!s.title && !s.body) return el("div");
   return reactable(
     "tip:" + tip.id,

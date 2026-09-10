@@ -270,11 +270,12 @@ const clampToMode = (seconds, mode) =>
   Math.round(clampNum(seconds, PACE_ROLL[mode][0] * 60, PACE_ROLL[mode][1] * 60 + 59));
 
 function loadPaceEntry() {
+  // Entries written before the roller held "mm:ss" rather than seconds.
+  const secondsOf = (v) => (typeof v === "string" ? parseClock(v) : v);
   try {
     const saved = JSON.parse(localStorage.getItem(PACE_KEY) || "null");
-    if (!saved || (saved.mode !== "mile" && saved.mode !== "k5")) return null;
-    // Entries written before the roller held "mm:ss" rather than seconds.
-    const secs = typeof saved.value === "string" ? parseClock(saved.value) : saved.value;
+    if (!saved || !Object.hasOwn(PACE_ROLL, saved.mode)) return null;
+    const secs = secondsOf(saved.value);
     if (!secs || secs <= 0) return null;
     return { mode: saved.mode, value: clampToMode(secs, saved.mode) };
   } catch (e) {
@@ -395,6 +396,38 @@ function paceCalculator(units) {
     cols.sec.set(value % 60);
   }
 
+  // The other half of the pair, so the athlete can sanity-check the answer
+  // against a race they have actually run.
+  const paceHint = (row) =>
+    (row.extended ? t("pcExtended") + " " : "") +
+    (mode === "mile"
+      ? t("pcThatIs5k", { time: fmtClock(row.paces[0] * 5) })
+      : t("pcThatIsMile", { time: fmtClock(row.mile) }));
+
+  // The track carries the meaning: quicker chart row, quicker everything.
+  function trackPace(effort) {
+    track.style.setProperty("--road", (0.26 + effort * 0.66).toFixed(2) + "s");
+    track.style.setProperty("--bob", (0.2 + effort * 0.3).toFixed(2) + "s");
+    track.style.setProperty("--drift", (0.9 + effort * 1.3).toFixed(2) + "s");
+    // Off the drift's own period, so the two never fall into step.
+    track.style.setProperty("--jostle", (1.35 + effort * 0.9).toFixed(2) + "s");
+  }
+
+  // Rebuilt only when the runner changes, or the bob restarts mid-stride.
+  // .runner carries the jostle, the span inside it carries the bob — two
+  // transforms that would otherwise fight over the same element.
+  function spriteInto(look) {
+    const key = look[1].join("");
+    if (key !== spriteKey) {
+      spriteKey = key;
+      spriteBox.textContent = "";
+      for (const glyph of look[1]) {
+        spriteBox.append(el("span", { class: "runner" }, el("span", {}, glyph)));
+      }
+    }
+    spriteBox.style.setProperty("--face", String(look[2]));
+  }
+
   function draw(boost) {
     modeBtns.forEach((b, i) => b.setAttribute("aria-pressed", modes[i] === mode ? "true" : "false"));
     label.textContent = mode === "mile" ? t("pcMileLabel") : t("pcFiveKLabel");
@@ -407,34 +440,9 @@ function paceCalculator(units) {
     row.paces.forEach((p, i) => grid.append(cell(PACE_KEYS[i], p)));
     results.append(grid);
 
-    // The other half of the pair, so the athlete can sanity-check the answer
-    // against a race they have actually run.
-    hint.textContent =
-      (row.extended ? t("pcExtended") + " " : "") +
-      (mode === "mile"
-        ? t("pcThatIs5k", { time: fmtClock(row.paces[0] * 5) })
-        : t("pcThatIsMile", { time: fmtClock(row.mile) }));
-
-    // The track carries the meaning: quicker chart row, quicker everything.
-    const effort = paceEffort(row.mile);
-    track.style.setProperty("--road", (0.26 + effort * 0.66).toFixed(2) + "s");
-    track.style.setProperty("--bob", (0.2 + effort * 0.3).toFixed(2) + "s");
-    track.style.setProperty("--drift", (0.9 + effort * 1.3).toFixed(2) + "s");
-    // Off the drift's own period, so the two never fall into step.
-    track.style.setProperty("--jostle", (1.35 + effort * 0.9).toFixed(2) + "s");
-
-    const look = spriteFor(row.paces[0] * 5);
-    const key = look[1].join("");
-    if (key !== spriteKey) {
-      spriteKey = key;
-      spriteBox.textContent = "";
-      // .runner carries the jostle, the span inside it carries the bob — two
-      // transforms that would otherwise fight over the same element.
-      for (const glyph of look[1]) {
-        spriteBox.append(el("span", { class: "runner" }, el("span", {}, glyph)));
-      }
-    }
-    spriteBox.style.setProperty("--face", String(look[2]));
+    hint.textContent = paceHint(row);
+    trackPace(paceEffort(row.mile));
+    spriteInto(spriteFor(row.paces[0] * 5));
     if (boost) {
       track.classList.add("boost");
       clearTimeout(boostTimer);

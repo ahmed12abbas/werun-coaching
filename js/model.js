@@ -400,28 +400,34 @@ function deflateRaw(src, dict) {
     return best >= 3 ? [best, bestDist] : [0, 0];
   };
 
-  let i = pre;
-  while (i < n) {
+  // One token from position i — a match, a literal, or a literal and then the
+  // match one byte along — and the position after it.
+  const emitAt = (i) => {
     insertUpTo(i);
     let found = longestAt(i);
+    let at = i;
     if (found[0] >= 3) {
       // Lazy match: a longer run one byte along usually pays for the literal.
+      // Having taken that literal, the longer match is emitted as found; the
+      // byte after it is not looked at, or the output would change.
       insertUpTo(i + 1);
       const next = longestAt(i + 1);
       if (next[0] > found[0]) {
         putSym(buf[i]);
-        i++;
+        at = i + 1;
         found = next;
       }
     }
     if (found[0] >= 3) {
       putMatch(found[0], found[1]);
-      i += found[0];
-    } else {
-      putSym(buf[i]);
-      i++;
+      return at + found[0];
     }
-  }
+    putSym(buf[at]);
+    return at + 1;
+  };
+
+  let i = pre;
+  while (i < n) i = emitAt(i);
 
   putSym(256); // end of block
   if (bitCnt) out.push(bitBuf & 255);
@@ -685,10 +691,9 @@ function decodeWorkout(payload) {
         )
       : b64url.decode(payload);
   const d = JSON.parse(json);
-  const unpackStep = (o) => {
-    const s = blankStep(KIND_ORDER[o.t] || "work");
-    s.label = o.l || "";
-    s.note = o.q || "";
+  // How the step ends: a time or a distance when the link names one, the lap
+  // button otherwise.
+  const unpackDuration = (s, o) => {
     if (o.s != null) {
       s.durType = "time";
       s.seconds = o.s;
@@ -699,9 +704,18 @@ function decodeWorkout(payload) {
       s.durType = "open";
       s.estSeconds = o.e || 0;
     }
-    if (o.p) s.target = { kind: "pace", fast: o.p[0], slow: o.p[1] };
-    else if (o.h) s.target = { kind: "hr", low: o.h[0], high: o.h[1] };
-    else s.target = { kind: "none" };
+  };
+  const unpackTarget = (o) => {
+    if (o.p) return { kind: "pace", fast: o.p[0], slow: o.p[1] };
+    if (o.h) return { kind: "hr", low: o.h[0], high: o.h[1] };
+    return { kind: "none" };
+  };
+  const unpackStep = (o) => {
+    const s = blankStep(KIND_ORDER[o.t] || "work");
+    s.label = o.l || "";
+    s.note = o.q || "";
+    unpackDuration(s, o);
+    s.target = unpackTarget(o);
     return s;
   };
   return {

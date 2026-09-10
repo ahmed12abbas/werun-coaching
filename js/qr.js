@@ -419,22 +419,32 @@ function qrMatrix(text, level) {
   placeTiming(base, size);
   reserveInfo(base, size, version);
   placeData(base, size, eccFor(encode(text, version, lvl), version, lvl));
+  return bestMask(base, size, lvl, version);
+}
 
-  // Eight candidates, and the one the standard likes best wins.
+/* Eight candidates, and the one the standard likes best wins. */
+function bestMask(base, size, lvl, version) {
   let best = null;
   for (let mask = 0; mask < 8; mask++) {
-    const grid = base.grid.map((row) => Uint8Array.from(row));
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (!base.fixed[r][c] && MASKS[mask](r, c)) grid[r][c] ^= 1;
-      }
-    }
+    const grid = applyMask(base, size, mask);
     writeFormat(grid, size, lvl, mask);
     writeVersion(grid, size, version);
     const score = penalty(grid, size);
     if (!best || score < best.score) best = { grid, score, mask };
   }
   return best.grid;
+}
+
+/* A copy of the grid with one mask flipped over everything but the fixed
+   patterns. */
+function applyMask(base, size, mask) {
+  const grid = base.grid.map((row) => Uint8Array.from(row));
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (!base.fixed[r][c] && MASKS[mask](r, c)) grid[r][c] ^= 1;
+    }
+  }
+  return grid;
 }
 
 /**
