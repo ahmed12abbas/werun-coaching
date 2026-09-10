@@ -738,24 +738,12 @@ SCREENS.home = function (args, user) {
 
   API.get("/api/week?start=" + start)
     .then((data) => {
-      let done = 0;
-      const ahead = [];
-      for (const d of data.days || []) {
-        for (const it of d.items || []) {
-          if (it.checked_in) done++;
-          if (it.cancelled || d.date < today) continue;
-          // This morning's session, two hours after it started, is behind
-          // them however much of today is left.
-          const shuts = closesTime(it, d.date);
-          if (shuts !== null && Date.now() > shuts) continue;
-          ahead.push({ it: it, date: d.date });
-        }
-      }
+      const week = weekSoFar(data.days, today);
       box.textContent = "";
       box.append(
-        goalCard(done, user),
-        homeList("aMySessions", ahead.filter((x) => x.it.registered), "aNoneDown"),
-        homeList("aOpenSessions", ahead.filter((x) => !x.it.registered), "aNoneOpen")
+        goalCard(week.done, user),
+        homeList("aMySessions", week.ahead.filter((x) => x.it.registered), "aNoneDown"),
+        homeList("aOpenSessions", week.ahead.filter((x) => !x.it.registered), "aNoneOpen")
       );
       lightCoachCode(box, data.days);
       startCountdowns();
@@ -767,6 +755,28 @@ SCREENS.home = function (args, user) {
 
   return box;
 };
+
+/* The week read two ways: how many sessions they have checked in to, and
+   what is still ahead of them to join or turn up for. */
+function weekSoFar(days, today) {
+  // Not called off, not on a day already gone, and not this morning's session
+  // two hours after it started — that is behind them however much of today
+  // is left.
+  const stillToCome = (it, date) => {
+    if (it.cancelled || date < today) return false;
+    const shuts = closesTime(it, date);
+    return shuts === null || Date.now() <= shuts;
+  };
+  let done = 0;
+  const ahead = [];
+  for (const d of days || []) {
+    for (const it of d.items || []) {
+      if (it.checked_in) done++;
+      if (stillToCome(it, d.date)) ahead.push({ it: it, date: d.date });
+    }
+  }
+  return { done: done, ahead: ahead };
+}
 
 /* Sessions run against sessions meant. The pips rather than a bar, because
    three of five is a thing you count at a glance and 60% is not; a week that
@@ -2023,17 +2033,10 @@ SCREENS.store = function () {
 
 function productCard(p, currency) {
   const err = el("p", { class: "form-err hidden" });
-  const sizes = el("div", { class: "seg sizes" });
   let picked = p.options.length === 1 ? p.options[0] : "";
-
-  for (const size of p.options) {
-    const b = el("button", { type: "button", "aria-pressed": picked === size ? "true" : "false" }, size);
-    b.addEventListener("click", () => {
-      picked = size;
-      for (const other of sizes.children) other.setAttribute("aria-pressed", other === b ? "true" : "false");
-    });
-    sizes.append(b);
-  }
+  const sizes = sizePicker(p.options, picked, (size) => {
+    picked = size;
+  });
 
   const qty = el("select", { class: "qty" });
   for (let n = 1; n <= 5; n++) qty.append(el("option", { value: String(n) }, String(n)));
@@ -2058,31 +2061,69 @@ function productCard(p, currency) {
       el("span", { class: "price num" }, money(p.price, currency))),
     side(p, "desc") ? el("p", { class: "muted small" }, side(p, "desc")) : null,
     p.low ? el("p", { class: "few" }, t("aFewLeft", { n: p.low })) : null,
-    p.sold_out
-      ? el("p", { class: "muted" }, t("aSoldOut"))
-      : el("div", { class: "stack" },
-          p.options.length ? el("div", {}, el("label", {}, t("aSize")), sizes) : null,
-          el("div", { class: "row" },
-            el("div", { style: "flex:0 0 92px" }, el("label", {}, t("aQty")), qty)),
-          err,
-          buy)
+    buyArea(p, sizes, qty, err, buy)
   );
 }
 
+/* One button per size; pressing one picks it and lets go of the others. */
+function sizePicker(options, picked, onPick) {
+  const sizes = el("div", { class: "seg sizes" });
+  for (const size of options) {
+    const b = el("button", { type: "button", "aria-pressed": picked === size ? "true" : "false" }, size);
+    b.addEventListener("click", () => {
+      onPick(size);
+      for (const other of sizes.children) other.setAttribute("aria-pressed", other === b ? "true" : "false");
+    });
+    sizes.append(b);
+  }
+  return sizes;
+}
+
+/* Sold out says so; otherwise the size, how many, and the button. */
+function buyArea(p, sizes, qty, err, buy) {
+  if (p.sold_out) return el("p", { class: "muted" }, t("aSoldOut"));
+  return el("div", { class: "stack" },
+    p.options.length ? el("div", {}, el("label", {}, t("aSize")), sizes) : null,
+    el("div", { class: "row" },
+      el("div", { style: "flex:0 0 92px" }, el("label", {}, t("aQty")), qty)),
+    err,
+    buy);
+}
+
 const ORDER_STATE = { paid: "aOrderPaid", handed: "aOrderHanded", pending: "aOrderPending", cancelled: "aOrderCancelled" };
+
+/* "Tee · M × 2": the product, the size when there is one, and how many when
+   it is more than one. */
+const orderLabel = (o) => o.name + (o.variant ? " · " + o.variant : "") + (o.qty > 1 ? " × " + o.qty : "");
 
 function myOrders(orders) {
   const box = el("div", { class: "card pad stack" }, el("h3", {}, t("aMyOrders")));
   for (const o of orders) {
     box.append(
       el("div", { class: "order-row" },
-        el("span", { class: "grow", dir: "auto" }, o.name + (o.variant ? " · " + o.variant : "") + (o.qty > 1 ? " × " + o.qty : "")),
+        el("span", { class: "grow", dir: "auto" }, orderLabel(o)),
         el("span", { class: "muted small" }, money(o.amount, o.currency)),
         el("span", { class: "tag " + (o.status === "handed" ? "done" : o.status === "paid" ? "open" : "soon") },
           t(ORDER_STATE[o.status] || "aOrderPending")))
     );
   }
   return box;
+}
+
+/* What the order page says once the order has settled: thanks for one that
+   is paid for, otherwise where it stands. Handed to the browser's own
+   append, as it always was. */
+function orderView(o) {
+  const done = o.status === "paid" || o.status === "handed";
+  return [
+    done ? el("div", { class: "landed" }, "🎉") : null,
+    el("h2", {}, done ? t("aOrderThanks") : t(ORDER_STATE[o.status] || "aOrderPending")),
+    el("p", { class: "muted" }, orderLabel(o)),
+    el("p", { class: "muted small" }, money(o.amount, o.currency)),
+    done ? el("p", {}, t("aOrderThanksLead")) : null,
+    el("div", { class: "row-wrap" },
+      el("button", { class: "btn primary", onclick: () => go("store") }, t("aBackToStore"))),
+  ];
 }
 
 /* Where Stripe sends them back to. The webhook may not have landed yet, so a
@@ -2106,16 +2147,7 @@ SCREENS.order = function (args) {
           return;
         }
         box.textContent = "";
-        const done = o.status === "paid" || o.status === "handed";
-        box.append(
-          done ? el("div", { class: "landed" }, "🎉") : null,
-          el("h2", {}, done ? t("aOrderThanks") : t(ORDER_STATE[o.status] || "aOrderPending")),
-          el("p", { class: "muted" }, o.name + (o.variant ? " · " + o.variant : "") + (o.qty > 1 ? " × " + o.qty : "")),
-          el("p", { class: "muted small" }, money(o.amount, o.currency)),
-          done ? el("p", {}, t("aOrderThanksLead")) : null,
-          el("div", { class: "row-wrap" },
-            el("button", { class: "btn primary", onclick: () => go("store") }, t("aBackToStore")))
-        );
+        box.append(...orderView(o));
       })
       .catch((e) => {
         box.textContent = "";

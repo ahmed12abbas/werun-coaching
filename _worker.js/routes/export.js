@@ -41,72 +41,78 @@ const asFile = (name, body) =>
 
 /* ---------- POST /api/admin/export ---------------------------------------- */
 
+/* One member as a row of the members file. */
+function memberRow(m) {
+  return [
+    m.name, m.email, m.role, m.status, m.lang, m.gender || "", m.birth_year || "",
+    m.birth_year ? new Date().getUTCFullYear() - m.birth_year : "",
+    m.created_at, m.last_seen_at || "",
+    m.email_verified_at || "", m.points, m.checkins,
+  ];
+}
+
+async function membersFile(env, day) {
+  const bio = (await hasColumn(env, "users", "birth_year")) ? " u.gender, u.birth_year," : " '' AS gender, NULL AS birth_year,";
+  const rows = await env.DB.prepare(
+    "SELECT u.name, u.email, u.role, u.status, u.lang," + bio + " u.created_at, u.last_seen_at, u.email_verified_at," +
+      " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
+      " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
+      " FROM users u ORDER BY u.created_at ASC LIMIT ?"
+  )
+    .bind(CAP)
+    .all();
+  return asFile(
+    "werun-members-" + day + ".csv",
+    csv(
+      ["name", "email", "role", "status", "language", "gender", "birth year", "age", "joined", "last seen", "email confirmed", "points", "check-ins"],
+      (rows.results || []).map(memberRow)
+    )
+  );
+}
+
+/* The ledger with a name against each row, so the file explains itself
+   without a second export to join it to. */
+async function pointsFile(env, day) {
+  const rows = await env.DB.prepare(
+    "SELECT p.at, u.name, u.email, p.delta, p.reason, p.note FROM points_ledger p" +
+      " JOIN users u ON u.id = p.user_id ORDER BY p.at ASC LIMIT ?"
+  )
+    .bind(CAP)
+    .all();
+  return asFile(
+    "werun-points-" + day + ".csv",
+    csv(
+      ["when", "name", "email", "points", "reason", "note"],
+      (rows.results || []).map((p) => [p.at, p.name, p.email, p.delta, p.reason, p.note || ""])
+    )
+  );
+}
+
+async function checkinsFile(env, day) {
+  const rows = await env.DB.prepare(
+    "SELECT c.at, s.date, s.name AS session, u.name, u.email, c.method, c.voided_at" +
+      " FROM checkins c JOIN users u ON u.id = c.user_id JOIN club_sessions s ON s.id = c.session_id" +
+      " ORDER BY c.at ASC LIMIT ?"
+  )
+    .bind(CAP)
+    .all();
+  return asFile(
+    "werun-checkins-" + day + ".csv",
+    csv(
+      ["when", "session date", "session", "name", "email", "how", "voided"],
+      (rows.results || []).map((c) => [c.at, c.date, c.session, c.name, c.email, c.method, c.voided_at || ""])
+    )
+  );
+}
+
+const EXPORTS = new Map([["members", membersFile], ["points", pointsFile], ["checkins", checkinsFile]]);
+
 export async function adminExport(request, env) {
   const body = await readBody(request);
   const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
-  const what = String(body.what || "members");
-  const day = new Date().toISOString().slice(0, 10);
-
-  if (what === "members") {
-    const bio = (await hasColumn(env, "users", "birth_year")) ? " u.gender, u.birth_year," : " '' AS gender, NULL AS birth_year,";
-    const rows = await env.DB.prepare(
-      "SELECT u.name, u.email, u.role, u.status, u.lang," + bio + " u.created_at, u.last_seen_at, u.email_verified_at," +
-        " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
-        " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
-        " FROM users u ORDER BY u.created_at ASC LIMIT ?"
-    )
-      .bind(CAP)
-      .all();
-    return asFile(
-      "werun-members-" + day + ".csv",
-      csv(
-        ["name", "email", "role", "status", "language", "gender", "birth year", "age", "joined", "last seen", "email confirmed", "points", "check-ins"],
-        (rows.results || []).map((m) => [
-          m.name, m.email, m.role, m.status, m.lang, m.gender || "", m.birth_year || "",
-          m.birth_year ? new Date().getUTCFullYear() - m.birth_year : "",
-          m.created_at, m.last_seen_at || "",
-          m.email_verified_at || "", m.points, m.checkins,
-        ])
-      )
-    );
-  }
-
-  if (what === "points") {
-    // The ledger with a name against each row, so the file explains itself
-    // without a second export to join it to.
-    const rows = await env.DB.prepare(
-      "SELECT p.at, u.name, u.email, p.delta, p.reason, p.note FROM points_ledger p" +
-        " JOIN users u ON u.id = p.user_id ORDER BY p.at ASC LIMIT ?"
-    )
-      .bind(CAP)
-      .all();
-    return asFile(
-      "werun-points-" + day + ".csv",
-      csv(
-        ["when", "name", "email", "points", "reason", "note"],
-        (rows.results || []).map((p) => [p.at, p.name, p.email, p.delta, p.reason, p.note || ""])
-      )
-    );
-  }
-
-  if (what === "checkins") {
-    const rows = await env.DB.prepare(
-      "SELECT c.at, s.date, s.name AS session, u.name, u.email, c.method, c.voided_at" +
-        " FROM checkins c JOIN users u ON u.id = c.user_id JOIN club_sessions s ON s.id = c.session_id" +
-        " ORDER BY c.at ASC LIMIT ?"
-    )
-      .bind(CAP)
-      .all();
-    return asFile(
-      "werun-checkins-" + day + ".csv",
-      csv(
-        ["when", "session date", "session", "name", "email", "how", "voided"],
-        (rows.results || []).map((c) => [c.at, c.date, c.session, c.name, c.email, c.method, c.voided_at || ""])
-      )
-    );
-  }
-
-  return json({ error: "bad-request" }, 400);
+  const make = EXPORTS.get(String(body.what || "members"));
+  if (!make) return json({ error: "bad-request" }, 400);
+  return make(env, new Date().toISOString().slice(0, 10));
 }
