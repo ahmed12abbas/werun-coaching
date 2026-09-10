@@ -2111,8 +2111,9 @@ function myOrders(orders) {
 }
 
 /* What the order page says once the order has settled: thanks for one that
-   is paid for, otherwise where it stands. Handed to the browser's own
-   append, as it always was. */
+   is paid for, otherwise where it stands. The parts it has nothing to say
+   for are null, and go through filter(Boolean) on the way to the browser's
+   own append — which, unlike el(), would write them out as the word "null". */
 function orderView(o) {
   const done = o.status === "paid" || o.status === "handed";
   return [
@@ -2147,7 +2148,7 @@ SCREENS.order = function (args) {
           return;
         }
         box.textContent = "";
-        box.append(...orderView(o));
+        box.append(...orderView(o).filter(Boolean));
       })
       .catch((e) => {
         box.textContent = "";
