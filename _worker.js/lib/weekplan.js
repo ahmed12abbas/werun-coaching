@@ -35,6 +35,60 @@ const shiftDay = (iso, n) =>
 /** 0 = Sunday … 6 = Saturday, from a YYYY-MM-DD written in the club's week. */
 export const weekdayOf = (iso) => new Date(iso + "T00:00:00Z").getUTCDay();
 
+/*
+ * The standing week arrived in a later migration than the code that reads it,
+ * and this project applies migrations by hand — so a database that is one
+ * release behind must still hand an athlete their week, with whatever the
+ * coach has published, rather than five hundred at them. The same rule the
+ * rest of the site follows for a missing binding.
+ *
+ * The third read is what a slot's steps are, on a day the coach has not
+ * published one for: the club runs the same speed session three times a week
+ * and she replaces it weekly, so an athlete opening Monday still wants the
+ * workout whether or not this Monday's copy has gone out. Bounded on date,
+ * which is indexed — buildDays picks the nearest of them per day.
+ *
+ * All three go together because `schedule`, `schedule_changes` and
+ * `club_sessions.schedule_id` all arrived in the same migration.
+ */
+async function readStandingWeek(env, from, to) {
+  try {
+    const [a, b, c] = await Promise.all([
+      env.DB.prepare("SELECT * FROM schedule WHERE active = 1 ORDER BY at ASC").all(),
+      env.DB.prepare("SELECT * FROM schedule_changes WHERE date BETWEEN ? AND ?").bind(from, to).all(),
+      env.DB.prepare(
+        "SELECT schedule_id, id, date FROM club_sessions" +
+          " WHERE schedule_id IS NOT NULL AND payload <> '' AND date BETWEEN ? AND ?" +
+          " ORDER BY date ASC, created_at ASC"
+      )
+        .bind(shiftDay(from, -STEPS_DAYS), shiftDay(to, STEPS_DAYS))
+        .all(),
+    ]);
+    return { schedule: a.results || [], changes: b.results || [], nearby: c.results || [] };
+  } catch (e) {
+    console.error("week: no standing schedule yet (" + (e && e.message) + ")");
+    return { schedule: [], changes: [], nearby: [] };
+  }
+}
+
+/* Which of them this athlete has said they are coming to. Its own try rather
+   than the one above: session_signups (0012) is younger than the standing
+   week, so a database between the two must still draw the week — with nobody
+   signed up rather than not at all. */
+async function readSignups(env, userId, from, to) {
+  try {
+    const s = await env.DB.prepare(
+      "SELECT schedule_id, date FROM session_signups WHERE user_id = ? AND date BETWEEN ? AND ?"
+    )
+      .bind(userId || "", from, to)
+      .all();
+    return s.results || [];
+  } catch (e) {
+    console.error("week: no session_signups yet (" + (e && e.message) + ")");
+    return [];
+  }
+}
+
 /**
  * Everything standing, plus every change and published session in the range.
  * One read each rather than one per day.
@@ -48,70 +102,17 @@ export async function loadWeek(env, from, to, userId) {
     .bind(userId || "", from, to)
     .all();
 
-  // The standing week arrived in a later migration than the code that reads
-  // it, and this project applies migrations by hand — so a database that is
-  // one release behind must still hand an athlete their week, with whatever
-  // the coach has published, rather than five hundred at them. The same rule
-  // the rest of the site follows for a missing binding.
-  //
-  // The third read is what a slot's steps are, on a day the coach has not
-  // published one for: the club runs the same speed session three times a
-  // week and she replaces it weekly, so an athlete opening Monday still wants
-  // the workout whether or not this Monday's copy has gone out. Bounded on
-  // date, which is indexed — buildDays picks the nearest of them per day.
-  //
-  // All three go together because all three want the same thing of the
-  // database: `schedule`, `schedule_changes` and `club_sessions.schedule_id`
-  // all arrived in the same migration, and this project applies migrations by
-  // hand — so a database one release behind must still hand an athlete their
-  // week, with whatever the coach has published, rather than five hundred at
-  // them. The same rule the rest of the site follows for a missing binding.
-  let schedule = [];
-  let changes = [];
-  let nearby = [];
-  try {
-    const [a, b, c] = await Promise.all([
-      env.DB.prepare("SELECT * FROM schedule WHERE active = 1 ORDER BY at ASC").all(),
-      env.DB.prepare("SELECT * FROM schedule_changes WHERE date BETWEEN ? AND ?").bind(from, to).all(),
-      env.DB.prepare(
-        "SELECT schedule_id, id, date FROM club_sessions" +
-          " WHERE schedule_id IS NOT NULL AND payload <> '' AND date BETWEEN ? AND ?" +
-          " ORDER BY date ASC, created_at ASC"
-      )
-        .bind(shiftDay(from, -STEPS_DAYS), shiftDay(to, STEPS_DAYS))
-        .all(),
-    ]);
-    schedule = a.results || [];
-    changes = b.results || [];
-    nearby = c.results || [];
-  } catch (e) {
-    console.error("week: no standing schedule yet (" + (e && e.message) + ")");
-  }
+  const standing = await readStandingWeek(env, from, to);
+  const signups = await readSignups(env, userId, from, to);
 
-  // Which of them this athlete has said they are coming to. Its own try
-  // rather than the one above: session_signups (0012) is younger than the
-  // standing week, so a database between the two must still draw the week —
-  // with nobody signed up rather than not at all.
-  let signups = [];
-  try {
-    const s = await env.DB.prepare(
-      "SELECT schedule_id, date FROM session_signups WHERE user_id = ? AND date BETWEEN ? AND ?"
-    )
-      .bind(userId || "", from, to)
-      .all();
-    signups = s.results || [];
-  } catch (e) {
-    console.error("week: no session_signups yet (" + (e && e.message) + ")");
-  }
-
-  // Outside the try above on purpose: `users` has always been there, and a
+  // Outside the tries below on purpose: `users` has always been there, and a
   // database still waiting for the standing-week migration should still put
   // a name on the sessions the coach has published.
   return {
-    schedule: schedule,
-    changes: changes,
+    schedule: standing.schedule,
+    changes: standing.changes,
     published: published.results || [],
-    nearby: nearby,
+    nearby: standing.nearby,
     signups: signups,
     coaches: await coachRoster(env),
     // The club's check-in window, so buildDays can work each session's out

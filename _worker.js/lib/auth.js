@@ -205,12 +205,20 @@ export async function refuseUnlessCoach(request, env, body) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   const user = await currentUser(request, env);
   if (isCoach(user) || isAdmin(user)) return null;
+  return clubPasswordRefusal(request, env, passwordIn(body), () => json({ error: "bad-password" }, 401));
+}
 
+const passwordIn = (body) => String((body && body.password) || "");
+
+/* The club password, for both guards: refused outright when none is set, and
+   rate-limited before it is compared. Null when it matched; otherwise the
+   refusal, with `wrong()` saying what a wrong one is answered with. */
+async function clubPasswordRefusal(request, env, given, wrong) {
   if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
   const slow = await guessingTooOften(request, env);
   if (slow) return slow;
-  if (await safeEqual(String((body && body.password) || ""), env.ADMIN_PASSWORD)) return null;
-  return json({ error: "bad-password" }, 401);
+  if (await safeEqual(given, env.ADMIN_PASSWORD)) return null;
+  return wrong();
 }
 
 /** A coach in good standing — the person who takes sessions. */
@@ -256,14 +264,13 @@ export async function refuseUnlessAdmin(request, env, body) {
   // they did send is still tried — the club password is documented as the way
   // back when an account is lost, and a coach cookie must not be what stops
   // it working.
-  const given = String((body && body.password) || "");
-  if (!given && isCoach(user)) return json({ error: "not-admin" }, 403);
+  const given = passwordIn(body);
+  const coach = isCoach(user);
+  if (!given && coach) return json({ error: "not-admin" }, 403);
 
-  if (!env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
-  const slow = await guessingTooOften(request, env);
-  if (slow) return slow;
-  if (await safeEqual(given, env.ADMIN_PASSWORD)) return null;
   // A coach who guessed wrong is still told what they are rather than what the
   // password was: which of the two failed is not theirs to learn.
-  return isCoach(user) ? json({ error: "not-admin" }, 403) : json({ error: "bad-password" }, 401);
+  return clubPasswordRefusal(request, env, given, () =>
+    coach ? json({ error: "not-admin" }, 403) : json({ error: "bad-password" }, 401)
+  );
 }

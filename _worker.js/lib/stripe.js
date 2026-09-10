@@ -101,35 +101,53 @@ function hexOf(buf) {
 export async function verifyWebhook(env, rawBody, header) {
   if (!env.STRIPE_WEBHOOK_SECRET) return { ok: false, error: "webhook-off" };
 
-  const parts = String(header || "")
-    .split(",")
-    .map((p) => p.split("="))
-    .filter((p) => p.length === 2);
-  const t = (parts.find((p) => p[0].trim() === "t") || [])[1];
-  const sent = parts.filter((p) => p[0].trim() === "v1").map((p) => p[1].trim());
+  const { t, sent } = readSignatureHeader(header);
   if (!t || !sent.length) return { ok: false, error: "bad-signature" };
+  if (isStale(t)) return { ok: false, error: "stale-signature" };
 
-  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(t));
-  if (!Number.isFinite(age) || age > TOLERANCE) return { ok: false, error: "stale-signature" };
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const mac = hexOf(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + rawBody)));
-
-  // Stripe may send several v1 signatures during a secret rotation, and every
-  // one is compared so the timing says nothing about which matched.
-  let matched = false;
-  for (const candidate of sent) if (await safeEqual(mac, candidate)) matched = true;
-  if (!matched) return { ok: false, error: "bad-signature" };
+  const mac = await hmacHex(env.STRIPE_WEBHOOK_SECRET, t + "." + rawBody);
+  if (!(await anyMatches(mac, sent))) return { ok: false, error: "bad-signature" };
 
   try {
     return { ok: true, event: JSON.parse(rawBody) };
   } catch (e) {
     return { ok: false, error: "bad-body" };
   }
+}
+
+/* The timestamp and every v1 signature in a `Stripe-Signature` header. */
+function readSignatureHeader(header) {
+  const parts = String(header || "")
+    .split(",")
+    .map((p) => p.split("="))
+    .filter((p) => p.length === 2);
+  return {
+    t: (parts.find((p) => p[0].trim() === "t") || [])[1],
+    sent: parts.filter((p) => p[0].trim() === "v1").map((p) => p[1].trim()),
+  };
+}
+
+/* Outside the tolerance either way, or not a time at all. */
+function isStale(t) {
+  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(t));
+  return !Number.isFinite(age) || age > TOLERANCE;
+}
+
+async function hmacHex(secret, text) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return hexOf(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text)));
+}
+
+/* Stripe may send several v1 signatures during a secret rotation, and every
+   one is compared so the timing says nothing about which matched. */
+async function anyMatches(mac, sent) {
+  let matched = false;
+  for (const candidate of sent) if (await safeEqual(mac, candidate)) matched = true;
+  return matched;
 }

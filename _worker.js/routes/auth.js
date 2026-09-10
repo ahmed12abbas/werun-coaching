@@ -185,6 +185,23 @@ export async function signup(request, env) {
  * Two limits: per address, so a script cannot hammer, and per email, so one
  * account cannot be worked at from many addresses.
  */
+async function loginTooOften(env, request, email) {
+  const byIp = await tooOften(env.STATS, "li", ipOf(request), 10, 60);
+  // The slower count is per address *and* email, not per email alone: keyed
+  // on the email by itself, anyone who knows a member address could lock
+  // that member out for an hour from somewhere else.
+  const byWho = email && (await tooOften(env.STATS, "le", ipOf(request) + ":" + email, 20, 3600));
+  return !!(byIp || byWho);
+}
+
+/* The account behind an email and password, or null. An unknown email still
+   pays for a password check, so the time taken does not say which it was. */
+async function checkLogin(env, email, password) {
+  const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
+  const ok = user ? await verifyPassword(password, user.pass_salt, user.pass_hash) : await burnTime(password);
+  return user && ok ? user : null;
+}
+
 export async function login(request, env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   // Same rule as signup: no counter, no attempts.
@@ -192,17 +209,10 @@ export async function login(request, env) {
   const body = await readBody(request);
   const email = cleanEmail(body.email);
   const password = String(body.password || "");
+  if (await loginTooOften(env, request, email)) return json({ error: "too-often" }, 429);
 
-  const byIp = await tooOften(env.STATS, "li", ipOf(request), 10, 60);
-  // The slower count is per address *and* email, not per email alone: keyed
-  // on the email by itself, anyone who knows a member address could lock
-  // that member out for an hour from somewhere else.
-  const byWho = email && (await tooOften(env.STATS, "le", ipOf(request) + ":" + email, 20, 3600));
-  if (byIp || byWho) return json({ error: "too-often" }, 429);
-
-  const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
-  const ok = user ? await verifyPassword(password, user.pass_salt, user.pass_hash) : await burnTime(password);
-  if (!user || !ok) return json({ error: "bad-login" }, 401);
+  const user = await checkLogin(env, email, password);
+  if (!user) return json({ error: "bad-login" }, 401);
   if (user.status === "blocked") return json({ error: "blocked" }, 403);
 
   const token = await createSession(env, user.id, request);
