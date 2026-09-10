@@ -101,73 +101,88 @@ async function listAll(env) {
   return (rows.results || []).map((p) => Object.assign(publicPost(p), { updated_at: p.updated_at }));
 }
 
-/*
- * One route for the whole editor. `save` with no id writes a new post; with
- * one, it updates that post. Publishing is a date, not a flag, so "post it
- * now" and "post it on Sunday morning" are the same operation.
- */
+/* `publish` is what the button says; `publish_at` is what a coach writing
+   ahead of time sets. Either way the answer is a timestamp or nothing —
+   and undefined for a date that will not parse. */
+function publishedAtFrom(post) {
+  if (post.publish_at) {
+    const when = new Date(String(post.publish_at));
+    return isNaN(when) ? undefined : when.toISOString();
+  }
+  return post.publish ? nowISO() : null;
+}
+
+function readPost(post) {
+  const title_en = cleanTitle(post.title_en);
+  const title_ar = cleanTitle(post.title_ar);
+  if (!title_en && !title_ar) return { error: "bad-title" };
+  const publishedAt = publishedAtFrom(post);
+  if (publishedAt === undefined) return { error: "bad-time" };
+  return {
+    title_en: title_en,
+    title_ar: title_ar,
+    body_en: cleanBody(post.body_en),
+    body_ar: cleanBody(post.body_ar),
+    pinned: post.pinned ? 1 : 0,
+    published_at: publishedAt,
+  };
+}
+
+async function updatePost(env, id, f) {
+  const before = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
+  if (!before) return json({ error: "no-post" }, 404);
+  // Unpublishing is deliberate: the editor sends publish:false with no date,
+  // and that takes it off the feed rather than leaving it up.
+  await env.DB.prepare(
+    "UPDATE posts SET title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ? WHERE id = ?"
+  )
+    .bind(f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO(), id)
+    .run();
+  return null;
+}
+
+async function insertPost(env, f) {
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM posts").first();
+  if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
+  const now = nowISO();
+  await env.DB.prepare(
+    "INSERT INTO posts (id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  )
+    .bind(uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now)
+    .run();
+  return null;
+}
+
+/* `save` with no id writes a new post; with one, it updates that post.
+   Publishing is a date, not a flag, so "post it now" and "post it on Sunday
+   morning" are the same operation. */
+async function savePost(body, env) {
+  const post = body.post && typeof body.post === "object" ? body.post : {};
+  const f = readPost(post);
+  if (f.error) return json({ error: f.error }, 400);
+  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(post.id || "")) ? String(post.id) : null;
+  const failed = id ? await updatePost(env, id, f) : await insertPost(env, f);
+  return failed || json({ posts: await listAll(env) });
+}
+
+async function deletePost(body, env) {
+  await env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(String(body.id || "")).run();
+  return json({ posts: await listAll(env) });
+}
+
+async function listPosts(body, env) {
+  return json({ posts: await listAll(env) });
+}
+
+const POST_ACTIONS = new Map([["save", savePost], ["delete", deletePost], ["list", listPosts]]);
+
+/* One route for the whole editor. */
 export async function adminPosts(request, env) {
   const body = await readBody(request);
   const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
-  const action = String(body.action || "list");
-
-  if (action === "save") {
-    const post = body.post && typeof body.post === "object" ? body.post : {};
-    const title_en = cleanTitle(post.title_en);
-    const title_ar = cleanTitle(post.title_ar);
-    if (!title_en && !title_ar) return json({ error: "bad-title" }, 400);
-
-    const fields = {
-      title_en: title_en,
-      title_ar: title_ar,
-      body_en: cleanBody(post.body_en),
-      body_ar: cleanBody(post.body_ar),
-      pinned: post.pinned ? 1 : 0,
-    };
-
-    // `publish` is what the button says; `publish_at` is what a coach writing
-    // ahead of time sets. Either way the answer is a timestamp or nothing.
-    let publishedAt = null;
-    if (post.publish_at) {
-      const when = new Date(String(post.publish_at));
-      if (isNaN(when)) return json({ error: "bad-time" }, 400);
-      publishedAt = when.toISOString();
-    } else if (post.publish) {
-      publishedAt = nowISO();
-    }
-
-    const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(post.id || "")) ? String(post.id) : null;
-    const now = nowISO();
-    if (id) {
-      const before = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
-      if (!before) return json({ error: "no-post" }, 404);
-      // Unpublishing is deliberate: the editor sends publish:false with no
-      // date, and that takes it off the feed rather than leaving it up.
-      await env.DB.prepare(
-        "UPDATE posts SET title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ? WHERE id = ?"
-      )
-        .bind(fields.title_en, fields.title_ar, fields.body_en, fields.body_ar, fields.pinned, publishedAt, now, id)
-        .run();
-    } else {
-      const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM posts").first();
-      if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
-      await env.DB.prepare(
-        "INSERT INTO posts (id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      )
-        .bind(uid(), fields.title_en, fields.title_ar, fields.body_en, fields.body_ar, fields.pinned, publishedAt, now, now)
-        .run();
-    }
-    return json({ posts: await listAll(env) });
-  }
-
-  if (action === "delete") {
-    await env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(String(body.id || "")).run();
-    return json({ posts: await listAll(env) });
-  }
-
-  if (action !== "list") return json({ error: "bad-request" }, 400);
-  return json({ posts: await listAll(env) });
+  const run = POST_ACTIONS.get(String(body.action || "list"));
+  return run ? run(body, env) : json({ error: "bad-request" }, 400);
 }

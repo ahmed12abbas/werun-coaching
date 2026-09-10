@@ -494,70 +494,81 @@ function inflateRaw(src, dict) {
     len = pre;
   }
 
+  // Stored: drop to the byte boundary, then a plain length-prefixed copy.
+  const stored = () => {
+    bitBuf = 0;
+    bitCnt = 0;
+    const n = src[pos] | (src[pos + 1] << 8);
+    pos += 4; // the length, then its one's complement
+    need(n);
+    out.set(src.subarray(pos, pos + n), len);
+    pos += n;
+    len += n;
+  };
+
+  // Code-length symbols 16-18 repeat: the previous length, or a run of zeros.
+  const repeatOf = (sym, prev) => {
+    if (sym === 16) return [prev, bits(2) + 3];
+    if (sym === 17) return [0, bits(3) + 3];
+    return [0, bits(7) + 11];
+  };
+  const codeLengths = (cl, total) => {
+    const lengths = new Array(total).fill(0);
+    // Bounded on the array rather than `total`: a run that overshoots grows
+    // the array, and the loop has always followed it.
+    for (let i = 0; i < lengths.length; ) {
+      const sym = decode(cl);
+      if (sym < 16) {
+        lengths[i++] = sym;
+        continue;
+      }
+      const [fill, count] = repeatOf(sym, lengths[i - 1]);
+      for (let r = count; r > 0; r--) lengths[i++] = fill;
+    }
+    return lengths;
+  };
+  const dynamicTables = () => {
+    const nlen = bits(5) + 257;
+    const ndist = bits(5) + 1;
+    const ncode = bits(4) + 4;
+    const clens = new Array(19).fill(0);
+    for (let i = 0; i < ncode; i++) clens[CLEN_ORDER[i]] = bits(3);
+    const lengths = codeLengths(build(clens), nlen + ndist);
+    return [build(lengths.slice(0, nlen)), build(lengths.slice(nlen))];
+  };
+  const tablesFor = (type) => {
+    if (type === 1) return [fixedLit, fixedDist];
+    if (type === 2) return dynamicTables();
+    throw new Error("deflate: bad block type");
+  };
+
+  // A length/distance pair: copy from what has already been written.
+  const copyMatch = (sym, dist) => {
+    const lc = sym - 257;
+    if (lc >= LEN_BASE.length) throw new Error("deflate: bad length code");
+    const n = LEN_BASE[lc] + bits(LEN_EXTRA[lc]);
+    const dc = decode(dist);
+    const d = DIST_BASE[dc] + bits(DIST_EXTRA[dc]);
+    if (d > len) throw new Error("deflate: distance past start");
+    need(n);
+    for (let k = 0; k < n; k++, len++) out[len] = out[len - d];
+  };
+  const codes = (lit, dist) => {
+    for (;;) {
+      const sym = decode(lit);
+      if (sym === 256) return;
+      if (sym < 256) {
+        need(1);
+        out[len++] = sym;
+      } else copyMatch(sym, dist);
+    }
+  };
+
   for (;;) {
     const last = bits(1);
     const type = bits(2);
-
-    if (type === 0) {
-      // Stored: drop to the byte boundary, then a plain length-prefixed copy.
-      bitBuf = 0;
-      bitCnt = 0;
-      const n = src[pos] | (src[pos + 1] << 8);
-      pos += 4; // the length, then its one's complement
-      need(n);
-      out.set(src.subarray(pos, pos + n), len);
-      pos += n;
-      len += n;
-    } else {
-      let lit;
-      let dist;
-      if (type === 1) {
-        lit = fixedLit;
-        dist = fixedDist;
-      } else if (type === 2) {
-        const nlen = bits(5) + 257;
-        const ndist = bits(5) + 1;
-        const ncode = bits(4) + 4;
-        const clens = new Array(19).fill(0);
-        for (let i = 0; i < ncode; i++) clens[CLEN_ORDER[i]] = bits(3);
-        const cl = build(clens);
-        const lengths = new Array(nlen + ndist).fill(0);
-        for (let i = 0; i < lengths.length; ) {
-          const sym = decode(cl);
-          if (sym < 16) lengths[i++] = sym;
-          else if (sym === 16) {
-            const p = lengths[i - 1];
-            for (let r = bits(2) + 3; r > 0; r--) lengths[i++] = p;
-          } else if (sym === 17) {
-            for (let r = bits(3) + 3; r > 0; r--) lengths[i++] = 0;
-          } else {
-            for (let r = bits(7) + 11; r > 0; r--) lengths[i++] = 0;
-          }
-        }
-        lit = build(lengths.slice(0, nlen));
-        dist = build(lengths.slice(nlen));
-      } else {
-        throw new Error("deflate: bad block type");
-      }
-
-      for (;;) {
-        const sym = decode(lit);
-        if (sym === 256) break;
-        if (sym < 256) {
-          need(1);
-          out[len++] = sym;
-        } else {
-          const lc = sym - 257;
-          if (lc >= LEN_BASE.length) throw new Error("deflate: bad length code");
-          const n = LEN_BASE[lc] + bits(LEN_EXTRA[lc]);
-          const dc = decode(dist);
-          const d = DIST_BASE[dc] + bits(DIST_EXTRA[dc]);
-          if (d > len) throw new Error("deflate: distance past start");
-          need(n);
-          for (let k = 0; k < n; k++, len++) out[len] = out[len - d];
-        }
-      }
-    }
+    if (type === 0) stored();
+    else codes(...tablesFor(type));
     if (last) break;
   }
   return out.subarray(pre, len);

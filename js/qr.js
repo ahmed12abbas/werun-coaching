@@ -282,61 +282,77 @@ const MASKS = [
   (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
 ];
 
-/** The standard's four penalties, added up; lower is the mask to keep. */
-function penalty(grid, size) {
+/** One line's share of penalty 1: 3 for a run reaching five, 1 for each module past it. */
+function runScore(line, size) {
   let score = 0;
-
-  // 1: runs of five or more of one colour, in both directions.
-  for (let i = 0; i < size; i++) {
-    for (const line of [
-      (j) => grid[i][j],
-      (j) => grid[j][i],
-    ]) {
-      let run = 1;
-      for (let j = 1; j < size; j++) {
-        if (line(j) === line(j - 1)) {
-          run++;
-          if (run === 5) score += 3;
-          else if (run > 5) score += 1;
-        } else run = 1;
-      }
+  let run = 1;
+  for (let j = 1; j < size; j++) {
+    if (line(j) !== line(j - 1)) {
+      run = 1;
+      continue;
     }
+    run++;
+    if (run === 5) score += 3;
+    else if (run > 5) score += 1;
   }
+  return score;
+}
 
-  // 2: any 2x2 block of one colour.
+/** 1: runs of five or more of one colour, in both directions. */
+function runPenalty(grid, size) {
+  let score = 0;
+  for (let i = 0; i < size; i++) {
+    score += runScore((j) => grid[i][j], size) + runScore((j) => grid[j][i], size);
+  }
+  return score;
+}
+
+/** 2: any 2x2 block of one colour. */
+function blockPenalty(grid, size) {
+  let score = 0;
   for (let r = 0; r < size - 1; r++) {
     for (let c = 0; c < size - 1; c++) {
       const v = grid[r][c];
       if (v === grid[r][c + 1] && v === grid[r + 1][c] && v === grid[r + 1][c + 1]) score += 3;
     }
   }
+  return score;
+}
 
-  // 3: the finder-lookalike, 1011101 with four light either side.
-  const A = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
-  const B = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+/* The finder-lookalike, 1011101 with four light either side, both ways round. */
+const FINDER_LIKE = [
+  [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0],
+  [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
+];
+const matchesPattern = (cell, pattern) => pattern.every((v, k) => cell(k) === v);
+
+/** 3: 40 for every finder-lookalike, in rows and in columns. */
+function finderPenalty(grid, size) {
+  let score = 0;
   for (let i = 0; i < size; i++) {
     for (let j = 0; j + 11 <= size; j++) {
-      let rowA = true, rowB = true, colA = true, colB = true;
-      for (let k = 0; k < 11; k++) {
-        if (grid[i][j + k] !== A[k]) rowA = false;
-        if (grid[i][j + k] !== B[k]) rowB = false;
-        if (grid[j + k][i] !== A[k]) colA = false;
-        if (grid[j + k][i] !== B[k]) colB = false;
+      const row = (k) => grid[i][j + k];
+      const col = (k) => grid[j + k][i];
+      for (const pattern of FINDER_LIKE) {
+        if (matchesPattern(row, pattern)) score += 40;
+        if (matchesPattern(col, pattern)) score += 40;
       }
-      if (rowA) score += 40;
-      if (rowB) score += 40;
-      if (colA) score += 40;
-      if (colB) score += 40;
     }
   }
+  return score;
+}
 
-  // 4: how far the dark share is from half.
+/** 4: how far the dark share is from half. */
+function balancePenalty(grid, size) {
   let dark = 0;
   for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) dark += grid[r][c];
   const percent = (dark * 100) / (size * size);
-  score += Math.floor(Math.abs(percent - 50) / 5) * 10;
+  return Math.floor(Math.abs(percent - 50) / 5) * 10;
+}
 
-  return score;
+/** The standard's four penalties, added up; lower is the mask to keep. */
+function penalty(grid, size) {
+  return runPenalty(grid, size) + blockPenalty(grid, size) + finderPenalty(grid, size) + balancePenalty(grid, size);
 }
 
 function formatBits(level, mask) {
