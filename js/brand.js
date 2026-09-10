@@ -9,22 +9,29 @@ const $ = (s, r) => (r || document).querySelector(s);
 function el(tag, attrs) {
   const n = document.createElement(tag);
   const a = attrs || {};
-  for (const k in a) {
-    const v = a[k];
-    if (v == null || v === false) continue;
-    if (k === "class") n.className = v;
-    else if (k === "html") n.innerHTML = v;
-    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
-    else n.setAttribute(k, v === true ? "" : v);
-  }
-  for (let i = 2; i < arguments.length; i++) {
-    const kids = [].concat(arguments[i]);
-    for (const k of kids) {
-      if (k == null || k === false) continue;
-      n.append(k.nodeType ? k : document.createTextNode(String(k)));
-    }
-  }
+  for (const k in a) setAttr(n, k, a[k]);
+  for (let i = 2; i < arguments.length; i++) appendKids(n, arguments[i]);
   return n;
+}
+
+/* One attribute. `class` and `html` are properties, `on…` is a listener, true
+   is the empty attribute; null and false are left off entirely. */
+function setAttr(n, k, v) {
+  if (v == null || v === false) return;
+  if (k === "class") n.className = v;
+  else if (k === "html") n.innerHTML = v;
+  else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+  else n.setAttribute(k, v === true ? "" : v);
+}
+
+/* A child or an array of them, one level deep. Null and false are skipped —
+   the browser's own append would write the word "null" — and anything that
+   is not a node becomes text. */
+function appendKids(n, kids) {
+  for (const k of [].concat(kids)) {
+    if (k == null || k === false) continue;
+    n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  }
 }
 
 /**

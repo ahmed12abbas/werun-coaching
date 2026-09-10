@@ -782,23 +782,71 @@ function stepEditor(s, w, redraw, refresh, onRemove, controls) {
     el("option", { value: "time", selected: s.durType === "time" }, t("eTime")),
     el("option", { value: "open", selected: s.durType === "open" }, t("eLap"))
   );
+  const durInput = durationInput(s, refresh);
 
-  let durInput;
-  if (s.durType === "time") {
-    durInput = el("input", {
-      value: fmtClock(s.seconds),
-      placeholder: "mm:ss",
-      inputmode: "numeric",
-      dir: "ltr",
-      oninput: (e) => {
-        const v = parseClock(e.target.value);
-        if (v != null) s.seconds = v;
-        e.target.style.borderColor = v == null ? "var(--err)" : "";
-        refresh();
+  /* target */
+  const tgtKind = (s.target && s.target.kind) || "none";
+  const tgtSel = el(
+    "select",
+    {
+      onchange: (e) => {
+        s.target = nextTarget(e.target.value);
+        redraw();
       },
-    });
-  } else if (s.durType === "distance") {
-    durInput = el("input", {
+    },
+    el("option", { value: "none", selected: tgtKind === "none" }, t("eNoTarget")),
+    el("option", { value: "pace", selected: tgtKind === "pace" }, t("ePace")),
+    el("option", { value: "hr", selected: tgtKind === "hr" }, t("eHr"))
+  );
+  const targetFields = targetInputs(s, w, tgtKind, refresh);
+
+  return el(
+    "div",
+    { class: "blk" },
+    el(
+      "div",
+      { class: "blk-head" },
+      el("span", { class: "tag", style: "background:" + k.color }, kindLabel(s.type)),
+      stepControls(controls, onRemove)
+    ),
+    el(
+      "div",
+      { class: "grid3" },
+      labelled(t("eType"), kindSel),
+      labelled(t("eEnds"), durSel),
+      labelled(lengthLabel(s), durInput)
+    ),
+    el("div", { class: "grid3", style: "margin-top:8px" }, labelled(t("eTarget"), tgtSel), ...targetFields),
+    stepTextFields(s, refresh)
+  );
+}
+
+/* A field and the label above it, the way every box in the editor sits. */
+const labelled = (label, input) => el("div", {}, el("label", {}, label), input);
+
+/* An mm:ss box. A time it can read is kept; one it cannot turns the border
+   red and leaves the old value alone. */
+function clockInput(seconds, keep, refresh) {
+  return el("input", {
+    value: fmtClock(seconds),
+    placeholder: "mm:ss",
+    inputmode: "numeric",
+    dir: "ltr",
+    oninput: (e) => {
+      const v = parseClock(e.target.value);
+      if (v != null) keep(v);
+      e.target.style.borderColor = v == null ? "var(--err)" : "";
+      refresh();
+    },
+  });
+}
+
+/* The length box: a clock, a distance, or a planning estimate, depending on
+   how the step ends. */
+function durationInput(s, refresh) {
+  if (s.durType === "time") return clockInput(s.seconds, (v) => { s.seconds = v; }, refresh);
+  if (s.durType === "distance") {
+    return el("input", {
       type: "number",
       min: "10",
       step: "10",
@@ -809,144 +857,96 @@ function stepEditor(s, w, redraw, refresh, onRemove, controls) {
         refresh();
       },
     });
-  } else {
-    // Lap-button steps have no set length; this is only the planning estimate
-    // Garmin shows as "~15min" next to the step.
-    durInput = el("input", {
-      value: s.estSeconds ? fmtClock(s.estSeconds) : "",
-      placeholder: "~ mm:ss",
-      inputmode: "numeric",
-      dir: "ltr",
-      oninput: (e) => {
-        const v = e.target.value.trim();
-        const parsed = v ? parseClock(v) : 0;
-        if (parsed != null) s.estSeconds = parsed;
-        e.target.style.borderColor = parsed == null ? "var(--err)" : "";
-        refresh();
-      },
-    });
   }
-
-  /* target */
-  const tgtKind = (s.target && s.target.kind) || "none";
-  const tgtSel = el(
-    "select",
-    {
-      onchange: (e) => {
-        const v = e.target.value;
-        s.target =
-          v === "pace"
-            ? { kind: "pace", fast: 240, slow: 255 }
-            : v === "hr"
-              ? { kind: "hr", low: 150, high: 165 }
-              : { kind: "none" };
-        redraw();
-      },
+  // Lap-button steps have no set length; this is only the planning estimate
+  // Garmin shows as "~15min" next to the step.
+  return el("input", {
+    value: s.estSeconds ? fmtClock(s.estSeconds) : "",
+    placeholder: "~ mm:ss",
+    inputmode: "numeric",
+    dir: "ltr",
+    oninput: (e) => {
+      const v = e.target.value.trim();
+      const parsed = v ? parseClock(v) : 0;
+      if (parsed != null) s.estSeconds = parsed;
+      e.target.style.borderColor = parsed == null ? "var(--err)" : "";
+      refresh();
     },
-    el("option", { value: "none", selected: tgtKind === "none" }, t("eNoTarget")),
-    el("option", { value: "pace", selected: tgtKind === "pace" }, t("ePace")),
-    el("option", { value: "hr", selected: tgtKind === "hr" }, t("eHr"))
-  );
+  });
+}
 
-  const targetFields = [];
-  if (tgtKind === "pace") {
-    const mk = (which, label) =>
-      el(
-        "div",
-        {},
-        el("label", {}, label),
-        el("input", {
-          value: fmtClock(s.target[which]),
-          placeholder: "mm:ss",
-          inputmode: "numeric",
-          dir: "ltr",
-          oninput: (e) => {
-            const v = parseClock(e.target.value);
-            if (v != null) s.target[which] = v;
-            e.target.style.borderColor = v == null ? "var(--err)" : "";
-            refresh();
-          },
-        })
-      );
-    targetFields.push(
-      mk("fast", t("eFastest") + unitLabel(w.units)),
-      mk("slow", t("eSlowest") + unitLabel(w.units))
-    );
-  } else if (tgtKind === "hr") {
-    const mk = (which, label) =>
-      el(
-        "div",
-        {},
-        el("label", {}, label),
-        el("input", {
-          type: "number",
-          min: "60",
-          max: "230",
-          value: s.target[which],
-          dir: "ltr",
-          oninput: (e) => {
-            s.target[which] = parseInt(e.target.value, 10) || 0;
-            refresh();
-          },
-        })
-      );
-    targetFields.push(mk("low", t("eLowBpm")), mk("high", t("eHighBpm")));
+function lengthLabel(s) {
+  if (s.durType === "distance") return t("eMetres");
+  if (s.durType === "open") return t("eEstLength");
+  return t("eLength");
+}
+
+/* What switching the target to pace, heart rate or nothing starts from. */
+function nextTarget(v) {
+  if (v === "pace") return { kind: "pace", fast: 240, slow: 255 };
+  if (v === "hr") return { kind: "hr", low: 150, high: 165 };
+  return { kind: "none" };
+}
+
+function bpmInput(s, which, refresh) {
+  return el("input", {
+    type: "number",
+    min: "60",
+    max: "230",
+    value: s.target[which],
+    dir: "ltr",
+    oninput: (e) => {
+      s.target[which] = parseInt(e.target.value, 10) || 0;
+      refresh();
+    },
+  });
+}
+
+/* The two ends of the target: fastest and slowest pace, or lowest and
+   highest heart rate. */
+function targetInputs(s, w, kind, refresh) {
+  if (kind === "pace") {
+    const pace = (which, label) => labelled(label, clockInput(s.target[which], (v) => { s.target[which] = v; }, refresh));
+    return [pace("fast", t("eFastest") + unitLabel(w.units)), pace("slow", t("eSlowest") + unitLabel(w.units))];
   }
+  if (kind === "hr") {
+    return [labelled(t("eLowBpm"), bpmInput(s, "low", refresh)), labelled(t("eHighBpm"), bpmInput(s, "high", refresh))];
+  }
+  return [];
+}
 
+/* The caller's own controls, or a remove button, or nothing. */
+function stepControls(controls, onRemove) {
+  if (controls) return controls;
+  if (!onRemove) return null;
+  return el("div", { class: "row push" }, el("button", { class: "btn icon", onclick: onRemove }, "✕"));
+}
+
+function stepTextFields(s, refresh) {
   return el(
     "div",
-    { class: "blk" },
-    el(
-      "div",
-      { class: "blk-head" },
-      el("span", { class: "tag", style: "background:" + k.color }, kindLabel(s.type)),
-      controls ||
-        (onRemove
-          ? el("div", { class: "row push" }, el("button", { class: "btn icon", onclick: onRemove }, "✕"))
-          : null)
+    { class: "grid2", style: "margin-top:8px" },
+    labelled(
+      t("eStepName"),
+      el("input", {
+        value: s.label || "",
+        placeholder: kindLabel(s.type),
+        oninput: (e) => {
+          s.label = e.target.value;
+          refresh();
+        },
+      })
     ),
-    el(
-      "div",
-      { class: "grid3" },
-      el("div", {}, el("label", {}, t("eType")), kindSel),
-      el("div", {}, el("label", {}, t("eEnds")), durSel),
-      el(
-        "div",
-        {},
-        el("label", {}, s.durType === "distance" ? t("eMetres") : s.durType === "open" ? t("eEstLength") : t("eLength")),
-        durInput
-      )
-    ),
-    el("div", { class: "grid3", style: "margin-top:8px" }, el("div", {}, el("label", {}, t("eTarget")), tgtSel), ...targetFields),
-    el(
-      "div",
-      { class: "grid2", style: "margin-top:8px" },
-      el(
-        "div",
-        {},
-        el("label", {}, t("eStepName")),
-        el("input", {
-          value: s.label || "",
-          placeholder: kindLabel(s.type),
-          oninput: (e) => {
-            s.label = e.target.value;
-            refresh();
-          },
-        })
-      ),
-      el(
-        "div",
-        {},
-        el("label", {}, t("eNote")),
-        el("input", {
-          value: s.note || "",
-          placeholder: t("eNotePh"),
-          oninput: (e) => {
-            s.note = e.target.value;
-            refresh();
-          },
-        })
-      )
+    labelled(
+      t("eNote"),
+      el("input", {
+        value: s.note || "",
+        placeholder: t("eNotePh"),
+        oninput: (e) => {
+          s.note = e.target.value;
+          refresh();
+        },
+      })
     )
   );
 }

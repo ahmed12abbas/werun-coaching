@@ -143,16 +143,8 @@ async function isStaff(request, env) {
  */
 export async function tipsAdmin(request, env) {
   const body = await readBody(request);
-  if (!(await isStaff(request, env))) {
-    if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) {
-      return json({ error: "not-configured" }, 503);
-    }
-    const slow = await guessingTooOften(request, env);
-    if (slow) return slow;
-    if (!(await tipsAllows(String((body && body.password) || ""), env))) {
-      return json({ error: "bad-password" }, 401);
-    }
-  }
+  const no = await tipsRefusal(request, env, body);
+  if (no) return no;
 
   if (!env.STATS) return json({ liveId: null, articles: [], warning: "no-store" });
 
@@ -161,20 +153,36 @@ export async function tipsAdmin(request, env) {
     const doc = await readTips(env.STATS);
     return json({ liveId: doc.liveId, articles: doc.articles });
   }
+  return saveTips(env, body.save);
+}
 
-  const incoming = Array.isArray(body.save.articles) ? body.save.articles : [];
+/* Staff are let straight in; anybody else needs one of the two passwords,
+   within the guessing limit. Null to let them in. */
+async function tipsRefusal(request, env, body) {
+  if (await isStaff(request, env)) return null;
+  if (!env.TIPS_PASSWORD && !env.ADMIN_PASSWORD) return json({ error: "not-configured" }, 503);
+  const slow = await guessingTooOften(request, env);
+  if (slow) return slow;
+  if (!(await tipsAllows(String((body && body.password) || ""), env))) {
+    return json({ error: "bad-password" }, 401);
+  }
+  return null;
+}
+
+/* The editor sends the whole collection every save, so what comes back from a
+   reload is exactly what the coach was last looking at — no merge to get
+   wrong, and a deleted article stays deleted. The stored copy is read first
+   only so each article can keep its own dates. */
+async function saveTips(env, save) {
+  const incoming = Array.isArray(save.articles) ? save.articles : [];
   if (incoming.length > TIP_MAX.articles) return json({ error: "too-many" }, 400);
 
-  // The editor sends the whole collection every save, so what comes back from
-  // a reload is exactly what the coach was last looking at — no merge to get
-  // wrong, and a deleted article stays deleted. The stored copy is read first
-  // only so each article can keep its own dates.
   const stored = await readTips(env.STATS);
   const before = new Map(stored.articles.map((a) => [a && a.id, a]));
   const articles = incoming
     .map((raw) => cleanArticle(raw, before.get(raw && typeof raw === "object" ? raw.id : null)))
     .filter((a) => a.en.title || a.ar.title);
-  const liveId = articles.some((a) => a.id === body.save.liveId) ? body.save.liveId : null;
+  const liveId = articles.some((a) => a.id === save.liveId) ? save.liveId : null;
 
   await env.STATS.put(TIPS_KEY, JSON.stringify({ v: 1, liveId: liveId, articles: articles }));
   return json({ liveId: liveId, articles: articles, saved: true });

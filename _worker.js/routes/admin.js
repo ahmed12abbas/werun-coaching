@@ -74,11 +74,17 @@ async function setAdmin(request, env, body, action, id) {
   // way back, but somebody else has to do this one — the same rule the
   // coaches list follows, for the same reason.
   if (!want) {
-    const me = await currentUser(request, env);
-    if (me && me.id === id) return json({ error: "not-yourself" }, 409);
+    const self = await notYourself(request, env, id);
+    if (self) return self;
   }
   await env.DB.prepare("UPDATE users SET is_admin = ? WHERE id = ?").bind(want ? 1 : 0, id).run();
   return null;
+}
+
+/* Refuses when the member being taken off something is the one asking. */
+async function notYourself(request, env, id) {
+  const me = await currentUser(request, env);
+  return me && me.id === id ? json({ error: "not-yourself" }, 409) : null;
 }
 
 const MEMBER_ACTIONS = new Map([
@@ -129,27 +135,32 @@ export async function coaches(request, env) {
   if (no) return no;
 
   const action = String(body.action || "list");
-  const id = String(body.id || "");
-
   if (action === "add" || action === "remove") {
-    if (!id) return json({ error: "bad-request" }, 400);
-    const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
-    if (!who) return json({ error: "no-member" }, 404);
-    // Signing yourself out of the console mid-change is not a thing to let
-    // happen by mis-tap. The club password is the way back either way, but a
-    // coach who demotes themselves loses the screen they are standing on.
-    if (action === "remove") {
-      const me = await currentUser(request, env);
-      if (me && me.id === id) return json({ error: "not-yourself" }, 409);
-    }
-    await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?")
-      .bind(action === "add" ? "coach" : "athlete", id)
-      .run();
+    const refused = await changeCoach(request, env, action, String(body.id || ""));
+    if (refused) return refused;
   } else if (action !== "list") {
     return json({ error: "bad-request" }, 400);
   }
 
   return json(await coachesAndCandidates(env));
+}
+
+/* One member onto the coaches list or off it. Null once done, or the refusal. */
+async function changeCoach(request, env, action, id) {
+  if (!id) return json({ error: "bad-request" }, 400);
+  const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+  if (!who) return json({ error: "no-member" }, 404);
+  // Signing yourself out of the console mid-change is not a thing to let
+  // happen by mis-tap. The club password is the way back either way, but a
+  // coach who demotes themselves loses the screen they are standing on.
+  if (action === "remove") {
+    const self = await notYourself(request, env, id);
+    if (self) return self;
+  }
+  await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?")
+    .bind(action === "add" ? "coach" : "athlete", id)
+    .run();
+  return null;
 }
 
 /* The coaches, and everyone who could be one: active members, not already a
