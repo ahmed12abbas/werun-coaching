@@ -136,6 +136,60 @@ function fitButton(w, label) {
 
 const DEVICE_KEY = "werun.device";
 
+/* Which watch the reader picked last time on this device, Garmin until then —
+   and Garmin too where storage is refused. */
+function savedDevice() {
+  try {
+    return localStorage.getItem(DEVICE_KEY) || "garmin";
+  } catch (e) {
+    return "garmin";
+  }
+}
+
+/* The session itself: its name and date with the tips and the pace
+   calculator beside them, the headline numbers, the coach's note, and the
+   steps. */
+function sessionCard(w, est, corner, pace) {
+  const approx = est.exact ? "" : "~";
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el(
+      "div",
+      { class: "sess-head" },
+      el(
+        "div",
+        { class: "grow" },
+        el("h1", {}, w.name),
+        w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null
+      ),
+      corner.button,
+      pace.button
+    ),
+    corner.cloud,
+    corner.scrim,
+    pace.panel,
+    el(
+      "div",
+      { class: "chips" },
+      el("span", { class: "chip" }, el("b", { class: "num" }, approx + fmtDuration(est.seconds))),
+      // The whole distance first, then how much of it is the hard work.
+      // Always a ~: the easy half is a six-minute-kilometre rule of thumb.
+      est.easyMeters
+        ? el("span", { class: "chip" }, el("b", { class: "num" }, "~" + fmtDistanceRough(est.totalMeters, w.units)))
+        : null,
+      est.workMeters
+        ? el("span", { class: "chip" }, el("b", { class: "num" }, fmtDistance(est.workMeters, w.units)), t("hard"))
+        : null,
+      el("span", { class: "chip" }, el("b", { class: "num" }, String(est.steps)), t("stepsCount"))
+    ),
+    w.note ? el("div", { class: "note" }, w.note) : null,
+    el("div", { class: "divider" }),
+    timeline(w),
+    w.coach ? el("p", { class: "small muted" }, t("setBy") + w.coach) : null
+  );
+}
+
 /**
  * The athlete's view of a session.
  *
@@ -145,7 +199,6 @@ const DEVICE_KEY = "werun.device";
  */
 function renderViewer(app, w, rerender, opts) {
   const est = estimate(w);
-  const approx = est.exact ? "" : "~";
   const chrome = !opts || opts.chrome !== false;
 
   if (chrome) app.append(brandBar(null, rerender));
@@ -166,53 +219,12 @@ function renderViewer(app, w, rerender, opts) {
   pace.onOpen = () => corner.close();
   corner.onOpen = () => pace.close();
 
-  app.append(
-    el(
-      "div",
-      { class: "card pad stack" },
-      el(
-        "div",
-        { class: "sess-head" },
-        el(
-          "div",
-          { class: "grow" },
-          el("h1", {}, w.name),
-          w.date ? el("p", { class: "muted small" }, prettyDate(w.date)) : null
-        ),
-        corner.button,
-        pace.button
-      ),
-      corner.cloud,
-      corner.scrim,
-      pace.panel,
-      el(
-        "div",
-        { class: "chips" },
-        el("span", { class: "chip" }, el("b", { class: "num" }, approx + fmtDuration(est.seconds))),
-        // The whole distance first, then how much of it is the hard work.
-        // Always a ~: the easy half is a six-minute-kilometre rule of thumb.
-        est.easyMeters
-          ? el("span", { class: "chip" }, el("b", { class: "num" }, "~" + fmtDistanceRough(est.totalMeters, w.units)))
-          : null,
-        est.workMeters
-          ? el("span", { class: "chip" }, el("b", { class: "num" }, fmtDistance(est.workMeters, w.units)), t("hard"))
-          : null,
-        el("span", { class: "chip" }, el("b", { class: "num" }, String(est.steps)), t("stepsCount"))
-      ),
-      w.note ? el("div", { class: "note" }, w.note) : null,
-      el("div", { class: "divider" }),
-      timeline(w),
-      w.coach ? el("p", { class: "small muted" }, t("setBy") + w.coach) : null
-    )
-  );
+  app.append(sessionCard(w, est, corner, pace));
 
   /* --- device choice ----------------------------------------------------- */
   app.append(el("h3", { style: "margin:26px 0 4px" }, t("getItOn")));
 
-  let device = "garmin";
-  try {
-    device = localStorage.getItem(DEVICE_KEY) || "garmin";
-  } catch (e) {}
+  let device = savedDevice();
 
   const picker = el("div", { class: "picker" });
   const panel = el("div", { class: "stack", style: "margin-top:14px" });

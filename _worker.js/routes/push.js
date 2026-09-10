@@ -118,33 +118,39 @@ export const pushNext = withMember(async (request, env, user) => {
   } catch (e) {
     return json({ session: null });
   }
-  const now = Date.now();
-  const mine = rows
-    .filter((r) => r.user_id === user.id)
-    .map((r) => Object.assign({}, r, { when: startsAt(r.date, r.at) }))
-    // Still to come, or started within the last quarter hour: a reminder that
-    // arrives a little late is still the one they asked for.
-    .filter((r) => r.when > now - 15 * 60000 && r.when < now + 3 * 3600000)
-    .sort((a, b) => a.when - b.when);
-
-  const next = mine[0];
+  const next = nextFor(rows, user.id, Date.now());
   if (!next) return json({ session: null });
+  return json({ session: reminderText(next, user.lang === "ar") });
+});
 
-  const ar = user.lang === "ar";
+/* Their own soonest session still to come, or started within the last
+   quarter hour: a reminder that arrives a little late is still the one they
+   asked for. */
+function nextFor(rows, userId, now) {
+  return rows
+    .filter((r) => r.user_id === userId)
+    .map((r) => Object.assign({}, r, { when: startsAt(r.date, r.at) }))
+    .filter((r) => r.when > now - 15 * 60000 && r.when < now + 3 * 3600000)
+    .sort((a, b) => a.when - b.when)[0];
+}
+
+/* The reader's language when the slot has it, English when it does not. */
+const inLang = (row, key, ar) => (ar ? row[key + "_ar"] : row[key + "_en"]) || row[key + "_en"];
+
+/* What the notification says, written at the moment it is shown. */
+function reminderText(next, ar) {
   const at = new Date(next.when).toLocaleTimeString(ar ? "ar" : "en-GB", {
     timeZone: "Asia/Riyadh",
     hour: "2-digit",
     minute: "2-digit",
   });
-  const place = (ar ? next.place_ar : next.place_en) || next.place_en || "";
-  return json({
-    session: {
-      title: (ar ? next.title_ar : next.title_en) || next.title_en || "WE RUN",
-      body: (ar ? "الساعة " + at : at) + (place ? " · " + place : ""),
-      url: "/app#/home",
-    },
-  });
-});
+  const place = inLang(next, "place", ar) || "";
+  return {
+    title: inLang(next, "title", ar) || "WE RUN",
+    body: (ar ? "الساعة " + at : at) + (place ? " · " + place : ""),
+    url: "/app#/home",
+  };
+}
 
 /* ---------- the sender ---------------------------------------------------- */
 

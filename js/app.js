@@ -818,35 +818,49 @@ function lightCoachCode(root, days) {
   const btn = root.querySelector(".code-btn");
   if (!btn || !Auth.user) return;
 
-  // Everything still to come this week, soonest first. The club's next
-  // session is what the button opens until the rota names a better answer,
-  // so a coach standing in for somebody still has a code to hand out.
-  const ahead = [];
-  for (const day of days || []) {
-    for (const it of day.items || []) {
-      if (it.cancelled) continue;
-      const from = startsAt(it, day.date);
-      const till = closesTime(it, day.date);
-      if (!from || till === null || Date.now() > till) continue;
-      ahead.push({ it: it, date: day.date, from: from, till: till });
-    }
-  }
-  ahead.sort((a, b) => a.from - b.from);
+  // The club's next session is what the button opens until the rota names a
+  // better answer, so a coach standing in for somebody still has a code to
+  // hand out.
+  const ahead = sessionsAhead(days);
   CODE_TARGET = ahead[0] || null;
 
   API.post("/api/coach/rota", { action: "list" })
-    .then((d) => {
-      const mine = new Set(
-        (d.rota || []).filter((r) => r.user_id === Auth.user.id).map((r) => r.schedule_id + "|" + r.date)
-      );
-      const ticked = ahead.find((x) => x.it.schedule_id && mine.has(x.it.schedule_id + "|" + x.date));
-      if (!ticked) return;
-      CODE_TARGET = ticked;
-      btn.dataset.hot = ticked.from.getTime() + "," + ticked.till;
-      markHot(btn);
-      startCountdowns();
-    })
+    .then((d) => armForTick(btn, ahead, d))
     .catch(() => {});
+}
+
+/* Everything still to come this week, soonest first. */
+function sessionsAhead(days) {
+  const ahead = [];
+  for (const day of days || []) {
+    for (const it of day.items || []) {
+      const next = stillAhead(it, day.date);
+      if (next) ahead.push(next);
+    }
+  }
+  return ahead.sort((a, b) => a.from - b.from);
+}
+
+/* One session with its window, unless it is called off or already shut. */
+function stillAhead(it, date) {
+  if (it.cancelled) return null;
+  const from = startsAt(it, date);
+  const till = closesTime(it, date);
+  if (!from || till === null || Date.now() > till) return null;
+  return { it: it, date: date, from: from, till: till };
+}
+
+/* The first session this coach has ticked on the rota, lit on the button. */
+function armForTick(btn, ahead, d) {
+  const mine = new Set(
+    (d.rota || []).filter((r) => r.user_id === Auth.user.id).map((r) => r.schedule_id + "|" + r.date)
+  );
+  const ticked = ahead.find((x) => x.it.schedule_id && mine.has(x.it.schedule_id + "|" + x.date));
+  if (!ticked) return;
+  CODE_TARGET = ticked;
+  btn.dataset.hot = ticked.from.getTime() + "," + ticked.till;
+  markHot(btn);
+  startCountdowns();
 }
 
 /* ---------- the code, in the app ------------------------------------------

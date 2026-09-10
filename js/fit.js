@@ -92,6 +92,51 @@ function flattenForFit(workout) {
   return out;
 }
 
+/* duration_type 6 = repeat_until_steps_cmplt. duration_value doubles as the
+   step index to jump back to, and target_value doubles as the iteration
+   count. */
+function writeRepeatStep(d, s) {
+  d.str("", 24)
+    .u8(6)
+    .u32(s.from)
+    .u8(2) // target_type: open
+    .u32(s.reps)
+    .u32(INVALID_U32)
+    .u32(INVALID_U32)
+    .u8(INVALID_ENUM)
+    .str("", 40);
+}
+
+/* One ordinary step: its name, how it ends, its target, how hard it is, and
+   the note — in the order the workout_step definition declares them. */
+function writeStep(d, s, unitMeters) {
+  const intensity = FIT_INTENSITY[s.type] != null ? FIT_INTENSITY[s.type] : 0;
+  d.str(s.label || FIT_STEP_NAME[s.type] || "Run", 24);
+  writeDuration(d, s);
+  writeTarget(d, s.target, unitMeters);
+  d.u8(intensity).str(s.note || "", 40);
+}
+
+function writeDuration(d, s) {
+  if (s.durType === "distance") d.u8(1).u32(Math.round(s.meters * 100)); // centimetres
+  else if (s.durType === "time") d.u8(0).u32(Math.round(s.seconds * 1000)); // milliseconds
+  else d.u8(5).u32(INVALID_U32); // open — advance on lap button
+}
+
+function writeTarget(d, t, unitMeters) {
+  if (t && t.kind === "pace") {
+    // FIT stores speed, not pace, so the slower pace is the LOW bound.
+    const lo = Math.round((unitMeters / t.slow) * 1000);
+    const hi = Math.round((unitMeters / t.fast) * 1000);
+    d.u8(0).u32(0).u32(lo).u32(hi);
+  } else if (t && t.kind === "hr") {
+    // 1-100 reads as %max, 101-255 as absolute bpm, hence the +100 offset.
+    d.u8(1).u32(0).u32(t.low + 100).u32(t.high + 100);
+  } else {
+    d.u8(2).u32(0).u32(0).u32(0); // open target
+  }
+}
+
 /**
  * @param {object} workout  normalised workout (see model.js)
  * @returns {Uint8Array}    complete .FIT file bytes
@@ -141,50 +186,8 @@ function buildFitFile(workout) {
 
   steps.forEach((s, i) => {
     d.u8(2).u16(i);
-
-    if (s._repeat) {
-      // duration_type 6 = repeat_until_steps_cmplt.
-      // duration_value doubles as the step index to jump back to, and
-      // target_value doubles as the iteration count.
-      d.str("", 24)
-        .u8(6)
-        .u32(s.from)
-        .u8(2) // target_type: open
-        .u32(s.reps)
-        .u32(INVALID_U32)
-        .u32(INVALID_U32)
-        .u8(INVALID_ENUM)
-        .str("", 40);
-      return;
-    }
-
-    const intensity = FIT_INTENSITY[s.type] != null ? FIT_INTENSITY[s.type] : 0;
-    d.str(s.label || FIT_STEP_NAME[s.type] || "Run", 24);
-
-    // duration
-    if (s.durType === "distance") {
-      d.u8(1).u32(Math.round(s.meters * 100)); // centimetres
-    } else if (s.durType === "time") {
-      d.u8(0).u32(Math.round(s.seconds * 1000)); // milliseconds
-    } else {
-      d.u8(5).u32(INVALID_U32); // open — advance on lap button
-    }
-
-    // target
-    const t = s.target;
-    if (t && t.kind === "pace") {
-      // FIT stores speed, not pace, so the slower pace is the LOW bound.
-      const lo = Math.round((unitMeters / t.slow) * 1000);
-      const hi = Math.round((unitMeters / t.fast) * 1000);
-      d.u8(0).u32(0).u32(lo).u32(hi);
-    } else if (t && t.kind === "hr") {
-      // 1-100 reads as %max, 101-255 as absolute bpm, hence the +100 offset.
-      d.u8(1).u32(0).u32(t.low + 100).u32(t.high + 100);
-    } else {
-      d.u8(2).u32(0).u32(0).u32(0); // open target
-    }
-
-    d.u8(intensity).str(s.note || "", 40);
+    if (s._repeat) writeRepeatStep(d, s);
+    else writeStep(d, s, unitMeters);
   });
 
   // --- header + CRCs ------------------------------------------------------
