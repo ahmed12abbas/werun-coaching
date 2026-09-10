@@ -123,46 +123,38 @@ async function orderList(env) {
   return rows.results || [];
 }
 
-export async function adminOrders(request, env) {
-  const body = await readBody(request);
-  const no = await refuseUnlessAdmin(request, env, body);
-  if (no) return no;
+/* Handed over at the track. Only something already paid for can be. */
+async function handOrder(body, env) {
+  await env.DB.prepare("UPDATE orders SET status = 'handed', handed_at = ? WHERE id = ? AND status = 'paid'")
+    .bind(nowISO(), String(body.id || ""))
+    .run();
+  return json({ orders: await orderList(env) });
+}
 
-  const action = String(body.action || "list");
+async function unhandOrder(body, env) {
+  await env.DB.prepare("UPDATE orders SET status = 'paid', handed_at = NULL WHERE id = ? AND status = 'handed'")
+    .bind(String(body.id || ""))
+    .run();
+  return json({ orders: await orderList(env) });
+}
 
-  if (action === "hand") {
-    // Handed over at the track. Only something already paid for can be.
-    await env.DB.prepare("UPDATE orders SET status = 'handed', handed_at = ? WHERE id = ? AND status = 'paid'")
-      .bind(nowISO(), String(body.id || ""))
+/* Marks the club's own record. The refund itself happens in Stripe, which is
+   where the money is — this site never moves any. */
+async function cancelOrder(body, env) {
+  const row = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(String(body.id || "")).first();
+  if (!row) return json({ error: "no-order" }, 404);
+  if (row.status === "cancelled") return json({ orders: await orderList(env) });
+  await env.DB.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").bind(row.id).run();
+  // What was taken off the shelf goes back on it.
+  if (row.status === "paid" || row.status === "handed") {
+    await env.DB.prepare("UPDATE products SET stock = stock + ? WHERE id = ? AND stock IS NOT NULL")
+      .bind(row.qty, row.product_id)
       .run();
-    return json({ orders: await orderList(env) });
   }
+  return json({ orders: await orderList(env) });
+}
 
-  if (action === "unhand") {
-    await env.DB.prepare("UPDATE orders SET status = 'paid', handed_at = NULL WHERE id = ? AND status = 'handed'")
-      .bind(String(body.id || ""))
-      .run();
-    return json({ orders: await orderList(env) });
-  }
-
-  if (action === "cancel") {
-    // Marks the club's own record. The refund itself happens in Stripe, which
-    // is where the money is — this site never moves any.
-    const row = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(String(body.id || "")).first();
-    if (!row) return json({ error: "no-order" }, 404);
-    if (row.status === "cancelled") return json({ orders: await orderList(env) });
-    await env.DB.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").bind(row.id).run();
-    // What was taken off the shelf goes back on it.
-    if (row.status === "paid" || row.status === "handed") {
-      await env.DB.prepare("UPDATE products SET stock = stock + ? WHERE id = ? AND stock IS NOT NULL")
-        .bind(row.qty, row.product_id)
-        .run();
-    }
-    return json({ orders: await orderList(env) });
-  }
-
-  if (action !== "list") return json({ error: "bad-request" }, 400);
-
+async function listOrders(body, env) {
   const owed = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'paid'").first();
   const taken = await env.DB.prepare(
     "SELECT currency, SUM(amount) AS total FROM orders WHERE status IN ('paid', 'handed') GROUP BY currency"
@@ -174,4 +166,20 @@ export async function adminOrders(request, env) {
     stripe: storeOn(env),
     webhook: !!env.STRIPE_WEBHOOK_SECRET,
   });
+}
+
+const ORDER_ACTIONS = new Map([
+  ["hand", handOrder],
+  ["unhand", unhandOrder],
+  ["cancel", cancelOrder],
+  ["list", listOrders],
+]);
+
+export async function adminOrders(request, env) {
+  const body = await readBody(request);
+  const no = await refuseUnlessAdmin(request, env, body);
+  if (no) return no;
+
+  const run = ORDER_ACTIONS.get(String(body.action || "list"));
+  return run ? run(body, env) : json({ error: "bad-request" }, 400);
 }

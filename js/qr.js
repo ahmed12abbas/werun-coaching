@@ -189,9 +189,11 @@ function placeFinder(g, size, top, left) {
       const y = top + r;
       const x = left + c;
       if (y < 0 || y >= size || x < 0 || x >= size) continue;
-      const inRing = (r >= 0 && r <= 6 && (c === 0 || c === 6)) || (c >= 0 && c <= 6 && (r === 0 || r === 6));
-      const inCore = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-      g.grid[y][x] = inRing || inCore ? 1 : 0;
+      // Rings out from the centre, as in placeAlignment: the 3x3 core and the
+      // outer ring are dark; the ring between them and the separator outside
+      // the finder (rows and columns -1 and 7) are light.
+      const ring = Math.max(Math.abs(r - 3), Math.abs(c - 3));
+      g.grid[y][x] = ring <= 1 || ring === 3 ? 1 : 0;
       g.fixed[y][x] = 1;
     }
   }

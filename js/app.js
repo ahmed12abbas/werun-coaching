@@ -91,23 +91,74 @@ function goHomeFresh() {
   location.reload();
 }
 
+/* Where a route sends somebody instead of drawing, or null to draw it. */
+function redirectFor(r, user) {
+  if (!user) {
+    // A code scanned by a stranger: keep it, then ask who they are.
+    if (r.name === "c") {
+      stashCheckin(r.args);
+      return "login";
+    }
+    return PUBLIC_ROUTES.includes(r.name) ? null : "login";
+  }
+  // verify and reset are reachable logged in as well as out: an athlete who
+  // is already signed in still clicks the link in their mail.
+  return r.name === "login" || r.name === "signup" || !r.name ? "home" : null;
+}
+
+/* The mark goes home, and reloads on the way: one tap out of anything. */
+function wireHomeMark(bar) {
+  const mark = bar.querySelector(".brand-mark");
+  if (!mark) return;
+  mark.setAttribute("role", "button");
+  mark.setAttribute("tabindex", "0");
+  mark.setAttribute("title", t("navHome"));
+  mark.addEventListener("click", goHomeFresh);
+  mark.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHomeFresh(); }
+  });
+}
+
+/* The mark in the middle, the badge in the corner it starts from — left in
+   English, right in Arabic, because the row turns round with the page. It is
+   prepended rather than passed as brandBar's trailing node so that the three
+   of them (badge, mark, toggles) are the three columns `.appbar` lays out;
+   the link page's own bar is untouched. Me is a sheet over whatever you were
+   reading rather than a tab you leave the club to visit. Bar and tabs ride
+   along at the top of the scroll, as one sticky block. */
+function appTop(route, user) {
+  const bar = brandBar(null, appBoot);
+  if (user) {
+    bar.classList.add("appbar");
+    bar.prepend(meBadge(user));
+  }
+  wireHomeMark(bar);
+  const top = el("div", { class: "apptop" }, bar);
+  if (user) top.append(appNav(route));
+  return top;
+}
+
+/* With the site down, the account screen still works — an athlete must be
+   able to log out of a club that is mid-repair — and the coach sees
+   everything, since she is the one doing the repairing. */
+const siteDown = (route) => Auth.club.maintenance && !Auth.isCoach() && route !== "me";
+
+function downCard() {
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("h2", {}, t("aDown")),
+    el("p", { class: "muted" }, t("aDownLead"))
+  );
+}
+
 function render() {
   const app = $("#app");
   const r = parseRoute();
   const user = Auth.user;
 
-  if (!user && !PUBLIC_ROUTES.includes(r.name)) {
-    // A code scanned by a stranger: keep it, then ask who they are.
-    if (r.name === "c") stashCheckin(r.args);
-    return go("login");
-  }
-  if (!user && r.name === "c") {
-    stashCheckin(r.args);
-    return go("login");
-  }
-  // verify and reset are reachable logged in as well as out: an athlete who
-  // is already signed in still clicks the link in their mail.
-  if (user && (r.name === "login" || r.name === "signup" || !r.name)) return go("home");
+  const to = redirectFor(r, user);
+  if (to) return go(to);
 
   app.textContent = "";
   // A new screen starts at its top: with the bar pinned there is nothing to
@@ -115,49 +166,13 @@ function render() {
   window.scrollTo(0, 0);
   document.title = "WE RUN Club";
   closeMe();
-  // The mark in the middle, the badge in the corner it starts from — left in
-  // English, right in Arabic, because the row turns round with the page. It
-  // is prepended rather than passed as brandBar's trailing node so that the
-  // three of them (badge, mark, toggles) are the three columns `.appbar`
-  // lays out; the link page's own bar is untouched. Me is a sheet over
-  // whatever you were reading rather than a tab you leave the club to visit.
-  const bar = brandBar(null, appBoot);
-  if (user) {
-    bar.classList.add("appbar");
-    bar.prepend(meBadge(user));
-  }
-
-  // The mark goes home, and reloads on the way: one tap out of anything.
-  const mark = bar.querySelector(".brand-mark");
-  if (mark) {
-    mark.setAttribute("role", "button");
-    mark.setAttribute("tabindex", "0");
-    mark.setAttribute("title", t("navHome"));
-    mark.addEventListener("click", goHomeFresh);
-    mark.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHomeFresh(); }
-    });
-  }
-  // Bar and tabs ride along at the top of the scroll, as one sticky block.
-  const top = el("div", { class: "apptop" }, bar);
-  if (user) top.append(appNav(r.name));
-  app.append(top);
+  app.append(appTop(r.name, user));
 
   const banner = announcement();
   if (banner) app.append(banner);
 
-  // With the site down, the account screen still works — an athlete must be
-  // able to log out of a club that is mid-repair — and the coach sees
-  // everything, since she is the one doing the repairing.
-  if (Auth.club.maintenance && !Auth.isCoach() && r.name !== "me") {
-    app.append(
-      el(
-        "div",
-        { class: "card pad stack" },
-        el("h2", {}, t("aDown")),
-        el("p", { class: "muted" }, t("aDownLead"))
-      )
-    );
+  if (siteDown(r.name)) {
+    app.append(downCard());
     appendFoot(app, r.name);
     return;
   }

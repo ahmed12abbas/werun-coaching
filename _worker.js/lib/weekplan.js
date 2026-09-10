@@ -207,20 +207,25 @@ function standingItem(row, change, steps, names, mins) {
     steps_id: steps ? steps.id : null,
     steps_date: steps ? steps.date : null,
   };
-  if (!change) return item;
+  return change ? applyChange(item, change) : item;
+}
 
+/* The fields a one-off change can move, beside the time. */
+const MOVABLE = ["place_en", "place_ar", "map_url"];
+const named = (v) => v !== null && v !== undefined && v !== "";
+
+/* One occurrence moved or called off. Only the fields the change actually
+   names: a change that moves the time must not blank the place. */
+function applyChange(item, change) {
   if (change.cancelled) item.cancelled = true;
-  // Only the fields the change actually names: a change that moves the time
-  // must not blank the place.
   if (change.at) {
     item.moved = item.at !== change.at;
     item.at = change.at;
   }
-  for (const f of ["place_en", "place_ar", "map_url"]) {
-    if (change[f] !== null && change[f] !== undefined && change[f] !== "") {
-      if (item[f] !== change[f]) item.moved = true;
-      item[f] = change[f];
-    }
+  for (const f of MOVABLE) {
+    if (!named(change[f])) continue;
+    if (item[f] !== change[f]) item.moved = true;
+    item[f] = change[f];
   }
   item.note_en = change.note_en || "";
   item.note_ar = change.note_ar || "";
