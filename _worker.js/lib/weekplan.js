@@ -248,50 +248,64 @@ export function buildDays(dates, data) {
   const changeFor = new Map();
   for (const c of data.changes) changeFor.set(c.schedule_id + "|" + c.date, c);
 
-  const publishedFor = new Map();
-  for (const s of data.published) {
-    const list = publishedFor.get(s.date) || [];
-    list.push(s);
-    publishedFor.set(s.date, list);
-  }
-
   const slotById = new Map();
   for (const row of data.schedule) slotById.set(row.id, row);
 
-  const signed = new Set((data.signups || []).map((s) => s.schedule_id + "|" + s.date));
+  const week = {
+    data: data,
+    names: names,
+    changeFor: changeFor,
+    slotById: slotById,
+    publishedFor: groupBy(data.published, (s) => s.date),
+    signed: new Set((data.signups || []).map((s) => s.schedule_id + "|" + s.date)),
+    // Every workout published near this week, grouped by the slot it belongs
+    // to. Which one a given day gets is nearestSteps()'s business, per day.
+    stepsFor: groupBy(data.nearby || [], (s) => s.schedule_id),
+  };
+  return dates.map((date) => dayPlan(date, week));
+}
 
-  // Every workout published near this week, grouped by the slot it belongs
-  // to. Which one a given day gets is nearestSteps()'s business, per day.
-  const stepsFor = new Map();
-  for (const s of data.nearby || []) {
-    const list = stepsFor.get(s.schedule_id) || [];
-    list.push(s);
-    stepsFor.set(s.schedule_id, list);
+/* Rows grouped under a key, each group in the order the rows came. */
+function groupBy(rows, keyOf) {
+  const out = new Map();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const list = out.get(key) || [];
+    list.push(row);
+    out.set(key, list);
   }
+  return out;
+}
 
-  return dates.map((date) => {
-    const weekday = weekdayOf(date);
-    const sessions = publishedFor.get(date) || [];
-    // A slot the coach has already published a workout for shows once, as the
-    // workout — not twice, as a plan and a workout.
-    const taken = new Set(sessions.map((s) => s.schedule_id).filter(Boolean));
+/* One day: its standing slots and its published sessions, in time order. */
+function dayPlan(date, week) {
+  const weekday = weekdayOf(date);
+  const sessions = week.publishedFor.get(date) || [];
+  // A slot the coach has already published a workout for shows once, as the
+  // workout — not twice, as a plan and a workout.
+  const taken = new Set(sessions.map((s) => s.schedule_id).filter(Boolean));
 
-    const items = data.schedule
-      .filter((row) => row.weekday === weekday && !taken.has(row.id))
-      .map((row) =>
-        standingItem(row, changeFor.get(row.id + "|" + date), nearestSteps(stepsFor.get(row.id), date), names, data.window)
+  const items = week.data.schedule
+    .filter((row) => row.weekday === weekday && !taken.has(row.id))
+    .map((row) =>
+      standingItem(
+        row,
+        week.changeFor.get(row.id + "|" + date),
+        nearestSteps(week.stepsFor.get(row.id), date),
+        week.names,
+        week.data.window
       )
-      .concat(sessions.map((x) => publishedItem(x, slotById.get(x.schedule_id), names, data.window)));
+    )
+    .concat(sessions.map((x) => publishedItem(x, week.slotById.get(x.schedule_id), week.names, week.data.window)));
 
-    items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
-    // Whether this athlete has said they are coming. Set here rather than in
-    // the two item builders because it is the one field that depends on the
-    // date as well as the row, and both kinds answer it the same way: a
-    // published session keeps the slot it was published into, so a name put
-    // down on Tuesday's slot is still down once the workout goes out.
-    for (const item of items) {
-      item.registered = !!(item.schedule_id && signed.has(item.schedule_id + "|" + date));
-    }
-    return { date: date, items: items };
-  });
+  items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  // Whether this athlete has said they are coming. Set here rather than in
+  // the two item builders because it is the one field that depends on the
+  // date as well as the row, and both kinds answer it the same way: a
+  // published session keeps the slot it was published into, so a name put
+  // down on Tuesday's slot is still down once the workout goes out.
+  for (const item of items) {
+    item.registered = !!(item.schedule_id && week.signed.has(item.schedule_id + "|" + date));
+  }
+  return { date: date, items: items };
 }

@@ -188,17 +188,21 @@ export async function settings(request, env) {
   const set = body.set && typeof body.set === "object" ? body.set : {};
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
-    const want = set[key];
-    const fallback = DEFAULTS[key];
-    let value;
-    if (typeof fallback === "boolean") value = !!want;
-    else if (typeof fallback === "number") {
-      value = Number(want);
-      if (!Number.isFinite(value) || value < 0 || value > 100000) continue;
-      value = Math.round(value);
-    } else value = String(want).slice(0, 500);
-    await setSetting(env, key, value);
+    const value = settingValue(DEFAULTS[key], set[key]);
+    if (value !== undefined) await setSetting(env, key, value);
   }
 
   return json({ settings: await allSettings(env) });
+}
+
+/* What the page sent, made into the type the setting's default already is:
+   a switch, a whole number within bounds, or a line of text. undefined for a
+   number that will not do, which leaves the setting as it was. */
+function settingValue(fallback, want) {
+  if (typeof fallback === "boolean") return !!want;
+  if (typeof fallback === "number") {
+    const n = Number(want);
+    return Number.isFinite(n) && n >= 0 && n <= 100000 ? Math.round(n) : undefined;
+  }
+  return String(want).slice(0, 500);
 }

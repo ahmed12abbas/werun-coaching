@@ -54,22 +54,7 @@ export const reactions = withMember(async (request, env, user) => {
   if (!TARGET.test(target) || !EMOJI.includes(emoji)) return json({ error: "bad-request" }, 400);
 
   try {
-    const had = await env.DB.prepare("SELECT emoji FROM reactions WHERE target = ? AND user_id = ?")
-      .bind(target, user.id)
-      .first();
-    if (had && had.emoji === emoji) {
-      // The same face twice is taking it back.
-      await env.DB.prepare("DELETE FROM reactions WHERE target = ? AND user_id = ?")
-        .bind(target, user.id)
-        .run();
-    } else {
-      await env.DB.prepare(
-        "INSERT INTO reactions (target, user_id, emoji, at) VALUES (?, ?, ?, ?)" +
-          " ON CONFLICT(target, user_id) DO UPDATE SET emoji = excluded.emoji, at = excluded.at"
-      )
-        .bind(target, user.id, emoji, nowISO())
-        .run();
-    }
+    await toggleReaction(env, target, user.id, emoji);
   } catch (e) {
     console.error("reactions: could not write (" + (e && e.message) + ")");
     return json({ error: "no-table" }, 503);
@@ -78,3 +63,23 @@ export const reactions = withMember(async (request, env, user) => {
   const now = await reactionsFor(env, user, [target]);
   return json({ counts: now.counts[target] || {}, mine: now.mine[target] || null });
 });
+
+/* The same face twice is taking it back; any other face replaces whatever
+   this member had on it. */
+async function toggleReaction(env, target, userId, emoji) {
+  const had = await env.DB.prepare("SELECT emoji FROM reactions WHERE target = ? AND user_id = ?")
+    .bind(target, userId)
+    .first();
+  if (had && had.emoji === emoji) {
+    await env.DB.prepare("DELETE FROM reactions WHERE target = ? AND user_id = ?")
+      .bind(target, userId)
+      .run();
+    return;
+  }
+  await env.DB.prepare(
+    "INSERT INTO reactions (target, user_id, emoji, at) VALUES (?, ?, ?, ?)" +
+      " ON CONFLICT(target, user_id) DO UPDATE SET emoji = excluded.emoji, at = excluded.at"
+  )
+    .bind(target, userId, emoji, nowISO())
+    .run();
+}

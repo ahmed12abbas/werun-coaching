@@ -81,15 +81,7 @@ function starPicker() {
       role: "radiogroup",
       "aria-label": t("fbRating"),
       onkeydown: (e) => {
-        // ArrowRight means "more" in English and "less" in Arabic, because
-        // the row itself is mirrored — the athlete's hand is moving towards
-        // the fifth star either way.
-        const rtl = (document.documentElement.getAttribute("dir") || "ltr") === "rtl";
-        let step = 0;
-        if (e.key === "ArrowRight") step = rtl ? -1 : 1;
-        else if (e.key === "ArrowLeft") step = rtl ? 1 : -1;
-        else if (e.key === "ArrowUp") step = 1;
-        else if (e.key === "ArrowDown") step = -1;
+        const step = arrowStep(e.key);
         if (!step) return;
         e.preventDefault();
         const next = clampNum((value || 0) + step, 1, 5);
@@ -99,6 +91,16 @@ function starPicker() {
     },
     btns
   );
+
+  /* How far an arrow key moves the rating, or 0 for any other key.
+     ArrowRight means "more" in English and "less" in Arabic, because the row
+     itself is mirrored — the athlete's hand is moving towards the fifth star
+     either way. */
+  function arrowStep(key) {
+    const rtl = (document.documentElement.getAttribute("dir") || "ltr") === "rtl";
+    const steps = { ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1, ArrowUp: 1, ArrowDown: -1 };
+    return Object.hasOwn(steps, key) ? steps[key] : 0;
+  }
 
   /** Fill up to n, without saying anything about what is chosen. */
   function paint(n) {
