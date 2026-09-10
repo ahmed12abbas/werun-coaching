@@ -9,17 +9,18 @@
 
 /* ===================== shared pieces ==================================== */
 
+/* The line under a step's title. The note is the coach's own words, so it
+   outranks any generated line; then the target; then how the step ends. */
+function stepMeta(s, target) {
+  if (s.note) return s.note;
+  if (target) return t("targetIs") + target;
+  return s.durType === "open" ? t("pressLap") : t("noTargetEasy");
+}
+
 function stepRow(s, units) {
   const k = KINDS[s.type];
   const target = stepTarget(s, units);
-  // The note is the coach's own words, so it outranks any generated line.
-  const meta = s.note
-    ? s.note
-    : target
-      ? t("targetIs") + target
-      : s.durType === "open"
-        ? t("pressLap")
-        : t("noTargetEasy");
+  const meta = stepMeta(s, target);
   return el(
     "div",
     { class: "tl-item" },

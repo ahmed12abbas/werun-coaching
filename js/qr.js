@@ -205,18 +205,21 @@ function placeFinder(g, size, top, left) {
 }
 
 function placeAlignment(g, version) {
+  // One 5x5 pattern around (r, c): dark centre, light ring, dark ring.
+  const stamp = (r, c) => {
+    for (let dr = -2; dr <= 2; dr++) {
+      for (let dc = -2; dc <= 2; dc++) {
+        const ring = Math.max(Math.abs(dr), Math.abs(dc));
+        g.grid[r + dr][c + dc] = ring !== 1 ? 1 : 0;
+        g.fixed[r + dr][c + dc] = 1;
+      }
+    }
+  };
   const centres = QR_ALIGN[version];
   for (const r of centres) {
     for (const c of centres) {
       // The three corners already carry finders.
-      if (g.fixed[r][c]) continue;
-      for (let dr = -2; dr <= 2; dr++) {
-        for (let dc = -2; dc <= 2; dc++) {
-          const ring = Math.max(Math.abs(dr), Math.abs(dc));
-          g.grid[r + dr][c + dc] = ring !== 1 ? 1 : 0;
-          g.fixed[r + dr][c + dc] = 1;
-        }
-      }
+      if (!g.fixed[r][c]) stamp(r, c);
     }
   }
 }

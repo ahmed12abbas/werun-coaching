@@ -37,17 +37,22 @@ const cache = new Map(); // key -> { value, at }
 export async function getSetting(env, key) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.value;
-  let value = DEFAULTS[key];
-  if (env.DB) {
-    try {
-      const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
-      if (row && row.value != null) value = JSON.parse(row.value);
-    } catch (e) {
-      // A broken row or a missing table means the default, not a broken site.
-    }
-  }
+  const value = await readSetting(env, key);
   cache.set(key, { value: value, at: Date.now() });
   return value;
+}
+
+/* What the table says, or the default: with no database, no row, an empty
+   one, or a row that will not parse. */
+async function readSetting(env, key) {
+  if (!env.DB) return DEFAULTS[key];
+  try {
+    const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
+    return row && row.value != null ? JSON.parse(row.value) : DEFAULTS[key];
+  } catch (e) {
+    // A broken row or a missing table means the default, not a broken site.
+    return DEFAULTS[key];
+  }
 }
 
 export async function setSetting(env, key, value) {

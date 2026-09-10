@@ -113,10 +113,16 @@ export async function currentUser(request, env) {
     .bind(tokenHash, now)
     .first();
   if (!row) return null;
-  if (!row.last_seen_at || Date.parse(now) - Date.parse(row.last_seen_at) > 3600 * 1000) {
-    await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ?").bind(now, row.id).run();
-  }
+  await touchLastSeen(env, row, now);
   return row;
+}
+
+/* About hourly, not on every request: often enough to say who is still
+   coming, rarely enough that a busy screen is not a write each time. A date
+   that will not parse is left alone, as it always has been. */
+async function touchLastSeen(env, row, now) {
+  const stale = !row.last_seen_at || Date.parse(now) - Date.parse(row.last_seen_at) > 3600 * 1000;
+  if (stale) await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE id = ?").bind(now, row.id).run();
 }
 
 /** What the page may know about an account. Never the hash, never the salt. */
