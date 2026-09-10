@@ -43,33 +43,48 @@ export const pointsMe = withMember(async (request, env, user) => {
  * The caller's own row comes back separately, so an athlete far down a long
  * board still sees where they are without scrolling to find themselves.
  */
+/*
+ * A column a member may keep to themselves, as its piece of the SELECT: ''
+ * before the migration that adds it has landed, the value blanked for anyone
+ * who has hidden it, and the value itself otherwise. `col` and `hiddenCol`
+ * are only ever the names written below, never anything from a request.
+ *
+ * Hidden is decided here, in the SELECT, and not in the page: the row that
+ * reaches the browser has to be the row the club is allowed to read, or
+ * "hidden" only means "hidden from anyone who does not open the network tab".
+ * Being on the board and keeping a line to yourself are two separate answers
+ * — board_hidden takes the whole row away, this takes one field off it.
+ */
+async function privateColumn(env, col, hiddenCol) {
+  if (!(await hasColumn(env, "users", col))) return " '' AS " + col + ",";
+  if (await hasColumn(env, "users", hiddenCol)) {
+    return " CASE WHEN u." + hiddenCol + " = 1 THEN '' ELSE u." + col + " END AS " + col + ",";
+  }
+  return " u." + col + ",";
+}
+
+/* One place on the board: who, how many points, and whether it is the reader. */
+const boardRow = (r, i, userId) => ({
+  place: i + 1,
+  name: r.name,
+  avatar: r.avatar || "",
+  bio: r.bio || "",
+  instagram: r.instagram || "",
+  points: r.points,
+  sessions: r.sessions,
+  me: r.id === userId,
+});
+
 export const pointsBoard = withMember(async (request, env, user) => {
   // Until 0007 is applied there is no column to read, and everyone is on the
   // board as their initial — which is what an empty avatar means anyway.
   const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
-  /* The line they wrote about themselves, under their name. Same guard, same
-     reason: 0013 lands after the deploy that reads it, and a board that will
-     not draw at all is a worse answer than a board without the lines.
-
-     A member who has asked for their line to stay theirs is dropped here, in
-     the SELECT, and not in the page: the row that reaches the browser has to
-     be the row the club is allowed to read, or "hidden" only means "hidden
-     from anyone who does not open the network tab". Being on the board and
-     keeping the line to yourself are two separate answers — board_hidden
-     takes the whole row away, this takes one sentence off it. */
-  const line = !(await hasColumn(env, "users", "bio"))
-    ? " '' AS bio,"
-    : (await hasColumn(env, "users", "bio_hidden"))
-    ? " CASE WHEN u.bio_hidden = 1 THEN '' ELSE u.bio END AS bio,"
-    : " u.bio,";
-  /* Their Instagram, on the same terms as the line: 0015 is applied by hand
-     and lands after this, and a handle the athlete has hidden is dropped in
-     the SELECT so it never reaches a browser at all. */
-  const ig = !(await hasColumn(env, "users", "instagram"))
-    ? " '' AS instagram,"
-    : (await hasColumn(env, "users", "instagram_hidden"))
-    ? " CASE WHEN u.instagram_hidden = 1 THEN '' ELSE u.instagram END AS instagram,"
-    : " u.instagram,";
+  // The line they wrote about themselves, under their name (0013, 0014), and
+  // their Instagram (0015). All three are applied by hand and land after the
+  // deploy that reads them, and a board that will not draw at all is a worse
+  // answer than a board without the lines.
+  const line = await privateColumn(env, "bio", "bio_hidden");
+  const ig = await privateColumn(env, "instagram", "instagram_hidden");
   const rows = await env.DB.prepare(
     "SELECT u.id, u.name," + face + line + ig + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
@@ -80,16 +95,7 @@ export const pointsBoard = withMember(async (request, env, user) => {
     .bind(BOARD)
     .all();
 
-  const board = (rows.results || []).map((r, i) => ({
-    place: i + 1,
-    name: r.name,
-    avatar: r.avatar || "",
-    bio: r.bio || "",
-    instagram: r.instagram || "",
-    points: r.points,
-    sessions: r.sessions,
-    me: r.id === user.id,
-  }));
+  const board = (rows.results || []).map((r, i) => boardRow(r, i, user.id));
 
   return json({
     board: board,

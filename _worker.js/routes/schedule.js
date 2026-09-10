@@ -222,10 +222,7 @@ async function voidCheckin(body, env) {
    then it can go" true rather than just written down. */
 async function deleteSession(body, env) {
   const id = String(body.id || "");
-  const n = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM checkins WHERE session_id = ? AND voided_at IS NULL"
-  ).bind(id).first();
-  if ((n && n.n) || 0) return json({ error: "has-checkins" }, 409);
+  if (await liveCheckins(env, id)) return json({ error: "has-checkins" }, 409);
   await env.DB.prepare("DELETE FROM club_sessions WHERE id = ?").bind(id).run();
   return json({ sessions: await sessionList(env) });
 }
@@ -380,10 +377,17 @@ export async function adminQr(request, env) {
     open: now >= w.open && now <= w.close,
     window_open_at: w.open,
     window_close_at: w.close,
-    came: ((await env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM checkins WHERE session_id = ? AND voided_at IS NULL"
-    )
-      .bind(session.id)
-      .first()) || {}).n || 0,
+    came: await liveCheckins(env, session.id),
   });
+}
+
+/* Check-ins on a session that still count. A voided one is a check-in the
+   coach took back, and its points have already gone back with it. */
+async function liveCheckins(env, sessionId) {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM checkins WHERE session_id = ? AND voided_at IS NULL"
+  )
+    .bind(sessionId)
+    .first();
+  return (row && row.n) || 0;
 }

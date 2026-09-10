@@ -35,16 +35,33 @@ const cleanComment = (s) =>
     .trim()
     .slice(0, FB_MAX.comment);
 
+/* One to five stars, the only rating there is. */
+const isRating = (r) => r >= 1 && r <= 5;
+
 /** The shape /admin needs: how many, how good, and how they are spread. */
 export function feedbackSummary(items) {
   const spread = [0, 0, 0, 0, 0];
   for (const it of items) {
     const r = it && Math.round(it.rating);
-    if (r >= 1 && r <= 5) spread[r - 1]++;
+    if (isRating(r)) spread[r - 1]++;
   }
   const count = spread.reduce((n, c) => n + c, 0);
   const sum = spread.reduce((n, c, i) => n + c * (i + 1), 0);
   return { count: count, average: count ? Math.round((sum / count) * 10) / 10 : 0, spread: spread };
+}
+
+/* One note as it is kept. */
+function feedbackItem(body, rating) {
+  return {
+    id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    at: new Date().toISOString(),
+    rating: rating,
+    name: oneLine(body.name, FB_MAX.name),
+    comment: cleanComment(body.comment),
+    // Which session they had just read, so a coach can see what a note is about.
+    session: oneLine(body.session, FB_MAX.session),
+    lang: body.lang === "ar" ? "ar" : "en",
+  };
 }
 
 /* ---------- POST /api/feedback -------------------------------------------- */
@@ -65,22 +82,11 @@ export async function feedback(request, env) {
 
   const body = await readBody(request);
   const rating = Math.round(Number(body && body.rating));
-  if (!(rating >= 1 && rating <= 5)) return json({ error: "bad-rating" }, 400);
+  if (!isRating(rating)) return json({ error: "bad-rating" }, 400);
   if (await tooOften(env.STATS, "fb", ipOf(request), FB_PER_MINUTE, 60)) return json({ error: "too-often" }, 429);
 
-  const item = {
-    id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    at: new Date().toISOString(),
-    rating: rating,
-    name: oneLine(body.name, FB_MAX.name),
-    comment: cleanComment(body.comment),
-    // Which session they had just read, so a coach can see what a note is about.
-    session: oneLine(body.session, FB_MAX.session),
-    lang: body.lang === "ar" ? "ar" : "en",
-  };
-
   const doc = await readFeedback(env.STATS);
-  doc.items.unshift(item);
+  doc.items.unshift(feedbackItem(body, rating));
   if (doc.items.length > FB_MAX.items) doc.items.length = FB_MAX.items;
   await env.STATS.put(FEEDBACK_KEY, JSON.stringify({ v: 1, items: doc.items }));
 

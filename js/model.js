@@ -111,15 +111,20 @@ function prettyDate(iso) {
 
 /* ---------- model --------------------------------------------------------- */
 
+/* The kinds of step that are easy running or standing still, which start as a
+   time rather than a distance — and the two of those that start at one
+   minute rather than ten. */
+const EASY_KINDS = new Set(["warmup", "cooldown", "recovery", "rest"]);
+const REST_KINDS = new Set(["recovery", "rest"]);
+
 function blankStep(type) {
-  const easy = type === "warmup" || type === "cooldown" || type === "recovery" || type === "rest";
   return {
     kind: "step",
     type: type || "work",
     label: "",
     note: "",
-    durType: easy ? "time" : "distance",
-    seconds: type === "recovery" || type === "rest" ? 60 : 600,
+    durType: EASY_KINDS.has(type) ? "time" : "distance",
+    seconds: REST_KINDS.has(type) ? 60 : 600,
     meters: 400,
     estSeconds: 0, // planning hint for lap-button steps only
     target: { kind: "none" },
