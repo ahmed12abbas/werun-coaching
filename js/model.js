@@ -377,6 +377,12 @@ function deflateRaw(src, dict) {
   };
 
   const CHAIN = 128; // more than enough for a payload this size
+  // How far the bytes at j and at i agree, up to maxLen.
+  const matchLength = (j, i, maxLen) => {
+    let l = 0;
+    while (l < maxLen && buf[j + l] === buf[i + l]) l++;
+    return l;
+  };
   const longestAt = (i) => {
     if (i + 2 >= n) return [0, 0];
     const maxLen = Math.min(258, n - i);
@@ -385,13 +391,11 @@ function deflateRaw(src, dict) {
     let chain = CHAIN;
     for (let j = head[hash(i)]; j >= 0 && chain-- > 0; j = prev[j]) {
       if (i - j > 32768) break;
-      let l = 0;
-      while (l < maxLen && buf[j + l] === buf[i + l]) l++;
-      if (l > best) {
-        best = l;
-        bestDist = i - j;
-        if (l === maxLen) break;
-      }
+      const l = matchLength(j, i, maxLen);
+      if (l <= best) continue;
+      best = l;
+      bestDist = i - j;
+      if (l === maxLen) break;
     }
     return best >= 3 ? [best, bestDist] : [0, 0];
   };
@@ -623,19 +627,28 @@ const linkDictBytes = new TextEncoder().encode(LINK_DICT);
 
 /** Compact the model so links stay short enough for WhatsApp. */
 function packWorkout(w) {
-  const packStep = (s) => {
-    const o = { t: KIND_ORDER.indexOf(s.type) };
+  // How the step ends: a time, a distance, or the lap button with the
+  // planning estimate when there is one.
+  const packDuration = (o, s) => {
     if (s.durType === "time") o.s = Math.round(s.seconds);
     else if (s.durType === "distance") o.m = Math.round(s.meters);
     else {
       o.o = 1;
       if (s.estSeconds) o.e = Math.round(s.estSeconds);
     }
-    if (s.label) o.l = s.label;
-    if (s.note) o.q = s.note;
-    const g = s.target;
+  };
+  const packTarget = (o, g) => {
     if (g && g.kind === "pace") o.p = [Math.round(g.fast), Math.round(g.slow)];
     else if (g && g.kind === "hr") o.h = [g.low, g.high];
+  };
+  // The keys go in the order they always have — the link carries them as
+  // written, and a reordering would change every link made from now on.
+  const packStep = (s) => {
+    const o = { t: KIND_ORDER.indexOf(s.type) };
+    packDuration(o, s);
+    if (s.label) o.l = s.label;
+    if (s.note) o.q = s.note;
+    packTarget(o, s.target);
     return o;
   };
   const d = { n: w.name, b: [] };

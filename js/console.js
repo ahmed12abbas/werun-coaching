@@ -43,6 +43,21 @@ function putAttr(n, k, v) {
   else n.setAttribute(k, v);
 }
 
+/* What a refused sign-in says: the two answers a coach can act on, in words,
+   and anything else with its status and code to read out over the phone. */
+function signInFailure(status, code) {
+  if (code === "bad-login") return t("cBadLogin");
+  if (code === "too-often") return t("cErrTooOften");
+  return t("cErrServer", { status: status, code: code || "?" });
+}
+
+/* A coach, or an admin who does not coach. Before 0010 there is no is_admin,
+   and the role alone lets every coach in — the same answer the Worker gives
+   in that window. */
+function isStaffUser(u) {
+  return !!(u && (u.role === "coach" || u.is_admin));
+}
+
 /* A child, or an array of them one level deep. Only null and undefined are
    skipped; the browser's own append would write them as words. */
 function putKid(n, c) {
@@ -123,16 +138,10 @@ function renderLogin(message) {
       body: JSON.stringify({ email: email.value.trim(), password: pw.value })
     }).then(function (res) {
       return res.json()["catch"](function () { return {}; }).then(function (d) {
-        if (!res.ok) throw new Error(d.error === "bad-login" ? t("cBadLogin")
-          : d.error === "too-often" ? t("cErrTooOften")
-          : t("cErrServer", { status: res.status, code: d.error || "?" }));
+        if (!res.ok) throw new Error(signInFailure(res.status, d.error));
         // Coach or admin gets through the door here; which screens open
         // behind it is the Worker's call, not this form's.
-        var staff = d.user && (d.user.role === "coach" || d.user.is_admin ||
-          (d.user.is_admin === undefined && d.user.role === "coach"));
-        if (!staff) {
-          throw new Error(t("cNotStaff"));
-        }
+        if (!isStaffUser(d.user)) throw new Error(t("cNotStaff"));
         return d;
       });
     }).then(function () {

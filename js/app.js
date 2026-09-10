@@ -2494,39 +2494,73 @@ function boardToggle(hidden) {
   return el("div", { class: "stack" }, el("label", { class: "sw", for: "on-board" }, box, el("span", {}, t("aOnBoard"))), note);
 }
 
+/* A line about themselves, beside the face they picked. One line: the Worker
+   squeezes whatever arrives onto one and cuts it at 160, and a box that looks
+   like an essay invites one. Whose line it is sits beside the box they write
+   it in, because that is when somebody decides who it is for — and it saves
+   with the rest of the form, unlike the board tick on the points screen,
+   which is its own errand. */
+function bioBlock(user) {
+  const input = el("textarea", { id: "f-bio", rows: "2", maxlength: "160", placeholder: t("aBioPh") });
+  input.value = user.bio || "";
+  const show = el("input", { type: "checkbox", id: "f-bio-show" });
+  if (!user.bio_hidden) show.setAttribute("checked", "");
+  const node = el(
+    "div",
+    {},
+    el("label", { for: "f-bio" }, t("aBio")),
+    input,
+    el("label", { class: "sw", for: "f-bio-show" }, show, el("span", {}, t("aBioShow")))
+  );
+  return { input: input, show: show, node: node };
+}
+
+/* Their Instagram, and whether the club may have it. The tick sits under the
+   box for the same reason the bio's does: whether it is for anybody else is
+   decided while you are typing it, not on another screen. The box takes a
+   pasted address as happily as a handle — the Worker keeps the handle out of
+   whatever arrives. */
+function igBlock(user) {
+  const input = el("input", { type: "text", id: "f-ig", value: user.instagram || "", maxlength: "90", placeholder: t("aIgPh"), autocapitalize: "none", spellcheck: "false" });
+  const show = el("input", { type: "checkbox", id: "f-ig-show" });
+  if (!user.instagram_hidden) show.setAttribute("checked", "");
+  const node = el(
+    "div",
+    {},
+    el("label", { for: "f-ig" }, t("aIg")),
+    input,
+    el("label", { class: "sw", for: "f-ig-show" }, show, el("span", {}, t("aIgShow")))
+  );
+  return { input: input, show: show, node: node };
+}
+
+/* The coach's way to the track screen. Here rather than in the tab row: it is
+   for the four people who take the sessions, and a sixth tab on a phone is a
+   cost the whole club pays for them. Straight to coach.html, which is where
+   this week's codes and rosters are.
+
+   Only this one button. /admin is reached by its own address, and nothing in
+   the app links to it: the console is a thing you go to deliberately, at a
+   desk, and not a tap away from the screen a coach opens at the gate. */
+function coachToolsCard() {
+  if (!Auth.isCoach() && !Auth.isAdmin()) return null;
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("h3", {}, t("aCoachTools")),
+    el("p", { class: "muted" }, t("aCoachLead")),
+    el("div", { class: "row-wrap" }, el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")))
+  );
+}
+
 SCREENS.me = function (args, user) {
   /* name + language */
   const name = el("input", { type: "text", id: "f-name", value: user.name, maxlength: 40, autocomplete: "name" });
   const gender = genderSelect(user.gender);
   const age = ageInput(user.birth_year);
-  // A line about themselves, beside the face they picked. One line: the
-  // Worker squeezes whatever arrives onto one and cuts it at 160, and a box
-  // that looks like an essay invites one.
-  const bio = el("textarea", { id: "f-bio", rows: "2", maxlength: "160", placeholder: t("aBioPh") });
-  bio.value = user.bio || "";
-  // Whose line it is. Beside the box they write it in, because that is when
-  // somebody decides who it is for — and it saves with the rest of the form,
-  // unlike the board tick on the points screen, which is its own errand.
-  const bioShow = el("input", { type: "checkbox", id: "f-bio-show" });
-  if (!user.bio_hidden) bioShow.setAttribute("checked", "");
-  const avatar = avatarPicker(
-    user,
-    el(
-      "div",
-      {},
-      el("label", { for: "f-bio" }, t("aBio")),
-      bio,
-      el("label", { class: "sw", for: "f-bio-show" }, bioShow, el("span", {}, t("aBioShow")))
-    )
-  );
-  // Their Instagram, and whether the club may have it. The tick sits under
-  // the box for the same reason the bio's does: whether it is for anybody
-  // else is decided while you are typing it, not on another screen. The box
-  // takes a pasted address as happily as a handle — the Worker keeps the
-  // handle out of whatever arrives.
-  const ig = el("input", { type: "text", id: "f-ig", value: user.instagram || "", maxlength: "90", placeholder: t("aIgPh"), autocapitalize: "none", spellcheck: "false" });
-  const igShow = el("input", { type: "checkbox", id: "f-ig-show" });
-  if (!user.instagram_hidden) igShow.setAttribute("checked", "");
+  const bio = bioBlock(user);
+  const avatar = avatarPicker(user, bio.node);
+  const ig = igBlock(user);
 
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
@@ -2569,10 +2603,10 @@ SCREENS.me = function (args, user) {
             gender: gender.value,
             birth_year: yearOfAge(age.value),
             avatar: avatar.value(),
-            bio: bio.value,
-            bio_hidden: !bioShow.checked,
-            instagram: ig.value,
-            instagram_hidden: !igShow.checked,
+            bio: bio.input.value,
+            bio_hidden: !bio.show.checked,
+            instagram: ig.input.value,
+            instagram_hidden: !ig.show.checked,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
@@ -2586,13 +2620,7 @@ SCREENS.me = function (args, user) {
     field("aName", name),
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
-    el(
-      "div",
-      {},
-      el("label", { for: "f-ig" }, t("aIg")),
-      ig,
-      el("label", { class: "sw", for: "f-ig-show" }, igShow, el("span", {}, t("aIgShow")))
-    ),
+    ig.node,
     field("aGoal", goal, t("aGoalHint")),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),
@@ -2638,23 +2666,7 @@ SCREENS.me = function (args, user) {
       el("h2", {}, t("aHello", { name: user.name })),
       profileForm
     ),
-    // The coach's way to the track screen. Here rather than in the tab row:
-    // it is for the four people who take the sessions, and a sixth tab on a
-    // phone is a cost the whole club pays for them. Straight to coach.html,
-    // which is where this week's codes and rosters are.
-    //
-    // Only this one button. /admin is reached by its own address, and nothing
-    // in the app links to it: the console is a thing you go to deliberately,
-    // at a desk, and not a tap away from the screen a coach opens at the gate.
-    Auth.isCoach() || Auth.isAdmin()
-      ? el(
-          "div",
-          { class: "card pad stack" },
-          el("h3", {}, t("aCoachTools")),
-          el("p", { class: "muted" }, t("aCoachLead")),
-          el("div", { class: "row-wrap" }, el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")))
-        )
-      : null,
+    coachToolsCard(),
     remindCard(),
     // Nothing is gated on this — signups are open and mail may never be
     // configured — so it asks once, here, where someone came to change
