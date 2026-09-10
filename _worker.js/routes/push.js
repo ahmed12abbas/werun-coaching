@@ -71,37 +71,43 @@ export async function push(request, env) {
     if (action === "key") return json({ key: e.VAPID_PUBLIC });
 
     const endpoint = String(body.endpoint || "");
-    if (!/^https:\/\//.test(endpoint) || endpoint.length > MAX_ENDPOINT) {
-      return json({ error: "bad-endpoint" }, 400);
-    }
+    if (!goodEndpoint(endpoint)) return json({ error: "bad-endpoint" }, 400);
+    const change = SUB_ACTIONS.get(action);
+    if (!change) return json({ error: "bad-request" }, 400);
 
     try {
-      if (action === "subscribe") {
-        // One row per browser: the endpoint is unique, so a phone that comes
-        // back after a reinstall replaces its own row rather than collecting.
-        await e.DB.prepare(
-          "INSERT INTO push_subs (id, user_id, endpoint, at) VALUES (?, ?, ?, ?)" +
-            " ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, at = excluded.at"
-        )
-          .bind(uid(), user.id, endpoint, nowISO())
-          .run();
-        return json({ on: true });
-      }
-      if (action === "unsubscribe") {
-        // Their own row only: an endpoint is a browser, and taking somebody
-        // else's off would be silencing them.
-        await e.DB.prepare("DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?")
-          .bind(endpoint, user.id)
-          .run();
-        return json({ on: false });
-      }
+      return await change(e, user, endpoint);
     } catch (err) {
       console.error("push: no push_subs yet (" + (err && err.message) + ")");
       return json({ error: "push-off" }, 503);
     }
-    return json({ error: "bad-request" }, 400);
   })(request, env);
 }
+
+const goodEndpoint = (s) => /^https:\/\//.test(s) && s.length <= MAX_ENDPOINT;
+
+/* One row per browser: the endpoint is unique, so a phone that comes back
+   after a reinstall replaces its own row rather than collecting. */
+async function subscribe(env, user, endpoint) {
+  await env.DB.prepare(
+    "INSERT INTO push_subs (id, user_id, endpoint, at) VALUES (?, ?, ?, ?)" +
+      " ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, at = excluded.at"
+  )
+    .bind(uid(), user.id, endpoint, nowISO())
+    .run();
+  return json({ on: true });
+}
+
+/* Their own row only: an endpoint is a browser, and taking somebody else's
+   off would be silencing them. */
+async function unsubscribe(env, user, endpoint) {
+  await env.DB.prepare("DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?")
+    .bind(endpoint, user.id)
+    .run();
+  return json({ on: false });
+}
+
+const SUB_ACTIONS = new Map([["subscribe", subscribe], ["unsubscribe", unsubscribe]]);
 
 /* ---------- GET /api/push/next -------------------------------------------- */
 

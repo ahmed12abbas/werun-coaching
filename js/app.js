@@ -1486,24 +1486,25 @@ function prettyTime(item, date) {
 }
 
 function slotTag(item, date) {
-  if (item.kind === "standing") {
-    if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
-    if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
-    // A slot the coach has not published a workout for is still a session
-    // with a code at the track, so it says when that code is live — the same
-    // window a published one is answering from, and "upcoming" before it, so
-    // a row without a published workout does not read as the one dead line in
-    // the week. Still nothing after: "missed" on every past standing slot
-    // would paint half the week red.
-    const from = opensTime(item, date);
-    const till = closesTime(item, date);
-    if (from === null || till === null) return null;
-    const now = Date.now();
-    if (now >= from && now <= till) return el("span", { class: "tag open" }, t("aOpenNow"));
-    if (now < from) return el("span", { class: "tag soon" }, t("aUpcoming"));
-    return null;
-  }
-  return statusTag(item);
+  return item.kind === "standing" ? standingTag(item, date) : statusTag(item);
+}
+
+/* A slot the coach has not published a workout for is still a session with a
+   code at the track, so it says when that code is live — the same window a
+   published one is answering from, and "upcoming" before it, so a row without
+   a published workout does not read as the one dead line in the week. Still
+   nothing after: "missed" on every past standing slot would paint half the
+   week red. */
+function standingTag(item, date) {
+  if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
+  if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+  const from = opensTime(item, date);
+  const till = closesTime(item, date);
+  if (from === null || till === null) return null;
+  const now = Date.now();
+  if (now >= from && now <= till) return el("span", { class: "tag open" }, t("aOpenNow"));
+  if (now < from) return el("span", { class: "tag soon" }, t("aUpcoming"));
+  return null;
 }
 
 /** Where this session stands for this athlete, right now. */

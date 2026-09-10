@@ -81,11 +81,10 @@ export async function windowMinutes(env) {
 
 /** `{ open, close }` as ISO strings, for a session and the club's two numbers. */
 export function windowFor(session, mins) {
-  const at = Date.parse((session && session.starts_at) || "");
+  const row = session || {};
+  const at = Date.parse(row.starts_at || "");
   // No rule to apply, or a start that will not parse: what the row says.
-  if (!mins || !Number.isFinite(at)) {
-    return { open: (session && session.window_open_at) || "", close: (session && session.window_close_at) || "" };
-  }
+  if (!mins || !Number.isFinite(at)) return { open: row.window_open_at || "", close: row.window_close_at || "" };
   return {
     open: new Date(at - mins.before * 60000).toISOString(),
     close: new Date(at + mins.after * 60000).toISOString(),

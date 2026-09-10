@@ -24,8 +24,7 @@ const TARGET = /^(post|tip):[A-Za-z0-9_-]{1,64}$/;
  * than no news screen.
  */
 export async function reactionsFor(env, user, targets) {
-  const out = { counts: {}, mine: {} };
-  if (!targets.length || !env.DB) return out;
+  if (!targets.length || !env.DB) return tally([]);
   try {
     const rows = await env.DB.prepare(
       "SELECT target, emoji, COUNT(*) AS n," +
@@ -35,12 +34,19 @@ export async function reactionsFor(env, user, targets) {
     )
       .bind(user.id, ...targets)
       .all();
-    for (const r of rows.results || []) {
-      (out.counts[r.target] = out.counts[r.target] || {})[r.emoji] = r.n;
-      if (r.mine) out.mine[r.target] = r.emoji;
-    }
+    return tally(rows.results || []);
   } catch (e) {
     console.error("reactions: no table yet (" + (e && e.message) + ")");
+    return tally([]);
+  }
+}
+
+/* The grouped rows as counts per thing, and this member's own face on each. */
+function tally(rows) {
+  const out = { counts: {}, mine: {} };
+  for (const r of rows) {
+    (out.counts[r.target] = out.counts[r.target] || {})[r.emoji] = r.n;
+    if (r.mine) out.mine[r.target] = r.emoji;
   }
   return out;
 }
