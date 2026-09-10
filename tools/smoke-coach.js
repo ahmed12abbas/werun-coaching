@@ -183,12 +183,16 @@ function nextDate(weekday) {
   check("and the session itself says the same", r.data.session && r.data.session.coach === "Stand-in " + stamp, r.data.session);
 
   // Left blank, a published session falls back to whoever has the slot.
+  // A week later, not the same morning: publishing into a slot on a date it
+  // already has a session for is the coach correcting that session, so the
+  // same date would rewrite the stand-in's row rather than make a second one.
+  const nextWeek = new Date(Date.parse(date + "T00:00:00Z") + 7 * 86400000).toISOString().slice(0, 10);
   r = await admin("/api/admin/sessions", {
     action: "publish",
     name: "Coach test fallback " + stamp,
     payload: "1.Coach test|1|300|0|0",
-    date: date,
-    starts_at: new Date(date + "T06:30:00+03:00").toISOString(),
+    date: nextWeek,
+    starts_at: new Date(nextWeek + "T06:30:00+03:00").toISOString(),
     schedule_id: slot.id,
   });
   const fallback = (r.data.sessions || []).find((x) => x.name === "Coach test fallback " + stamp);
