@@ -233,25 +233,25 @@ function appNav(current) {
 function drawRoster(into, rows) {
   into.textContent = "";
   if (!rows.length) return into.append(el("p", { class: "muted small" }, t("cNobodyCame")));
-  for (const r of rows.slice().reverse()) {
-    const at = new Date(r.at);
-    into.append(
-      el(
-        "div",
-        { class: "qr-row" + (r.voided_at ? " off" : "") },
-        el("span", { class: "grow", dir: "auto" }, r.name),
-        el(
-          "span",
-          { class: "muted small num" },
-          isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
-        ),
-        // Taking one back is the club's, not every coach's: the route behind
-        // it is admin-tier, so offering the button to a coach who cannot use
-        // it would only be a refusal one tap later.
-        r.voided_at || !Auth.isAdmin() ? null : voidButton(into, r)
-      )
-    );
-  }
+  for (const r of rows.slice().reverse()) into.append(rosterRow(into, r));
+}
+
+function rosterRow(into, r) {
+  const at = new Date(r.at);
+  return el(
+    "div",
+    { class: "qr-row" + (r.voided_at ? " off" : "") },
+    el("span", { class: "grow", dir: "auto" }, r.name),
+    el(
+      "span",
+      { class: "muted small num" },
+      isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+    ),
+    // Taking one back is the club's, not every coach's: the route behind
+    // it is admin-tier, so offering the button to a coach who cannot use
+    // it would only be a refusal one tap later.
+    r.voided_at || !Auth.isAdmin() ? null : voidButton(into, r)
+  );
 }
 
 /* One check-in, taken back. The points go with it as a reversing row, which

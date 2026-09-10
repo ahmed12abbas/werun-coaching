@@ -56,31 +56,24 @@ const Avatars = (function () {
      its own — a shade of skin or a colour of shirt reads as "a runner", not
      as "that runner". So: a headband, a cap, a beard, a ponytail, a bun,
      hair down the back. */
-  function head(o) {
-    const hair = o.hair || HAIR;
-    const skull = '<circle cx="37.5" cy="16" r="7" fill="' + o.skin + '"/>';
-    const crop = '<path d="M30.8 14.4a7.2 7.2 0 0 1 13.2 .3" stroke="' + hair + '" stroke-width="4"/>';
-    if (o.style === "band") {
-      return skull + crop + '<path d="M31.6 12.8 44 12" stroke="' + o.kit + '" stroke-width="2.6"/>';
-    }
-    if (o.style === "cap") {
-      // A peaked cap swallows the hair, which is the point: no other head here
-      // is a solid shape with a bill out front.
-      return skull +
-        '<path d="M30.7 15.4a6.9 6.9 0 0 1 13.7 -.2z" fill="' + o.kit + '"/>' +
-        '<path d="M43.8 14.6h6" stroke="' + o.kit + '" stroke-width="2.6"/>';
-    }
-    if (o.style === "beard") {
-      return skull + crop + '<path d="M32.4 19.4c1.8 3.6 5.6 4.4 8.8 1.8" stroke="' + hair + '" stroke-width="3.4"/>';
-    }
-    if (o.style === "pony") {
-      return skull + crop + limb("M32 13.5c-7.5 1.5-9.5 6-7 11.5", hair, 4.8);
-    }
-    if (o.style === "bun") {
-      return skull + crop + '<circle cx="31.2" cy="10.4" r="3.4" fill="' + hair + '"/>';
-    }
+  const crop = (hair) => '<path d="M30.8 14.4a7.2 7.2 0 0 1 13.2 .3" stroke="' + hair + '" stroke-width="4"/>';
+  const HEADS = {
+    band: (o, hair) => crop(hair) + '<path d="M31.6 12.8 44 12" stroke="' + o.kit + '" stroke-width="2.6"/>',
+    // A peaked cap swallows the hair, which is the point: no other head here
+    // is a solid shape with a bill out front.
+    cap: (o) =>
+      '<path d="M30.7 15.4a6.9 6.9 0 0 1 13.7 -.2z" fill="' + o.kit + '"/>' +
+      '<path d="M43.8 14.6h6" stroke="' + o.kit + '" stroke-width="2.6"/>',
+    beard: (o, hair) => crop(hair) + '<path d="M32.4 19.4c1.8 3.6 5.6 4.4 8.8 1.8" stroke="' + hair + '" stroke-width="3.4"/>',
+    pony: (o, hair) => crop(hair) + limb("M32 13.5c-7.5 1.5-9.5 6-7 11.5", hair, 4.8),
+    bun: (o, hair) => crop(hair) + '<circle cx="31.2" cy="10.4" r="3.4" fill="' + hair + '"/>',
     // Loose hair: one heavy stroke down the back, caught mid-stride.
-    return skull + crop + limb("M32.5 12.5c-5.5 3-6.5 9.5-4 14", hair, 6.6);
+    long: (o, hair) => crop(hair) + limb("M32.5 12.5c-5.5 3-6.5 9.5-4 14", hair, 6.6),
+  };
+
+  function head(o) {
+    const draw = HEADS[o.style] || HEADS.long;
+    return '<circle cx="37.5" cy="16" r="7" fill="' + o.skin + '"/>' + draw(o, o.hair || HAIR);
   }
 
   function runner(o) {
