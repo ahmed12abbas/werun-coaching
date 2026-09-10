@@ -29,18 +29,29 @@ var password = null;
 function el(tag, attrs) {
   var n = document.createElement(tag);
   attrs = attrs || {};
-  for (var k in attrs) {
-    if (k === "class") n.className = attrs[k];
-    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
-    else n.setAttribute(k, attrs[k]);
-  }
-  for (var i = 2; i < arguments.length; i++) {
-    var c = arguments[i];
-    if (c == null) continue;
-    if (Array.isArray(c)) { for (var j = 0; j < c.length; j++) if (c[j] != null) n.append(c[j]); }
-    else n.append(c);
-  }
+  for (var k in attrs) putAttr(n, k, attrs[k]);
+  for (var i = 2; i < arguments.length; i++) putKid(n, arguments[i]);
   return n;
+}
+
+/* One attribute, written as it comes: `class` is the property, `on…` is a
+   listener, and anything else — null and false included — is its own text.
+   Not the app's el(): that one skips null and false and knows `html`. */
+function putAttr(n, k, v) {
+  if (k === "class") n.className = v;
+  else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+  else n.setAttribute(k, v);
+}
+
+/* A child, or an array of them one level deep. Only null and undefined are
+   skipped; the browser's own append would write them as words. */
+function putKid(n, c) {
+  if (c == null) return;
+  if (!Array.isArray(c)) {
+    n.append(c);
+    return;
+  }
+  for (var j = 0; j < c.length; j++) if (c[j] != null) n.append(c[j]);
 }
 
 /* Every console call goes through here, so the coach's login and the club
