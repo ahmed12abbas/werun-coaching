@@ -757,25 +757,24 @@ function asText(w) {
   const lines = [w.name.toUpperCase()];
   if (w.date) lines.push(prettyDate(w.date));
   lines.push("");
-  const line = (s, prefix) => {
-    const k = KINDS[s.type];
-    const t = stepTarget(s, w.units);
-    return (
-      (prefix || "") + (s.label || kindLabel(s.type)) + " - " + stepAmount(s, w.units) +
-      (t ? " @ " + t : "") + (s.note ? " (" + s.note + ")" : "")
-    );
-  };
-  for (const b of w.blocks) {
-    if (b.kind === "repeat") {
-      lines.push(b.reps + "x:");
-      for (const s of b.steps) lines.push(line(s, "   - "));
-    } else {
-      lines.push(line(b, "- "));
-    }
-  }
+  for (const b of w.blocks) lines.push(...blockLines(b, w.units));
   lines.push("", aboutLine(estimate(w)));
   if (w.note) lines.push("", w.note);
   return lines.join("\n");
+}
+
+/* A block as lines of text: a repeat is its count, then its steps under it. */
+function blockLines(b, units) {
+  if (b.kind !== "repeat") return [stepLine(b, "- ", units)];
+  return [b.reps + "x:", ...b.steps.map((s) => stepLine(s, "   - ", units))];
+}
+
+function stepLine(s, prefix, units) {
+  const target = stepTarget(s, units);
+  return (
+    prefix + (s.label || kindLabel(s.type)) + " - " + stepAmount(s, units) +
+    (target ? " @ " + target : "") + (s.note ? " (" + s.note + ")" : "")
+  );
 }
 
 /* ---------- misc UI helpers ----------------------------------------------- */

@@ -90,3 +90,10 @@ export function windowFor(session, mins) {
     close: new Date(at + mins.after * 60000).toISOString(),
   };
 }
+
+/* This athlete's check-in, off a session row that joined it. One the coach
+   voided is no check-in at all, and has no time to show. */
+export const checkinState = (row) => ({
+  checked_in: !!(row.checked_in_at && !row.voided_at),
+  checked_in_at: row.voided_at ? null : row.checked_in_at,
+});

@@ -4,7 +4,7 @@ import { json } from "../lib/http.js";
 import { withMember } from "../lib/auth.js";
 import { loadWeek, buildDays } from "../lib/weekplan.js";
 import { coachNames, coachNameFor } from "../lib/coaches.js";
-import { windowMinutes, windowFor } from "../lib/checkin.js";
+import { windowMinutes, windowFor, checkinState } from "../lib/checkin.js";
 import { hasColumn } from "../lib/columns.js";
 
 const DAY_MS = 86400 * 1000;
@@ -120,9 +120,8 @@ export const session = withMember(async (request, env, user) => {
         window_open_at: w.open,
         window_close_at: w.close,
         points: row.points,
-        checked_in: !!(row.checked_in_at && !row.voided_at),
-        checked_in_at: row.voided_at ? null : row.checked_in_at,
-      }
+      },
+      checkinState(row)
     ),
   });
 });

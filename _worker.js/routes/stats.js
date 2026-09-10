@@ -30,8 +30,17 @@ export async function attendance(env) {
     .bind(LOOK)
     .all();
 
+  const byWeek = groupByWeek(rows.results || []);
+  await fillStanding(env, byWeek);
+
+  // Newest first: the week a coach cares about is this one.
+  return [...byWeek.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
+}
+
+/* Sessions gathered into the club's Sunday-start weeks, each with its head count. */
+function groupByWeek(rows) {
   const byWeek = new Map();
-  for (const row of rows.results || []) {
+  for (const row of rows) {
     const start = clubWeekStart(row.date);
     if (!start) continue;
     if (!byWeek.has(start)) byWeek.set(start, { start: start, total: 0, sessions: [] });
@@ -39,10 +48,7 @@ export async function attendance(env) {
     week.sessions.push(row);
     week.total += row.came || 0;
   }
-  await fillStanding(env, byWeek);
-
-  // Newest first: the week a coach cares about is this one.
-  return [...byWeek.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
+  return byWeek;
 }
 
 const shiftDay = (iso, n) =>

@@ -1039,9 +1039,6 @@ function homeActions(x) {
 
   if (!it.registered) return el("div", { class: "hrow-do" }, signupButton(x, true));
 
-  const opens = opensTime(it, x.date);
-  const shuts = closesTime(it, x.date);
-  const live = opens !== null && shuts !== null && Date.now() >= opens && Date.now() <= shuts;
   return el(
     "div",
     { class: "hrow-do" },
@@ -1052,7 +1049,7 @@ function homeActions(x) {
       {
         class: "btn sm primary",
         type: "button",
-        disabled: !live,
+        disabled: !checkinLive(it, x.date),
         onclick: () => Scan.open((c) => go("c/" + c.session + "/" + c.slot + "/" + c.sig)),
       },
       t("aCheckIn")
@@ -1940,6 +1937,13 @@ function checkinShut(item, date) {
   return close !== null && Date.now() > close;
 }
 
+/** Is the code live right now — opened and not yet shut? */
+function checkinLive(item, date) {
+  const opens = opensTime(item, date);
+  const shuts = closesTime(item, date);
+  return opens !== null && shuts !== null && Date.now() >= opens && Date.now() <= shuts;
+}
+
 /** The hour it shut, for the line that says so. */
 function closesAt(item, date) {
   const close = closesTime(item, date);
@@ -2261,6 +2265,23 @@ function postCard(p) {
 const FACES = ["👍", "💜", "🔥"];
 let FEED_FACES = { counts: {}, mine: {} };
 
+/* One face in a card's corner, with how many chose it. */
+function reactButton(target, face, n, mine, draw) {
+  return el(
+    "button",
+    {
+      class: "react" + (mine === face ? " mine" : ""),
+      type: "button",
+      onclick: (e) => {
+        e.stopPropagation();
+        react(target, face, draw);
+      },
+    },
+    face,
+    el("span", { class: "num" }, String(n))
+  );
+}
+
 /** The card, with its own corner of faces and the gesture that opens them. */
 function reactable(target, card) {
   const corner = el("div", { class: "reacts" });
@@ -2269,22 +2290,7 @@ function reactable(target, card) {
     const counts = FEED_FACES.counts[target] || {};
     const mine = FEED_FACES.mine[target] || null;
     for (const face of FACES) {
-      if (!counts[face]) continue;
-      corner.append(
-        el(
-          "button",
-          {
-            class: "react" + (mine === face ? " mine" : ""),
-            type: "button",
-            onclick: (e) => {
-              e.stopPropagation();
-              react(target, face, draw);
-            },
-          },
-          face,
-          el("span", { class: "num" }, String(counts[face]))
-        )
-      );
+      if (counts[face]) corner.append(reactButton(target, face, counts[face], mine, draw));
     }
   };
   draw();
@@ -2421,38 +2427,7 @@ SCREENS.points = function () {
       board.textContent = "";
       board.append(el("h3", {}, t("aBoard")));
       if (!d.board.length) board.append(el("p", { class: "muted small" }, t("aBoardEmpty")));
-      else {
-        const list = el("div", { class: "board" });
-        for (const r of d.board) {
-          list.append(
-            el(
-              "div",
-              {
-                class: "board-row" + (r.me ? " me" : ""),
-                role: "button",
-                tabindex: "0",
-                onclick: () => openRunner(r),
-                onkeydown: (e) => {
-                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openRunner(r); }
-                },
-              },
-              el("span", { class: "place num" }, String(r.place)),
-              avatarNode(r.avatar, r.name, "sm"),
-              // The name, and under it the line they wrote about themselves.
-              // This is the club looking at itself, so it is the one place a
-              // bio is worth anything — a row of names is a row of names.
-              el(
-                "div",
-                { class: "grow" },
-                el("span", { class: "who", dir: "auto" }, r.me ? t("aYouAre") : r.name),
-                r.bio ? el("div", { class: "board-bio", dir: "auto" }, r.bio) : null
-              ),
-              el("span", { class: "pts num" }, String(r.points))
-            )
-          );
-        }
-        board.append(list);
-      }
+      else board.append(el("div", { class: "board" }, d.board.map((r) => boardRow(r))));
       board.append(boardToggle(d.hidden));
     })
     .catch((e) => {
@@ -2464,6 +2439,34 @@ SCREENS.points = function () {
 
 const tile = (n, label) =>
   el("div", { class: "tile" }, el("div", { class: "n num" }, String(n)), el("div", { class: "l" }, label));
+
+/* One runner on the board. The whole row opens them, by tap or by key. */
+function boardRow(r) {
+  return el(
+    "div",
+    {
+      class: "board-row" + (r.me ? " me" : ""),
+      role: "button",
+      tabindex: "0",
+      onclick: () => openRunner(r),
+      onkeydown: (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openRunner(r); }
+      },
+    },
+    el("span", { class: "place num" }, String(r.place)),
+    avatarNode(r.avatar, r.name, "sm"),
+    // The name, and under it the line they wrote about themselves.
+    // This is the club looking at itself, so it is the one place a
+    // bio is worth anything — a row of names is a row of names.
+    el(
+      "div",
+      { class: "grow" },
+      el("span", { class: "who", dir: "auto" }, r.me ? t("aYouAre") : r.name),
+      r.bio ? el("div", { class: "board-bio", dir: "auto" }, r.bio) : null
+    ),
+    el("span", { class: "pts num" }, String(r.points))
+  );
+}
 
 function ledgerRow(row) {
   const key = REASON_KEY[row.reason] || "rAdjust";

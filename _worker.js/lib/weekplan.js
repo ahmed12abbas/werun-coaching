@@ -15,7 +15,7 @@
    is for. */
 
 import { coachRoster, coachNameFor } from "./coaches.js";
-import { windowMinutes, windowFor } from "./checkin.js";
+import { windowMinutes, windowFor, checkinState } from "./checkin.js";
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -178,8 +178,7 @@ function publishedItem(s, slot, names, mins) {
     // The week still shows it, and it still counts — there are just no steps
     // to open, and the page has to know that before it tries to decode nothing.
     has_steps: !!s.payload,
-    checked_in: !!(s.checked_in_at && !s.voided_at),
-    checked_in_at: s.voided_at ? null : s.checked_in_at,
+    ...checkinState(s),
   };
 }
 
