@@ -9,8 +9,8 @@ import { json } from "../lib/http.js";
  * tables, and nothing else — no counts, no names, no secrets' values. The
  * bindings workflow polls this after a redeploy; a person can open it too.
  */
-export async function health(request, env) {
-  const out = {
+function bindingsSeen(env) {
+  return {
     ok: true,
     store: !!env.STATS,
     db: !!env.DB,
@@ -28,44 +28,50 @@ export async function health(request, env) {
     webhook: !!env.STRIPE_WEBHOOK_SECRET,
     push: !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE),
   };
-  /* A list, not one field: the site can be wrong in more than one way at a
-     time, and a check that reports only the last of them is a check that
-     hides the others. Everything here is either a development-only switch
-     that has escaped, or a half-configured feature that will fail quietly. */
-  out.warnings = [];
+}
+
+/* A list, not one field: the site can be wrong in more than one way at a
+   time, and a check that reports only the last of them is a check that hides
+   the others. Everything here is either a development-only switch that has
+   escaped, or a half-configured feature that will fail quietly. */
+const WARNINGS = [
   // Hands the confirmation and password-reset links back in the response
   // instead of mailing them. Never set on the live site.
-  if (env.EMAIL_ECHO === "1") out.warnings.push("email-echo-on");
+  ["email-echo-on", (env) => env.EMAIL_ECHO === "1"],
   // Sends checkout somewhere that is not Stripe. Never set on the live site.
-  if (env.STRIPE_API_BASE) out.warnings.push("stripe-api-base-overridden");
+  ["stripe-api-base-overridden", (env) => env.STRIPE_API_BASE],
   // A shop that can take money but cannot hear that it was paid leaves every
   // order stuck at pending for ever.
-  if (env.STRIPE_SECRET_KEY && !env.STRIPE_WEBHOOK_SECRET) out.warnings.push("stripe-webhook-missing");
+  ["stripe-webhook-missing", (env) => env.STRIPE_SECRET_KEY && !env.STRIPE_WEBHOOK_SECRET],
   // Half a push setup: athletes can turn reminders on and nothing will ever
   // knock, or the sender is pokeable by nobody. Both fail in silence.
-  if (!!env.VAPID_PUBLIC !== !!env.VAPID_PRIVATE) out.warnings.push("vapid-half-set");
-  if (env.VAPID_PUBLIC && env.VAPID_PRIVATE && !env.PUSH_SECRET) out.warnings.push("push-secret-missing");
-  if (env.DB) {
-    try {
-      const row = await env.DB.prepare(
-        // Ours only: not wrangler's migration ledger, not sqlite's own bookkeeping.
-        "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'" +
-          " AND name NOT LIKE 'd1\\_%' ESCAPE '\\' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'"
-      ).first();
-      out.tables = (row && row.n) || 0;
-      // The names, not just the count: when a migration has not landed, the
-      // difference between what is there and what should be is the whole
-      // diagnosis, and counting to ten by hand is nobody's idea of a check.
-      const all = await env.DB.prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table'" +
-          " AND name NOT LIKE 'd1\\_%' ESCAPE '\\' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'" +
-          " ORDER BY name"
-      ).all();
-      out.table_names = (all.results || []).map((r) => r.name);
-    } catch (e) {
-      out.ok = false;
-      out.error = "db-unreachable";
-    }
+  ["vapid-half-set", (env) => !!env.VAPID_PUBLIC !== !!env.VAPID_PRIVATE],
+  ["push-secret-missing", (env) => env.VAPID_PUBLIC && env.VAPID_PRIVATE && !env.PUSH_SECRET],
+];
+
+// Ours only: not wrangler's migration ledger, not sqlite's own bookkeeping.
+const OUR_TABLES =
+  "FROM sqlite_master WHERE type = 'table'" +
+  " AND name NOT LIKE 'd1\\_%' ESCAPE '\\' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'";
+
+async function countTables(env, out) {
+  try {
+    const row = await env.DB.prepare("SELECT count(*) AS n " + OUR_TABLES).first();
+    out.tables = (row && row.n) || 0;
+    // The names, not just the count: when a migration has not landed, the
+    // difference between what is there and what should be is the whole
+    // diagnosis, and counting to ten by hand is nobody's idea of a check.
+    const all = await env.DB.prepare("SELECT name " + OUR_TABLES + " ORDER BY name").all();
+    out.table_names = (all.results || []).map((r) => r.name);
+  } catch (e) {
+    out.ok = false;
+    out.error = "db-unreachable";
   }
+}
+
+export async function health(request, env) {
+  const out = bindingsSeen(env);
+  out.warnings = WARNINGS.filter(([, on]) => on(env)).map(([name]) => name);
+  if (env.DB) await countTables(env, out);
   return json(out, out.ok ? 200 : 503);
 }

@@ -1147,10 +1147,36 @@ function dayCard(d, today) {
    whole session, a standing one opens its summary. Only a session called off
    stays flat, because there is nothing left to say about it. */
 function slotRow(item, date) {
-  const title = side(item, "title");
-  const place = side(item, "place");
-  const note = I18N.lang === "ar" ? item.note_ar || item.note_en : item.note_en || item.note_ar;
+  const meta = slotMeta(item, side(item, "place"));
+  // What the session is, under the name. The title says which session this
+  // is and this says what it asks of you — "45min + strides" — so a reader
+  // scanning the week can tell Sunday's easy 45 from Saturday's long 80
+  // without opening either.
+  const what = side(item, "desc");
+  const note = side(item, "note");
 
+  const body = el(
+    "div",
+    { class: "grow" },
+    el("div", { class: "slot-title" }, side(item, "title")),
+    what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
+    meta,
+    note ? el("div", { class: "slot-note" }, note) : null
+  );
+
+  const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
+  const tag = slotTag(item, date);
+  // Not on one that has been called off: there is nothing to count down to.
+  const soon = item.cancelled ? null : countdownPill(item, date);
+  if (soon) meta.append(soon);
+
+  const node = slotNode(item, date, clock, body, tag);
+  lightWhenLive(node, item, date);
+  return node;
+}
+
+/* The line under the title: where, what it is worth, and who has it. */
+function slotMeta(item, place) {
   const meta = el("div", { class: "slot-meta" });
   if (place) {
     meta.append(
@@ -1165,48 +1191,30 @@ function slotRow(item, date) {
   // every week, and a row that repeats the name four times down one day is
   // noise — so this is left off until somebody fills it in.
   if (item.coach) meta.append(el("span", { class: "who", dir: "auto" }, t("aWithCoach", { name: item.coach })));
+  return meta;
+}
 
-  // What the session is, under the name. The title says which session this
-  // is and this says what it asks of you — "45min + strides" — so a reader
-  // scanning the week can tell Sunday's easy 45 from Saturday's long 80
-  // without opening either.
-  const what = side(item, "desc");
-
-  const body = el(
-    "div",
-    { class: "grow" },
-    el("div", { class: "slot-title" }, title),
-    what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
-    meta,
-    note ? el("div", { class: "slot-note" }, note) : null
-  );
-
-  const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
-  const tag = slotTag(item, date);
-  // Not on one that has been called off: there is nothing to count down to.
-  const soon = item.cancelled ? null : countdownPill(item, date);
-  if (soon) meta.append(soon);
-
-  const node =
-    item.kind === "session"
-      ? el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, clock, body, tag)
-      : item.cancelled
-      ? el("div", { class: "slot off" }, clock, body, tag)
-      : el("button", { class: "slot", type: "button", onclick: () => go("plan/" + item.schedule_id + "/" + date) },
-          clock, body, tag);
-
-  // Lit from a quarter of an hour out until check-in shuts. On a phone held
-  // at the track the row you want is the one glowing, and it is the same
-  // window the check-in tag is already answering from.
-  if (!item.cancelled) {
-    const from = startsAt(item, date);
-    const till = closesTime(item, date);
-    if (from && till !== null) {
-      node.dataset.hot = from.getTime() + "," + till;
-      markHot(node);
-    }
+/* The row itself: a published workout opens the session, a standing one its
+   summary, and one called off opens nothing. */
+function slotNode(item, date, ...parts) {
+  if (item.kind === "session") {
+    return el("button", { class: "slot open", type: "button", onclick: () => go("session/" + item.id) }, ...parts);
   }
-  return node;
+  if (item.cancelled) return el("div", { class: "slot off" }, ...parts);
+  return el("button", { class: "slot", type: "button", onclick: () => go("plan/" + item.schedule_id + "/" + date) },
+    ...parts);
+}
+
+/* Lit from a quarter of an hour out until check-in shuts. On a phone held at
+   the track the row you want is the one glowing, and it is the same window
+   the check-in tag is already answering from. */
+function lightWhenLive(node, item, date) {
+  if (item.cancelled) return;
+  const from = startsAt(item, date);
+  const till = closesTime(item, date);
+  if (!from || till === null) return;
+  node.dataset.hot = from.getTime() + "," + till;
+  markHot(node);
 }
 
 /* The glow on or off, from the window written on the row. Fifteen minutes,
@@ -1548,34 +1556,42 @@ function checkinCard(s) {
   const what = s.payload ? side(s, "desc") : "";
   const whatLine = what ? el("div", { class: "ci-what", dir: "auto" }, what) : null;
 
-  // Checked in with the run still ahead: the steps stay. The card said to tap
-  // Steps a second ago, and scanning must not take the button away.
-  if (s.checked_in) {
-    return el(
-      "div",
-      { class: "card pad stack" },
-      el(
-        "div",
-        { class: "checkin-strip done" },
-        el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
-          el("div", { class: "muted small", dir: "auto" }, who ? time + " · " + who : time),
-          whatLine),
-        el("span", { class: "tag done" }, t("aPts", { n: s.points }))
-      ),
-      s.payload ? stepsButton() : null
-    );
-  }
+  if (s.checked_in) return checkedInCard(s, who ? time + " · " + who : time, whatLine);
+  return windowCard(s, who, whatLine, soon);
+}
 
+/* Checked in with the run still ahead: the steps stay. The card said to tap
+   Steps a second ago, and scanning must not take the button away. */
+function checkedInCard(s, line, whatLine) {
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el(
+      "div",
+      { class: "checkin-strip done" },
+      el("div", { class: "grow" }, el("div", { class: "ci-title" }, t("aCheckedIn")),
+        el("div", { class: "muted small", dir: "auto" }, line),
+        whatLine),
+      el("span", { class: "tag done" }, t("aPts", { n: s.points }))
+    ),
+    s.payload ? stepsButton() : null
+  );
+}
+
+/* When it opens, when it shut, or to scan now. */
+function windowNote(s, now, open, close) {
+  const when = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  if (now < open) return t("aOpensAt", { time: when(s.window_open_at) });
+  if (now > close) return t("aClosedAt", { time: when(s.window_close_at) });
+  return t("aCheckInLead");
+}
+
+/* Not checked in yet: the window, the way to scan, and the steps. */
+function windowCard(s, who, whatLine, soon) {
   const now = Date.now();
   const open = Date.parse(s.window_open_at);
   const close = Date.parse(s.window_close_at);
-  const when = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
-
-  let note;
-  if (now < open) note = t("aOpensAt", { time: when(s.window_open_at) });
-  else if (now > close) note = t("aClosedAt", { time: when(s.window_close_at) });
-  else note = t("aCheckInLead");
-
+  const note = windowNote(s, now, open, close);
   const live = now >= open && now <= close;
   return el(
     "div",

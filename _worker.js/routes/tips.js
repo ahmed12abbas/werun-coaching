@@ -42,31 +42,38 @@ function cleanSide(side) {
  */
 function cleanArticle(raw, prev) {
   const a = raw && typeof raw === "object" ? raw : {};
-  const id = /^[A-Za-z0-9_-]{1,40}$/.test(String(a.id || "")) ? String(a.id) : null;
   const en = cleanSide(a.en);
   const ar = cleanSide(a.ar);
   const now = new Date().toISOString();
 
-  const unchanged =
-    prev &&
-    prev.en &&
-    prev.ar &&
-    prev.en.title === en.title &&
-    prev.en.body === en.body &&
-    prev.ar.title === ar.title &&
-    prev.ar.body === ar.body;
-
   return {
-    id: id || "a" + Math.random().toString(36).slice(2, 10),
+    id: articleId(a),
     // On the club's news feed or not — nothing to do with which one is live.
     feed: !!a.feed,
     // Articles written before this field existed fall back to their last known
     // edit, which is the closest thing to a posting date they have.
     created: (prev && (prev.created || prev.updated)) || now,
-    updated: unchanged ? prev.updated || now : now,
+    updated: sameText(prev, en, ar) ? prev.updated || now : now,
     en: en,
     ar: ar,
   };
+}
+
+/* The id the editor sent, when it is one; a fresh one when it is not. */
+function articleId(a) {
+  const given = String(a.id || "");
+  return /^[A-Za-z0-9_-]{1,40}$/.test(given) ? given : "a" + Math.random().toString(36).slice(2, 10);
+}
+
+/* Whether both languages read exactly as the stored copy does. */
+function sameText(prev, en, ar) {
+  if (!prev || !prev.en || !prev.ar) return false;
+  return (
+    prev.en.title === en.title &&
+    prev.en.body === en.body &&
+    prev.ar.title === ar.title &&
+    prev.ar.body === ar.body
+  );
 }
 
 /* ---------- GET /api/tips ------------------------------------------------ */
