@@ -757,8 +757,21 @@ SCREENS.home = function (args, user) {
       box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
     });
 
-  return box;
+  return el("div", { class: "stack" }, greetingHeader(user), box);
 };
+
+/* "Good morning, Sara" — the greeting swaps with the clock, not with data
+   that needs a fetch, so it draws before the week does. */
+function greetingHeader(user) {
+  const hour = new Date().getHours();
+  const key = hour < 12 ? "aGreetMorning" : hour < 18 ? "aGreetAfternoon" : "aGreetEvening";
+  return el(
+    "div",
+    { class: "goal-head" },
+    el("h2", { class: "grow" }, t(key, { name: user.name })),
+    el("span", { class: "muted small" }, new Date().toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }))
+  );
+}
 
 /* The week read two ways: how many sessions they have checked in to, and
    what is still ahead of them to join or turn up for. */
