@@ -459,17 +459,8 @@ function renderBuilder(app, w, rerender) {
   // Every redraw comes from the coach changing something structural, so it
   // counts as an edit the same way typing in a field does.
   const redraw = () => {
-    touched();
     app.textContent = "";
     renderBuilder(app, w, rerender);
-  };
-
-  // Once the coach edits anything it is their session, not a standing one, and
-  // the picker stops claiming otherwise.
-  const touched = () => {
-    if (!w.preset) return;
-    w.preset = null;
-    pickerState();
   };
 
   const outputs = {};
@@ -486,10 +477,7 @@ function renderBuilder(app, w, rerender) {
     outputs.len.textContent = url.length + " " + t("chars");
   }
 
-  const refresh = () => {
-    touched();
-    paint();
-  };
+  const refresh = () => paint();
 
   app.append(brandBar(null, rerender));
   app.append(
@@ -498,39 +486,6 @@ function renderBuilder(app, w, rerender) {
       { style: "margin-bottom:18px" },
       el("h1", {}, t("buildTitle")),
       el("p", { class: "muted small", style: "margin-top:6px" }, t("buildLead"))
-    )
-  );
-
-  /* --- standing sessions -------------------------------------------------- */
-  const pickBtns = SESSIONS.map((p) =>
-    el(
-      "button",
-      {
-        type: "button",
-        "aria-pressed": w.preset === p.id ? "true" : "false",
-        onclick: () => {
-          if (w.preset === p.id) return;
-          // Only nag when there is something to lose.
-          if (!w.preset && !confirm(t("swapWarn", { day: t(p.day) }))) return;
-          const next = p.build();
-          next.preset = p.id;
-          draft = next;
-          rerender();
-        },
-      },
-      t(p.day)
-    )
-  );
-  const pickerState = () => {
-    pickBtns.forEach((b, i) => b.setAttribute("aria-pressed", w.preset === SESSIONS[i].id ? "true" : "false"));
-  };
-
-  app.append(
-    el(
-      "div",
-      { style: "margin-bottom:18px" },
-      el("label", {}, t("sessions")),
-      el("div", { class: "seg" }, ...pickBtns)
     )
   );
 

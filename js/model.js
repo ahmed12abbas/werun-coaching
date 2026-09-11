@@ -131,10 +131,9 @@ function blankStep(type) {
   };
 }
 
-/* ---------- the club's standing sessions ----------------------------------
-   The builder opens on the first one; the picker at the top of it swaps
-   between them. Adding a day means writing a builder function and adding a
-   line to SESSIONS — nothing else knows how many there are.
+/* ---------- the club's standing session ------------------------------------
+   The builder opens on it. One session, not a picker between several — a
+   toggle with a single option is nothing to switch between.
    ------------------------------------------------------------------------- */
 
 const sessionShell = (name, note, blocks) => ({
@@ -147,12 +146,12 @@ const sessionShell = (name, note, blocks) => ({
 });
 
 /**
- * Monday: 12 x 500 m at 5 K pace, 2 min rest between them. The warm up and
- * cool down end on the lap button — the 15 min is the coach's estimate, not
- * something that stops the step.
+ * 12 x 500 m at 5 K pace, 2 min rest between them. The warm up and cool down
+ * end on the lap button — the 15 min is the coach's estimate, not something
+ * that stops the step.
  */
-function mondayIntervals() {
-  return sessionShell("Monday | WeRUN", "Intervals", [
+function speedSession() {
+  return sessionShell("Speed Session | WeRUN", "Intervals", [
     Object.assign(blankStep("warmup"), { durType: "open", estSeconds: 900, note: "15 min" }),
     Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills + strides" }),
     {
@@ -167,39 +166,9 @@ function mondayIntervals() {
   ]);
 }
 
-/**
- * Thursday: 12 x 200 m hill repeats. Everything except the reps themselves
- * ends on the lap button, because a hill is only as long as it is — the
- * 10 min is the coach's estimate, not something that stops the step.
- */
-function thursdayHills() {
-  return sessionShell("Thursday | WeRUN", "Hill Repeats", [
-    Object.assign(blankStep("warmup"), { durType: "open", estSeconds: 600 }),
-    Object.assign(blankStep("rest"), { durType: "open", note: "ABC drills + strides" }),
-    {
-      kind: "repeat",
-      reps: 12,
-      steps: [
-        Object.assign(blankStep("work"), { meters: 200, label: "Hill" }),
-        Object.assign(blankStep("recovery"), { durType: "open", note: "walk/jog down" }),
-      ],
-    },
-    Object.assign(blankStep("cooldown"), { durType: "open", estSeconds: 600 }),
-  ]);
-}
-
-// Order is the order of the picker buttons. `day` is an i18n key so the
-// picker reads in Arabic too; the session's own name is the coach's to edit.
-const SESSIONS = [
-  { id: "monday", day: "sMonday", build: mondayIntervals },
-  { id: "thursday", day: "sThursday", build: thursdayHills },
-];
-
 /** What the builder opens on with no link and no edits yet. */
 function defaultWorkout() {
-  const w = SESSIONS[0].build();
-  w.preset = SESSIONS[0].id;
-  return w;
+  return speedSession();
 }
 
 /* Easy running converts at a flat six minutes per kilometre. It is a coach's
