@@ -818,13 +818,15 @@ function disconnectLink() {
 
 /* "Good morning, Sara" — the greeting swaps with the clock, not with data
    that needs a fetch, so it draws before the week does. */
+const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "";
+
 function greetingHeader(user) {
   const hour = new Date().getHours();
   const key = hour < 12 ? "aGreetMorning" : hour < 18 ? "aGreetAfternoon" : "aGreetEvening";
   return el(
     "div",
     { class: "goal-head" },
-    el("h2", { class: "grow" }, t(key, { name: user.name })),
+    el("h2", { class: "grow" }, t(key, { name: firstName(user.name) })),
     el("span", { class: "muted small" }, new Date().toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }))
   );
 }
