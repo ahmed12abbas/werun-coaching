@@ -12,6 +12,7 @@
    with cannot grow past ten slots times sixty days.  */
 
 import { json, readBody } from "../lib/http.js";
+import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
@@ -67,6 +68,10 @@ async function leave(env, pick, user) {
 const SIGNUP_ACTIONS = new Map([["join", join], ["leave", leave]]);
 
 export const signups = withMember(async (request, env, user) => {
+  // A per-athlete brake: joining and leaving is cheap, but nothing here
+  // should be callable in a loop.
+  if (env.STATS && (await tooOften(env.STATS, "su2", user.id, 20, 60))) return json({ error: "too-often" }, 429);
+
   const body = await readBody(request);
   // Checked before the verb, as it always was: an unknown action with a bad
   // date still answers bad-date.

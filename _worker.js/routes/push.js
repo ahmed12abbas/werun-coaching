@@ -15,6 +15,7 @@
    so every read is wrapped and answers "off" rather than 500. */
 
 import { json, readBody } from "../lib/http.js";
+import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO, uid } from "../lib/auth.js";
 import { safeEqual } from "../lib/crypto.js";
 import { pushReady, pushTo } from "../lib/push.js";
@@ -70,10 +71,14 @@ export async function push(request, env) {
   return withMember(async (req, e, user) => {
     if (action === "key") return json({ key: e.VAPID_PUBLIC });
 
-    const endpoint = String(body.endpoint || "");
-    if (!goodEndpoint(endpoint)) return json({ error: "bad-endpoint" }, 400);
     const change = SUB_ACTIONS.get(action);
     if (!change) return json({ error: "bad-request" }, 400);
+    // A per-athlete brake: subscribing and unsubscribing is cheap, but
+    // nothing here should be callable in a loop.
+    if (e.STATS && (await tooOften(e.STATS, "ps", user.id, 20, 60))) return json({ error: "too-often" }, 429);
+
+    const endpoint = String(body.endpoint || "");
+    if (!goodEndpoint(endpoint)) return json({ error: "bad-endpoint" }, 400);
 
     try {
       return await change(e, user, endpoint);

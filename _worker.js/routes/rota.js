@@ -11,6 +11,7 @@
    down, and taking somebody else off is the club's, not yours. */
 
 import { json, readBody } from "../lib/http.js";
+import { tooOften } from "../lib/limit.js";
 import { nowISO, currentUser, refuseUnlessCoach, isCoach, isAdmin } from "../lib/auth.js";
 import { safeEqual } from "../lib/crypto.js";
 
@@ -144,12 +145,19 @@ export async function coachRota(request, env) {
     return json(await answer(env, dateOr(body.from, shiftDate(-7)), dateOr(body.to, shiftDate(14)), me, boss));
   }
 
+  const write = WRITES.get(action);
+  if (!write) return json({ error: "bad-request" }, 400);
+  // A per-coach brake: ticking on and off is cheap, but nothing here should
+  // be callable in a loop.
+  if (env.STATS && me && (await tooOften(env.STATS, "ro", me.id, 20, 60))) {
+    return json({ error: "too-often" }, 429);
+  }
+
   // Checked before the verb, as it always was: an unknown action with a bad
   // date still answers bad-date.
   const tick = readTick(body);
   if (tick.error) return json({ error: tick.error }, 400);
-  const write = WRITES.get(action);
-  return write ? write(env, tick, body, me, boss) : json({ error: "bad-request" }, 400);
+  return write(env, tick, body, me, boss);
 }
 
 /* The whole fortnight back, rather than the one row that changed: the page
