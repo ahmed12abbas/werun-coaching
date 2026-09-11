@@ -18,7 +18,8 @@
 .appnav a{flex:1;text-align:center;padding:9px 6px;border-radius:12px;border:1px solid var(--line);
   background:var(--card);font-family:var(--display);font-size:19px;font-weight:600;
   text-transform:uppercase;letter-spacing:.04em;text-decoration:none;color:var(--muted);line-height:1.1}
-.appnav a[aria-current="page"]{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+.appnav a[aria-current="page"]{background:var(--brand);color:var(--brand-ink);border-color:transparent;
+  flex-grow:1.35;padding-block:11px}
 /* A tap answers on the way down instead of after the redraw: the 300ms grey
    box the phone draws is what "slow" was, not the render. */
 .appnav a,button.day,.btn,.tool,.card button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -439,11 +440,13 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    time render() rebuilds #app, so this is a slide-in rather than a real
    cross-fade. Direction is which way the next tab sits, not which way the
    finger moved, so it reads the same as tapping the nav link it replaces. */
-#app.slide-fwd{animation:slideInFwd .2s ease both}
-#app.slide-back{animation:slideInBack .2s ease both}
+/* Everything but .apptop: the bar and tabs are the one thing that must not
+   move, and a transform on #app itself would carry them along. */
+#app.slide-fwd>:not(.apptop){animation:slideInFwd .2s ease both}
+#app.slide-back>:not(.apptop){animation:slideInBack .2s ease both}
 @keyframes slideInFwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes slideInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){#app.slide-fwd,#app.slide-back{animation:none}}
+@media (prefers-reduced-motion:reduce){#app.slide-fwd>*,#app.slide-back>*{animation:none}}
 
 /* ---- home ----
    Sessions run against sessions meant, then the two lists: what you are down

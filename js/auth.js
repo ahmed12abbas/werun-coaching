@@ -26,7 +26,11 @@ const Auth = {
 
   async load() {
     try {
-      const r = await API.get("/api/auth/me");
+      // app.html asks in its <head>, before sixteen scripts have downloaded.
+      const early = window.ME_EARLY;
+      window.ME_EARLY = null;
+      const res = early && (await early);
+      const r = res && res.ok ? await res.json() : await API.get("/api/auth/me");
       Auth.user = r.user || null;
       Auth.club = r.club || {};
     } catch (e) {
