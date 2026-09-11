@@ -250,13 +250,17 @@ function reserveInfo(g, size, version) {
   g.grid[size - 8][8] = 1;
   g.fixed[size - 8][8] = 1;
 
-  if (version >= 7) {
-    for (let i = 0; i < 18; i++) {
-      const r = Math.floor(i / 3);
-      const c = i % 3;
-      g.fixed[r][size - 11 + c] = 1;
-      g.fixed[size - 11 + c][r] = 1;
-    }
+  if (version >= 7) reserveVersion(g, size);
+}
+
+/* Version 7 and up spell out their version twice, in a 6x3 block beside the
+   top-right finder and its mirror beside the bottom-left one. */
+function reserveVersion(g, size) {
+  for (let i = 0; i < 18; i++) {
+    const r = Math.floor(i / 3);
+    const c = i % 3;
+    g.fixed[r][size - 11 + c] = 1;
+    g.fixed[size - 11 + c][r] = 1;
   }
 }
 

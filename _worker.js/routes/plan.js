@@ -1,6 +1,6 @@
 /* The coach editing the standing week, and calling one session off. */
 
-import { json, readBody } from "../lib/http.js";
+import { json, readBody, objectIn, savedId } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.js";
 import { validTime } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
@@ -88,11 +88,11 @@ async function insertEntry(env, fields, cols) {
 }
 
 async function saveEntry(body, env) {
-  const e = body.entry && typeof body.entry === "object" ? body.entry : {};
+  const e = objectIn(body.entry);
   const entry = readEntry(e);
   if (entry.error) return json({ error: entry.error }, 400);
   const cols = await descColumns(env, e);
-  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(e.id || "")) ? String(e.id) : null;
+  const id = savedId(e);
   const failed = id ? await updateEntry(env, id, entry.fields, cols) : await insertEntry(env, entry.fields, cols);
   return failed || json({ schedule: await list(env), coaches: await coachRoster(env) });
 }

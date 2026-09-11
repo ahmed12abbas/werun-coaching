@@ -16,3 +16,9 @@ export async function readBody(request) {
     return {}; // a malformed body fails the route's own checks on its own merits
   }
 }
+
+/* A field that should hold an object, or {} when it holds anything else. */
+export const objectIn = (v) => (v && typeof v === "object" ? v : {});
+
+/* The id of the row a save is writing over, or null when it is a new one. */
+export const savedId = (o) => (/^[A-Za-z0-9_-]{1,64}$/.test(String(o.id || "")) ? String(o.id) : null);

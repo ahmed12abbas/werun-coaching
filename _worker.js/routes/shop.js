@@ -1,6 +1,6 @@
 /* The shop, from the coach's side: what is for sale, and who is owed one. */
 
-import { json, readBody } from "../lib/http.js";
+import { json, readBody, objectIn, savedId } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessAdmin } from "../lib/auth.js";
 import { storeOn } from "../lib/stripe.js";
 
@@ -76,10 +76,10 @@ async function insertProduct(env, fields) {
 }
 
 async function saveProduct(body, env) {
-  const p = body.product && typeof body.product === "object" ? body.product : {};
+  const p = objectIn(body.product);
   const product = readProduct(p);
   if (product.error) return json({ error: product.error }, 400);
-  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(p.id || "")) ? String(p.id) : null;
+  const id = savedId(p);
   const failed = id ? await updateProduct(env, id, product.fields) : await insertProduct(env, product.fields);
   return failed || json({ products: await productList(env) });
 }

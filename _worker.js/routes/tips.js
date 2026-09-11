@@ -9,7 +9,7 @@
    point of the editor: a coach can rotate an old article back in front of
    athletes without typing it again. */
 
-import { json, readBody } from "../lib/http.js";
+import { json, readBody, objectIn } from "../lib/http.js";
 import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { currentUser, isCoach, isAdmin } from "../lib/auth.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
@@ -21,7 +21,7 @@ const TIP_MAX = { articles: 60, title: 140, body: 9000 };
 
 /** Trim one language's half of an article to something safe to store. */
 function cleanSide(side) {
-  const s = side && typeof side === "object" ? side : {};
+  const s = objectIn(side);
   return {
     title: String(s.title || "").trim().slice(0, TIP_MAX.title),
     // Tabs and stray \r from a paste out of Word would survive into the
@@ -41,7 +41,7 @@ function cleanSide(side) {
  * every other article and "updated" would mean nothing at all.
  */
 function cleanArticle(raw, prev) {
-  const a = raw && typeof raw === "object" ? raw : {};
+  const a = objectIn(raw);
   const en = cleanSide(a.en);
   const ar = cleanSide(a.ar);
   const now = new Date().toISOString();

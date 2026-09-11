@@ -4,7 +4,7 @@
    body, checked against ADMIN_PASSWORD. Phase 3 moves this behind a coach
    login; the shape of the answers will not change. */
 
-import { json, readBody } from "../lib/http.js";
+import { json, readBody, objectIn } from "../lib/http.js";
 import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
@@ -185,7 +185,7 @@ export async function settings(request, env) {
   const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
-  const set = body.set && typeof body.set === "object" ? body.set : {};
+  const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
     const value = settingValue(DEFAULTS[key], set[key]);

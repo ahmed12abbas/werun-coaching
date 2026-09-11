@@ -7,7 +7,7 @@
    it is read from the same KV document the session page uses rather than
    migrated into a second copy that could disagree with it. */
 
-import { json, readBody } from "../lib/http.js";
+import { json, readBody, objectIn, savedId } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
 import { reactionsFor } from "./reactions.js";
@@ -158,10 +158,10 @@ async function insertPost(env, f) {
    Publishing is a date, not a flag, so "post it now" and "post it on Sunday
    morning" are the same operation. */
 async function savePost(body, env) {
-  const post = body.post && typeof body.post === "object" ? body.post : {};
+  const post = objectIn(body.post);
   const f = readPost(post);
   if (f.error) return json({ error: f.error }, 400);
-  const id = /^[A-Za-z0-9_-]{1,64}$/.test(String(post.id || "")) ? String(post.id) : null;
+  const id = savedId(post);
   const failed = id ? await updatePost(env, id, f) : await insertPost(env, f);
   return failed || json({ posts: await listAll(env) });
 }

@@ -30,12 +30,15 @@ const SFX = (function () {
   /** The context, built on first use and nudged awake if the tab suspended it. */
   function audio() {
     if (dead) return null;
-    if (ctx) {
-      // Phones suspend the context when the page goes to the background and
-      // hand it back suspended; without this the sound stops for good.
-      if (ctx.state === "suspended" && ctx.resume) ctx.resume();
-      return ctx;
-    }
+    if (!ctx) return makeContext();
+    // Phones suspend the context when the page goes to the background and
+    // hand it back suspended; without this the sound stops for good.
+    if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+    return ctx;
+  }
+
+  /** The first context, or null for good when this browser will not make one. */
+  function makeContext() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) {
       dead = true;

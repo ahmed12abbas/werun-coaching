@@ -245,7 +245,7 @@ function rosterRow(into, r) {
     el(
       "span",
       { class: "muted small num" },
-      isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+      clockTime(at, "")
     ),
     // Taking one back is the club's, not every coach's: the route behind
     // it is admin-tier, so offering the button to a coach who cannot use
@@ -522,6 +522,10 @@ function submitting(btn, err, work) {
 
 const localISO = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 const locale = () => (I18N.lang === "ar" ? "ar" : undefined);
+const HHMM = { hour: "2-digit", minute: "2-digit" };
+
+/* The time of day the reader's way, or `fallback` when the instant will not parse. */
+const clockTime = (d, fallback) => (isNaN(d) ? fallback : d.toLocaleTimeString(locale(), HHMM));
 
 /* Sunday, not Monday: the club runs Sunday to Thursday and rests on Friday,
    so a Monday-first week would cut its weekend in half. */
@@ -1391,7 +1395,7 @@ function joinParts(item, date) {
 
 function joinHint(item, date, opens, early, shut) {
   if (early) {
-    return t("aOpensAt", { time: new Date(opens).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) });
+    return t("aOpensAt", { time: new Date(opens).toLocaleTimeString(locale(), HHMM) });
   }
   if (shut) return t("aClosedAt", { time: closesAt(item, date) });
   return t("aScanLead");
@@ -1408,7 +1412,7 @@ function noStepsCard(s) {
     el(
       "div",
       { class: "plan-when" },
-      el("span", { class: "num" }, isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })),
+      el("span", { class: "num" }, clockTime(at, "")),
       el("span", { class: "muted" }, longDate(s.date))
     ),
     whereAndWorth(s)
@@ -1476,10 +1480,10 @@ function joinButton(off) {
 function prettyTime(item, date) {
   if (item.starts_at) {
     const at = new Date(item.starts_at);
-    if (!isNaN(at)) return at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+    if (!isNaN(at)) return at.toLocaleTimeString(locale(), HHMM);
   }
   const at = new Date(date + "T" + item.at + ":00");
-  return isNaN(at) ? item.at : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  return clockTime(at, item.at);
 }
 
 function slotTag(item, date) {
@@ -1569,7 +1573,7 @@ SCREENS.session = function (args) {
 /** The strip above a session: checked in, open now, or when it opens. */
 function checkinCard(s) {
   const at = new Date(s.starts_at);
-  const time = isNaN(at) ? "" : at.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  const time = clockTime(at, "");
   // The workout draws its own screen below this strip and says nothing about
   // who is taking the session, so this is the only place left to say it.
   const who = s.coach ? t("aWithCoach", { name: s.coach }) : "";
@@ -1610,7 +1614,7 @@ function checkedInCard(s, line, whatLine) {
 
 /* When it opens, when it shut, or to scan now. */
 function windowNote(s, now, open, close) {
-  const when = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  const when = (iso) => new Date(iso).toLocaleTimeString(locale(), HHMM);
   if (now < open) return t("aOpensAt", { time: when(s.window_open_at) });
   if (now > close) return t("aClosedAt", { time: when(s.window_close_at) });
   return t("aCheckInLead");
@@ -1949,7 +1953,7 @@ function closesAt(item, date) {
   const close = closesTime(item, date);
   return close === null
     ? ""
-    : new Date(close).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+    : new Date(close).toLocaleTimeString(locale(), HHMM);
 }
 
 /** "in 7h 20m", "in 45 min", or "starting now" once it is under way. */
