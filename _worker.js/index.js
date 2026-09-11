@@ -39,6 +39,8 @@
      POST /api/stripe/webhook   — Stripe telling us it was paid (signature-checked,
                                   and the only public route that changes money)
      POST /api/points/board-visibility — on or off the board         (logged in)
+     POST /api/strava           — connect/disconnect, and the Home card (logged in)
+     GET  /api/strava/callback  — Strava sending the browser back (state-checked)
 
    Two guards, both in lib/auth.js, both taking either a login or the club
    password in the body. refuseUnlessCoach() is the track — what a coach needs
@@ -80,6 +82,8 @@
      EMAIL_FROM      who that mail comes from, e.g. "WE RUN <coach@…>"
      STRIPE_SECRET_KEY      switches the shop on (optional)
      STRIPE_WEBHOOK_SECRET  what the webhook's signature is checked against
+     STRAVA_CLIENT_ID       switches the Home Strava card on (optional)
+     STRAVA_CLIENT_SECRET   its pair, from strava.com/settings/api
    Without them the site still works: the dashboard stays locked rather than
    falling open, and the platform routes answer "no-db" instead of crashing.
 
@@ -110,6 +114,7 @@ import { coachRota } from "./routes/rota.js";
 import { signups } from "./routes/signups.js";
 import { push, pushNext } from "./routes/push.js";
 import { reactions } from "./routes/reactions.js";
+import { strava, stravaCallback } from "./routes/strava.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -145,6 +150,7 @@ const POST = {
   "/api/signups": signups,
   "/api/push": push,
   "/api/reactions": reactions,
+  "/api/strava": strava,
 };
 const GET = {
   "/api/tips": tips,
@@ -158,6 +164,7 @@ const GET = {
   "/api/store": store,
   "/api/store/order": order,
   "/api/push/next": pushNext,
+  "/api/strava/callback": stravaCallback,
 };
 
 /* What every answer carries, static file and API alike.

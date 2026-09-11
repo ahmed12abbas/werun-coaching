@@ -757,8 +757,64 @@ SCREENS.home = function (args, user) {
       box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
     });
 
-  return el("div", { class: "stack" }, greetingHeader(user), box);
+  const strava = el("div", { class: "stack" });
+  loadStrava(strava);
+
+  return el("div", { class: "stack" }, greetingHeader(user), box, strava);
 };
+
+/* The Strava card: a connect button, or the last activity once linked.
+   Loaded on its own — a Strava hiccup or a club with no Strava secrets set
+   must not hold up the week above it. */
+function loadStrava(box) {
+  API.post("/api/strava", { action: "home" })
+    .then((d) => box.append(d.connected ? stravaActivityCard(d.activity) : stravaConnectCard()))
+    .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
+}
+
+function stravaConnectCard() {
+  const btn = el("button", { class: "btn sm", type: "button" }, t("aStravaConnect"));
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    API.post("/api/strava", { action: "connect" })
+      .then((d) => {
+        window.location.href = d.url;
+      })
+      .catch((e) => {
+        btn.disabled = false;
+        toast(errorText(e));
+      });
+  });
+  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), el("p", { class: "muted small" }, t("aStravaHint")), btn);
+}
+
+function stravaActivityCard(a) {
+  const body = a
+    ? [
+        el(
+          "div",
+          { class: "row" },
+          el("p", { class: "grow" }, a.name || a.type),
+          el("span", { class: "muted small", dir: "ltr" }, (a.distance_m / 1000).toFixed(1) + " km")
+        ),
+        el("p", { class: "muted small" }, a.start_date ? new Date(a.start_date).toLocaleDateString(locale(), { day: "numeric", month: "short" }) : ""),
+      ]
+    : [el("p", { class: "muted small" }, t("aStravaNone"))];
+  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, disconnectLink());
+}
+
+// ponytail: a full reload after disconnect rather than re-rendering the card in place — swap if this needs to feel snappier.
+function disconnectLink() {
+  const link = el("a", { href: "#" }, t("aStravaDisconnect"));
+  link.className = "muted small";
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    API.post("/api/strava", { action: "disconnect" })
+      .then(() => window.location.reload())
+      .catch(() => {});
+  });
+  return link;
+}
 
 /* "Good morning, Sara" — the greeting swaps with the clock, not with data
    that needs a fetch, so it draws before the week does. */

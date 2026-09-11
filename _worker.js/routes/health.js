@@ -27,6 +27,7 @@ function bindingsSeen(env) {
     stripe: !!env.STRIPE_SECRET_KEY,
     webhook: !!env.STRIPE_WEBHOOK_SECRET,
     push: !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE),
+    strava: !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET),
   };
 }
 
@@ -47,6 +48,7 @@ const WARNINGS = [
   // knock, or the sender is pokeable by nobody. Both fail in silence.
   ["vapid-half-set", (env) => !!env.VAPID_PUBLIC !== !!env.VAPID_PRIVATE],
   ["push-secret-missing", (env) => env.VAPID_PUBLIC && env.VAPID_PRIVATE && !env.PUSH_SECRET],
+  ["strava-half-set", (env) => !!env.STRAVA_CLIENT_ID !== !!env.STRAVA_CLIENT_SECRET],
 ];
 
 // Ours only: not wrangler's migration ledger, not sqlite's own bookkeeping.
