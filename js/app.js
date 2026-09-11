@@ -1144,15 +1144,17 @@ function signupButton(x, on) {
 }
 
 /* The one write behind every one of these buttons. Redraws the screen from
-   the server rather than patching the row it was tapped on: the home screen
-   moves it between two lists and a session card changes shape, and both are
-   the same answer read again. */
-function saveSignup(node, scheduleId, date, on) {
+   the server by default — the home screen moves the row between two lists,
+   which is not something a caller can patch in place — but a caller with a
+   lighter answer of its own may pass one: a plan or session page is one card
+   whose shape does not change, and re-running the whole route just to flip
+   one control is a second network trip an athlete's tap has to wait through. */
+function saveSignup(node, scheduleId, date, on, after) {
   node.disabled = true;
   API.post("/api/signups", { action: on ? "join" : "leave", schedule_id: scheduleId, date: date })
     .then(() => {
       toast(t(on ? "aRegistered" : "aCancelled"));
-      render();
+      (after || render)();
     })
     .catch((e) => {
       toast(errorText(e));
@@ -1164,9 +1166,24 @@ function saveSignup(node, scheduleId, date, on) {
    your own face once you are. It writes the row the home screen writes, so
    the two can never disagree — and tapping the face takes the name off.
    Nothing to offer on a session called off, or on one the coach opened
-   outside the standing week, which has no slot to sign against. */
+   outside the standing week, which has no slot to sign against.
+
+   Swapped in place rather than through render(): the card around it does not
+   change shape either way, so there is nothing a full-page redraw buys here
+   beyond a second wait for /api/week or /api/session to come back — on a slow
+   connection that gap reads as the tap not having worked at all. */
 function signupControl(item, date) {
   if (!item.schedule_id || item.cancelled) return null;
+  const wrap = el("span", {});
+  const draw = () => {
+    wrap.textContent = "";
+    wrap.append(signupNode(item, date, draw));
+  };
+  draw();
+  return wrap;
+}
+
+function signupNode(item, date, draw) {
   const on = !item.registered;
   const node = item.registered
     ? el(
@@ -1175,7 +1192,12 @@ function signupControl(item, date) {
         avatarNode(Auth.user.avatar, Auth.user.name, "sm")
       )
     : el("button", { class: "btn sm primary", type: "button" }, t("aRegister"));
-  node.addEventListener("click", () => saveSignup(node, item.schedule_id, date, on));
+  node.addEventListener("click", () =>
+    saveSignup(node, item.schedule_id, date, on, () => {
+      item.registered = on;
+      draw();
+    })
+  );
   return node;
 }
 
