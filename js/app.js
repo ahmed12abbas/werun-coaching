@@ -1333,8 +1333,8 @@ function planCard(item, date) {
     soon,
     whereAndWorth(item),
     note ? el("p", { class: "slot-note" }, note) : null,
-    stepsLink(item),
-    joinParts(item, date)
+    joinParts(item, date),
+    stepsLink(item)
   );
 }
 

@@ -30,7 +30,12 @@ export async function attendance(env) {
     .bind(LOOK)
     .all();
 
-  const byWeek = groupByWeek(rows.results || []);
+  // This week runs to the end of Saturday on the club's clock (Riyadh, UTC+3).
+  // Sessions already published for next week must not take its place at the
+  // top, and a week nobody has scanned in yet is still this week.
+  const thisWeek = clubWeekStart(new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10));
+  const byWeek = groupByWeek((rows.results || []).filter((r) => clubWeekStart(r.date) <= thisWeek));
+  if (!byWeek.has(thisWeek)) byWeek.set(thisWeek, { start: thisWeek, total: 0, sessions: [] });
   await fillStanding(env, byWeek);
 
   // Newest first: the week a coach cares about is this one.
