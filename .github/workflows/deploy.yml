@@ -78,6 +78,13 @@ jobs:
           cp -r js assets _worker.js _site/
           find _site -type f | sort
 
+      # The app's sixteen script tags become one, in the deploy's own copy
+      # only — see tools/bundle-app.js. Every other page (index, admin,
+      # coach, tips) still loads its files one at a time from js/, which is
+      # why those aren't removed from _site/js/.
+      - name: Bundle the app's scripts
+        run: node tools/bundle-app.js _site
+
       # What the running site will actually be able to see. Bindings are handed
       # to the Worker at deploy time, so a binding added in the dashboard after
       # the last deploy is not live until the next one — which is exactly the
