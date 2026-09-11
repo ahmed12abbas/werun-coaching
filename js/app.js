@@ -152,10 +152,27 @@ function downCard() {
   );
 }
 
+// Set by wireSwipeNav just before it changes the route, read (and cleared)
+// by the very next render() so only a swipe-driven navigation slides — a tap
+// on a nav link or the back button lands with no animation.
+let pendingSlide = null;
+
+/* Restarts #app's slide animation: swapping to the same class name twice in
+   a row (two swipes the same way back to back) needs a reflow between them
+   or the second one is a no-op, since nothing "changed" for the browser. */
+function playSlide(app, slide) {
+  app.classList.remove("slide-fwd", "slide-back");
+  if (!slide) return;
+  void app.offsetWidth;
+  app.classList.add(slide);
+}
+
 function render() {
   const app = $("#app");
   const r = parseRoute();
   const user = Auth.user;
+  const slide = pendingSlide;
+  pendingSlide = null;
 
   const to = redirectFor(r, user);
   if (to) return go(to);
@@ -174,6 +191,7 @@ function render() {
   if (siteDown(r.name)) {
     app.append(downCard());
     appendFoot(app, r.name);
+    playSlide(app, slide);
     return;
   }
 
@@ -181,6 +199,7 @@ function render() {
   const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.home;
   app.append(screen(r.args, user));
   appendFoot(app, r.name);
+  playSlide(app, slide);
 }
 
 /* The club's accounts, at the foot of every screen — the same row the share
@@ -2809,6 +2828,52 @@ const ICON_PATH = {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
+
+/* Left/right swipe moves along the same tabs appNav draws, in that order —
+   one gesture instead of a reach to the bar. RTL flips which physical
+   direction is "forward", same test js/rate.js already uses for its arrows.
+   Ignored inside .scroll (a wide table) so paging it doesn't fire a tab
+   change, and outside the tab set (session, plan, me) so there is nowhere
+   ambiguous to land. */
+function tabOrder() {
+  const tabs = ["home", "week", "feed", "points"];
+  if (Auth.club.store) tabs.push("store");
+  return tabs;
+}
+
+function wireSwipeNav() {
+  const app = $("#app");
+  let sx = 0, sy = 0, tracking = false;
+
+  app.addEventListener("touchstart", (e) => {
+    tracking = e.touches.length === 1 && !e.target.closest(".scroll");
+    if (!tracking) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true });
+
+  app.addEventListener("touchend", (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    const tabs = tabOrder();
+    const i = tabs.indexOf(parseRoute().name);
+    if (i === -1) return;
+
+    const rtl = document.documentElement.getAttribute("dir") === "rtl";
+    const next = i + (rtl ? (dx > 0 ? 1 : -1) : (dx < 0 ? 1 : -1));
+    if (next < 0 || next >= tabs.length) return;
+
+    // The animation follows the finger, not the tab order: a left swipe
+    // always brings the next screen in from the right, in either language.
+    pendingSlide = dx < 0 ? "slide-fwd" : "slide-back";
+    go(tabs[next]);
+  }, { passive: true });
+}
+wireSwipeNav();
 
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());

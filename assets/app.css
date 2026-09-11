@@ -434,6 +434,17 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 @keyframes sheetUp{from{transform:translateY(22px)}to{transform:none}}
 @media (prefers-reduced-motion:reduce){.sheet,.sheet-card{animation:none}}
 
+/* ---- swipe between tabs ----
+   Only the incoming screen moves; the outgoing one is already gone by the
+   time render() rebuilds #app, so this is a slide-in rather than a real
+   cross-fade. Direction is which way the next tab sits, not which way the
+   finger moved, so it reads the same as tapping the nav link it replaces. */
+#app.slide-fwd{animation:slideInFwd .2s ease both}
+#app.slide-back{animation:slideInBack .2s ease both}
+@keyframes slideInFwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes slideInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#app.slide-fwd,#app.slide-back{animation:none}}
+
 /* ---- home ----
    Sessions run against sessions meant, then the two lists: what you are down
    for, and what is left. */

@@ -45,6 +45,10 @@
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
   font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 .wrap{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+/* Wider on a desktop monitor so the auto-fit grids (.tiles, .setgrid, .row>div,
+   table columns) spread into the space instead of stacking under a phone-width
+   column — no markup change needed, the grids already reflow on their own. */
+@media (min-width:1000px){.wrap{max-width:1280px}}
 h1{font-family:var(--display);font-size:40px;font-weight:600;letter-spacing:.01em;
   text-transform:uppercase;margin:0 0 4px;line-height:1}
 h2{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:.02em;
