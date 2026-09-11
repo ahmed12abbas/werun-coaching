@@ -2,6 +2,16 @@
    Only what the app adds: the tab row, the forms, the week. Everything the
    session detail needs is already in site.css, because it is the viewer. */
 
+/* ---- the document itself never scrolls, only #app does ----
+   iOS's own rubber-band bounce is a property of the page (html/body); a
+   sticky header inside a scrolling page still gets dragged along with that
+   bounce, which is the jump this fixes. Pinning html/body and moving the
+   scroll into #app keeps the bounce inside #app's own box, where a sticky
+   child holds still against it. */
+html,body{height:100%;overflow:hidden}
+body{position:fixed;inset:0;overscroll-behavior:none}
+#app{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+
 /* ---- the bar and the tabs stay put while the screen scrolls ----
    One sticky block rather than two, so the tabs cannot slide under the bar.
    The negative margins take it out to the edges of .wrap's padding, or the
@@ -30,6 +40,15 @@ button.day:active{background:var(--brand-soft)}
   .appnav a:active,button.day:active,.tool:active{transform:none}
 }
 [dir="rtl"] .appnav a{font-size:15px;letter-spacing:0}
+
+/* ---- pull to refresh ----
+   An overlay, not a block pushed into #app's own flow: it sits right under
+   the sticky header (positioned there in JS, off the header's own measured
+   height) and grows from 0, so it never touches — and never has to redraw
+   with — the header above it. */
+.pull-pill{position:fixed;left:0;right:0;height:0;overflow:hidden;z-index:19;
+  display:flex;align-items:center;justify-content:center;background:var(--bg);
+  color:var(--muted);font-size:13px;font-weight:650;transition:height .2s ease}
 
 /* ---- forms ---- */
 .form-err{color:var(--err);font-weight:650;font-size:14px;margin:0}

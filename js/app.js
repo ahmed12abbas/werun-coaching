@@ -2875,6 +2875,48 @@ function wireSwipeNav() {
 }
 wireSwipeNav();
 
+/* Pull down at the very top of the scroll and let go past the threshold: a
+   real refetch (wireSwipeNav's tab change never touches the network, this
+   is the one gesture that does), with the header untouched — see the
+   #app/html/body rules in app.css this depends on. */
+function wirePullToRefresh() {
+  const app = $("#app");
+  const pill = el("div", { class: "pull-pill" });
+  document.body.append(pill);
+  const MAX = 64, THRESH = 56;
+  let sy = 0, dragging = false;
+
+  app.addEventListener("touchstart", (e) => {
+    dragging = app.scrollTop === 0 && e.touches.length === 1;
+    if (!dragging) return;
+    sy = e.touches[0].clientY;
+    const header = app.querySelector(".apptop");
+    pill.style.top = (header ? header.getBoundingClientRect().bottom : 0) + "px";
+    pill.textContent = t("aPullRefresh");
+  }, { passive: true });
+
+  app.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
+    const h = Math.min(Math.max(0, e.touches[0].clientY - sy), MAX);
+    pill.style.height = h + "px";
+    if (h >= THRESH) pill.textContent = t("aPullRelease");
+  }, { passive: true });
+
+  app.addEventListener("touchend", () => {
+    if (!dragging) return;
+    dragging = false;
+    if (parseInt(pill.style.height, 10) < THRESH) {
+      pill.style.height = "0px";
+      return;
+    }
+    pill.textContent = t("aPullRefreshing");
+    API.forget();
+    render();
+    setTimeout(() => (pill.style.height = "0px"), 300);
+  }, { passive: true });
+}
+wirePullToRefresh();
+
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());
 window.addEventListener("hashchange", render);
