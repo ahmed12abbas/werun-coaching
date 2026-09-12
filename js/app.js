@@ -257,7 +257,7 @@ function render() {
    not el()'s: handed a null it writes the word "null" onto the page. */
 function appendFoot(app, route) {
   if (route === "session") return;
-  app.append(el("footer", {}, socialRow()));
+  app.append(el("footer", {}, socialRow(), el("a", { href: "/privacy" }, t("privacy"))));
 }
 
 /** The coach's line across the top of the app, in the reader's language. */
@@ -832,7 +832,7 @@ SCREENS.home = function (args, user) {
    must not hold up the week above it. */
 function loadStrava(box) {
   API.post("/api/strava", { action: "home" })
-    .then((d) => box.append(d.connected ? stravaWeekCard(d.week) : stravaConnectCard()))
+    .then((d) => box.append(d.connected ? stravaWeekCard(d.week, d.bests) : stravaConnectCard()))
     .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
 }
 
@@ -859,7 +859,7 @@ function stravaConnectCard() {
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
-function stravaWeekCard(week) {
+function stravaWeekCard(week, bests) {
   const dayRows = week.days
     .map((distance_m, i) => ({ distance_m, i }))
     .filter((d) => d.distance_m > 0)
@@ -874,17 +874,84 @@ function stravaWeekCard(week) {
       );
     });
   const body = dayRows.length
-    ? [
-        el(
-          "div",
-          { class: "row" },
-          el("p", { class: "grow" }, t("aStravaWeek")),
-          el("strong", { dir: "ltr" }, (week.total_m / 1000).toFixed(1) + " km")
-        ),
-        ...dayRows,
-      ]
+    ? [el("div", { class: "row", style: "align-items:center;gap:16px" }, stravaRing(week), el("div", { class: "stack grow" }, ...dayRows))]
     : [el("p", { class: "muted small" }, t("aStravaNone"))];
-  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, disconnectLink());
+  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, stravaBests(bests), disconnectLink());
+}
+
+// A donut of the week's daily split, conic-gradient rather than drawn SVG —
+// CSS already does the arc math, and there is no need for animation here.
+function stravaRing(week) {
+  const total = week.total_m || 0;
+  let background = "var(--line)";
+  if (total > 0) {
+    let acc = 0;
+    const stops = week.days
+      .map((m, i) => ({ m, i }))
+      .filter((d) => d.m > 0)
+      .map((d) => {
+        const from = (acc / total) * 100;
+        acc += d.m;
+        const to = (acc / total) * 100;
+        const shade = Math.min(100, 35 + d.i * 11); // Sun..Sat, a touch stronger each day
+        return "color-mix(in srgb, var(--brand) " + shade + "%, var(--card)) " + from.toFixed(2) + "% " + to.toFixed(2) + "%";
+      });
+    background = "conic-gradient(" + stops.join(",") + ")";
+  }
+  return el(
+    "div",
+    { class: "strava-ring", style: "background:" + background },
+    el("div", { class: "strava-ring-hole" }, el("strong", { dir: "ltr" }, (total / 1000).toFixed(1)), el("span", { class: "muted small" }, "km"))
+  );
+}
+
+const BEST_DISTANCES = [
+  ["secs_1k", "1K"],
+  ["secs_5k", "5K"],
+  ["secs_10k", "10K"],
+  ["secs_21k", "21K"],
+  ["secs_42k", "42K"],
+];
+
+function bestRow(key, label, bests) {
+  return el(
+    "div",
+    { class: "row" },
+    el("p", { class: "grow muted small" }, label),
+    el("span", { class: "small", dir: "ltr" }, bests[key] ? fmtClock(bests[key]) : "—")
+  );
+}
+
+// null bests means the migration hasn't landed on this deploy yet (see hasColumn in _worker.js/lib/columns.js) — say nothing rather than a row of dashes.
+function stravaBests(bests) {
+  if (!bests) return null;
+  const rows = el("div", { class: "stack" }, ...BEST_DISTANCES.map(([key, label]) => bestRow(key, label, bests)));
+
+  const refresh = el("a", { href: "#" }, t("aStravaRefresh"));
+  refresh.className = "muted small";
+  refresh.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (refresh.dataset.busy) return;
+    refresh.dataset.busy = "1";
+    refresh.textContent = t("aStravaRefreshing");
+    API.post("/api/strava", { action: "refresh-bests" })
+      .then((d) => {
+        rows.textContent = "";
+        rows.append(...BEST_DISTANCES.map(([key, label]) => bestRow(key, label, d.bests || {})));
+      })
+      .catch((e) => toast(errorText(e)))
+      .then(() => {
+        delete refresh.dataset.busy;
+        refresh.textContent = t("aStravaRefresh");
+      });
+  });
+
+  return el(
+    "div",
+    { class: "stack", style: "border-top:1px solid var(--line);padding-top:8px" },
+    el("div", { class: "row" }, el("p", { class: "grow muted small" }, t("aStravaBests")), refresh),
+    rows
+  );
 }
 
 // ponytail: a full reload after disconnect rather than re-rendering the card in place — swap if this needs to feel snappier.

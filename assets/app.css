@@ -108,6 +108,11 @@ button.day:hover{background:var(--brand-soft)}
 @media (prefers-reduced-motion:reduce){.landed{animation:none}}
 .chip.big{font-size:15px;padding:6px 14px 5px}
 
+/* ---- strava ---- */
+.strava-ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;flex:none}
+.strava-ring-hole{width:60px;height:60px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center;line-height:1.15}
+.strava-ring-hole strong{font-size:17px}
+
 /* ---- points ---- */
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .tile{background:var(--brand-soft);border-radius:13px;padding:12px 10px;text-align:center}
