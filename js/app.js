@@ -827,12 +827,12 @@ SCREENS.home = function (args, user) {
   return el("div", { class: "stack" }, greetingHeader(user), box, strava);
 };
 
-/* The Strava card: a connect button, or the last activity once linked.
+/* The Strava card: a connect button, or this week's mileage once linked.
    Loaded on its own — a Strava hiccup or a club with no Strava secrets set
    must not hold up the week above it. */
 function loadStrava(box) {
   API.post("/api/strava", { action: "home" })
-    .then((d) => box.append(d.connected ? stravaActivityCard(d.activity) : stravaConnectCard()))
+    .then((d) => box.append(d.connected ? stravaWeekCard(d.week) : stravaConnectCard()))
     .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
 }
 
@@ -852,16 +852,30 @@ function stravaConnectCard() {
   return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), el("p", { class: "muted small" }, t("aStravaHint")), btn);
 }
 
-function stravaActivityCard(a) {
-  const body = a
+// Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
+function stravaWeekCard(week) {
+  const dayRows = week.days
+    .map((distance_m, i) => ({ distance_m, i }))
+    .filter((d) => d.distance_m > 0)
+    .map((d) => {
+      const date = new Date(week.start + "T00:00:00Z");
+      date.setUTCDate(date.getUTCDate() + d.i);
+      return el(
+        "div",
+        { class: "row" },
+        el("p", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short" })),
+        el("span", { class: "muted small", dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km")
+      );
+    });
+  const body = dayRows.length
     ? [
         el(
           "div",
           { class: "row" },
-          el("p", { class: "grow" }, a.name || a.type),
-          el("span", { class: "muted small", dir: "ltr" }, (a.distance_m / 1000).toFixed(1) + " km")
+          el("p", { class: "grow" }, t("aStravaWeek")),
+          el("strong", { dir: "ltr" }, (week.total_m / 1000).toFixed(1) + " km")
         ),
-        el("p", { class: "muted small" }, a.start_date ? new Date(a.start_date).toLocaleDateString(locale(), { day: "numeric", month: "short" }) : ""),
+        ...dayRows,
       ]
     : [el("p", { class: "muted small" }, t("aStravaNone"))];
   return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, disconnectLink());

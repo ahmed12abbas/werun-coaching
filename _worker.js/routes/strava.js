@@ -19,7 +19,34 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
-import { stravaReady, authorizeUrl, exchangeCode, freshToken, lastActivity } from "../lib/strava.js";
+import { stravaReady, authorizeUrl, exchangeCode, freshToken, activitiesSince } from "../lib/strava.js";
+import { clubWeekStart } from "../lib/week.js";
+
+const CLUB_OFFSET = "+03:00"; // Riyadh, all year, no daylight saving
+
+/** Unix seconds for Sunday 00:00 in the club's own week, by the club's own clock. */
+function weekStartEpoch() {
+  const riyadhToday = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+  const sunday = clubWeekStart(riyadhToday);
+  return { epoch: Math.floor(Date.parse(sunday + "T00:00:00" + CLUB_OFFSET) / 1000), sunday };
+}
+
+/* Strava's start_date_local is local wall-clock time written with a "Z" —
+   parsing it as UTC and reading the UTC weekday back out gives the athlete's
+   own day, not the club server's. */
+function weekSummary(activities, sunday) {
+  const days = new Array(7).fill(0);
+  let total_m = 0;
+  for (const a of activities) {
+    if ((a.type || "") !== "Run") continue;
+    const d = new Date(a.start_date_local || a.start_date);
+    if (isNaN(d)) continue;
+    const meters = Number(a.distance) || 0;
+    days[d.getUTCDay()] += meters;
+    total_m += meters;
+  }
+  return { start: sunday, days: days, total_m: total_m };
+}
 
 const STATE_TTL = 600;
 const REDIRECT_TO = "/app.html#/home";
@@ -73,8 +100,9 @@ async function home(env, user) {
   try {
     const fresh = await freshToken(env, link);
     if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
-    const activity = await lastActivity(fresh.access_token);
-    return json({ connected: true, activity: activity && summarize(activity) });
+    const { epoch, sunday } = weekStartEpoch();
+    const activities = await activitiesSince(fresh.access_token, epoch);
+    return json({ connected: true, week: weekSummary(activities, sunday) });
   } catch (err) {
     // A refresh Strava refuses is an athlete who revoked us on their side —
     // the row is dead either way, so it comes down rather than failing the
@@ -90,15 +118,6 @@ async function saveTokens(env, userId, t) {
     .bind(t.access_token, t.refresh_token, t.expires_at, userId)
     .run();
 }
-
-/* Only what the Home card needs, not Strava's whole activity object. */
-const summarize = (a) => ({
-  name: String(a.name || "").slice(0, 200),
-  type: a.type || a.sport_type || "Run",
-  distance_m: Number(a.distance) || 0,
-  moving_time_s: Number(a.moving_time) || 0,
-  start_date: a.start_date || null,
-});
 
 /* ---------- GET /api/strava/callback --------------------------------------- */
 

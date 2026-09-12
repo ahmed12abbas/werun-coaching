@@ -55,12 +55,12 @@ export async function freshToken(env, link) {
   return { access_token: t.access_token, refresh_token: t.refresh_token, expires_at: t.expires_at };
 }
 
-/** The athlete's most recent activity, or null when they have none yet. */
-export async function lastActivity(accessToken) {
-  const res = await fetch("https://www.strava.com/api/v3/athlete/activities?per_page=1", {
-    headers: { authorization: "Bearer " + accessToken },
-  });
+/** Every activity since `afterEpoch` (unix seconds), newest first. */
+export async function activitiesSince(accessToken, afterEpoch) {
+  const res = await fetch(
+    "https://www.strava.com/api/v3/athlete/activities?after=" + afterEpoch + "&per_page=100",
+    { headers: { authorization: "Bearer " + accessToken } }
+  );
   if (!res.ok) throw new Error("strava-activities-" + res.status);
-  const rows = await res.json();
-  return rows[0] || null;
+  return res.json();
 }
