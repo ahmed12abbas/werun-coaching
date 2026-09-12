@@ -138,6 +138,44 @@ function appTop(route, user) {
   return top;
 }
 
+/* The header persists across an ordinary tab change instead of being torn
+   down and rebuilt: the same <a> elements are what let the current tab's
+   flex-grow transition actually animate, and it is what keeps a swipe or a
+   pull-to-refresh from ever touching it at all. Rebuilt only when what it
+   shows would actually be wrong — a different (or no) user, a language or
+   theme toggle — because those change the toggle icons and labels baked
+   into it at creation time, not just which tab is current. */
+let headerNode = null;
+let headerKey = null;
+
+const headerKeyFor = (user) =>
+  (user ? String(user.id) : "anon") + "|" + I18N.lang + "|" + Theme.current();
+
+function ensureHeader(app, route, user) {
+  const key = headerKeyFor(user);
+  if (headerNode && headerKey === key && headerNode.isConnected) {
+    updateNavCurrent(headerNode, route);
+    return headerNode;
+  }
+  // A rebuild also clears whatever appBoot()'s "loading…" placeholder or a
+  // stale #screenBody left behind — render() below finds no #screenBody and
+  // makes a fresh one, same as on the very first load.
+  app.textContent = "";
+  headerNode = appTop(route, user);
+  headerKey = key;
+  app.append(headerNode);
+  return headerNode;
+}
+
+function updateNavCurrent(header, route) {
+  const nav = header.querySelector(".appnav");
+  if (!nav) return;
+  for (const a of nav.querySelectorAll("a")) {
+    if (a.getAttribute("href").slice(2) === route) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+}
+
 /* With the site down, the account screen still works — an athlete must be
    able to log out of a club that is mid-repair — and the coach sees
    everything, since she is the one doing the repairing. */
@@ -177,28 +215,35 @@ function render() {
   const to = redirectFor(r, user);
   if (to) return go(to);
 
-  app.textContent = "";
   // A new screen starts at its top: with the bar pinned there is nothing to
-  // tell you the page changed if you stay halfway down the old one.
-  window.scrollTo(0, 0);
+  // tell you the page changed if you stay halfway down the old one. #app is
+  // the page's own scroll container (see app.css), not the window.
+  app.scrollTop = 0;
   document.title = "WE RUN Club";
   closeMe();
-  app.append(appTop(r.name, user));
+  ensureHeader(app, r.name, user);
+
+  let body = document.getElementById("screenBody");
+  if (!body) {
+    body = el("div", { id: "screenBody" });
+    app.append(body);
+  }
+  body.textContent = "";
 
   const banner = announcement();
-  if (banner) app.append(banner);
+  if (banner) body.append(banner);
 
   if (siteDown(r.name)) {
-    app.append(downCard());
-    appendFoot(app, r.name);
+    body.append(downCard());
+    appendFoot(body, r.name);
     playSlide(app, slide);
     return;
   }
 
   // hasOwn, not a bare lookup: "#/constructor" would otherwise find Object.
   const screen = Object.hasOwn(SCREENS, r.name) ? SCREENS[r.name] : SCREENS.home;
-  app.append(screen(r.args, user));
-  appendFoot(app, r.name);
+  body.append(screen(r.args, user));
+  appendFoot(body, r.name);
   playSlide(app, slide);
 }
 
@@ -2881,9 +2926,11 @@ wireSwipeNav();
    #app/html/body rules in app.css this depends on. */
 function wirePullToRefresh() {
   const app = $("#app");
-  const pill = el("div", { class: "pull-pill" });
+  // The same spin the rest of the app already loads with — not a label, not
+  // a box, just the one loading look the app has everywhere else.
+  const pill = el("div", { class: "pull-pill", "aria-hidden": "true" }, el("span", { class: "spin" }));
   document.body.append(pill);
-  const MAX = 64, THRESH = 56;
+  const MAX = 44, THRESH = 40;
   let sy = 0, dragging = false;
 
   app.addEventListener("touchstart", (e) => {
@@ -2892,15 +2939,20 @@ function wirePullToRefresh() {
     sy = e.touches[0].clientY;
     const header = app.querySelector(".apptop");
     pill.style.top = (header ? header.getBoundingClientRect().bottom : 0) + "px";
-    pill.textContent = t("aPullRefresh");
   }, { passive: true });
 
+  // Not passive: this is the one place the page overrides iOS's own bounce.
+  // -webkit-overflow-scrolling:touch is gone from #app (see app.css) because
+  // that, not overscroll-behavior, was what let the native rubber-band drag
+  // the sticky header along with it; preventDefault here is what stops the
+  // rest of the native gesture once we've taken over as a custom pull.
   app.addEventListener("touchmove", (e) => {
     if (!dragging) return;
-    const h = Math.min(Math.max(0, e.touches[0].clientY - sy), MAX);
-    pill.style.height = h + "px";
-    if (h >= THRESH) pill.textContent = t("aPullRelease");
-  }, { passive: true });
+    const dy = e.touches[0].clientY - sy;
+    if (dy <= 0) return;
+    e.preventDefault();
+    pill.style.height = Math.min(dy, MAX) + "px";
+  }, { passive: false });
 
   app.addEventListener("touchend", () => {
     if (!dragging) return;
@@ -2909,7 +2961,6 @@ function wirePullToRefresh() {
       pill.style.height = "0px";
       return;
     }
-    pill.textContent = t("aPullRefreshing");
     API.forget();
     render();
     setTimeout(() => (pill.style.height = "0px"), 300);

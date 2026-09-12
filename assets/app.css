@@ -10,7 +10,11 @@
    child holds still against it. */
 html,body{height:100%;overflow:hidden}
 body{position:fixed;inset:0;overscroll-behavior:none}
-#app{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+/* No -webkit-overflow-scrolling:touch: modern iOS already gives an
+   overflow:auto element momentum scrolling without it, and that legacy
+   property is what let the native rubber-band drag a position:sticky child
+   (the header) along with it during an overscroll. */
+#app{height:100%;overflow-y:auto;overscroll-behavior-y:contain}
 
 /* ---- the bar and the tabs stay put while the screen scrolls ----
    One sticky block rather than two, so the tabs cannot slide under the bar.
@@ -33,7 +37,7 @@ body{position:fixed;inset:0;overscroll-behavior:none}
 /* A tap answers on the way down instead of after the redraw: the 300ms grey
    box the phone draws is what "slow" was, not the render. */
 .appnav a,button.day,.btn,.tool,.card button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.appnav a{transition:transform .1s ease,background .15s ease,color .15s ease}
+.appnav a{transition:transform .1s ease,background .15s ease,color .15s ease,flex-grow .18s ease,padding-block .18s ease}
 .appnav a:active,button.day:active,.tool:active{transform:scale(.97)}
 button.day:active{background:var(--brand-soft)}
 @media (prefers-reduced-motion:reduce){
@@ -47,8 +51,8 @@ button.day:active{background:var(--brand-soft)}
    height) and grows from 0, so it never touches — and never has to redraw
    with — the header above it. */
 .pull-pill{position:fixed;left:0;right:0;height:0;overflow:hidden;z-index:19;
-  display:flex;align-items:center;justify-content:center;background:var(--bg);
-  color:var(--muted);font-size:13px;font-weight:650;transition:height .2s ease}
+  display:flex;align-items:center;justify-content:center;padding-top:6px;
+  transition:height .12s ease}
 
 /* ---- forms ---- */
 .form-err{color:var(--err);font-weight:650;font-size:14px;margin:0}
