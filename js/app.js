@@ -836,8 +836,14 @@ function loadStrava(box) {
     .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
 }
 
+// Strava's own brand asset, not a text button — required by their developer
+// guidelines for the connect action (developers.strava.com/guidelines).
 function stravaConnectCard() {
-  const btn = el("button", { class: "btn sm", type: "button" }, t("aStravaConnect"));
+  const btn = el(
+    "button",
+    { type: "button", style: "border:0;background:none;padding:0;cursor:pointer", "aria-label": t("aStravaConnect") },
+    el("img", { src: "assets/strava-connect.svg", alt: t("aStravaConnect"), style: "height:48px" })
+  );
   btn.addEventListener("click", () => {
     btn.disabled = true;
     API.post("/api/strava", { action: "connect" })
