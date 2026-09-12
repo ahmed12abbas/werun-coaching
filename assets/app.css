@@ -45,15 +45,6 @@ button.day:active{background:var(--brand-soft)}
 }
 [dir="rtl"] .appnav a{font-size:15px;letter-spacing:0}
 
-/* ---- pull to refresh ----
-   An overlay, not a block pushed into #app's own flow: it sits right under
-   the sticky header (positioned there in JS, off the header's own measured
-   height) and grows from 0, so it never touches — and never has to redraw
-   with — the header above it. */
-.pull-pill{position:fixed;left:0;right:0;height:0;overflow:hidden;z-index:19;
-  display:flex;align-items:center;justify-content:center;padding-top:6px;
-  transition:height .12s ease}
-
 /* ---- forms ---- */
 .form-err{color:var(--err);font-weight:650;font-size:14px;margin:0}
 .form-ok{color:var(--ok);font-weight:650;font-size:14px;margin:0}

@@ -50,9 +50,6 @@ const API = {
     p.catch(() => recent.delete(path));
     return p;
   },
-  // Pull-to-refresh: throw away what's memoized so the redraw it triggers
-  // is a real round trip, not the last 30 seconds' answer again.
-  forget: () => recent.clear(),
   post: (path, body) => API.call("POST", path, body || {}),
 };
 

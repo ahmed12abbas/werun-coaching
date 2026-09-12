@@ -2920,54 +2920,6 @@ function wireSwipeNav() {
 }
 wireSwipeNav();
 
-/* Pull down at the very top of the scroll and let go past the threshold: a
-   real refetch (wireSwipeNav's tab change never touches the network, this
-   is the one gesture that does), with the header untouched — see the
-   #app/html/body rules in app.css this depends on. */
-function wirePullToRefresh() {
-  const app = $("#app");
-  // The same spin the rest of the app already loads with — not a label, not
-  // a box, just the one loading look the app has everywhere else.
-  const pill = el("div", { class: "pull-pill", "aria-hidden": "true" }, el("span", { class: "spin" }));
-  document.body.append(pill);
-  const MAX = 44, THRESH = 40;
-  let sy = 0, dragging = false;
-
-  app.addEventListener("touchstart", (e) => {
-    dragging = app.scrollTop === 0 && e.touches.length === 1;
-    if (!dragging) return;
-    sy = e.touches[0].clientY;
-    const header = app.querySelector(".apptop");
-    pill.style.top = (header ? header.getBoundingClientRect().bottom : 0) + "px";
-  }, { passive: true });
-
-  // Not passive: this is the one place the page overrides iOS's own bounce.
-  // -webkit-overflow-scrolling:touch is gone from #app (see app.css) because
-  // that, not overscroll-behavior, was what let the native rubber-band drag
-  // the sticky header along with it; preventDefault here is what stops the
-  // rest of the native gesture once we've taken over as a custom pull.
-  app.addEventListener("touchmove", (e) => {
-    if (!dragging) return;
-    const dy = e.touches[0].clientY - sy;
-    if (dy <= 0) return;
-    e.preventDefault();
-    pill.style.height = Math.min(dy, MAX) + "px";
-  }, { passive: false });
-
-  app.addEventListener("touchend", () => {
-    if (!dragging) return;
-    dragging = false;
-    if (parseInt(pill.style.height, 10) < THRESH) {
-      pill.style.height = "0px";
-      return;
-    }
-    API.forget();
-    render();
-    setTimeout(() => (pill.style.height = "0px"), 300);
-  }, { passive: true });
-}
-wirePullToRefresh();
-
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());
 window.addEventListener("hashchange", render);
