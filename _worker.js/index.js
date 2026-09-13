@@ -208,6 +208,12 @@ export default {
     // Asset responses arrive with immutable headers, so harden a copy.
     const out = new Response(res.body, res);
     for (const k in SECURITY) out.headers.set(k, SECURITY[k]);
+    // A ?v= stamp is the file's own hash (tools/version-assets.js), so a
+    // changed file is a changed URL. Pages sends max-age=0, which cost every
+    // visit a round trip per script just to hear "not modified".
+    if (res.ok && new URL(request.url).searchParams.has("v")) {
+      out.headers.set("cache-control", "public, max-age=31536000, immutable");
+    }
     return out;
   },
 };

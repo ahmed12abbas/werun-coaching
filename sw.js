@@ -58,15 +58,26 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(staleWhileRevalidate(req, SHELL));
 });
 
-/** Ask the network; keep what it says; answer from the phone if it cannot. */
+/* One bar of signal does not fail, it just never finishes — and the browser
+   can sit on it for a minute before calling it offline. After this long the
+   copy on the phone goes up; the network's answer still lands in the cache. */
+const SLOW_MS = 3000;
+
+/** Ask the network; keep what it says; answer from the phone if it cannot, or is slow. */
 async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
-  try {
-    const fresh = await fetch(req);
+  const fresh = fetch(req).then((r) => {
     // Only a real answer is worth keeping: a 401 or a 500 cached here would
     // be handed back for as long as the phone is offline.
-    if (fresh && fresh.ok) cache.put(req, fresh.clone());
-    return fresh;
+    if (r && r.ok) cache.put(req, r.clone());
+    return r;
+  });
+  fresh.catch(() => {}); // lost the race and then failed: nobody is waiting on it
+  const slow = new Promise((ok) => setTimeout(ok, SLOW_MS))
+    .then(() => cache.match(req))
+    .then((kept) => kept || fresh); // nothing kept: keep waiting for the network
+  try {
+    return await Promise.race([fresh, slow]);
   } catch (e) {
     const kept = await cache.match(req);
     if (kept) return kept;
