@@ -2744,7 +2744,9 @@ function boardRow(r) {
     el(
       "div",
       { class: "grow" },
-      el("span", { class: "who", dir: "auto" }, r.me ? t("aYouAre") : r.name, " ", roleTag(r.role)),
+      el("span", { class: "who", dir: "auto" }, r.me ? t("aYouAre") : r.name,
+        // Most of the board is athletes; only the exceptions get a tag.
+        r.role === "coach" || r.role === "leader" ? [" ", roleTag(r.role)] : null),
       r.bio ? el("div", { class: "board-bio", dir: "auto" }, r.bio) : null
     ),
     el("span", { class: "pts num" }, String(r.points))

@@ -44,7 +44,8 @@ const asFile = (name, body) =>
 /* One member as a row of the members file. */
 function memberRow(m) {
   return [
-    m.name, m.email, m.role, m.status, m.lang, m.gender || "", m.birth_year || "",
+    // A leader is a coach under another label (0024); the file says which.
+    m.name, m.email, m.role === "coach" && m.is_leader ? "leader" : m.role, m.status, m.lang, m.gender || "", m.birth_year || "",
     m.birth_year ? new Date().getUTCFullYear() - m.birth_year : "",
     m.created_at, m.last_seen_at || "",
     m.email_verified_at || "", m.points, m.checkins,
@@ -54,7 +55,7 @@ function memberRow(m) {
 async function membersFile(env, day) {
   const bio = (await hasColumn(env, "users", "birth_year")) ? " u.gender, u.birth_year," : " '' AS gender, NULL AS birth_year,";
   const rows = await env.DB.prepare(
-    "SELECT u.name, u.email, u.role, u.status, u.lang," + bio + " u.created_at, u.last_seen_at, u.email_verified_at," +
+    "SELECT u.name, u.email, u.role, u.is_leader, u.status, u.lang," + bio + " u.created_at, u.last_seen_at, u.email_verified_at," +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
       " FROM users u ORDER BY u.created_at ASC LIMIT ?"
