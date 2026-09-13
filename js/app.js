@@ -2858,6 +2858,9 @@ SCREENS.me = function (args, user) {
     type: "text", id: "f-strava", inputmode: "numeric", value: user.strava_athlete || "",
     maxlength: "80", placeholder: t("aStravaIdPh"), autocapitalize: "none", spellcheck: "false", dir: "ltr",
   });
+  // The same switch Instagram has, under the box for the same reason.
+  const stravaShow = el("input", { type: "checkbox", id: "f-strava-show" });
+  if (!user.strava_hidden) stravaShow.setAttribute("checked", "");
 
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
@@ -2905,6 +2908,7 @@ SCREENS.me = function (args, user) {
             instagram: ig.input.value,
             instagram_hidden: !ig.show.checked,
             strava_athlete: stravaId.value,
+            strava_hidden: !stravaShow.checked,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
@@ -2919,7 +2923,14 @@ SCREENS.me = function (args, user) {
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
     ig.node,
-    field("aStravaId", stravaId, t("aStravaIdHint")),
+    el(
+      "div",
+      {},
+      el("label", { for: "f-strava" }, t("aStravaId")),
+      stravaId,
+      el("label", { class: "sw", for: "f-strava-show" }, stravaShow, el("span", {}, t("aStravaShow"))),
+      el("p", { class: "hint" }, t("aStravaIdHint"))
+    ),
     field("aGoal", goal, t("aGoalHint")),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),

@@ -266,6 +266,7 @@ function readProfile(body, user) {
     instagram: sentOr(body, "instagram", cleanHandle, user.instagram || ""),
     instagram_hidden: flag(sentOr(body, "instagram_hidden", Boolean, user.instagram_hidden)),
     strava_athlete: sentOr(body, "strava_athlete", cleanAthlete, user.strava_athlete || ""),
+    strava_hidden: flag(sentOr(body, "strava_hidden", Boolean, user.strava_hidden)),
     bio_hidden: flag(sentOr(body, "bio_hidden", Boolean, user.bio_hidden)),
     // Not `user.week_goal` on its own: before 0012 there is no column to read
     // back, and undefined there would look exactly like a refused number.
@@ -294,6 +295,7 @@ const OPTIONAL_COLUMNS = [
   { probe: "instagram", cols: ["instagram"] },
   { probe: "instagram_hidden", cols: ["instagram_hidden"] },
   { probe: "strava_athlete", cols: ["strava_athlete"] },
+  { probe: "strava_hidden", cols: ["strava_hidden"] },
 ];
 
 /* What went in is what comes back: a field the database could not hold is not
