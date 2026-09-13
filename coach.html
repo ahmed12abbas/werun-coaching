@@ -21,7 +21,7 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=ade56fff"></script>
+<script src="js/i18n.js?v=f15410de"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script>
@@ -116,8 +116,8 @@ function weekCard(plan, sess, rota) {
   var sessions = sess.sessions || [];
   // id -> name for the ticks: the same roster the session pickers use, so
   // nothing joins the members table to draw a week.
-  var names = {};
-  (plan.coaches || []).forEach(function (c) { names[c.id] = c.name; });
+  var names = {}, leaders = {};
+  (plan.coaches || []).forEach(function (c) { names[c.id] = c.name; leaders[c.id] = !!c.is_leader; });
   /* Every rota column on screen, so one answer redraws all of them: two
      coaches signing up at the same moment each want to see the other.
 
@@ -265,7 +265,8 @@ function weekCard(plan, sess, rota) {
         // A tick left by somebody who has since stopped coaching has no name
         // in the roster. It is still a tick, and still says somebody is on it.
         var chip = el("span", { class: "rota-chip" + (self ? " me" : "") },
-          names[r.user_id] || t("cSomeCoach"));
+          names[r.user_id] || t("cSomeCoach"),
+          leaders[r.user_id] ? el("span", { class: "muted small", style: "margin-inline-start:4px" }, "· " + t("cLeader")) : null);
         if (rota.can_remove || self) {
           var drop = el("button", { class: "drop", title: t("cTakeOff"),
             "aria-label": t("cTakeOff"), onclick: function () {

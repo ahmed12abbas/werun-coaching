@@ -32,7 +32,7 @@ export const cleanCoachId = (v) => (ID.test(String(v || "")) ? String(v) : "");
  */
 export async function coachRoster(env) {
   const rows = await env.DB.prepare(
-    "SELECT id, name FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
+    "SELECT id, name, is_leader FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
   )
     .bind(CAP)
     .all();
