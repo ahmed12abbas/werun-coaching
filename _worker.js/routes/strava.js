@@ -119,8 +119,22 @@ export async function stravaCallback(request, env) {
     )
       .bind(userId, String((t.athlete && t.athlete.id) || ""), t.access_token, t.refresh_token, t.expires_at, nowISO())
       .run();
+    await fillAthlete(env, userId, t.athlete && t.athlete.id);
   } catch (err) {
     console.error("strava: callback failed (" + (err && err.message) + ")");
   }
   return bounce();
+}
+
+/* Linking Strava tells us the athlete number, so the Strava button on their
+   card fills itself in — but only into an empty field: a number they typed
+   is theirs, and clearing the field later is how they take the button off. */
+async function fillAthlete(env, userId, athleteId) {
+  const id = String(athleteId || "").replace(/\D/g, "").slice(0, 12);
+  if (!id) return;
+  try {
+    await env.DB.prepare("UPDATE users SET strava_athlete = ? WHERE id = ? AND strava_athlete = ''").bind(id, userId).run();
+  } catch (err) {
+    console.error("strava: no strava_athlete column yet (" + (err && err.message) + ")"); // before 0022
+  }
 }
