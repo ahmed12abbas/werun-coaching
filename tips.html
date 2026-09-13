@@ -6,6 +6,9 @@
 <title>Coach Tips · WE RUN</title>
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#8851F4">
+<!-- The theme chosen in the app or on /coach, before anything paints. This
+     page has no toggle of its own, and without this it followed the phone. -->
+<script>try{var t=localStorage.getItem("werun.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="icon" href="assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,11 +26,18 @@
   --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root{
+/* The phone's choice, unless the one saved in the app or on /coach says
+   otherwise -- the same two selectors site.css and console.css use. */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --brand:#A47CF8; --brand-ink:#1b1030; --brand-soft:#241a3d;
   --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
   --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
 }}
+:root[data-theme="dark"]{
+  --brand:#A47CF8; --brand-ink:#1b1030; --brand-soft:#241a3d;
+  --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
   font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
