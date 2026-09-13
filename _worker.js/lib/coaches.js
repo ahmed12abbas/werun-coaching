@@ -42,7 +42,7 @@ export async function coachRoster(env) {
 /** The same list for the console, which does show the address. */
 export async function coachList(env) {
   const rows = await env.DB.prepare(
-    "SELECT id, name, email FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
+    "SELECT id, name, email, is_leader FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
   )
     .bind(CAP)
     .all();

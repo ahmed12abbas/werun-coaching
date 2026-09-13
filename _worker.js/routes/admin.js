@@ -145,7 +145,7 @@ export async function coaches(request, env) {
 
   const action = String(body.action || "list");
   if (action === "add" || action === "remove") {
-    const refused = await changeCoach(request, env, action, String(body.id || ""));
+    const refused = await changeCoach(request, env, action, String(body.id || ""), !!body.leader);
     if (refused) return refused;
   } else if (action !== "list") {
     return json({ error: "bad-request" }, 400);
@@ -155,7 +155,7 @@ export async function coaches(request, env) {
 }
 
 /* One member onto the coaches list or off it. Null once done, or the refusal. */
-async function changeCoach(request, env, action, id) {
+async function changeCoach(request, env, action, id, leader) {
   if (!id) return json({ error: "bad-request" }, 400);
   const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
   if (!who) return json({ error: "no-member" }, 404);
@@ -166,8 +166,10 @@ async function changeCoach(request, env, action, id) {
     const self = await notYourself(request, env, id);
     if (self) return self;
   }
-  await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?")
-    .bind(action === "add" ? "coach" : "athlete", id)
+  // `add` on somebody already coaching is how the label flips coach <-> leader.
+  const add = action === "add";
+  await env.DB.prepare("UPDATE users SET role = ?, is_leader = ? WHERE id = ?")
+    .bind(add ? "coach" : "athlete", add && leader ? 1 : 0, id)
     .run();
   return null;
 }

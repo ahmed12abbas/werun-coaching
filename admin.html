@@ -442,10 +442,14 @@ function coachesCard() {
             "check-ins and their points -- they just cannot run this console or be put on a session.")) return;
           act({ action: "remove", id: c.id }, off);
         } }, "Not a coach");
+        // Leader is a coach under another label -- same console, same sessions.
+        var flip = el("button", { class: "btn sm", onclick: function () {
+          act({ action: "add", id: c.id, leader: !c.is_leader }, flip);
+        } }, c.is_leader ? "Make coach" : "Make leader");
         rows.append(el("tr", {},
-          el("td", { class: "name", dir: "auto" }, c.name, el("span", { class: "badge" }, "Coach")),
+          el("td", { class: "name", dir: "auto" }, c.name, el("span", { class: "badge" }, c.is_leader ? "Leader" : "Coach")),
           el("td", { class: "left" }, c.email),
-          el("td", { class: "acts" }, off)));
+          el("td", { class: "acts" }, flip, off)));
       });
       body.append(el("p", { class: "muted small", style: "margin:10px 0 6px" },
         coaches.length + (coaches.length === 1 ? " coach" : " coaches") +
@@ -466,11 +470,17 @@ function coachesCard() {
       if (!window.confirm("Make " + who + " a coach? They will be able to run this console.")) return;
       act({ action: "add", id: pick.value }, add);
     } }, "Make them a coach");
-    if (!candidates.length) add.disabled = true;
+    var addLeader = el("button", { class: "btn", onclick: function () {
+      if (!pick.value) return;
+      var who = pick.options[pick.selectedIndex].textContent;
+      if (!window.confirm("Make " + who + " a leader? They will be able to run this console.")) return;
+      act({ action: "add", id: pick.value, leader: true }, addLeader);
+    } }, "Make them a leader");
+    if (!candidates.length) add.disabled = addLeader.disabled = true;
 
     body.append(el("div", { class: "row", style: "margin-top:14px" },
-      el("div", {}, el("label", {}, "Add a coach"), pick),
-      el("div", { style: "flex:0 0 auto;align-self:flex-end" }, add)));
+      el("div", {}, el("label", {}, "Add a coach or leader"), pick),
+      el("div", { style: "flex:0 0 auto;align-self:flex-end;display:flex;gap:8px" }, add, addLeader)));
   }
 
   post({ action: "list" }).then(function (d) { paint(d); COACHES.tell(d.coaches || []); })
