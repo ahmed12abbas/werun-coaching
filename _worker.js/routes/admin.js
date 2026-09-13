@@ -20,10 +20,12 @@ async function memberList(env) {
   const admin = (await hasColumn(env, "users", "is_admin"))
     ? " u.is_admin,"
     : " CASE WHEN u.role = 'coach' THEN 1 ELSE 0 END AS is_admin,";
+  const leader = (await hasColumn(env, "users", "is_leader")) ? " u.is_leader," : " 0 AS is_leader,";
   const rows = await env.DB.prepare(
     "SELECT u.id, u.email, u.name, u.role, u.lang, u.status, u.created_at, u.last_seen_at, u.email_verified_at," +
       bio +
       admin +
+      leader +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
       " FROM users u ORDER BY u.created_at DESC LIMIT ?"
@@ -55,9 +57,16 @@ async function setStatus(request, env, body, action, id) {
   return null;
 }
 
+/* A leader is a coach with another label (0024): same role, same guards. */
 async function setRole(request, env, body, action, id) {
-  const role = body.role === "coach" ? "coach" : "athlete";
-  await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, id).run();
+  const leader = body.role === "leader";
+  const role = leader || body.role === "coach" ? "coach" : "athlete";
+  if (await hasColumn(env, "users", "is_leader")) {
+    await env.DB.prepare("UPDATE users SET role = ?, is_leader = ? WHERE id = ?").bind(role, leader ? 1 : 0, id).run();
+  } else {
+    if (leader) return json({ error: "no-column" }, 503);
+    await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, id).run();
+  }
   return null;
 }
 

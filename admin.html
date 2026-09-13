@@ -351,10 +351,17 @@ function membersCard() {
         if (!blocked && !window.confirm("Block " + m.name + "? They are logged out everywhere and cannot log in until unblocked.")) return;
         act(m, blocked ? "unblock" : "block", null, blockBtn);
       } }, blocked ? "Unblock" : "Block");
-      var roleBtn = el("button", { class: "btn sm", onclick: function () {
-        if (m.role !== "coach" && !window.confirm("Make " + m.name + " a coach? They get /coach: this week's codes, the head count and who scanned.")) return;
-        act(m, "role", { role: m.role === "coach" ? "athlete" : "coach" }, roleBtn);
-      } }, m.role === "coach" ? "Make athlete" : "Make coach");
+      /* Leader is a coach with another label: the same /coach, the same
+         guards. So each row offers the two of the three it is not. */
+      var now = m.role !== "coach" ? "athlete" : m.is_leader ? "leader" : "coach";
+      var LABEL = { athlete: "Athlete", coach: "Coach", leader: "Leader" };
+      var roleBtns = ["athlete", "coach", "leader"].filter(function (r) { return r !== now; }).map(function (r) {
+        var b = el("button", { class: "btn sm", onclick: function () {
+          if (r !== "athlete" && now === "athlete" && !window.confirm("Make " + m.name + " a " + LABEL[r].toLowerCase() + "? They get /coach: this week's codes, the head count and who scanned.")) return;
+          act(m, "role", { role: r }, b);
+        } }, "Make " + LABEL[r].toLowerCase());
+        return b;
+      });
       /* Two separate columns on the row, because they are two separate
          questions: coaching is who takes the sessions, admin is who runs
          the club. Most coaches want the first and not the second. */
@@ -365,7 +372,7 @@ function membersCard() {
       } }, m.is_admin ? "Take admin away" : "Make admin");
       rows.append(el("tr", { class: blocked ? "blocked" : "" },
         el("td", { class: "name", dir: "auto" }, m.name,
-          m.role === "coach" ? el("span", { class: "badge" }, "Coach") : null,
+          now !== "athlete" ? el("span", { class: "badge" }, LABEL[now]) : null,
           m.is_admin ? el("span", { class: "badge" }, "Admin") : null,
           blocked ? el("span", { class: "badge off" }, "Blocked") : null),
         el("td", { class: "left" }, m.email),
@@ -376,7 +383,7 @@ function membersCard() {
           : el("span", { class: "muted", title: "Not confirmed yet" }, "--")),
         el("td", {}, String(m.checkins || 0)),
         el("td", {}, String(m.points || 0)),
-        el("td", { class: "acts" }, blockBtn, roleBtn, adminBtn)));
+        el("td", { class: "acts" }, blockBtn, roleBtns[0], roleBtns[1], adminBtn)));
     });
     body.append(el("div", { class: "scroll" }, el("table", { class: "members" }, el("thead", {}, head), rows)));
   }
