@@ -27,14 +27,14 @@ const MAX_PASSWORD = 200;
  * is dropped first, so a second "send it again" makes the first link dead
  * rather than leaving two ways in.
  */
-async function mintToken(env, userId, purpose) {
+async function mintToken(env, userId, purpose, life) {
   await env.DB.prepare("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?").bind(userId, purpose).run();
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
   const now = Date.now();
   await env.DB.prepare(
     "INSERT INTO email_tokens (token_hash, user_id, purpose, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
   )
-    .bind(hex(await sha256(token)), userId, purpose, new Date(now).toISOString(), new Date(now + LIFETIME[purpose]).toISOString())
+    .bind(hex(await sha256(token)), userId, purpose, new Date(now).toISOString(), new Date(now + (life || LIFETIME[purpose])).toISOString())
     .run();
   return token;
 }
@@ -54,6 +54,13 @@ async function spend(env, token, purpose) {
 }
 
 const linkTo = (request, route, token) => new URL(request.url).origin + "/app#/" + route + "/" + token;
+
+/* The same reset link, for an admin to hand over themselves — with no email
+   switched on it is the only way back in. A day rather than an hour, because
+   it travels by WhatsApp and waits to be read. */
+export async function resetLinkFor(env, request, userId) {
+  return linkTo(request, "reset", await mintToken(env, userId, "reset", 24 * 3600 * 1000));
+}
 
 /*
  * With no key set the link cannot be sent — but it has been minted, and a

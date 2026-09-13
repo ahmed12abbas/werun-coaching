@@ -370,6 +370,16 @@ function membersCard() {
         if (m.is_admin && !window.confirm("Take " + m.name + "'s admin away? They keep /coach if they coach.")) return;
         act(m, "admin", { admin: !m.is_admin }, adminBtn);
       } }, m.is_admin ? "Take admin away" : "Make admin");
+      /* With no email switched on, this is how a member gets back in: the
+         same one-time link the reset mail would carry, sent by hand. */
+      var resetBtn = el("button", { class: "btn sm", onclick: function () {
+        if (!window.confirm("Make a password reset link for " + m.name + "? Send it to them yourself -- it works once, for 24 hours.")) return;
+        resetBtn.disabled = true;
+        post("/api/admin/members", { action: "reset-link", id: m.id }).then(function (d) {
+          resetBtn.disabled = false;
+          window.prompt("Copy this and send it to " + m.name + ":", d.link);
+        })["catch"](function (e) { resetBtn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+      } }, "Reset link");
       rows.append(el("tr", { class: blocked ? "blocked" : "" },
         el("td", { class: "name", dir: "auto" }, m.name,
           now !== "athlete" ? el("span", { class: "badge" }, LABEL[now]) : null,
@@ -383,7 +393,7 @@ function membersCard() {
           : el("span", { class: "muted", title: "Not confirmed yet" }, "--")),
         el("td", {}, String(m.checkins || 0)),
         el("td", {}, String(m.points || 0)),
-        el("td", { class: "acts" }, blockBtn, roleBtns[0], roleBtns[1], adminBtn)));
+        el("td", { class: "acts" }, blockBtn, roleBtns[0], roleBtns[1], adminBtn, blocked ? null : resetBtn)));
     });
     body.append(el("div", { class: "scroll" }, el("table", { class: "members" }, el("thead", {}, head), rows)));
   }

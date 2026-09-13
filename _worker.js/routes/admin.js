@@ -9,6 +9,7 @@ import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
 import { coachList } from "../lib/coaches.js";
+import { resetLinkFor } from "./email.js";
 
 const MEMBER_CAP = 500;
 
@@ -96,11 +97,21 @@ async function notYourself(request, env, id) {
   return me && me.id === id ? json({ error: "not-yourself" }, 409) : null;
 }
 
+/* Not a change but an answer of its own: the link, for the admin to send. A
+   blocked member stays out, so they get no way back in by this door either. */
+async function resetLink(request, env, body, action, id) {
+  const who = await env.DB.prepare("SELECT status FROM users WHERE id = ?").bind(id).first();
+  if (!who) return json({ error: "no-member" }, 404);
+  if (who.status === "blocked") return json({ error: "blocked" }, 409);
+  return json({ link: await resetLinkFor(env, request, id) });
+}
+
 const MEMBER_ACTIONS = new Map([
   ["block", setStatus],
   ["unblock", setStatus],
   ["role", setRole],
   ["admin", setAdmin],
+  ["reset-link", resetLink],
 ]);
 
 export async function members(request, env) {

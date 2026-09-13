@@ -133,6 +133,19 @@ const tokenOf = (url) => String(url || "").split("/").pop();
   r = await anon.call("POST", "/api/auth/reset", { token: verifyToken, password: pw + "-nope" });
   check("a confirmation link cannot change a password", r.status === 400, r);
 
+  /* An admin can hand the same link over by hand, for a club with no email. */
+  r = await back.call("GET", "/api/auth/me");
+  const memberId = r.data.user && r.data.user.id;
+  r = await back.call("POST", "/api/admin/members", { action: "reset-link", id: memberId });
+  check("a member cannot make a reset link", r.status === 401 || r.status === 403, r);
+  const club = process.env.SMOKE_ADMIN_PASSWORD || "letmein";
+  r = await anon.call("POST", "/api/admin/members", { password: club, action: "reset-link", id: memberId });
+  check("an admin can", r.status === 200 && /#\/reset\//.test(r.data.link || ""), r);
+  r = await anon.call("POST", "/api/auth/reset", { token: tokenOf(r.data.link), password: pw + "-handed" });
+  check("…and the link sets the password", r.status === 200 && r.data.ok, r);
+  r = await who().call("POST", "/api/auth/login", { email, password: pw + "-handed" });
+  check("which then logs in", r.status === 200, r);
+
   /* ---- the exports ---- */
   r = await anon.call("POST", "/api/admin/export", { what: "members" });
   check("export needs the coach", r.status === 401, r.status);
