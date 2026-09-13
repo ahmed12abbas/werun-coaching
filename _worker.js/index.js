@@ -209,8 +209,19 @@ const SECURITY = {
   "cross-origin-opener-policy": "same-origin",
 };
 
+/* Every deploy also answers at its own <hash>.weruncoaching.pages.dev, on the
+   live database and the live QR key, running that day's code forever. A coach
+   who opened the app there hands out codes pointing there — where no athlete
+   is logged in. So every such address goes to the one the club uses. */
+const HOME = "weruncoaching.pages.dev";
+
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.hostname.endsWith("." + HOME)) {
+      url.hostname = HOME;
+      return Response.redirect(url.toString(), 308);
+    }
     const res = await route(request, env);
     // Asset responses arrive with immutable headers, so harden a copy.
     const out = new Response(res.body, res);
