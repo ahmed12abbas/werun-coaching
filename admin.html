@@ -373,12 +373,26 @@ function membersCard() {
       /* With no email switched on, this is how a member gets back in: the
          same one-time link the reset mail would carry, sent by hand. */
       var resetBtn = el("button", { class: "btn sm", onclick: function () {
-        if (!window.confirm("Make a password reset link for " + m.name + "? Send it to them yourself -- it works once, for 24 hours.")) return;
         resetBtn.disabled = true;
-        post("/api/admin/members", { action: "reset-link", id: m.id }).then(function (d) {
-          resetBtn.disabled = false;
-          window.prompt("Copy this and send it to " + m.name + ":", d.link);
-        })["catch"](function (e) { resetBtn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+        var link = post("/api/admin/members", { action: "reset-link", id: m.id }).then(function (d) { return d.link; });
+        /* Straight to the clipboard, started inside the tap with the link still
+           on its way: Safari only lets a page copy during the gesture itself,
+           and the fetch outlives it. No confirm first, for the same reason --
+           and a link is harmless until somebody is sent it. */
+        var copied = window.ClipboardItem && navigator.clipboard && navigator.clipboard.write
+          ? navigator.clipboard.write([new ClipboardItem({ "text/plain": link.then(function (l) {
+              return new Blob([l], { type: "text/plain" });
+            }) })])
+          : Promise.reject(new Error("no clipboard"));
+        copied["catch"](function () {}); // answered below, once the link is in
+        link.then(function (l) {
+          return copied.then(function () {
+            window.alert("Reset link for " + m.name + " copied. Paste it to them on WhatsApp -- it works once, for 24 hours.");
+          }, function () {
+            window.prompt("Copy this and send it to " + m.name + ":", l);
+          });
+        })["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); })
+          .then(function () { resetBtn.disabled = false; });
       } }, "Reset link");
       rows.append(el("tr", { class: blocked ? "blocked" : "" },
         el("td", { class: "name", dir: "auto" }, m.name,
