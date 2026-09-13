@@ -44,6 +44,8 @@
      GET  /api/strava/callback  — Strava sending the browser back (state-checked)
      POST /api/coros            — the same for COROS, through its self-service MCP (logged in)
      GET  /api/coros/callback   — COROS sending the browser back (state- and PKCE-checked)
+     POST /api/intervals           — the same for Intervals.icu (logged in)
+     GET  /api/intervals/callback  — Intervals.icu sending the browser back (state-checked)
 
    Two guards, both in lib/auth.js, both taking either a login or the club
    password in the body. refuseUnlessCoach() is the track — what a coach needs
@@ -87,6 +89,8 @@
      STRIPE_WEBHOOK_SECRET  what the webhook's signature is checked against
      STRAVA_CLIENT_ID       switches the Home Strava card on (optional)
      STRAVA_CLIENT_SECRET   its pair, from strava.com/settings/api
+     INTERVALS_CLIENT_ID     switches the Home Intervals.icu card on (optional)
+     INTERVALS_CLIENT_SECRET its pair, from intervals.icu/settings/apps (client id 961)
    Without them the site still works: the dashboard stays locked rather than
    falling open, and the platform routes answer "no-db" instead of crashing.
 
@@ -119,6 +123,7 @@ import { push, pushNext } from "./routes/push.js";
 import { reactions } from "./routes/reactions.js";
 import { strava, stravaCallback } from "./routes/strava.js";
 import { coros, corosCallback } from "./routes/coros.js";
+import { intervals, intervalsCallback } from "./routes/intervals.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -156,6 +161,7 @@ const POST = {
   "/api/reactions": reactions,
   "/api/strava": strava,
   "/api/coros": coros,
+  "/api/intervals": intervals,
 };
 const GET = {
   "/api/tips": tips,
@@ -172,6 +178,7 @@ const GET = {
   "/api/push/next": pushNext,
   "/api/strava/callback": stravaCallback,
   "/api/coros/callback": corosCallback,
+  "/api/intervals/callback": intervalsCallback,
 };
 
 /* What every answer carries, static file and API alike.

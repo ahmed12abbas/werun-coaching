@@ -908,6 +908,11 @@ const SERVICES = [
       ),
   },
   { name: "COROS", path: "/api/coros", button: () => connectButton("/api/coros", { type: "button", class: "btn" }, t("aCorosConnect")) },
+  {
+    name: "Intervals.icu",
+    path: "/api/intervals",
+    button: () => connectButton("/api/intervals", { type: "button", class: "btn" }, t("aIntervalsConnect")),
+  },
 ];
 
 function connectButton(path, attrs, content) {
