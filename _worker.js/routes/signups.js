@@ -13,7 +13,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
-import { withMember, nowISO } from "../lib/auth.js";
+import { withMember, nowISO, isCoach } from "../lib/auth.js";
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -48,6 +48,28 @@ async function signupWrite(env, sql, ...values) {
   }
 }
 
+/* A coach saying "I'm coming" here is the same yes as ticking "I am taking
+   this" on /coach — so a coach's own signup carries it across, and they are
+   not asked the same question twice on two screens. Best effort and after
+   the signup already succeeded: a hiccup writing the rota must not undo the
+   signup, and an athlete who does not coach has no rota row to write. */
+async function syncRota(env, pick, user, on) {
+  if (!isCoach(user)) return;
+  try {
+    if (on) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO coach_rota (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)"
+      ).bind(pick.scheduleId, pick.date, user.id, nowISO()).run();
+    } else {
+      await env.DB.prepare(
+        "DELETE FROM coach_rota WHERE schedule_id = ? AND date = ? AND user_id = ?"
+      ).bind(pick.scheduleId, pick.date, user.id).run();
+    }
+  } catch (e) {
+    console.error("signups: could not sync coach_rota (" + (e && e.message) + ")");
+  }
+}
+
 async function join(env, pick, user) {
   const slot = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(pick.scheduleId).first();
   if (!slot) return json({ error: "no-entry" }, 404);
@@ -55,14 +77,18 @@ async function join(env, pick, user) {
   const failed = await signupWrite(env,
     "INSERT OR IGNORE INTO session_signups (schedule_id, date, user_id, at) VALUES (?, ?, ?, ?)",
     pick.scheduleId, pick.date, user.id, nowISO());
-  return failed || json({ registered: true });
+  if (failed) return failed;
+  await syncRota(env, pick, user, true);
+  return json({ registered: true });
 }
 
 async function leave(env, pick, user) {
   const failed = await signupWrite(env,
     "DELETE FROM session_signups WHERE schedule_id = ? AND date = ? AND user_id = ?",
     pick.scheduleId, pick.date, user.id);
-  return failed || json({ registered: false });
+  if (failed) return failed;
+  await syncRota(env, pick, user, false);
+  return json({ registered: false });
 }
 
 const SIGNUP_ACTIONS = new Map([["join", join], ["leave", leave]]);
