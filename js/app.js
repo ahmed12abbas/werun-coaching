@@ -500,7 +500,7 @@ function openMe() {
     bio: user.bio,
     instagram: user.instagram,
     strava_athlete: user.strava_athlete,
-    role: user.role !== "coach" ? "athlete" : user.is_leader ? "leader" : "coach",
+    role: roleOf(user),
     place: "—",
     points: "—",
   });
@@ -553,6 +553,9 @@ function stravaLink(athlete) {
    somebody else's carries nothing to press, because a board row is a name and
    a number and this is the whole of what the club may know. */
 const ROLE_KEY = { athlete: "aRoleAthlete", coach: "aRoleCoach", leader: "aRoleLeader" };
+/* A leader is a coach under another label (migration 0024). */
+const roleOf = (u) => (u.role !== "coach" ? "athlete" : u.is_leader ? "leader" : "coach");
+const roleTag = (role) => el("span", { class: "tag open" }, t(ROLE_KEY[role] || "aRoleAthlete"));
 function openRunner(r) {
   return openSheet(
     r.me ? t("navMe") : r.name,
@@ -567,7 +570,7 @@ function openRunner(r) {
           "div",
           { class: "grow" },
           el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), stravaLink(r.strava_athlete), igLink(r.instagram),
-            el("span", { class: "tag open" }, t(ROLE_KEY[r.role] || "aRoleAthlete"))),
+            roleTag(r.role)),
           r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
         )
       ),
@@ -1009,7 +1012,7 @@ function greetingHeader(user) {
   return el(
     "div",
     { class: "goal-head" },
-    el("h2", { class: "grow" }, t(key, { name: firstName(user.name) })),
+    el("h2", { class: "grow" }, t(key, { name: firstName(user.name) }), " ", roleTag(roleOf(user))),
     el("span", { class: "muted small" }, new Date().toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }))
   );
 }
