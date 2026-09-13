@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=33c3c43c">
+<link rel="stylesheet" href="assets/console.css?v=dfb177a7">
 </head>
 <body>
 <div class="wrap">
@@ -21,7 +21,7 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=59716dd6"></script>
+<script src="js/i18n.js?v=e8712fba"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script>
@@ -153,6 +153,17 @@ function weekCard(plan, sess, rota) {
     return null;
   }
 
+  // How many athletes are down for a standing slot's date — session_signups,
+  // not the rota, which is the coaches' own. A one-off session has no
+  // schedule_id, so it has nothing to look up here.
+  function comingCount(slotId, date) {
+    var list = rota.signups || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].schedule_id === slotId && list[i].date === date) return list[i].n;
+    }
+    return 0;
+  }
+
   var any = false;
   dates.forEach(function (date, weekday) {
     var mine = standing.filter(function (e) { return e.weekday === weekday; });
@@ -175,6 +186,7 @@ function weekCard(plan, sess, rota) {
           (e.place_en || e.place_ar || "—"),
         session: sessionFor(e.id, date),
         slot: { schedule_id: e.id, date: date },
+        coming: comingCount(e.id, date),
         rota: true
       }));
     });
@@ -287,7 +299,10 @@ function weekCard(plan, sess, rota) {
     say();
     var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") },
       el("span", { class: "at" }, spec.at),
-      el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count));
+      el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count),
+      spec.coming !== undefined
+        ? el("span", { class: "badge coming" }, t("cComing", { n: spec.coming }))
+        : null);
 
     // Who is taking it. Only on a standing slot: the rota is the standing
     // week's, and a one-off the coach published already names its own coach.

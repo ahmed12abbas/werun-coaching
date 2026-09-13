@@ -21,6 +21,18 @@ const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const validTime = (s) => HHMM.test(String(s || ""));
 
+/* A published session's name is one field, typed once by the coach (often
+   copied straight from the Garmin builder), so there is no title_ar to read
+   for it the way a standing slot has one. These few names recur every week
+   verbatim, so they get a fixed Arabic reading; anything else — a custom
+   name like "Trail run — 7 to 9 km" — has no translation to fall back to and
+   is shown as typed on both sides. */
+const KNOWN_TITLES_AR = {
+  "community run": "ركضة مجتمعية",
+  "speed session": "تمرين سرعات",
+};
+const titleAr = (name) => KNOWN_TITLES_AR[String(name || "").trim().toLowerCase()] || name;
+
 /* How far either side of the week on screen to look for a slot workout.
    The coach publishes the speed session a week or so ahead and replaces it
    every week, so a month reaches the current copy in either direction — and
@@ -161,7 +173,7 @@ function publishedItem(s, slot, names, mins) {
     id: s.id,
     schedule_id: s.schedule_id || null,
     title_en: s.name,
-    title_ar: s.name,
+    title_ar: titleAr(s.name),
     place_en: slotField(slot, "place_en"),
     place_ar: slotField(slot, "place_ar"),
     desc_en: slotField(slot, "desc_en"),

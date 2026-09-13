@@ -73,6 +73,25 @@ export async function rotaBetween(env, from, to) {
   }
 }
 
+/* How many athletes are down for each slot's date — the count a coach reads
+   as "coming", grouped the same way the rota is: one row per (schedule_id,
+   date). Wrapped like every other read of session_signups: a database one
+   release behind still draws the week, just without the count. */
+async function signupsBetween(env, from, to) {
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT schedule_id, date, COUNT(*) AS n FROM session_signups" +
+        " WHERE date BETWEEN ? AND ? GROUP BY schedule_id, date LIMIT ?"
+    )
+      .bind(from, to, LIST)
+      .all();
+    return rows.results || [];
+  } catch (e) {
+    console.error("rota: could not read session_signups (" + (e && e.message) + ")");
+    return [];
+  }
+}
+
 /* ---------- POST /api/coach/rota ------------------------------------------ */
 
 const dateOr = (v, fallback) => (ISO_DATE.test(String(v || "")) ? String(v) : fallback);
@@ -168,6 +187,7 @@ const answerAround = (env, date, me, boss) => answer(env, shiftDate(-7), shiftDa
 async function answer(env, from, to, me, boss) {
   return {
     rota: await rotaBetween(env, from, to),
+    signups: await signupsBetween(env, from, to),
     // Who the page is drawing for: which tick is the reader's own, and
     // whether they may take anybody else's off. The page decides what to
     // offer from this; the route decides what to allow, on every call.

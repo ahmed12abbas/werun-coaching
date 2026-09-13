@@ -34,7 +34,7 @@ const STANDING = [
   { weekday: 0, at: "04:55", title_en: "Community run — 45 min easy + strides", title_ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات" },
   { weekday: 0, at: "19:30", title_en: "Easy run — 45 min + strides",           title_ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات" },
   { weekday: 1, at: "04:55", title_en: "Easy walk/run — 4 km",                  title_ar: "ركض/مشي خفيف — ٤ كم" },
-  { weekday: 3, at: "04:55", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة تريل — ٧ إلى ٩ كم" },
+  { weekday: 3, at: "04:55", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم" },
   { weekday: 3, at: "19:30", title_en: "Easy run — 50 min + strides",           title_ar: "ركضة خفيفة — ٥٠ دقيقة + فتحات" },
 ];
 

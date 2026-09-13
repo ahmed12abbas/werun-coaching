@@ -243,6 +243,7 @@ table.ord tr.cancelled td{color:var(--muted);text-decoration:line-through}
 .wk-row .what b{display:block;font-weight:650}
 .wk-row .what span{font-size:13px;color:var(--muted)}
 .wk-row .acts{display:flex;gap:6px;flex-wrap:wrap}
+.wk-row .badge.coming{align-self:center}
 .wk-empty{color:var(--muted);font-size:14px;margin:0 0 8px}
 .changes{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
 .change-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;
@@ -271,6 +272,7 @@ table.ord tr.cancelled td{color:var(--muted);text-decoration:line-through}
 @media (max-width:640px){
   .wk-row{flex-wrap:wrap}
   .wk-row .what{flex-basis:calc(100% - 70px)}
+  .wk-row .badge.coming{flex-basis:100%;order:2;align-self:flex-start}
   .wk-row .rota{flex-basis:100%;order:3}
   .wk-row .acts{flex-basis:100%;order:4}
 }
