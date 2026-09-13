@@ -316,7 +316,6 @@ const STRINGS = {
     cTakingThis: "I am taking this",
     cNobodyDown: "Nobody down yet",
     cSomeCoach: "A coach",
-    cLeader: "Leader",
     cTakeOff: "Take off this session",
 
     /* the code on the screen */
@@ -857,7 +856,6 @@ const STRINGS = {
     cTakingThis: "سوف أحضر",
     cNobodyDown: "لا أحد مسجّل بعد",
     cSomeCoach: "أحد المدربين",
-    cLeader: "قائد",
     cTakeOff: "أزل من هذه الحصة",
 
     cDone: "تم",
