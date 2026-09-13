@@ -19,9 +19,8 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
-import { stravaReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, recentActivities, activityDetail } from "../lib/strava.js";
+import { stravaReady, authorizeUrl, exchangeCode, freshToken, activitiesSince } from "../lib/strava.js";
 import { clubWeekStart } from "../lib/week.js";
-import { hasColumn } from "../lib/columns.js";
 
 const CLUB_OFFSET = "+03:00"; // Riyadh, all year, no daylight saving
 
@@ -69,7 +68,6 @@ export async function strava(request, env) {
     if (action === "connect") return connect(e, req, user);
     if (action === "disconnect") return disconnect(e, user);
     if (action === "home") return home(e, user);
-    if (action === "refresh-bests") return refreshBestsAction(e, user);
     return json({ error: "bad-request" }, 400);
   })(request, env);
 }
@@ -104,8 +102,7 @@ async function home(env, user) {
     if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
     const { epoch, sunday } = weekStartEpoch();
     const activities = await activitiesSince(fresh.access_token, epoch);
-    const bests = await cachedBests(env, user, fresh.access_token);
-    return json({ connected: true, week: weekSummary(activities, sunday), bests });
+    return json({ connected: true, week: weekSummary(activities, sunday) });
   } catch (err) {
     // A refresh Strava refuses is an athlete who revoked us on their side —
     // the row is dead either way, so it comes down rather than failing the
@@ -120,76 +117,6 @@ async function saveTokens(env, userId, t) {
   await env.DB.prepare("UPDATE strava_links SET access_token = ?, refresh_token = ?, expires_at = ? WHERE user_id = ?")
     .bind(t.access_token, t.refresh_token, t.expires_at, userId)
     .run();
-}
-
-// Strava's own names for the splits it computes, mapped to our columns.
-const BEST_NAMES = { "1K": "secs_1k", "5K": "secs_5k", "10K": "secs_10k", "Half-Marathon": "secs_21k", "Marathon": "secs_42k" };
-// ponytail: recent runs only, not the athlete's whole history — a full scan
-// is one Strava call per run against a rate limit shared by the whole club.
-// A PR set before this window drops off until a run near it happens again.
-const SCAN_RUNS = 20;
-const RESCAN_AFTER_MS = 15 * 60 * 1000;
-
-async function bestsRow(env, userId) {
-  return env.DB.prepare("SELECT * FROM strava_bests WHERE user_id = ?").bind(userId).first();
-}
-
-/** Cached PRs for the Home card — scanned once on first connect, never blocking a normal load again.
-    null while the migration hasn't landed yet (see hasColumn note in lib/columns.js). */
-async function cachedBests(env, user, accessToken) {
-  if (!(await hasColumn(env, "strava_bests", "user_id"))) return null;
-  const row = await bestsRow(env, user.id);
-  if (row) return pickBests(row);
-  return refreshBests(env, user, accessToken, null);
-}
-
-async function refreshBestsAction(env, user) {
-  if (!(await hasColumn(env, "strava_bests", "user_id"))) return json({ bests: null });
-  const link = await env.DB.prepare("SELECT * FROM strava_links WHERE user_id = ?").bind(user.id).first();
-  if (!link) return json({ error: "not-connected" }, 400);
-  const row = await bestsRow(env, user.id);
-  if (row && Date.now() - Date.parse(row.updated_at) < RESCAN_AFTER_MS) return json({ bests: pickBests(row) });
-  const fresh = await freshToken(env, link);
-  if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
-  return json({ bests: await refreshBests(env, user, fresh.access_token, row) });
-}
-
-const pickBests = (row) => ({ secs_1k: row.secs_1k, secs_5k: row.secs_5k, secs_10k: row.secs_10k, secs_21k: row.secs_21k, secs_42k: row.secs_42k });
-
-/** Scans the athlete's most recent runs for best_efforts, merged into whatever is already cached — a rescan only ever improves a PR, never loses one that fell outside this window. */
-async function refreshBests(env, user, accessToken, prevRow) {
-  const best = prevRow ? pickBests(prevRow) : { secs_1k: null, secs_5k: null, secs_10k: null, secs_21k: null, secs_42k: null };
-  let activities;
-  try {
-    activities = await recentActivities(accessToken, SCAN_RUNS);
-  } catch (err) {
-    console.error("strava: bests scan failed (" + (err && err.message) + ")");
-    return best;
-  }
-  const runs = activities.filter((a) => (a.type || "") === "Run");
-  const details = await Promise.all(
-    runs.map((r) => activityDetail(accessToken, r.id).catch(() => null))
-  );
-  for (const detail of details) {
-    for (const effort of (detail && detail.best_efforts) || []) {
-      const col = BEST_NAMES[effort.name];
-      const secs = Number(effort.elapsed_time);
-      if (col && secs > 0 && (best[col] == null || secs < best[col])) best[col] = secs;
-    }
-  }
-  try {
-    await env.DB.prepare(
-      "INSERT INTO strava_bests (user_id, secs_1k, secs_5k, secs_10k, secs_21k, secs_42k, updated_at)" +
-        " VALUES (?, ?, ?, ?, ?, ?, ?)" +
-        " ON CONFLICT(user_id) DO UPDATE SET secs_1k=excluded.secs_1k, secs_5k=excluded.secs_5k," +
-        " secs_10k=excluded.secs_10k, secs_21k=excluded.secs_21k, secs_42k=excluded.secs_42k, updated_at=excluded.updated_at"
-    )
-      .bind(user.id, best.secs_1k, best.secs_5k, best.secs_10k, best.secs_21k, best.secs_42k, nowISO())
-      .run();
-  } catch (err) {
-    console.error("strava: could not cache bests (" + (err && err.message) + ")");
-  }
-  return best;
 }
 
 /* ---------- GET /api/strava/callback --------------------------------------- */

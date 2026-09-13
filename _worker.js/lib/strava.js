@@ -64,22 +64,3 @@ export async function activitiesSince(accessToken, afterEpoch) {
   if (!res.ok) throw new Error("strava-activities-" + res.status);
   return res.json();
 }
-
-/** The most recent activities, newest first — for PR scanning, not the week card. */
-export async function recentActivities(accessToken, perPage) {
-  const res = await fetch(
-    "https://www.strava.com/api/v3/athlete/activities?per_page=" + perPage,
-    { headers: { authorization: "Bearer " + accessToken } }
-  );
-  if (!res.ok) throw new Error("strava-activities-" + res.status);
-  return res.json();
-}
-
-/** One activity's full detail, the only place Strava's computed best_efforts ride along. */
-export async function activityDetail(accessToken, id) {
-  const res = await fetch("https://www.strava.com/api/v3/activities/" + id, {
-    headers: { authorization: "Bearer " + accessToken },
-  });
-  if (!res.ok) throw new Error("strava-activity-" + res.status);
-  return res.json();
-}
