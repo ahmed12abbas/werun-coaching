@@ -71,6 +71,7 @@ const boardRow = (r, i, userId) => ({
   bio: r.bio || "",
   instagram: r.instagram || "",
   strava_athlete: r.strava_athlete || "",
+  role: r.role !== "coach" ? "athlete" : r.is_leader ? "leader" : "coach",
   points: r.points,
   sessions: r.sessions,
   me: r.id === userId,
@@ -88,7 +89,7 @@ export const pointsBoard = withMember(async (request, env, user) => {
   const ig = await privateColumn(env, "instagram", "instagram_hidden");
   const strava = await privateColumn(env, "strava_athlete", "strava_hidden");
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name, u.role, u.is_leader," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" +

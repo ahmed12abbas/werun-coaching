@@ -500,6 +500,7 @@ function openMe() {
     bio: user.bio,
     instagram: user.instagram,
     strava_athlete: user.strava_athlete,
+    role: user.role !== "coach" ? "athlete" : user.is_leader ? "leader" : "coach",
     place: "—",
     points: "—",
   });
@@ -551,6 +552,7 @@ function stravaLink(athlete) {
    and what they have. Their own card carries the way into the account screen;
    somebody else's carries nothing to press, because a board row is a name and
    a number and this is the whole of what the club may know. */
+const ROLE_KEY = { athlete: "aRoleAthlete", coach: "aRoleCoach", leader: "aRoleLeader" };
 function openRunner(r) {
   return openSheet(
     r.me ? t("navMe") : r.name,
@@ -564,7 +566,8 @@ function openRunner(r) {
         el(
           "div",
           { class: "grow" },
-          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), stravaLink(r.strava_athlete), igLink(r.instagram)),
+          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), stravaLink(r.strava_athlete), igLink(r.instagram),
+            el("span", { class: "tag open" }, t(ROLE_KEY[r.role] || "aRoleAthlete"))),
           r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
         )
       ),

@@ -143,6 +143,8 @@ export const publicUser = (u) => ({
   // column is not there, and every coach still runs the club — which is what
   // adminUnknown() below decides, and this has to agree with it.
   is_admin: u.is_admin === undefined ? undefined : !!u.is_admin,
+  // A coach under another label (0024); only the word on their card changes.
+  is_leader: !!u.is_leader,
   // How many sessions a week they are aiming for, which the home screen
   // counts against. Until 0012 is applied the column is not there and three
   // is the club's own week — the same answer the migration's default gives,
