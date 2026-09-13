@@ -91,6 +91,21 @@ function nextDate(weekday) {
   r = await admin("/api/admin/members", {});
   check("the members table agrees", (r.data.members || []).find((m) => m.id === coachId).role === "coach", r.status);
 
+  // A leader is a coach under another label (0024): the flag flips, the role
+  // does not, so everything below runs as a leader and proves the guards agree.
+  r = await admin("/api/admin/coaches", { action: "add", id: coachId, leader: true });
+  let listed = (r.data.coaches || []).find((c) => c.id === coachId);
+  check("a coach can be made a leader", r.status === 200 && listed && listed.is_leader === 1, listed);
+  r = await admin("/api/admin/members", {});
+  let row = (r.data.members || []).find((m) => m.id === coachId);
+  check("…and stays a coach underneath", row.role === "coach" && row.is_leader === 1, row);
+  r = await admin("/api/admin/members", { action: "role", id: coachId, role: "coach" });
+  row = (r.data.members || []).find((m) => m.id === coachId);
+  check("the members table takes the label off", row.role === "coach" && row.is_leader === 0, row);
+  r = await admin("/api/admin/members", { action: "role", id: coachId, role: "leader" });
+  row = (r.data.members || []).find((m) => m.id === coachId);
+  check("…and puts it back", row.role === "coach" && row.is_leader === 1, row);
+
   r = await admin("/api/admin/coaches", { action: "add", id: "nobody-" + stamp });
   check("promoting a stranger is refused", r.status === 404 && r.data.error === "no-member", r);
   r = await admin("/api/admin/coaches", { action: "sack", id: coachId });
@@ -212,6 +227,9 @@ function nextDate(weekday) {
   check("the slot can be removed", r.status === 200, r.status);
   r = await admin("/api/admin/coaches", { action: "remove", id: coachId });
   check("and a coach can be taken off by somebody else", r.status === 200 && !(r.data.coaches || []).some((c) => c.id === coachId), r.status);
+  r = await admin("/api/admin/members", {});
+  row = (r.data.members || []).find((m) => m.id === coachId);
+  check("…which takes the leader label with it", row.role === "athlete" && row.is_leader === 0, row);
 
   console.log(failures ? "\n" + failures + " failure(s)." : "\nAll passed.");
   process.exit(failures ? 1 : 0);
