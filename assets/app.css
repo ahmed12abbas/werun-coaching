@@ -504,6 +504,7 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 /* Their line under their name on the board. Two lines at most: the club is a
    list to scan, and 160 characters at this size is three. */
 .board-row .who{display:block}
+.board-row .tag{font-size:11px;padding:1px 7px 0;vertical-align:middle}
 .board-bio{font-size:12.5px;font-weight:400;color:var(--muted);opacity:.8;line-height:1.35;margin-top:1px;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 /* The switch under it, in a column 213px wide: smaller than the one on the
