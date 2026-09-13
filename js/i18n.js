@@ -251,6 +251,7 @@ const STRINGS = {
     aCoachTools: "Coaching",
     aCoachLead: "This week's sessions, the code for each one, and who scanned it.",
     aCoachCodes: "Show this week's codes",
+    aAdminOpen: "Open admin",
 
     /* the coach console at /coach — English only on /admin, both here */
     cTitle: "Coach",
@@ -383,6 +384,8 @@ const STRINGS = {
     aStravaWeek: "This week",
     aStravaNone: "Connected — nothing logged yet this week.",
     aStravaDisconnect: "Disconnect",
+    aCorosHint: "See this week's runs from your COROS watch here.",
+    aCorosConnect: "Connect COROS",
     aVoid: "Void",
     aVoidAsk: "Take {name}'s check-in back? Their points for it go too.",
     rCheckin: "+{n} for {name}",
@@ -779,6 +782,7 @@ const STRINGS = {
     aCoachTools: "التدريب",
     aCoachLead: "حصص هذا الأسبوع، ورمز كل حصة، ومن سجّل حضوره.",
     aCoachCodes: "اعرض رموز هذا الأسبوع",
+    aAdminOpen: "لوحة الإدارة",
 
     /* لوحة المدرب */
     cTitle: "المدرب",
@@ -908,6 +912,8 @@ const STRINGS = {
     aStravaWeek: "هالأسبوع",
     aStravaNone: "متصل — ما فيه جري مسجّل هالأسبوع بعد.",
     aStravaDisconnect: "فصل الربط",
+    aCorosHint: "شوف جرياتك من ساعة كوروس هالأسبوع هنا.",
+    aCorosConnect: "ربط كوروس",
     aVoid: "إلغاء",
     aVoidAsk: "نلغي حضور {name}؟ نقاط الحصة تروح معه.",
     rCheckin: "+{n} لـ {name}",

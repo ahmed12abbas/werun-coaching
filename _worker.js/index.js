@@ -41,6 +41,8 @@
      POST /api/points/board-visibility — on or off the board         (logged in)
      POST /api/strava           — connect/disconnect, and the Home card (logged in)
      GET  /api/strava/callback  — Strava sending the browser back (state-checked)
+     POST /api/coros            — the same for COROS, through its self-service MCP (logged in)
+     GET  /api/coros/callback   — COROS sending the browser back (state- and PKCE-checked)
 
    Two guards, both in lib/auth.js, both taking either a login or the club
    password in the body. refuseUnlessCoach() is the track — what a coach needs
@@ -115,6 +117,7 @@ import { signups } from "./routes/signups.js";
 import { push, pushNext } from "./routes/push.js";
 import { reactions } from "./routes/reactions.js";
 import { strava, stravaCallback } from "./routes/strava.js";
+import { coros, corosCallback } from "./routes/coros.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -151,6 +154,7 @@ const POST = {
   "/api/push": push,
   "/api/reactions": reactions,
   "/api/strava": strava,
+  "/api/coros": coros,
 };
 const GET = {
   "/api/tips": tips,
@@ -165,6 +169,7 @@ const GET = {
   "/api/store/order": order,
   "/api/push/next": pushNext,
   "/api/strava/callback": stravaCallback,
+  "/api/coros/callback": corosCallback,
 };
 
 /* What every answer carries, static file and API alike.

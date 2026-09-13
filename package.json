@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node tools/dev.js",
     "stamp": "node tools/version-assets.js",
-    "test": "node tools/qr-test.js && node .claude/skills/i18n-check/scripts/check.js",
+    "test": "node tools/qr-test.js && node tools/coros-test.js && node .claude/skills/i18n-check/scripts/check.js",
     "smoke": "node tools/smoke.js && node tools/smoke-checkin.js"
   },
   "devDependencies": {

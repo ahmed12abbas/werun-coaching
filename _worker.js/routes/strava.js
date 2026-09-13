@@ -20,33 +20,7 @@ import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { stravaReady, authorizeUrl, exchangeCode, freshToken, activitiesSince } from "../lib/strava.js";
-import { clubWeekStart } from "../lib/week.js";
-
-const CLUB_OFFSET = "+03:00"; // Riyadh, all year, no daylight saving
-
-/** Unix seconds for Sunday 00:00 in the club's own week, by the club's own clock. */
-function weekStartEpoch() {
-  const riyadhToday = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
-  const sunday = clubWeekStart(riyadhToday);
-  return { epoch: Math.floor(Date.parse(sunday + "T00:00:00" + CLUB_OFFSET) / 1000), sunday };
-}
-
-/* Strava's start_date_local is local wall-clock time written with a "Z" —
-   parsing it as UTC and reading the UTC weekday back out gives the athlete's
-   own day, not the club server's. */
-function weekSummary(activities, sunday) {
-  const days = new Array(7).fill(0);
-  let total_m = 0;
-  for (const a of activities) {
-    if ((a.type || "") !== "Run") continue;
-    const d = new Date(a.start_date_local || a.start_date);
-    if (isNaN(d)) continue;
-    const meters = Number(a.distance) || 0;
-    days[d.getUTCDay()] += meters;
-    total_m += meters;
-  }
-  return { start: sunday, days: days, total_m: total_m };
-}
+import { weekStartEpoch, weekSummary } from "../lib/week.js";
 
 const STATE_TTL = 600;
 const REDIRECT_TO = "/app.html#/home";

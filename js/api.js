@@ -20,8 +20,8 @@ const recent = new Map();
 
 const API = {
   async call(method, path, body) {
-    // Strava's "home" is a read sent as a POST, on every Home visit.
-    const read = method === "GET" || (path === "/api/strava" && body && body.action === "home");
+    // Strava's and COROS's "home" is a read sent as a POST, on every Home visit.
+    const read = method === "GET" || (/^\/api\/(strava|coros)$/.test(path) && body && body.action === "home");
     if (!read) recent.clear();
     const opts = { method: method, credentials: "same-origin", headers: { accept: "application/json" } };
     if (body !== undefined) {

@@ -823,8 +823,10 @@ SCREENS.home = function (args, user) {
 
   const strava = el("div", { class: "stack" });
   loadStrava(strava);
+  const coros = el("div", { class: "stack" });
+  loadCoros(coros);
 
-  return el("div", { class: "stack" }, greetingHeader(user), box, strava);
+  return el("div", { class: "stack" }, greetingHeader(user), box, strava, coros);
 };
 
 /* The Strava card: a connect button, or this week's mileage once linked.
@@ -832,7 +834,7 @@ SCREENS.home = function (args, user) {
    must not hold up the week above it. */
 function loadStrava(box) {
   API.post("/api/strava", { action: "home" })
-    .then((d) => box.append(d.connected ? stravaWeekCard(d.week) : stravaConnectCard()))
+    .then((d) => box.append(d.connected ? weekCard("Strava", "/api/strava", d.week) : stravaConnectCard()))
     .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
 }
 
@@ -858,8 +860,34 @@ function stravaConnectCard() {
   return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), el("p", { class: "muted small" }, t("aStravaHint")), btn);
 }
 
+/* The COROS card, the same way round: a connect button, or the week once
+   linked. A plain button — COROS asks for no brand asset — and a COROS
+   hiccup answers an error the catch swallows, so the card just stays away. */
+function loadCoros(box) {
+  API.post("/api/coros", { action: "home" })
+    .then((d) => box.append(d.connected ? weekCard("COROS", "/api/coros", d.week) : corosConnectCard()))
+    .catch(() => {});
+}
+
+function corosConnectCard() {
+  const btn = el("button", { type: "button", class: "btn block" }, t("aCorosConnect"));
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    API.post("/api/coros", { action: "connect" })
+      .then((d) => {
+        window.location.href = d.url;
+      })
+      .catch((e) => {
+        btn.disabled = false;
+        toast(errorText(e));
+      });
+  });
+  return el("div", { class: "card pad stack" }, el("h3", {}, "COROS"), el("p", { class: "muted small" }, t("aCorosHint")), btn);
+}
+
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
-function stravaWeekCard(week) {
+// One card for every watch service: the week has the same shape from each (lib/week.js weekSummary).
+function weekCard(title, path, week) {
   const dayRows = week.days
     .map((distance_m, i) => ({ distance_m, i }))
     .filter((d) => d.distance_m > 0)
@@ -876,7 +904,7 @@ function stravaWeekCard(week) {
   const body = dayRows.length
     ? [el("div", { class: "row", style: "align-items:center;gap:16px" }, stravaRing(week), el("div", { class: "stack grow" }, ...dayRows))]
     : [el("p", { class: "muted small" }, t("aStravaNone"))];
-  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, disconnectLink());
+  return el("div", { class: "card pad stack" }, el("h3", {}, title), ...body, disconnectLink(path));
 }
 
 // A donut of the week's daily split, conic-gradient rather than drawn SVG —
@@ -906,12 +934,12 @@ function stravaRing(week) {
 }
 
 // ponytail: a full reload after disconnect rather than re-rendering the card in place — swap if this needs to feel snappier.
-function disconnectLink() {
+function disconnectLink(path) {
   const link = el("a", { href: "#" }, t("aStravaDisconnect"));
   link.className = "muted small";
   link.addEventListener("click", (e) => {
     e.preventDefault();
-    API.post("/api/strava", { action: "disconnect" })
+    API.post(path, { action: "disconnect" })
       .then(() => window.location.reload())
       .catch(() => {});
   });
@@ -2750,9 +2778,8 @@ function igBlock(user) {
    cost the whole club pays for them. Straight to coach.html, which is where
    this week's codes and rosters are.
 
-   Only this one button. /admin is reached by its own address, and nothing in
-   the app links to it: the console is a thing you go to deliberately, at a
-   desk, and not a tap away from the screen a coach opens at the gate. */
+   Admins also get /admin beside it; a coach who is not one would only meet
+   its door, so the button is not offered to them. */
 function coachToolsCard() {
   if (!Auth.isCoach() && !Auth.isAdmin()) return null;
   return el(
@@ -2760,7 +2787,12 @@ function coachToolsCard() {
     { class: "card pad stack" },
     el("h3", {}, t("aCoachTools")),
     el("p", { class: "muted" }, t("aCoachLead")),
-    el("div", { class: "row-wrap" }, el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")))
+    el(
+      "div",
+      { class: "row-wrap" },
+      el("a", { class: "btn primary", href: "coach.html" }, t("aCoachCodes")),
+      Auth.isAdmin() ? el("a", { class: "btn", href: "admin.html" }, t("aAdminOpen")) : null
+    )
   );
 }
 
