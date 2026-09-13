@@ -26,7 +26,7 @@ const PORT = process.argv[2] || "4323";
    service worker only controls what it is served alongside, so it has to be
    at the root here exactly as it is on Pages. */
 const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html",
-  "sw.js", "manifest.webmanifest"];
+  "privacy.html", "sw.js", "manifest.webmanifest"];
 const DIRS = ["js", "assets", "_worker.js"];
 const STATE = ".wrangler/state";
 

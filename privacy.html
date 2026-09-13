@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Privacy · WE RUN</title>
+<meta name="theme-color" content="#8851F4">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&display=swap" rel="stylesheet">
+<script>
+/* Before first paint, so a dark-mode reader never sees a white flash. Same
+   two keys the app writes (js/i18n.js), so this opens the way the app does. */
+(function () {
+  var r = document.documentElement, th = null, lang = null;
+  try { th = localStorage.getItem("werun.theme"); lang = localStorage.getItem("werun.lang"); } catch (e) {}
+  if (th === "light" || th === "dark") r.setAttribute("data-theme", th);
+  if (lang !== "ar" && lang !== "en") lang = (navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en";
+  r.setAttribute("lang", lang);
+  r.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+})();
+</script>
+<style>
+/* Standalone, like tips.html: a page anyone can be sent to — a partner's
+   reviewer included — that needs no login, no script bundle and no API. */
+:root{
+  --brand:#8851F4; --bg:#f7f7fa; --card:#fff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
+  --radius:16px; --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+}}
+:root[data-theme="dark"]{
+  --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.top a{color:var(--muted);text-decoration:none;font-size:14px}
+.top .grow{flex:1}
+.tool{font:inherit;font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;
+  background:var(--card);color:var(--fg);cursor:pointer}
+h1{font-family:var(--display);font-size:44px;font-weight:600;text-transform:uppercase;margin:0;line-height:1}
+h2{font-family:var(--display);font-size:26px;font-weight:600;text-transform:uppercase;margin:30px 0 6px;line-height:1.1}
+/* Teko has no Arabic glyphs. */
+[dir="rtl"] h1,[dir="rtl"] h2{font-family:var(--body);font-weight:700;text-transform:none}
+[dir="rtl"] h1{font-size:34px}
+[dir="rtl"] h2{font-size:21px}
+.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:4px 22px 22px;margin-top:18px}
+p,li{margin:0 0 10px}
+ul{padding-inline-start:20px;margin:0 0 10px}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="grow" href="/app.html" id="back">← WE RUN</a>
+    <button class="tool" type="button" id="lang">العربية</button>
+  </div>
+
+  <article id="en" lang="en" dir="ltr">
+    <h1>Privacy</h1>
+    <p class="muted">Last updated 12 September 2026</p>
+    <div class="card">
+      <p style="margin-top:18px">WE RUN Coaching is a running club in Riyadh. This page explains what the club's app
+        (weruncoaching.pages.dev) keeps about you, why, and who sees it. The short version: only what the club needs
+        to run its sessions. Nothing is sold, there are no ads, and there are no trackers.</p>
+
+      <h2>What we keep</h2>
+      <p><b>Your account.</b> Your name, email address and password. The password is stored as a salted hash that
+        can't be turned back into it. Your language, and anything you choose to add: gender, birth year, avatar,
+        a short bio, your Instagram handle and a weekly session goal.</p>
+      <p><b>Your running with the club.</b> The sessions you sign up for, the ones you check into by scanning the
+        coach's code, the points they earn, and your reactions to club posts.</p>
+      <p><b>Signing in.</b> One cookie that keeps you logged in for up to 90 days. For each login we note which
+        browser it came from and when you were last seen, so you can sign out of your other devices.</p>
+      <p><b>Reminders.</b> If you switch reminders on, your browser's push address, so we can remind you an hour
+        before a session you signed up for. Switching them off deletes it.</p>
+      <p><b>The shop.</b> What you ordered, what it cost, and whether it has been paid for and handed over.
+        You pay on Stripe's own page, and we never see your card.</p>
+      <p><b>Feedback.</b> A star rating, plus a name and comment if you give them.</p>
+      <p><b>Abuse protection.</b> To stop anyone hammering a button, we count requests from each address for about a
+        minute. What we keep is a short scrambled fingerprint of your IP address, never the address itself, and it
+        deletes itself when the minute is up.</p>
+
+      <h2>Connected services: Strava, Garmin, COROS</h2>
+      <ul>
+        <li>Linking a service is optional, and you can unlink it in the app at any time.</li>
+        <li>We ask to read your activities. For watch services, we also ask to put the club's sessions on your
+          watch calendar.</li>
+        <li>We keep the access keys the service gives us. Your activities are read from the service when you open
+          the app, not copied to us. The one exception is your personal-best times (1K, 5K, 10K, half and full
+          marathon), which we work out from your recent runs and keep so we don't have to read every run again.</li>
+        <li>What we read from these services is shown to you alone. Coaches and other members don't see it.</li>
+        <li>Unlinking, or revoking our access on the service's side, deletes the access keys straight away.
+          Your saved best times stay with your account until you ask us to delete them.</li>
+      </ul>
+
+      <h2>Who sees what</h2>
+      <ul>
+        <li><b>Coaches</b> see names, attendance and orders so they can run the sessions. Only the club's admins
+          can see email addresses.</li>
+        <li><b>Other members</b> see your name, avatar and points on the club leaderboard, which you can hide
+          yourself from, and your bio and Instagram handle if you choose to show them.</li>
+        <li><b>The services that run the app</b> get only what they need: Cloudflare hosts the app and its
+          database, Stripe takes payments and receives your email for the receipt, Resend sends the email
+          confirmation and password-reset messages, and Google Fonts serves the typeface.</li>
+        <li>Your data is stored on Cloudflare's servers, which may be outside Saudi Arabia.</li>
+      </ul>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li>Change or remove anything on your profile at any time in the app.</li>
+        <li>Hide yourself from the leaderboard, and hide your bio or Instagram handle.</li>
+        <li>Unlink a connected service or switch reminders off whenever you like.</li>
+        <li>To delete your account and everything attached to it, message the club and we will do it within
+          30 days.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Email <a href="mailto:werunksa@gmail.com">werunksa@gmail.com</a>, or message the club on
+        <a href="https://www.instagram.com/werun.sa/" rel="noopener noreferrer">Instagram (@werun.sa)</a>
+        or in our <a href="https://t.me/+KkMBwM-UijliZGM0" rel="noopener noreferrer">Telegram group</a>.</p>
+      <p class="muted">If this page changes, the date at the top changes with it.</p>
+    </div>
+  </article>
+
+  <article id="ar" lang="ar" dir="rtl" hidden>
+    <h1>الخصوصية</h1>
+    <p class="muted">آخر تحديث: ١٢ سبتمبر ٢٠٢٦</p>
+    <div class="card">
+      <p style="margin-top:18px">WE RUN Coaching نادٍ للجري في الرياض. توضّح هذه الصفحة ما يحتفظ به تطبيق النادي
+        (weruncoaching.pages.dev) من بياناتك، ولماذا، ومن يطّلع عليها. باختصار: نحتفظ فقط بما يحتاجه النادي لتنظيم
+        حصصه، ولا نبيع بياناتك، ولا إعلانات، ولا أدوات تتبّع.</p>
+
+      <h2>ما نحتفظ به</h2>
+      <p><b>حسابك.</b> اسمك وبريدك الإلكتروني وكلمة المرور، وتُحفظ كلمة المرور بصيغة مُشفّرة لا يمكن استرجاعها منها.
+        لغتك، وما تختار إضافته: الجنس، وسنة الميلاد، والصورة الرمزية، ونبذة قصيرة، وحسابك على إنستغرام، وهدفك
+        الأسبوعي من الحصص.</p>
+      <p><b>جريك مع النادي.</b> الحصص التي تسجّل فيها، والحصص التي تحضرها بمسح رمز المدرّب، والنقاط التي تكسبها،
+        وتفاعلاتك على منشورات النادي.</p>
+      <p><b>تسجيل الدخول.</b> ملف تعريف ارتباط (كوكي) واحد يُبقيك مسجّلاً مدة أقصاها ٩٠ يوماً. ونسجّل مع كل دخول
+        المتصفّح الذي جاء منه وآخر ظهور لك، لتتمكّن من تسجيل الخروج من أجهزتك الأخرى.</p>
+      <p><b>التذكيرات.</b> إذا فعّلت التذكيرات نحتفظ بعنوان الإشعارات الخاص بمتصفّحك لنذكّرك قبل ساعة من الحصة التي
+        سجّلت فيها، ويُحذف عند إيقافها.</p>
+      <p><b>المتجر.</b> ما طلبته، وسعره، وهل دُفع وسُلّم. يتمّ الدفع على صفحة Stripe نفسها، ولا نرى بطاقتك أبداً.</p>
+      <p><b>التقييمات.</b> عدد النجوم، واسمك وتعليقك إن كتبتهما.</p>
+      <p><b>الحماية من الإساءة.</b> لمنع الضغط المتكرّر على الأزرار نعدّ الطلبات القادمة من كل عنوان لمدة دقيقة
+        تقريباً. نحتفظ ببصمة مختصرة ومُعمّاة لعنوان IP وليس العنوان نفسه، وتُحذف تلقائياً بانتهاء الدقيقة.</p>
+
+      <h2>الخدمات المرتبطة: Strava وGarmin وCOROS</h2>
+      <ul>
+        <li>ربط أي خدمة اختياري، ويمكنك إلغاء الربط من التطبيق في أي وقت.</li>
+        <li>نطلب صلاحية قراءة أنشطتك، وفي خدمات الساعات نطلب أيضاً صلاحية إضافة حصص النادي إلى تقويم ساعتك.</li>
+        <li>نحتفظ بمفاتيح الوصول التي تمنحنا إياها الخدمة. تُقرأ أنشطتك من الخدمة عند فتحك للتطبيق ولا تُنسخ لدينا.
+          الاستثناء الوحيد أفضل أزمنتك الشخصية (١ كم، ٥ كم، ١٠ كم، نصف الماراثون، الماراثون)، نحسبها من جرياتك
+          الأخيرة ونحفظها كي لا نعيد قراءة كل الجريات.</li>
+        <li>ما نقرؤه من هذه الخدمات يظهر لك وحدك، ولا يراه المدرّبون ولا الأعضاء الآخرون.</li>
+        <li>إلغاء الربط، أو سحب الصلاحية من جهة الخدمة، يحذف مفاتيح الوصول فوراً. أما أفضل أزمنتك المحفوظة فتبقى مع
+          حسابك حتى تطلب منا حذفها.</li>
+      </ul>
+
+      <h2>من يطّلع على ماذا</h2>
+      <ul>
+        <li><b>المدرّبون</b> يرون الأسماء والحضور والطلبات لتنظيم الحصص، ومشرفو النادي وحدهم يرون عناوين البريد
+          الإلكتروني.</li>
+        <li><b>الأعضاء الآخرون</b> يرون اسمك وصورتك الرمزية ونقاطك في لوحة ترتيب النادي، ويمكنك إخفاء نفسك منها، ونبذتك
+          وحسابك على إنستغرام إن اخترت إظهارهما.</li>
+        <li><b>الخدمات التي تشغّل التطبيق</b> لا تحصل إلا على ما تحتاجه: Cloudflare تستضيف التطبيق وقاعدة بياناته، وStripe
+          تستقبل المدفوعات وبريدك لإرسال الإيصال، وResend ترسل رسائل تأكيد البريد واستعادة كلمة المرور، وGoogle Fonts
+          تقدّم الخط.</li>
+        <li>تُحفظ بياناتك على خوادم Cloudflare، وقد تكون خارج المملكة العربية السعودية.</li>
+      </ul>
+
+      <h2>خياراتك</h2>
+      <ul>
+        <li>عدّل أو احذف أي شيء في ملفك من التطبيق في أي وقت.</li>
+        <li>أخفِ نفسك من لوحة الترتيب، وأخفِ نبذتك أو حسابك على إنستغرام.</li>
+        <li>ألغِ ربط أي خدمة أو أوقف التذكيرات متى شئت.</li>
+        <li>لحذف حسابك وكل ما يتعلّق به، راسل النادي وسنحذفه خلال ٣٠ يوماً.</li>
+      </ul>
+
+      <h2>التواصل</h2>
+      <p>راسلنا على البريد <a href="mailto:werunksa@gmail.com" dir="ltr">werunksa@gmail.com</a>، أو راسل النادي على
+        <a href="https://www.instagram.com/werun.sa/" rel="noopener noreferrer">إنستغرام (@werun.sa)</a>
+        أو في <a href="https://t.me/+KkMBwM-UijliZGM0" rel="noopener noreferrer">مجموعة تيليجرام</a>.</p>
+      <p class="muted">إذا تغيّرت هذه الصفحة يتغيّر التاريخ في أعلاها معها.</p>
+    </div>
+  </article>
+</div>
+
+<script>
+"use strict";
+var root = document.documentElement;
+var btn = document.getElementById("lang");
+function show(lang) {
+  root.setAttribute("lang", lang);
+  root.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+  document.getElementById("en").hidden = lang !== "en";
+  document.getElementById("ar").hidden = lang !== "ar";
+  btn.textContent = lang === "ar" ? "English" : "العربية";
+  document.getElementById("back").textContent = lang === "ar" ? "→ WE RUN" : "← WE RUN";
+  document.title = (lang === "ar" ? "الخصوصية" : "Privacy") + " · WE RUN";
+}
+btn.addEventListener("click", function () {
+  var next = root.getAttribute("lang") === "ar" ? "en" : "ar";
+  try { localStorage.setItem("werun.lang", next); } catch (e) {}
+  show(next);
+});
+show(root.getAttribute("lang") === "ar" ? "ar" : "en");
+</script>
+</body>
+</html>

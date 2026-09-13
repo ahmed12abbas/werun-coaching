@@ -636,7 +636,7 @@ function renderBuilder(app, w, rerender) {
   );
 
   app.append(
-    el("footer", {}, socialRow())
+    el("footer", {}, socialRow(), el("a", { href: "/privacy" }, t("privacy")))
   );
 
   paint();
