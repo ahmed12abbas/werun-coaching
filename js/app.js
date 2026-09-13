@@ -130,7 +130,7 @@ function appTop(route, user) {
   const bar = brandBar(null, appBoot);
   if (user) {
     bar.classList.add("appbar");
-    bar.prepend(meBadge(user));
+    bar.prepend(el("div", { class: "appbar-left" }, meBadge(user), searchBtn()));
   }
   wireHomeMark(bar);
   const top = el("div", { class: "apptop" }, bar);
@@ -442,6 +442,47 @@ function meBadge(user) {
     { class: "me-badge", type: "button", title: t("navMe"), "aria-label": t("navMe"), onclick: openMe },
     avatarNode(user.avatar, user.name, "sm")
   );
+}
+
+/** Beside the badge: find a runner by name, and open their card. */
+function searchBtn() {
+  return el("button", {
+    class: "me-badge search-btn",
+    type: "button",
+    title: t("aSearch"),
+    "aria-label": t("aSearch"),
+    onclick: openSearch,
+    html:
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">' +
+      '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  });
+}
+
+function openSearch() {
+  const input = el("input", { type: "search", placeholder: t("aSearchPh"), maxlength: "40", autocomplete: "off", dir: "auto", "aria-label": t("aSearch") });
+  const list = el("div", { class: "board" });
+  let timer = 0;
+  let asked = "";
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    // One request per pause in typing, not one per letter.
+    timer = setTimeout(() => {
+      const q = input.value.trim();
+      asked = q;
+      if (q.length < 2) return (list.textContent = "");
+      API.get("/api/members/search?q=" + encodeURIComponent(q))
+        .then((d) => {
+          if (q !== asked) return; // a slow answer to a question already replaced
+          list.textContent = "";
+          const rows = d.results || [];
+          if (!rows.length) list.append(el("p", { class: "muted small" }, t("aSearchNone")));
+          rows.forEach((r) => list.append(boardRow(Object.assign({}, r, { place: r.place || "—" }))));
+        })
+        .catch(() => {});
+    }, 250);
+  });
+  openSheet(t("aSearch"), el("div", { class: "card pad stack" }, el("h2", {}, t("aSearch")), input, list));
+  input.focus();
 }
 
 /* One sheet, up from the bottom, over the page rather than instead of it.

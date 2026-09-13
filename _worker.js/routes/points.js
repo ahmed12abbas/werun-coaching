@@ -4,6 +4,7 @@ import { json, readBody } from "../lib/http.js";
 import { withMember, withUser } from "../lib/auth.js";
 import { totalFor, streakFor } from "../lib/points.js";
 import { hasColumn } from "../lib/columns.js";
+import { tooOften } from "../lib/limit.js";
 
 const HISTORY = 60;
 const BOARD = 50;
@@ -64,8 +65,8 @@ async function privateColumn(env, col, hiddenCol) {
 }
 
 /* One place on the board: who, how many points, and whether it is the reader. */
-const boardRow = (r, i, userId) => ({
-  place: i + 1,
+const boardRow = (r, place, userId) => ({
+  place: place || null,
   name: r.name,
   avatar: r.avatar || "",
   bio: r.bio || "",
@@ -77,7 +78,10 @@ const boardRow = (r, i, userId) => ({
   me: r.id === userId,
 });
 
-export const pointsBoard = withMember(async (request, env, user) => {
+/* Runners as the club may see them, off the board included. `where` and
+   `having` are only ever the literals written in this file; anything from a
+   request travels in `binds`. */
+async function runnerRows(env, where, binds, having, limit) {
   // Until 0007 is applied there is no column to read, and everyone is on the
   // board as their initial — which is what an empty avatar means anyway.
   const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
@@ -92,19 +96,45 @@ export const pointsBoard = withMember(async (request, env, user) => {
     "SELECT u.id, u.name, u.role, u.is_leader," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
-      " WHERE u.status = 'active' AND u.board_hidden = 0" +
-      " GROUP BY u.id HAVING points > 0 ORDER BY points DESC, u.name ASC LIMIT ?"
+      " WHERE u.status = 'active' AND u.board_hidden = 0" + where +
+      " GROUP BY u.id" + having + " ORDER BY points DESC, u.name ASC LIMIT ?"
   )
-    .bind(BOARD)
+    .bind(...binds, limit)
     .all();
+  return rows.results || [];
+}
 
-  const board = (rows.results || []).map((r, i) => boardRow(r, i, user.id));
+export const pointsBoard = withMember(async (request, env, user) => {
+  const board = (await runnerRows(env, "", [], " HAVING points > 0", BOARD)).map((r, i) => boardRow(r, i + 1, user.id));
 
   return json({
     board: board,
     hidden: !!user.board_hidden,
     mine: { points: await totalFor(env, user.id), place: board.findIndex((r) => r.me) + 1 || null },
   });
+});
+
+/* ---------- GET /api/members/search?q= ------------------------------------ */
+
+/*
+ * A runner by name, as the board would show them — the same row, the same
+ * fields kept private, and nobody who asked to be off the board. Unlike the
+ * board it finds members with no points yet, which is what looking somebody
+ * up is for. Capped and rate-limited: it is a read, but one a loop could use
+ * to walk the membership a letter at a time.
+ */
+const SEARCH = 20;
+
+export const memberSearch = withMember(async (request, env, user) => {
+  const q = String(new URL(request.url).searchParams.get("q") || "").trim().slice(0, 40);
+  if (q.length < 2) return json({ results: [] });
+  if (env.STATS && (await tooOften(env.STATS, "ms", user.id, 30, 60))) return json({ error: "too-often" }, 429);
+
+  const like = "%" + q.replace(/[\\%_]/g, "\\$&") + "%";
+  const board = await runnerRows(env, "", [], " HAVING points > 0", BOARD);
+  const place = new Map(board.map((r, i) => [r.id, i + 1]));
+  const rows = await runnerRows(env, " AND u.name LIKE ? ESCAPE '\\'", [like], "", SEARCH);
+  return json({ results: rows.map((r) => boardRow(r, place.get(r.id), user.id)) });
 });
 
 /* ---------- POST /api/points/board-visibility ----------------------------- */

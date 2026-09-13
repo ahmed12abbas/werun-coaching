@@ -429,6 +429,8 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .appbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
 .appbar .brand-sub{display:none}
 .appbar .me-badge{justify-self:start}
+.appbar-left{justify-self:start;display:flex;align-items:center;gap:6px}
+.search-btn{width:36px;height:36px;display:grid;place-items:center;color:inherit}
 .appbar .brand-mark{cursor:pointer}
 .appbar .brand-mark:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:8px}
 .appbar .brand-tools{justify-self:end;margin-inline-start:0}

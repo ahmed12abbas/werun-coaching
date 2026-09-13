@@ -32,6 +32,7 @@
                                   off again                         (logged in)
      GET  /api/points/me        — total, streak, history             (logged in)
      GET  /api/points/board     — the club leaderboard               (logged in)
+     GET  /api/members/search   — a runner by name, as the board shows them (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
      GET  /api/store            — what is for sale, and my orders     (logged in)
      GET  /api/store/order?id=  — one of my orders                    (logged in)
@@ -104,7 +105,7 @@ import { week, session } from "./routes/sessions.js";
 import { members, settings, coaches } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
-import { pointsMe, pointsBoard, boardVisibility } from "./routes/points.js";
+import { pointsMe, pointsBoard, boardVisibility, memberSearch } from "./routes/points.js";
 import { feed, adminPosts } from "./routes/feed.js";
 import { verifySend, verify, resetRequest, reset } from "./routes/email.js";
 import { adminExport } from "./routes/export.js";
@@ -164,6 +165,7 @@ const GET = {
   "/api/session": session,
   "/api/points/me": pointsMe,
   "/api/points/board": pointsBoard,
+  "/api/members/search": memberSearch,
   "/api/feed": feed,
   "/api/store": store,
   "/api/store/order": order,
