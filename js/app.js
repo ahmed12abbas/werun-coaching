@@ -499,6 +499,7 @@ function openMe() {
     avatar: user.avatar,
     bio: user.bio,
     instagram: user.instagram,
+    strava_athlete: user.strava_athlete,
     place: "—",
     points: "—",
   });
@@ -530,6 +531,22 @@ function igLink(handle) {
   });
 }
 
+/* Their Strava profile, the same way: the number is stored, the link is built here. */
+function stravaLink(athlete) {
+  if (!athlete) return null;
+  return el("a", {
+    class: "social ig-btn strava-btn",
+    href: "https://www.strava.com/athletes/" + encodeURIComponent(athlete),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    title: "Strava",
+    "aria-label": "Strava",
+    html:
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+      '<path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>',
+  });
+}
+
 /* One runner, as the club sees them: their face, their line, where they stand
    and what they have. Their own card carries the way into the account screen;
    somebody else's carries nothing to press, because a board row is a name and
@@ -547,7 +564,7 @@ function openRunner(r) {
         el(
           "div",
           { class: "grow" },
-          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), igLink(r.instagram)),
+          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), stravaLink(r.strava_athlete), igLink(r.instagram)),
           r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
         )
       ),
@@ -821,73 +838,101 @@ SCREENS.home = function (args, user) {
       box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
     });
 
-  const strava = el("div", { class: "stack" });
-  loadStrava(strava);
-  const coros = el("div", { class: "stack" });
-  loadCoros(coros);
+  const mileage = el("div", { class: "stack" });
+  loadMileage(mileage);
 
-  return el("div", { class: "stack" }, greetingHeader(user), box, strava, coros);
+  return el("div", { class: "stack" }, greetingHeader(user), box, mileage);
 };
 
-/* The Strava card: a connect button, or this week's mileage once linked.
-   Loaded on its own — a Strava hiccup or a club with no Strava secrets set
-   must not hold up the week above it. */
-function loadStrava(box) {
-  API.post("/api/strava", { action: "home" })
-    .then((d) => box.append(d.connected ? weekCard("Strava", "/api/strava", d.week) : stravaConnectCard()))
-    .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
+/* The watch services an athlete can link. Connecting and disconnecting live
+   in Settings ("Connect my apps"); Home only shows what they bring in.
+   Strava's button is its own brand asset, not a text button — required by
+   their developer guidelines (developers.strava.com/guidelines); COROS asks
+   for none. */
+const SERVICES = [
+  {
+    name: "Strava",
+    path: "/api/strava",
+    button: () =>
+      connectButton(
+        "/api/strava",
+        { type: "button", style: "border:0;background:none;padding:0;cursor:pointer", "aria-label": t("aStravaConnect") },
+        el("img", { src: "assets/strava-connect.svg", alt: t("aStravaConnect"), style: "height:48px" })
+      ),
+  },
+  { name: "COROS", path: "/api/coros", button: () => connectButton("/api/coros", { type: "button", class: "btn" }, t("aCorosConnect")) },
+];
+
+function connectButton(path, attrs, content) {
+  const btn = el("button", attrs, content);
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    API.post(path, { action: "connect" })
+      .then((d) => {
+        window.location.href = d.url;
+      })
+      .catch((e) => {
+        btn.disabled = false;
+        toast(errorText(e));
+      });
+  });
+  return btn;
 }
 
-// Strava's own brand asset, not a text button — required by their developer
-// guidelines for the connect action (developers.strava.com/guidelines).
-function stravaConnectCard() {
-  const btn = el(
-    "button",
-    { type: "button", style: "border:0;background:none;padding:0;cursor:pointer", "aria-label": t("aStravaConnect") },
-    el("img", { src: "assets/strava-connect.svg", alt: t("aStravaConnect"), style: "height:48px" })
+/* "My weekly mileage": the week from every linked service, or — when none is
+   linked — a card pointing at Settings. Loaded on its own so a Strava hiccup
+   cannot hold up the week above it; a service that errors (not configured, or
+   logged out) is left out, and if every one errors the card stays away. */
+function loadMileage(box) {
+  Promise.allSettled(SERVICES.map((s) => API.post(s.path, { action: "home" }))).then((rs) => {
+    const linked = rs
+      .map((r, i) => (r.status === "fulfilled" && r.value.connected ? weekCard(SERVICES[i].name, r.value.week) : null))
+      .filter(Boolean);
+    if (linked.length) box.append(...linked);
+    else if (rs.some((r) => r.status === "fulfilled")) box.append(noMileageCard());
+  });
+}
+
+function noMileageCard() {
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("h3", {}, t("aMileage")),
+    el("p", { class: "muted small" }, t("aMileageEmpty")),
+    el("button", { type: "button", class: "btn primary block", onclick: openApps }, t("aMileageGo"))
   );
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    API.post("/api/strava", { action: "connect" })
-      .then((d) => {
-        window.location.href = d.url;
-      })
-      .catch((e) => {
-        btn.disabled = false;
-        toast(errorText(e));
-      });
-  });
-  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), el("p", { class: "muted small" }, t("aStravaHint")), btn);
 }
 
-/* The COROS card, the same way round: a connect button, or the week once
-   linked. A plain button — COROS asks for no brand asset — and a COROS
-   hiccup answers an error the catch swallows, so the card just stays away. */
-function loadCoros(box) {
-  API.post("/api/coros", { action: "home" })
-    .then((d) => box.append(d.connected ? weekCard("COROS", "/api/coros", d.week) : corosConnectCard()))
-    .catch(() => {});
+/* Settings, scrolled to the apps card. */
+function openApps() {
+  const me = SCREENS.me([], Auth.user);
+  openSheet(t("navMe"), me);
+  const apps = me.querySelector("#apps");
+  if (apps) apps.scrollIntoView({ block: "start" });
 }
 
-function corosConnectCard() {
-  const btn = el("button", { type: "button", class: "btn block" }, t("aCorosConnect"));
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    API.post("/api/coros", { action: "connect" })
+/* Settings' "Connect my apps": each service's state is read on its own, so
+   the rows land in order even though their answers do not. A service that
+   errors takes its row away rather than showing a button that cannot work. */
+// ponytail: asks "home" (which also reads the week) to learn connected-or-not; add a cheap "status" action if that call gets slow.
+function appsCard() {
+  const rows = el("div", { class: "stack" });
+  for (const s of SERVICES) {
+    const row = el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" }, el("strong", { class: "grow" }, s.name));
+    rows.append(row);
+    API.post(s.path, { action: "home" })
       .then((d) => {
-        window.location.href = d.url;
+        if (d.connected) row.append(el("span", { class: "muted small" }, t("aConnected")), disconnectLink(s.path));
+        else row.append(s.button());
       })
-      .catch((e) => {
-        btn.disabled = false;
-        toast(errorText(e));
-      });
-  });
-  return el("div", { class: "card pad stack" }, el("h3", {}, "COROS"), el("p", { class: "muted small" }, t("aCorosHint")), btn);
+      .catch(() => row.remove());
+  }
+  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aStravaHint")), rows);
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
 // One card for every watch service: the week has the same shape from each (lib/week.js weekSummary).
-function weekCard(title, path, week) {
+function weekCard(source, week) {
   const dayRows = week.days
     .map((distance_m, i) => ({ distance_m, i }))
     .filter((d) => d.distance_m > 0)
@@ -904,7 +949,12 @@ function weekCard(title, path, week) {
   const body = dayRows.length
     ? [el("div", { class: "row", style: "align-items:center;gap:16px" }, stravaRing(week), el("div", { class: "stack grow" }, ...dayRows))]
     : [el("p", { class: "muted small" }, t("aStravaNone"))];
-  return el("div", { class: "card pad stack" }, el("h3", {}, title), ...body, disconnectLink(path));
+  return el(
+    "div",
+    { class: "card pad stack" },
+    el("div", { class: "row", style: "align-items:baseline" }, el("h3", { class: "grow" }, t("aMileage")), el("span", { class: "muted small" }, source)),
+    ...body
+  );
 }
 
 // A donut of the week's daily split, conic-gradient rather than drawn SVG —
@@ -2804,6 +2854,10 @@ SCREENS.me = function (args, user) {
   const bio = bioBlock(user);
   const avatar = avatarPicker(user, bio.node);
   const ig = igBlock(user);
+  const stravaId = el("input", {
+    type: "text", id: "f-strava", inputmode: "numeric", value: user.strava_athlete || "",
+    maxlength: "80", placeholder: t("aStravaIdPh"), autocapitalize: "none", spellcheck: "false", dir: "ltr",
+  });
 
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
@@ -2850,6 +2904,7 @@ SCREENS.me = function (args, user) {
             bio_hidden: !bio.show.checked,
             instagram: ig.input.value,
             instagram_hidden: !ig.show.checked,
+            strava_athlete: stravaId.value,
             week_goal: goal.value,
           }).then(() => {
             saveOk.textContent = t("aSaved");
@@ -2864,6 +2919,7 @@ SCREENS.me = function (args, user) {
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
     ig.node,
+    field("aStravaId", stravaId, t("aStravaIdHint")),
     field("aGoal", goal, t("aGoalHint")),
     el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
     el("div", {}, el("label", {}, t("aLang")), langSeg),
@@ -2909,6 +2965,7 @@ SCREENS.me = function (args, user) {
       el("h2", {}, t("aHello", { name: user.name })),
       profileForm
     ),
+    appsCard(),
     coachToolsCard(),
     remindCard(),
     // Nothing is gated on this — signups are open and mail may never be

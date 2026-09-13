@@ -70,6 +70,7 @@ const boardRow = (r, i, userId) => ({
   avatar: r.avatar || "",
   bio: r.bio || "",
   instagram: r.instagram || "",
+  strava_athlete: r.strava_athlete || "",
   points: r.points,
   sessions: r.sessions,
   me: r.id === userId,
@@ -85,8 +86,10 @@ export const pointsBoard = withMember(async (request, env, user) => {
   // answer than a board without the lines.
   const line = await privateColumn(env, "bio", "bio_hidden");
   const ig = await privateColumn(env, "instagram", "instagram_hidden");
+  // Strava (0022) has no hidden flag: an empty number is the athlete keeping it.
+  const strava = (await hasColumn(env, "users", "strava_athlete")) ? " u.strava_athlete," : " '' AS strava_athlete,";
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name," + face + line + ig + " COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" +

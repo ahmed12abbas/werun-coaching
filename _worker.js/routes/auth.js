@@ -36,6 +36,13 @@ const cleanHandle = (s) =>
     .replace(/[^A-Za-z0-9._]/g, "")
     .slice(0, MAX.instagram);
 
+/* A Strava athlete number, typed or pasted as the profile link
+   (strava.com/athletes/47583488). Only the digits are kept; anything else is "". */
+function cleanAthlete(s) {
+  const m = String(s || "").trim().match(/athletes\/(\d+)/) || String(s || "").trim().match(/^(\d+)$/);
+  return m ? m[1].slice(0, 12) : "";
+}
+
 /* Empty is a real answer: someone who would rather not say still runs with
    the club, so anything unrecognised becomes "" rather than an error. */
 const GENDERS = ["woman", "man", "other"];
@@ -258,6 +265,7 @@ function readProfile(body, user) {
     bio: sentOr(body, "bio", cleanBio, user.bio || ""),
     instagram: sentOr(body, "instagram", cleanHandle, user.instagram || ""),
     instagram_hidden: flag(sentOr(body, "instagram_hidden", Boolean, user.instagram_hidden)),
+    strava_athlete: sentOr(body, "strava_athlete", cleanAthlete, user.strava_athlete || ""),
     bio_hidden: flag(sentOr(body, "bio_hidden", Boolean, user.bio_hidden)),
     // Not `user.week_goal` on its own: before 0012 there is no column to read
     // back, and undefined there would look exactly like a refused number.
@@ -285,6 +293,7 @@ const OPTIONAL_COLUMNS = [
   { probe: "bio_hidden", cols: ["bio_hidden"] },
   { probe: "instagram", cols: ["instagram"] },
   { probe: "instagram_hidden", cols: ["instagram_hidden"] },
+  { probe: "strava_athlete", cols: ["strava_athlete"] },
 ];
 
 /* What went in is what comes back: a field the database could not hold is not

@@ -160,6 +160,8 @@ export const publicUser = (u) => ({
   // member has until they type one.
   instagram: u.instagram || "",
   instagram_hidden: !!u.instagram_hidden,
+  // Their Strava athlete number (0022); no column yet means none typed.
+  strava_athlete: u.strava_athlete || "",
   // Their own answers, so the Me screen can show what they said.
   gender: u.gender || "",
   birth_year: u.birth_year === null || u.birth_year === undefined ? null : u.birth_year,

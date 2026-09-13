@@ -311,6 +311,8 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .runner-name{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .ig-btn{width:32px;height:32px;flex:none}
 .ig-btn svg{width:17px;height:17px}
+.strava-btn{color:#FC4C02}
+#apps{scroll-margin-top:64px} /* clear the sheet's sticky Close bar when Home sends people here */
 .runner-head p{margin:4px 0 0;font-size:13.5px}
 
 /* ---- avatars ----
