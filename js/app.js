@@ -832,7 +832,7 @@ SCREENS.home = function (args, user) {
    must not hold up the week above it. */
 function loadStrava(box) {
   API.post("/api/strava", { action: "home" })
-    .then((d) => box.append(d.connected ? stravaWeekCard(d.week, d.bests) : stravaConnectCard()))
+    .then((d) => box.append(d.connected ? stravaWeekCard(d.week) : stravaConnectCard()))
     .catch(() => {}); // strava-off, or not logged in yet — say nothing rather than an error card
 }
 
@@ -859,7 +859,7 @@ function stravaConnectCard() {
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
-function stravaWeekCard(week, bests) {
+function stravaWeekCard(week) {
   const dayRows = week.days
     .map((distance_m, i) => ({ distance_m, i }))
     .filter((d) => d.distance_m > 0)
@@ -876,7 +876,7 @@ function stravaWeekCard(week, bests) {
   const body = dayRows.length
     ? [el("div", { class: "row", style: "align-items:center;gap:16px" }, stravaRing(week), el("div", { class: "stack grow" }, ...dayRows))]
     : [el("p", { class: "muted small" }, t("aStravaNone"))];
-  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, stravaBests(bests), disconnectLink());
+  return el("div", { class: "card pad stack" }, el("h3", {}, "Strava"), ...body, disconnectLink());
 }
 
 // A donut of the week's daily split, conic-gradient rather than drawn SVG —
@@ -902,55 +902,6 @@ function stravaRing(week) {
     "div",
     { class: "strava-ring", style: "background:" + background },
     el("div", { class: "strava-ring-hole" }, el("strong", { dir: "ltr" }, (total / 1000).toFixed(1)), el("span", { class: "muted small" }, "km"))
-  );
-}
-
-const BEST_DISTANCES = [
-  ["secs_1k", "1K"],
-  ["secs_5k", "5K"],
-  ["secs_10k", "10K"],
-  ["secs_21k", "21K"],
-  ["secs_42k", "42K"],
-];
-
-function bestRow(key, label, bests) {
-  return el(
-    "div",
-    { class: "row" },
-    el("p", { class: "grow muted small" }, label),
-    el("span", { class: "small", dir: "ltr" }, bests[key] ? fmtClock(bests[key]) : "—")
-  );
-}
-
-// null bests means the migration hasn't landed on this deploy yet (see hasColumn in _worker.js/lib/columns.js) — say nothing rather than a row of dashes.
-function stravaBests(bests) {
-  if (!bests) return null;
-  const rows = el("div", { class: "stack" }, ...BEST_DISTANCES.map(([key, label]) => bestRow(key, label, bests)));
-
-  const refresh = el("a", { href: "#" }, t("aStravaRefresh"));
-  refresh.className = "muted small";
-  refresh.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (refresh.dataset.busy) return;
-    refresh.dataset.busy = "1";
-    refresh.textContent = t("aStravaRefreshing");
-    API.post("/api/strava", { action: "refresh-bests" })
-      .then((d) => {
-        rows.textContent = "";
-        rows.append(...BEST_DISTANCES.map(([key, label]) => bestRow(key, label, d.bests || {})));
-      })
-      .catch((e) => toast(errorText(e)))
-      .then(() => {
-        delete refresh.dataset.busy;
-        refresh.textContent = t("aStravaRefresh");
-      });
-  });
-
-  return el(
-    "div",
-    { class: "stack", style: "border-top:1px solid var(--line);padding-top:8px" },
-    el("div", { class: "row" }, el("p", { class: "grow muted small" }, t("aStravaBests")), refresh),
-    rows
   );
 }
 
