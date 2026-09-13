@@ -16,6 +16,9 @@
 <meta name="apple-mobile-web-app-title" content="WE RUN">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- The saved theme, before anything paints: i18n.js sets it too, but only
+     at the bottom of the page, after the splash has drawn in light. -->
+<script>try{var t=localStorage.getItem("werun.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <script>window.ME_EARLY=fetch("/api/auth/me",{credentials:"same-origin",headers:{accept:"application/json"}}).catch(function(){return null})</script>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="assets/site.css?v=ab5f0072">
