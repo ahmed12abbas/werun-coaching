@@ -75,7 +75,7 @@ export async function push(request, env) {
     if (!change) return json({ error: "bad-request" }, 400);
     // A per-athlete brake: subscribing and unsubscribing is cheap, but
     // nothing here should be callable in a loop.
-    if (e.STATS && (await tooOften(e.STATS, "ps", user.id, 20, 60))) return json({ error: "too-often" }, 429);
+    if (e.DB && (await tooOften(e.DB, "ps", user.id, 20, 60))) return json({ error: "too-often" }, 429);
 
     const endpoint = String(body.endpoint || "");
     if (!goodEndpoint(endpoint)) return json({ error: "bad-endpoint" }, 400);

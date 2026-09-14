@@ -37,7 +37,7 @@ export async function strava(request, env) {
   return withMember(async (req, e, user) => {
     const body = await readBody(req);
     const action = String(body.action || "home");
-    if (await tooOften(e.STATS, "sl", user.id, 30, 60)) return json({ error: "too-often" }, 429);
+    if (await tooOften(e.DB, "sl", user.id, 30, 60)) return json({ error: "too-often" }, 429);
 
     if (action === "connect") return connect(e, req, user);
     if (action === "disconnect") return disconnect(e, user);

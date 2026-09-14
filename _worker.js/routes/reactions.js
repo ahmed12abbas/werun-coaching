@@ -57,7 +57,7 @@ function tally(rows) {
 export const reactions = withMember(async (request, env, user) => {
   // A per-member brake: toggling a face is cheap, but nothing here should be
   // callable in a loop.
-  if (env.STATS && (await tooOften(env.STATS, "rx", user.id, 30, 60))) return json({ error: "too-often" }, 429);
+  if (env.DB && (await tooOften(env.DB, "rx", user.id, 30, 60))) return json({ error: "too-often" }, 429);
 
   const body = await readBody(request);
   const target = String(body.target || "");

@@ -168,7 +168,7 @@ export async function coachRota(request, env) {
   if (!write) return json({ error: "bad-request" }, 400);
   // A per-coach brake: ticking on and off is cheap, but nothing here should
   // be callable in a loop.
-  if (env.STATS && me && (await tooOften(env.STATS, "ro", me.id, 20, 60))) {
+  if (env.DB && me && (await tooOften(env.DB, "ro", me.id, 20, 60))) {
     return json({ error: "too-often" }, 429);
   }
 

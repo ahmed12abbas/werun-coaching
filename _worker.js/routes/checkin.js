@@ -99,7 +99,7 @@ export const checkin = withMember(async (request, env, user) => {
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
   // A per-athlete brake: scanning is cheap, but nothing here should be
   // callable in a loop.
-  if (env.STATS && (await tooOften(env.STATS, "ci", user.id, 10, 60))) return json({ error: "too-often" }, 429);
+  if (env.DB && (await tooOften(env.DB, "ci", user.id, 10, 60))) return json({ error: "too-often" }, 429);
 
   const code = readCode(await readBody(request));
   if (!code.sessionId) return json({ error: "bad-code" }, 400);

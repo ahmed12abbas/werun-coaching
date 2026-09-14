@@ -128,7 +128,7 @@ const SEARCH = 20;
 export const memberSearch = withMember(async (request, env, user) => {
   const q = String(new URL(request.url).searchParams.get("q") || "").trim().slice(0, 40);
   if (q.length < 2) return json({ results: [] });
-  if (env.STATS && (await tooOften(env.STATS, "ms", user.id, 30, 60))) return json({ error: "too-often" }, 429);
+  if (env.DB && (await tooOften(env.DB, "ms", user.id, 30, 60))) return json({ error: "too-often" }, 429);
 
   const like = "%" + q.replace(/[\\%_]/g, "\\$&") + "%";
   const board = await runnerRows(env, "", [], " HAVING points > 0", BOARD);

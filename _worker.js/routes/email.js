@@ -88,7 +88,7 @@ async function deliver(env, request, user, purpose) {
 export const verifySend = withUser(async (request, env, user) => {
   if (user.email_verified_at) return json({ ok: true, already: true });
   if (!emailOn(env) && !echoing(env)) return json({ error: "email-off" }, 503);
-  if (env.STATS && (await tooOften(env.STATS, "vs", user.id, 3, 3600))) return json({ error: "too-often" }, 429);
+  if (env.DB && (await tooOften(env.DB, "vs", user.id, 3, 3600))) return json({ error: "too-often" }, 429);
   return deliver(env, request, user, "verify");
 });
 
@@ -128,9 +128,9 @@ function resetRefusal(env) {
 /* Per address, and per address and email together — the second only when
    there is an email to key it on. */
 async function tooManyResets(env, request, email) {
-  if (!env.STATS) return false;
-  const byIp = await tooOften(env.STATS, "rq", ipOf(request), 5, 3600);
-  const byWho = email && (await tooOften(env.STATS, "rw", ipOf(request) + ":" + email, 3, 3600));
+  if (!env.DB) return false;
+  const byIp = await tooOften(env.DB, "rq", ipOf(request), 5, 3600);
+  const byWho = email && (await tooOften(env.DB, "rw", ipOf(request) + ":" + email, 3, 3600));
   return !!(byIp || byWho);
 }
 

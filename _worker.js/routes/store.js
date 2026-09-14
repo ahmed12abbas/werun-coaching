@@ -60,7 +60,7 @@ export const store = withMember(async (request, env, user) => {
 async function shopRefusal(env, user) {
   if (!storeOn(env)) return json({ error: "store-off" }, 503);
   if (!(await getSetting(env, "store_open"))) return json({ error: "store-shut" }, 403);
-  if (env.STATS && (await tooOften(env.STATS, "co", user.id, 6, 3600))) return json({ error: "too-often" }, 429);
+  if (env.DB && (await tooOften(env.DB, "co", user.id, 6, 3600))) return json({ error: "too-often" }, 429);
   return null;
 }
 

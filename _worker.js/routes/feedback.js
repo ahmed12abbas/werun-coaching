@@ -83,7 +83,7 @@ export async function feedback(request, env) {
   const body = await readBody(request);
   const rating = Math.round(Number(body && body.rating));
   if (!isRating(rating)) return json({ error: "bad-rating" }, 400);
-  if (await tooOften(env.STATS, "fb", ipOf(request), FB_PER_MINUTE, 60)) return json({ error: "too-often" }, 429);
+  if (await tooOften(env.DB, "fb", ipOf(request), FB_PER_MINUTE, 60)) return json({ error: "too-often" }, 429);
 
   const doc = await readFeedback(env.STATS);
   doc.items.unshift(feedbackItem(body, rating));

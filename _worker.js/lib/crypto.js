@@ -33,7 +33,7 @@ export async function safeEqual(a, b) {
 
    Returns a 429 Response when they have had enough, else null. */
 export async function guessingTooOften(request, env) {
-  if (!env.STATS) return null; // nowhere to count: the password check still stands
-  if (await tooOften(env.STATS, "pwd", ipOf(request), 10, 60)) return json({ error: "too-often" }, 429);
+  if (!env.DB) return null; // nowhere to count: the password check still stands
+  if (await tooOften(env.DB, "pwd", ipOf(request), 10, 60)) return json({ error: "too-often" }, 429);
   return null;
 }
