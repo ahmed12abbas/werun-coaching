@@ -191,9 +191,8 @@ const GET = {
    written that way and there is no build step to hash them. What it still
    stops is the half that matters: a script, a fetch or a form reaching an
    origin that is not this one, so an injected string has nowhere to send a
-   cookie or a roster. The camera is the check-in scanner (js/scan.js) and
-   location is the coach's code proving they are at the meeting point
-   (lib/geo.js); nothing else on the page is wanted. */
+   cookie or a roster. The camera is the check-in scanner (js/scan.js);
+   nothing else on the page is wanted. */
 const SECURITY = {
   "content-security-policy":
     "default-src 'self'; " +
@@ -206,7 +205,7 @@ const SECURITY = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "camera=(self), microphone=(), geolocation=(self), payment=()",
+  "permissions-policy": "camera=(self), microphone=(), geolocation=(), payment=()",
   "cross-origin-opener-policy": "same-origin",
 };
 

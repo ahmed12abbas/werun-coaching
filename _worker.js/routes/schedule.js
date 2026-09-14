@@ -5,8 +5,7 @@
    Phase 3 moves this behind a coach login; the answers keep their shape. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin, currentUser } from "../lib/auth.js";
-import { pinFor, beyond } from "../lib/geo.js";
+import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
@@ -357,21 +356,12 @@ export async function adminQr(request, env) {
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
 
   const id = String(body.id || "");
-  // The pin the athletes were sent to that morning: the day's change if it
-  // moved the place, otherwise the slot's own.
   const session = await env.DB.prepare(
-    "SELECT s.id, s.name, s.starts_at, s.window_open_at, s.window_close_at," +
-      " COALESCE(NULLIF(c.map_url, ''), e.map_url) AS map_url FROM club_sessions s" +
-      " LEFT JOIN schedule e ON e.id = s.schedule_id" +
-      " LEFT JOIN schedule_changes c ON c.schedule_id = s.schedule_id AND c.date = s.date" +
-      " WHERE s.id = ?"
+    "SELECT id, name, starts_at, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
   )
     .bind(id)
     .first();
   if (!session) return json({ error: "no-session" }, 404);
-
-  const far = await notHere(request, env, body, session.map_url);
-  if (far) return far;
 
   const slot = slotNow();
   const sig = await signSlot(env.QR_SECRET, session.id, slot);
@@ -389,20 +379,6 @@ export async function adminQr(request, env) {
     window_close_at: w.close,
     came: await liveCheckins(env, session.id),
   });
-}
-
-/* A coach or leader showing the code has to be standing at the pin. Only a
-   login is held to it: the club password is nobody in particular, and it is
-   the way back in when everything else is broken — a head coach fixing a
-   session from home must not be stopped by the same check. */
-async function notHere(request, env, body, mapUrl) {
-  if (!(await currentUser(request, env))) return null;
-  const pin = await pinFor(env, mapUrl);
-  if (!pin) return null;
-  const at = { lat: body.lat, lng: body.lng, acc: body.acc };
-  if (!Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return json({ error: "need-location" }, 403);
-  const out = beyond(pin, at);
-  return out > 0 ? json({ error: "too-far", metres: Math.round(out) }, 403) : null;
 }
 
 /* Check-ins on a session that still count. A voided one is a check-in the
