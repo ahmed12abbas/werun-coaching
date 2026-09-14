@@ -34,6 +34,12 @@ export async function tooOften(kv, scope, who, max, windowSec) {
 
   const seen = Number(await kv.get(key)) || 0;
   if (seen >= max) return true;
-  await kv.put(key, String(seen + 1), { expirationTtl: Math.max(60, win) }); // 60 is KV's own floor
+  try {
+    await kv.put(key, String(seen + 1), { expirationTtl: Math.max(60, win) }); // 60 is KV's own floor
+  } catch (e) {
+    // KV's daily write quota ran out (14 Sep): every join, check-in and
+    // signup died on the brake itself. An unbraked button beats a dead club.
+    console.error("limit: kv put failed (" + (e && e.message) + ")");
+  }
   return false;
 }
