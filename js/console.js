@@ -86,7 +86,9 @@ var SAYS = {
   "too-often": "cErrTooOften",
   "qr-off": "cErrQrOff",
   "called-off": "cErrCalledOff",
-  "not-configured": "cErrNotConfigured"
+  "not-configured": "cErrNotConfigured",
+  "need-location": "e_need-location",
+  "too-far": "e_too-far"
 };
 
 /* An Error that still says which code the Worker sent, so a caller can tell
@@ -270,6 +272,19 @@ function stamp(iso) {
   });
 }
 
+/* Where this phone is, for the Worker to check against the meeting point.
+   Nothing at all when the phone will not say — the Worker decides whether
+   that matters (it does not for a session with no pin). A copy of the one in
+   js/app.js: the two pages share no script this belongs in. */
+function here() {
+  return new Promise(function (ok) {
+    if (!navigator.geolocation) return ok({});
+    navigator.geolocation.getCurrentPosition(function (p) {
+      ok({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy });
+    }, function () { ok({}); }, { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 });
+  });
+}
+
 /* ---- the code on the screen ----
    A fresh code every thirty seconds, drawn by js/qr.js rather than fetched,
    so it keeps working when the track has no signal to speak of. The bar
@@ -307,7 +322,9 @@ function qrScreen(session) {
 
   function refresh() {
     if (dead) return;
-    api("/api/admin/qr", { id: session.id }).then(function (d) {
+    here().then(function (at) {
+      return api("/api/admin/qr", Object.assign({ id: session.id }, at));
+    }).then(function (d) {
       if (dead) return;
       img.innerHTML = qrSvg(d.url, "M");
       count.textContent = String(d.came || 0);

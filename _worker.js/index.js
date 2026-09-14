@@ -78,7 +78,7 @@
      POST /api/admin/schedule-change — one occurrence moved or called off
 
    Bindings, all set on the Pages project (see the README):
-     STATS           KV namespace holding the feedback, articles and rate limits
+     STATS           KV namespace holding the feedback and articles
      DB              D1 database for the platform (docs/PLATFORM-PLAN.md)
      ADMIN_PASSWORD  secret the dashboard checks against
      TIPS_PASSWORD   secret the article editor also accepts
@@ -191,8 +191,9 @@ const GET = {
    written that way and there is no build step to hash them. What it still
    stops is the half that matters: a script, a fetch or a form reaching an
    origin that is not this one, so an injected string has nowhere to send a
-   cookie or a roster. The camera is the check-in scanner (js/scan.js);
-   nothing else on the page is wanted. */
+   cookie or a roster. The camera is the check-in scanner (js/scan.js) and
+   location is the coach's code proving they are at the meeting point
+   (lib/geo.js); nothing else on the page is wanted. */
 const SECURITY = {
   "content-security-policy":
     "default-src 'self'; " +
@@ -205,7 +206,7 @@ const SECURITY = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "camera=(self), microphone=(), geolocation=(), payment=()",
+  "permissions-policy": "camera=(self), microphone=(), geolocation=(self), payment=()",
   "cross-origin-opener-policy": "same-origin",
 };
 

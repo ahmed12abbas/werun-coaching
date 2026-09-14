@@ -1222,6 +1222,19 @@ function openCode() {
     });
 }
 
+/* Where this phone is, for the Worker to check against the meeting point —
+   or nothing, and the Worker decides whether that matters. A copy of the one
+   in js/console.js: the two pages share no script this belongs in. */
+const here = () =>
+  new Promise((ok) => {
+    if (!navigator.geolocation) return ok({});
+    navigator.geolocation.getCurrentPosition(
+      (p) => ok({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+      () => ok({}),
+      { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 }
+    );
+  });
+
 /* A new code every thirty seconds until the sheet goes away. The sheet being
    off the page is the stop signal — there is one sheet and closing it is the
    only way out — and the screen is held awake while it is up, because a phone
@@ -1259,7 +1272,8 @@ function codeLoop(box, id, date) {
 
   const tick = () => {
     if (!box.isConnected) return stop();
-    API.post("/api/admin/qr", { id: id })
+    here()
+      .then((at) => API.post("/api/admin/qr", Object.assign({ id: id }, at)))
       .then((d) => {
         if (!box.isConnected) return stop();
         name.textContent = d.name || "";
