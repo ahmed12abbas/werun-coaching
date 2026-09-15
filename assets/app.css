@@ -534,6 +534,11 @@ html[data-event="nationalday"] .brand-logo{
 .hrow-do{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap}
 .hrow-do .btn{flex:1 1 auto}
 .hrow .tag{flex:none;font-size:12px;padding:2px 9px 0}
+/* A coach's own corner of the card: how many are coming, as a number rather
+   than a sentence — .grow's flex:1 pushes it to the row's far edge. */
+.coming-badge{flex:none;align-self:flex-start;width:34px;height:34px;border-radius:10px;
+  background:var(--brand);color:var(--brand-ink);display:flex;align-items:center;
+  justify-content:center;font-family:var(--display);font-size:16px;font-weight:600}
 
 /* The face and the line beside it. Top-aligned, because a two-line box next
    to a 78px circle centres into a wobble. */

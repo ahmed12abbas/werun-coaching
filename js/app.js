@@ -1378,11 +1378,17 @@ function homeRow(x) {
     "div",
     { class: "slot-meta" },
     place ? el("span", { class: "place" }, place) : null,
-    el("span", {}, t("aPts", { n: it.points })),
-    Auth.isCoach() && it.coming != null ? el("span", {}, t("aComing", { n: it.coming })) : null
+    el("span", {}, t("aPts", { n: it.points }))
   );
   const soon = countdownPill(it, x.date);
   if (soon) meta.append(soon);
+
+  // A coach or leader's own corner of the card: how many are down for it,
+  // nobody's name — an athlete gets no such field from the Worker at all.
+  const coming =
+    Auth.isCoach() && it.coming != null
+      ? el("span", { class: "coming-badge", title: t("aComing", { n: it.coming }) }, String(it.coming))
+      : null;
 
   return el(
     "div",
@@ -1400,6 +1406,7 @@ function homeRow(x) {
       what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
       meta
     ),
+    coming,
     homeActions(x)
   );
 }
