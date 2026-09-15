@@ -19,17 +19,19 @@ export async function hasColumn(env, table, column) {
   const key = table + "." + column;
   if (known.has(key)) return known.get(key);
 
-  let found = false;
   try {
     // The table name cannot be a bound parameter in a PRAGMA, so it is checked
     // against a strict pattern instead — nothing here ever takes one from a
     // request, and this keeps it that way if someone later tries.
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(table)) throw new Error("bad table name");
     const rows = await env.DB.prepare("SELECT name FROM pragma_table_info(?)").bind(table).all();
-    found = (rows.results || []).some((r) => r.name === column);
+    const found = (rows.results || []).some((r) => r.name === column);
+    known.set(key, found);
+    return found;
   } catch (e) {
+    // Not remembered: one hiccup on an isolate's first request would otherwise
+    // hide the column — avatars, photos, bios — for as long as the isolate lives.
     console.error("columns: could not read " + key + " (" + (e && e.message) + ")");
+    return false;
   }
-  known.set(key, found);
-  return found;
 }

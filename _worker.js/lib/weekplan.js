@@ -127,21 +127,27 @@ async function readSignupCounts(env, from, to) {
  * carries nothing about anyone else.
  */
 export async function loadWeek(env, from, to, userId, withCounts) {
-  const published = await env.DB.prepare(
-    "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
-      " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
-      " WHERE s.date BETWEEN ? AND ? ORDER BY s.starts_at ASC"
-  )
-    .bind(userId || "", from, to)
-    .all();
+  // All at once: every read is a round trip to the database's one region
+  // (western Europe, for a club in Riyadh), and none of them waits on another.
+  // The younger tables' reads each catch their own failure, as before.
+  const [published, standing, signups, counts, coaches, mins] = await Promise.all([
+    env.DB.prepare(
+      "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
+        " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
+        " WHERE s.date BETWEEN ? AND ? ORDER BY s.starts_at ASC"
+    )
+      .bind(userId || "", from, to)
+      .all(),
+    readStandingWeek(env, from, to),
+    readSignups(env, userId, from, to),
+    withCounts ? readSignupCounts(env, from, to) : null,
+    // Outside the tries on purpose: `users` has always been there, and a
+    // database still waiting for the standing-week migration should still put
+    // a name on the sessions the coach has published.
+    coachRoster(env),
+    windowMinutes(env),
+  ]);
 
-  const standing = await readStandingWeek(env, from, to);
-  const signups = await readSignups(env, userId, from, to);
-  const counts = withCounts ? await readSignupCounts(env, from, to) : null;
-
-  // Outside the tries below on purpose: `users` has always been there, and a
-  // database still waiting for the standing-week migration should still put
-  // a name on the sessions the coach has published.
   return {
     schedule: standing.schedule,
     changes: standing.changes,
@@ -149,10 +155,10 @@ export async function loadWeek(env, from, to, userId, withCounts) {
     nearby: standing.nearby,
     signups: signups,
     counts: counts,
-    coaches: await coachRoster(env),
+    coaches: coaches,
     // The club's check-in window, so buildDays can work each session's out
     // rather than read back what its row was written with.
-    window: await windowMinutes(env),
+    window: mins,
   };
 }
 

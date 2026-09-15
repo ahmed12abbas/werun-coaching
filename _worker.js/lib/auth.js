@@ -250,9 +250,8 @@ export const isAdmin = (u) => !!(u && u.is_admin && u.status !== "blocked");
  * SELECT u.*, so a missing column is `undefined` and a present one is 0 or 1.
  * hasColumn() would answer this too, but it caches — and it cannot tell a
  * column that is absent from a PRAGMA that threw, so one transient D1 error
- * on a cold isolate would hand every coach the whole console for the life of
- * that isolate. A row that could not be read is no user at all, and refused
- * a line above. Fail closed, and say why.
+ * would hand every coach the whole console. A row that could not be read is
+ * no user at all, and refused a line above. Fail closed, and say why.
  */
 const adminUnknown = (u) => !!u && u.is_admin === undefined;
 

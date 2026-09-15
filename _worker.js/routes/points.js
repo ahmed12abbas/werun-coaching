@@ -20,20 +20,23 @@ const BOARD = 50;
    forever (see lib/points.js); only what this query asks for changed. */
 export const pointsMe = withMember(async (request, env, user) => {
   const since = new Date(weekStartEpoch().epoch * 1000).toISOString();
-  const rows = await env.DB.prepare(
-    "SELECT delta, reason, note, at FROM points_ledger WHERE user_id = ? AND at >= ? ORDER BY at DESC LIMIT ?"
-  )
-    .bind(user.id, since, HISTORY)
-    .all();
-  const attended = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM checkins WHERE user_id = ? AND voided_at IS NULL"
-  )
-    .bind(user.id)
-    .first();
+  // Four reads that wait on nothing but who is asking, so all four go at once.
+  const [rows, attended, total, streak] = await Promise.all([
+    env.DB.prepare(
+      "SELECT delta, reason, note, at FROM points_ledger WHERE user_id = ? AND at >= ? ORDER BY at DESC LIMIT ?"
+    )
+      .bind(user.id, since, HISTORY)
+      .all(),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM checkins WHERE user_id = ? AND voided_at IS NULL")
+      .bind(user.id)
+      .first(),
+    totalFor(env, user.id),
+    streakFor(env, user.id),
+  ]);
 
   return json({
-    total: await totalFor(env, user.id),
-    streak: await streakFor(env, user.id),
+    total: total,
+    streak: streak,
     sessions: (attended && attended.n) || 0,
     hidden: !!user.board_hidden,
     history: rows.results || [],
@@ -89,16 +92,20 @@ const boardRow = (r, place, userId) => ({
    `having` are only ever the literals written in this file; anything from a
    request travels in `binds`. */
 async function runnerRows(env, where, binds, having, limit) {
-  // Until 0007 is applied there is no column to read, and everyone is on the
-  // board as their initial — which is what an empty avatar means anyway.
-  const face = (await hasColumn(env, "users", "avatar")) ? " u.avatar," : " '' AS avatar,";
-  // The line they wrote about themselves, under their name (0013, 0014), and
-  // their Instagram (0015). All three are applied by hand and land after the
-  // deploy that reads them, and a board that will not draw at all is a worse
-  // answer than a board without the lines.
-  const line = await privateColumn(env, "bio", "bio_hidden");
-  const ig = await privateColumn(env, "instagram", "instagram_hidden");
-  const strava = await privateColumn(env, "strava_athlete", "strava_hidden");
+  // Asked together: a fresh isolate has none of them cached, and each is its
+  // own round trip.
+  const [face, line, ig, strava] = await Promise.all([
+    // Until 0007 is applied there is no column to read, and everyone is on the
+    // board as their initial — which is what an empty avatar means anyway.
+    hasColumn(env, "users", "avatar").then((has) => (has ? " u.avatar," : " '' AS avatar,")),
+    // The line they wrote about themselves, under their name (0013, 0014), and
+    // their Instagram (0015). All three are applied by hand and land after the
+    // deploy that reads them, and a board that will not draw at all is a worse
+    // answer than a board without the lines.
+    privateColumn(env, "bio", "bio_hidden"),
+    privateColumn(env, "instagram", "instagram_hidden"),
+    privateColumn(env, "strava_athlete", "strava_hidden"),
+  ]);
   const rows = await env.DB.prepare(
     "SELECT u.id, u.name, u.role, u.is_leader," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
@@ -112,12 +119,13 @@ async function runnerRows(env, where, binds, having, limit) {
 }
 
 export const pointsBoard = withMember(async (request, env, user) => {
-  const board = (await runnerRows(env, "", [], " HAVING points > 0", BOARD)).map((r, i) => boardRow(r, i + 1, user.id));
+  const [rows, points] = await Promise.all([runnerRows(env, "", [], " HAVING points > 0", BOARD), totalFor(env, user.id)]);
+  const board = rows.map((r, i) => boardRow(r, i + 1, user.id));
 
   return json({
     board: board,
     hidden: !!user.board_hidden,
-    mine: { points: await totalFor(env, user.id), place: board.findIndex((r) => r.me) + 1 || null },
+    mine: { points: points, place: board.findIndex((r) => r.me) + 1 || null },
   });
 });
 
@@ -138,9 +146,11 @@ export const memberSearch = withMember(async (request, env, user) => {
   if (env.DB && (await tooOften(env.DB, "ms", user.id, 30, 60))) return json({ error: "too-often" }, 429);
 
   const like = "%" + q.replace(/[\\%_]/g, "\\$&") + "%";
-  const board = await runnerRows(env, "", [], " HAVING points > 0", BOARD);
+  const [board, rows] = await Promise.all([
+    runnerRows(env, "", [], " HAVING points > 0", BOARD),
+    runnerRows(env, " AND u.name LIKE ? ESCAPE '\\'", [like], "", SEARCH),
+  ]);
   const place = new Map(board.map((r, i) => [r.id, i + 1]));
-  const rows = await runnerRows(env, " AND u.name LIKE ? ESCAPE '\\'", [like], "", SEARCH);
   return json({ results: rows.map((r) => boardRow(r, place.get(r.id), user.id)) });
 });
 

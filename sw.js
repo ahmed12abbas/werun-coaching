@@ -91,11 +91,29 @@ async function staleWhileRevalidate(req, cacheName) {
   const kept = await cache.match(req);
   const fresh = fetch(req)
     .then((r) => {
-      if (r && r.ok) cache.put(req, r.clone());
+      if (r && r.ok) {
+        cache.put(req, r.clone());
+        dropOlder(cache, req.url).catch(() => {});
+      }
       return r;
     })
     .catch(() => kept); // offline: whatever is on the shelf, or nothing
   return kept || fresh;
+}
+
+/* Every deploy re-stamps each changed file, and nothing asks for the old
+   stamp again — kept, it is one more dead copy of app.js on the phone per
+   deploy. So a stamped file clears out its own older stamps. Only stamped
+   ones: a plain URL beside it is a different file as far as the page knows. */
+async function dropOlder(cache, url) {
+  const now = new URL(url);
+  if (!now.searchParams.has("v")) return;
+  for (const old of await cache.keys()) {
+    const was = new URL(old.url);
+    if (was.pathname === now.pathname && was.searchParams.has("v") && was.search !== now.search) {
+      await cache.delete(old);
+    }
+  }
 }
 
 /* ---------- the reminder --------------------------------------------------

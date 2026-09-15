@@ -73,10 +73,8 @@ export const checkinUrl = (origin, sessionId, slot, sig) =>
    ------------------------------------------------------------------------- */
 
 export async function windowMinutes(env) {
-  return {
-    before: await getSetting(env, "window_before_min"),
-    after: await getSetting(env, "window_after_min"),
-  };
+  const [before, after] = await Promise.all([getSetting(env, "window_before_min"), getSetting(env, "window_after_min")]);
+  return { before: before, after: after };
 }
 
 /** `{ open, close }` as ISO strings, for a session and the club's two numbers. */
