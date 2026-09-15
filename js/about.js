@@ -58,7 +58,7 @@ var ABOUT_DEFAULT = { sections: [
     accounts: [
       { name: "Strava", icon: "strava", count: 0, auto: "strava" },
       { name: "Instagram", icon: "instagram", count: 17100, auto: "" },
-      { name: "TikTok", icon: "tiktok", count: 0, auto: "" },
+      { name: "TikTok", icon: "tiktok", count: 11700, auto: "" }, // @werun.sa, 15 Sep 2026
       { name: "X", icon: "x", count: 0, auto: "" }
     ],
     items: [
