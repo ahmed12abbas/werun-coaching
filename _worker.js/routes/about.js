@@ -14,6 +14,7 @@
 import { json, readBody } from "../lib/http.js";
 import { refuseUnlessAdmin } from "../lib/auth.js";
 import { stravaReady, freshToken } from "../lib/strava.js";
+import { storePhoto, servePhoto } from "../lib/photos.js";
 
 const DOC_KEY = "about-doc";
 const LIVE_KEY = "about-live";
@@ -21,8 +22,7 @@ const LIVE_EVERY = 6 * 3600 * 1000;
 const STRAVA_CLUB = "1184584"; // the club SOCIAL links to, js/brand.js
 const IMG_PREFIX = "about-img:";
 const TYPES = ["hero", "about", "stats", "social", "goals", "sessions", "gallery", "events", "partners", "text", "cta"];
-const MAX = { json: 80000, sections: 30, list: 40, keys: 20, text: 3000, depth: 6, img: 900000, imgs: 150 };
-const PHOTO = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
+const MAX = { json: 80000, sections: 30, list: 40, keys: 20, text: 3000, depth: 6 };
 
 /* ---------- GET /api/about ---------------------------------------------- */
 
@@ -90,21 +90,7 @@ async function stravaCount(env) {
 
 /* ---------- GET /api/about/img?id= --------------------------------------- */
 
-/* An id is only ever minted once and never overwritten, so the browser may
-   keep the photo for good. The type was checked when it went in; nosniff
-   (index.js) keeps the browser to it. */
-export async function aboutImg(request, env) {
-  const id = new URL(request.url).searchParams.get("id") || "";
-  if (!env.STATS || !/^[a-f0-9]{32}$/.test(id)) return new Response("Not found", { status: 404 });
-  const got = await env.STATS.getWithMetadata(IMG_PREFIX + id, "arrayBuffer");
-  if (!got || !got.value) return new Response("Not found", { status: 404 });
-  return new Response(got.value, {
-    headers: {
-      "content-type": (got.metadata && got.metadata.type) || "image/webp",
-      "cache-control": "public, max-age=31536000, immutable",
-    },
-  });
-}
+export const aboutImg = (request, env) => servePhoto(request, env, IMG_PREFIX);
 
 /* ---------- POST /api/admin/about ---------------------------------------- */
 
@@ -155,20 +141,6 @@ function clean(v, depth) {
   return out;
 }
 
-/* The browser has already shrunk the photo (admin.html, aboutShrink), so
-   this only has to refuse what is not a photo or is still too large.
-   ponytail: a photo no section points at any more is never collected; the
-   cap bounds it, and a sweep of about-img:* against the document is the fix
-   if the club ever reaches it. */
-async function upload(env, data) {
-  const m = PHOTO.exec(String(data || ""));
-  if (!m) return json({ error: "bad-image" }, 400);
-  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
-  if (bytes.length > MAX.img) return json({ error: "too-big" }, 400);
-  const listed = await env.STATS.list({ prefix: IMG_PREFIX });
-  if (listed.keys.length >= MAX.imgs) return json({ error: "too-many" }, 400);
-
-  const id = crypto.randomUUID().replace(/-/g, "");
-  await env.STATS.put(IMG_PREFIX + id, bytes.buffer, { metadata: { type: m[1] } });
-  return json({ url: "/api/about/img?id=" + id });
+function upload(env, data) {
+  return storePhoto(env, IMG_PREFIX, data, "/api/about/img");
 }

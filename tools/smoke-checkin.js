@@ -84,6 +84,14 @@ const PAYLOAD =
 
   r = await call("POST", "/api/auth/signup", { name: "Check In", email, password: pw });
   check("a new athlete joins", r.status === 200, r);
+  const athleteId = r.data && r.data.user && r.data.user.id;
+
+  /* An admin asking this athlete, off a roster, how it went: their next scan
+     answers with the feedback box, and spends the ask. */
+  r = await call("POST", "/api/admin/members", { action: "ask-feedback", id: athleteId });
+  check("ask-feedback: an athlete cannot ask", r.status === 401 || r.status === 403, r);
+  r = await call("POST", "/api/admin/members", { password: ADMIN, action: "ask-feedback", id: athleteId });
+  check("ask-feedback: the club can ask", r.status === 200 && r.data.ask_feedback === true, r);
 
   r = await call("POST", "/api/checkin", { session: sessionId, slot: Number(slot), sig: "0".repeat(16) });
   check("checkin: a made-up signature is refused", r.status === 403 && r.data.error === "stale-code", r);
@@ -96,6 +104,7 @@ const PAYLOAD =
 
   r = await call("POST", "/api/checkin", { session: sessionId, slot: Number(slot), sig });
   check("checkin: the real code works", r.status === 200 && r.data.ok && r.data.earned === 10, r);
+  check("checkin: and ends with the feedback box it was asked for", r.data && r.data.ask_feedback === true, r.data);
   check("checkin: the streak counts this session", r.data && r.data.streak >= 1, r.data);
   check("checkin: the total went up", r.data && r.data.total >= 10, r.data);
 
@@ -138,6 +147,7 @@ const PAYLOAD =
   r = await admin({ action: "roster", id: sessionId });
   const entry = (r.data.roster || [])[0];
   check("roster: the coach sees who came", !!entry && !!entry.name, r.data);
+  check("roster: and that scan spent the ask", !!entry && entry.user_id === athleteId && entry.ask_feedback === 0, entry);
   // The roster is the coach tier, so it carries a name and not an address:
   // walking every session id would otherwise be the membership's emails.
   check("roster: and not their email", !!entry && entry.email === undefined, entry);

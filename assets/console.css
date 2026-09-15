@@ -172,6 +172,7 @@ table.sess tr.past td{color:var(--muted)}
 .roster li{margin-bottom:5px;display:list-item}
 .roster li.void{color:var(--muted);text-decoration:line-through}
 .roster .drop{margin-inline-start:8px;text-decoration:none}
+.roster .ask{margin-inline-start:8px;padding:3px 9px;font-size:12.5px;text-decoration:none}
 
 /* The code itself: as big as the screen allows, because it is read from a
    metre away by a phone held at arm's length in the dark. */

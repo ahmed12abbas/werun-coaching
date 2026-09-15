@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=725e6dc5">
+<link rel="stylesheet" href="assets/console.css?v=f8bd019e">
 </head>
 <body>
 <div class="wrap">
@@ -34,6 +34,7 @@
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=9f9fefd3"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
+<script src="js/shrink.js?v=120a68ee"></script>
 <script src="js/about.js?v=cafa6f1d"></script>
 <script>
 "use strict";
@@ -133,6 +134,8 @@ function tipArticle(a, isLive) {
   if (isLive) d.setAttribute("open", "");
 
   var body = el("div", { class: "tipbody" });
+  if (a.photo) body.append(el("img", { src: a.photo, alt: "",
+    style: "display:block;max-width:100%;max-height:220px;border-radius:12px;margin-bottom:10px" }));
   var sides = [tipSide(a, "en"), tipSide(a, "ar")].filter(Boolean);
   if (!sides.length) sides = [el("p", { class: "muted small" }, "Nothing written yet.")];
   sides.forEach(function (n) { body.append(n); });
@@ -801,8 +804,25 @@ function sessionsCard() {
                 paint(d2); roster(s, btn);
               })["catch"](function (e) { drop.disabled = false; box.append(el("p", { class: "err" }, e.message)); });
             } }, "\u2715");
+          /* This athlete's next scan ends in the feedback box, once
+             (routes/checkin.js spends it). Tapped again before then, the
+             ask is taken back. */
+          var ask = el("button", { class: "btn sm ask", type: "button",
+            title: "Their next check-in ends with the feedback box, once" },
+            r.ask_feedback ? "Asked \u2713" : "Ask for feedback");
+          ask.addEventListener("click", function () {
+            ask.disabled = true;
+            api("/api/admin/members", { action: "ask-feedback", id: r.user_id, ask: !r.ask_feedback })
+              .then(function (d) {
+                r.ask_feedback = d.ask_feedback;
+                ask.textContent = r.ask_feedback ? "Asked \u2713" : "Ask for feedback";
+              })
+              ["catch"](function (e) { box.append(el("p", { class: "err" }, e.message)); })
+              .then(function () { ask.disabled = false; });
+          });
           ol.append(el("li", { class: r.voided_at ? "void" : "", dir: "auto" },
             r.name, el("span", { class: "muted small" }, " \u00b7 " + (stamp(r.at) || "")),
+            r.voided_at ? null : ask,
             r.voided_at ? null : drop));
         });
         box.append(ol);
@@ -848,7 +868,7 @@ function feedCard() {
     var when = el("input", { type: "datetime-local" });
     var err = el("p", { class: "err", style: "display:none" });
 
-    // The photo, uploaded the same way an About page one is (aboutShrink,
+    // The photo, uploaded the same way an About page one is (shrinkPhoto,
     // action "upload" on this same /api/admin/posts route). Optional — most
     // posts have none — and held as a plain URL until Post/Save writes it.
     var photoUrl = (editing && editing.photo_url) || "";
@@ -869,7 +889,7 @@ function feedCard() {
       var f = file.files && file.files[0];
       if (!f) return;
       err.style.display = "none";
-      aboutShrink(f)
+      shrinkPhoto(f)
         .then(function (data) { return post({ action: "upload", data: data }); })
         .then(function (d) {
           photoUrl = d.url;
@@ -1034,34 +1054,6 @@ function aboutTemplate(type) {
   var all = ABOUT_DEFAULT.sections.concat(ABOUT_EXTRA);
   for (var i = 0; i < all.length; i++) if (all[i].type === type) return all[i];
   return null;
-}
-
-/* A photo shrunk in the browser before it is sent, so a 12 MB phone picture
-   arrives as a couple of hundred KB. Read as a data: URL rather than a blob:
-   one, because the site's content policy allows data: images and blob: ones
-   not. Safari cannot write WebP from a canvas and hands back PNG, several
-   times the size for a photo, so that falls back to JPEG. */
-function aboutShrink(file) {
-  return new Promise(function (ok, no) {
-    var r = new FileReader();
-    r.onerror = function () { no(new Error("Could not read that file.")); };
-    r.onload = function () {
-      var im = new Image();
-      im.onerror = function () { no(new Error("That file is not a photo this browser can open.")); };
-      im.onload = function () {
-        var s = Math.min(1, 1400 / im.naturalWidth);
-        var c = document.createElement("canvas");
-        c.width = Math.round(im.naturalWidth * s);
-        c.height = Math.round(im.naturalHeight * s);
-        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-        var out = c.toDataURL("image/webp", 0.72);
-        if (out.indexOf("data:image/webp") !== 0) out = c.toDataURL("image/jpeg", 0.8);
-        ok(out);
-      };
-      im.src = r.result;
-    };
-    r.readAsDataURL(file);
-  });
 }
 
 function aboutCard() {
@@ -1259,7 +1251,7 @@ function aboutCard() {
       var f = file.files && file.files[0];
       if (!f) return;
       say("Uploading the photo…");
-      aboutShrink(f)
+      shrinkPhoto(f)
         .then(function (data) { return call({ action: "upload", data: data }); })
         .then(function (d) { put(d.url); say("Photo uploaded — press Save to put it on the page."); })
         ["catch"](failed)

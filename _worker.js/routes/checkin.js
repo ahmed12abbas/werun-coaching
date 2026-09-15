@@ -95,6 +95,15 @@ async function award(env, userId, session, id) {
   return { earned, bonus, streak };
 }
 
+/* An admin asked, off a session's "Who came" list, how it went: this scan is
+   the one that asks, and only this one. Read off the user row (SELECT u.*),
+   so before migration 0028 there is simply nothing to read. */
+async function spendAsk(env, user) {
+  if (!user.ask_feedback) return false;
+  await env.DB.prepare("UPDATE users SET ask_feedback = 0 WHERE id = ?").bind(user.id).run();
+  return true;
+}
+
 export const checkin = withMember(async (request, env, user) => {
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
   // A per-athlete brake: scanning is cheap, but nothing here should be
@@ -128,5 +137,6 @@ export const checkin = withMember(async (request, env, user) => {
     bonus: got.bonus,
     streak: got.streak,
     total: await totalFor(env, user.id),
+    ask_feedback: await spendAsk(env, user),
   });
 });

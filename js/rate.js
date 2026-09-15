@@ -138,6 +138,9 @@ function starPicker() {
  * `opts.titleKey` swaps the heading. At the foot of a session "How was it?"
  * is the whole question; at the foot of the account screen there is no "it",
  * so the club app asks about the club instead.
+ *
+ * `opts.who` fills the name when this browser has not given one yet: an
+ * athlete an admin asked for by name should not have to type it.
  */
 function feedbackCard(w, opts) {
   const picker = starPicker();
@@ -147,7 +150,7 @@ function feedbackCard(w, opts) {
     maxlength: "40",
     autocomplete: "name",
     placeholder: t("fbNamePh"),
-    value: savedName(),
+    value: savedName() || (opts && opts.who) || "",
   });
 
   const comment = el("textarea", {

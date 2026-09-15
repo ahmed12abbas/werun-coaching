@@ -154,10 +154,12 @@ function tipsCorner() {
     "✕"
   );
 
+  const pic = el("div", {}); // the article's photo, when it has one
   const inner = el(
     "div",
     { class: "cloud-inner", onscroll: () => syncFade() },
     el("div", { class: "cloud-head" }, kicker, closeBtn),
+    pic,
     title,
     body,
     sign
@@ -223,6 +225,8 @@ function tipsCorner() {
   function fill() {
     const lang = (typeof I18N !== "undefined" && I18N.lang) || "en";
     const side = tipSide(article, lang);
+    pic.textContent = "";
+    if (article.photo) pic.append(el("img", { class: "cloud-photo", src: article.photo, alt: "" }));
     title.textContent = side.title || "";
     body.textContent = "";
     // Node.append() would stringify an array; el() is the only helper here

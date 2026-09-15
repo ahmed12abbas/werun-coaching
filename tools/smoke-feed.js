@@ -104,6 +104,15 @@ function check(name, ok, detail) {
   check("…but not to edit it", r.status === 403, r.status);
   r = await coach.call("POST", "/api/tips-admin", {});
   check("…and the articles, which are not the club", r.status === 200, r.status);
+  // An article's optional photo, on the same tier: refused unless it is one,
+  // kept under this site's own path, and read back from there.
+  const PNG_1PX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  r = await coach.call("POST", "/api/tips-admin", { action: "upload", data: "not a photo" });
+  check("…a tip photo that is not a photo is refused", r.status === 400 && r.data.error === "bad-image", r);
+  r = await coach.call("POST", "/api/tips-admin", { action: "upload", data: PNG_1PX });
+  const tipPhoto = (r.data && r.data.url) || "";
+  check("…a tip photo comes back as this site's own path", /^\/api\/tips\/img\?id=[a-f0-9]{32}$/.test(tipPhoto), r);
+  check("…and is served from it", (await fetch(BASE + tipPhoto)).status === 200, tipPhoto);
   // The one action on the coach tier that writes a row is bounded, so the
   // calendar cannot be filled with sessions nobody asked for.
   r = await coach.call("POST", "/api/admin/sessions", { action: "open", schedule_id: "x", date: "2087-01-01" });

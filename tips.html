@@ -113,6 +113,11 @@ a{color:var(--brand)}
 [dir="rtl"] .sign svg{transform:scaleX(-1)}
 .prev .cap{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--muted);margin-bottom:8px}
+/* The photo button is a <label> round a hidden file input, so the caption
+   treatment every other label gets is undone here, as .livepick does. */
+.pick{text-transform:none;letter-spacing:0;margin-bottom:0}
+.pick input{display:none}
+.tip-photo{display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-bottom:10px}
 
 /* The save bar follows the coach down a long article rather than making her
    scroll back to the top to keep her work. */
@@ -137,6 +142,7 @@ footer{margin-top:30px;font-size:13px;color:var(--muted)}
 
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
+<script src="js/shrink.js?v=120a68ee"></script>
 <script>
 "use strict";
 
@@ -328,6 +334,7 @@ function sideEditor(article, lang, onChange) {
     var lang = isAr ? "ar" : "en";
     preview.textContent = "";
     preview.append(el("div", { class: "cap" }, isAr ? "معاينة" : "Preview"));
+    if (article.photo) preview.append(el("img", { class: "tip-photo", src: article.photo, alt: "" }));
     if (side.title) preview.append(el("h3", {}, side.title));
     var nodes = previewNodes(side.body);
     if (!nodes.length && !side.title) {
@@ -351,6 +358,32 @@ function sideEditor(article, lang, onChange) {
   title.addEventListener("input", drawPreview);
   body.addEventListener("input", drawPreview);
   return box;
+}
+
+/* One photo for the article, the same in both languages, and optional: most
+   tips are words. Uploaded the moment it is picked (js/shrink.js, then
+   action "upload"), and kept only once the article is saved with it. */
+function photoField(article) {
+  var msg = el("span", { class: "muted small" });
+  var file = el("input", { type: "file", accept: "image/*" });
+  file.addEventListener("change", function () {
+    var f = file.files && file.files[0];
+    if (!f) return;
+    msg.textContent = "Uploading the photo…";
+    shrinkPhoto(f)
+      .then(function (data) { return post({ password: password, action: "upload", data: data }); })
+      .then(function (d) { article.photo = d.url; touch(); render(); })
+      ["catch"](function (e) { msg.textContent = e.message; })
+      .then(function () { file.value = ""; });
+  });
+  return el("div", { class: "f", style: "margin-bottom:14px" },
+    el("label", {}, "Photo (optional)"),
+    el("div", { class: "head", style: "margin-bottom:0" },
+      el("label", { class: "btn sm pick" }, article.photo ? "Replace photo" : "Add a photo", file),
+      article.photo ? el("button", { class: "btn sm danger", type: "button",
+        onclick: function () { article.photo = ""; touch(); render(); } }, "Remove photo") : null,
+      msg),
+    el("p", { class: "hint" }, "Shown above the article, in both languages."));
 }
 
 function articleCard(article, index) {
@@ -397,6 +430,7 @@ function articleCard(article, index) {
 
   return el("div", { class: "card" + (isLive ? " live" : "") },
     head,
+    photoField(article),
     el("div", { class: "pair" },
       sideEditor(article, "en", touch),
       sideEditor(article, "ar", touch)

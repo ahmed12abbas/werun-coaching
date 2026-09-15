@@ -13,11 +13,18 @@ import { json, readBody, objectIn } from "../lib/http.js";
 import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { currentUser, isCoach, isAdmin } from "../lib/auth.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
+import { storePhoto, servePhoto } from "../lib/photos.js";
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
    paragraphs, small enough that one KV value cannot grow into the value size
    limit or make the public read slow. */
 const TIP_MAX = { articles: 60, title: 140, body: 9000 };
+
+/* An article's one photo — optional, and the same in both languages. Only a
+   path this route minted is kept: every page puts it straight into <img src>. */
+const IMG_PREFIX = "tip-img:";
+const IMG_ROUTE = "/api/tips/img";
+const cleanPhoto = (p) => (/^\/api\/tips\/img\?id=[a-f0-9]{32}$/.test(String(p || "")) ? String(p) : "");
 
 /** Trim one language's half of an article to something safe to store. */
 function cleanSide(side) {
@@ -44,6 +51,7 @@ function cleanArticle(raw, prev) {
   const a = objectIn(raw);
   const en = cleanSide(a.en);
   const ar = cleanSide(a.ar);
+  const photo = cleanPhoto(a.photo);
   const now = new Date().toISOString();
 
   return {
@@ -53,9 +61,10 @@ function cleanArticle(raw, prev) {
     // Articles written before this field existed fall back to their last known
     // edit, which is the closest thing to a posting date they have.
     created: (prev && (prev.created || prev.updated)) || now,
-    updated: sameText(prev, en, ar) ? prev.updated || now : now,
+    updated: sameText(prev, en, ar, photo) ? prev.updated || now : now,
     en: en,
     ar: ar,
+    photo: photo,
   };
 }
 
@@ -65,14 +74,15 @@ function articleId(a) {
   return /^[A-Za-z0-9_-]{1,40}$/.test(given) ? given : "a" + Math.random().toString(36).slice(2, 10);
 }
 
-/* Whether both languages read exactly as the stored copy does. */
-function sameText(prev, en, ar) {
+/* Whether both languages, and the photo, are exactly as the stored copy has them. */
+function sameText(prev, en, ar, photo) {
   if (!prev || !prev.en || !prev.ar) return false;
   return (
     prev.en.title === en.title &&
     prev.en.body === en.body &&
     prev.ar.title === ar.title &&
-    prev.ar.body === ar.body
+    prev.ar.body === ar.body &&
+    (prev.photo || "") === photo
   );
 }
 
@@ -98,6 +108,7 @@ export async function tips(request, env) {
       updated: live.updated,
       en: live.en,
       ar: live.ar,
+      photo: live.photo || "",
     },
   });
 }
@@ -148,6 +159,8 @@ export async function tipsAdmin(request, env) {
 
   if (!env.STATS) return json({ liveId: null, articles: [], warning: "no-store" });
 
+  if (body.action === "upload") return storePhoto(env, IMG_PREFIX, body.data, IMG_ROUTE);
+
   // No `save` key means "just let me in and show me what is there".
   if (!body.save || typeof body.save !== "object") {
     const doc = await readTips(env.STATS);
@@ -187,3 +200,7 @@ async function saveTips(env, save) {
   await env.STATS.put(TIPS_KEY, JSON.stringify({ v: 1, liveId: liveId, articles: articles }));
   return json({ liveId: liveId, articles: articles, saved: true });
 }
+
+/* ---------- GET /api/tips/img?id= ---------------------------------------- */
+
+export const tipsImg = (request, env) => servePhoto(request, env, IMG_PREFIX);

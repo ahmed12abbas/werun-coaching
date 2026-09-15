@@ -10,6 +10,7 @@
    The routes, the public ones first:
      POST /api/feedback         — one athlete's stars, name and comment
      GET  /api/tips             — the one article the coach has put live
+     GET  /api/tips/img?id=     — a photo on one of those articles
      GET  /api/health           — which bindings are live; no data
      GET  /api/about            — the Who Are We page as an admin last saved it
      GET  /api/about/img?id=    — a photo uploaded for that page
@@ -106,7 +107,7 @@
 import { json } from "./lib/http.js";
 import { stats } from "./routes/stats.js";
 import { feedback, feedbackAdmin } from "./routes/feedback.js";
-import { tips, tipsAdmin } from "./routes/tips.js";
+import { tips, tipsAdmin, tipsImg } from "./routes/tips.js";
 import { health } from "./routes/health.js";
 import { signup, login, logout, logoutAll, me, profile, password } from "./routes/auth.js";
 import { week, session } from "./routes/sessions.js";
@@ -171,6 +172,7 @@ const POST = {
 };
 const GET = {
   "/api/tips": tips,
+  "/api/tips/img": tipsImg,
   "/api/health": health,
   "/api/auth/me": me,
   "/api/week": week,

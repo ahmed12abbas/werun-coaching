@@ -13,14 +13,13 @@ import { readTips } from "../lib/kv.js";
 import { reactionsFor } from "./reactions.js";
 import { getSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
+import { storePhoto, servePhoto } from "../lib/photos.js";
 
-const MAX = { title: 140, body: 9000, posts: 200, list: 40, img: 900000, imgs: 150 };
+const MAX = { title: 140, body: 9000, posts: 200, list: 40 };
 
-// A post's photo, uploaded the same way an About page photo is (routes/about.js):
-// shrunk in the browser, checked here only for type and size, kept in KV under
-// its own prefix. photo_url is 0027 — see hasColumn() calls below for the
-// window before that migration is pasted into the D1 console.
-const PHOTO = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
+// A post's photo: lib/photos.js, under its own prefix. photo_url is 0027 — see
+// hasColumn() calls below for the window before that migration is pasted into
+// the D1 console.
 const IMG_PREFIX = "post-img:";
 
 const cleanTitle = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.title);
@@ -78,7 +77,7 @@ export const feed = withMember(async (request, env, user) => {
       // second — the same fallback /api/tips makes.
       tips = doc.articles
         .filter((a) => a && (a.feed || a.id === doc.liveId))
-        .map((a) => ({ id: a.id, created: a.created || a.updated, updated: a.updated, en: a.en, ar: a.ar }))
+        .map((a) => ({ id: a.id, created: a.created || a.updated, updated: a.updated, en: a.en, ar: a.ar, photo: a.photo || "" }))
         .sort((a, b) => String(b.created || "").localeCompare(String(a.created || "")));
     } catch (e) {
       /* the posts are the point; a missing article is not worth a 500 */
@@ -187,23 +186,8 @@ async function listPosts(body, env) {
   return json({ posts: await listAll(env) });
 }
 
-/* The browser has already shrunk the photo (admin.html, aboutShrink) — same
-   function the About page photos use — so this only has to refuse what is
-   not a photo or is still too large. Mirrors routes/about.js's upload/img
-   pair with its own KV prefix: a post's photo is a different resource from
-   an About page one, not a second copy of the same thing. */
-async function uploadPhoto(body, env) {
-  if (!env.STATS) return json({ error: "no-store" }, 503);
-  const m = PHOTO.exec(String(body.data || ""));
-  if (!m) return json({ error: "bad-image" }, 400);
-  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
-  if (bytes.length > MAX.img) return json({ error: "too-big" }, 400);
-  const listed = await env.STATS.list({ prefix: IMG_PREFIX });
-  if (listed.keys.length >= MAX.imgs) return json({ error: "too-many" }, 400);
-
-  const id = crypto.randomUUID().replace(/-/g, "");
-  await env.STATS.put(IMG_PREFIX + id, bytes.buffer, { metadata: { type: m[1] } });
-  return json({ url: "/api/feed/img?id=" + id });
+function uploadPhoto(body, env) {
+  return storePhoto(env, IMG_PREFIX, body.data, "/api/feed/img");
 }
 
 const POST_ACTIONS = new Map([["save", savePost], ["delete", deletePost], ["list", listPosts], ["upload", uploadPhoto]]);
@@ -220,17 +204,4 @@ export async function adminPosts(request, env) {
 
 /* ---------- GET /api/feed/img?id= ------------------------------------------ */
 
-/* Public, like /api/about/img — an id is only ever minted once and never
-   overwritten, so the browser may keep the photo for good. */
-export async function feedImg(request, env) {
-  const id = new URL(request.url).searchParams.get("id") || "";
-  if (!env.STATS || !/^[a-f0-9]{32}$/.test(id)) return new Response("Not found", { status: 404 });
-  const got = await env.STATS.getWithMetadata(IMG_PREFIX + id, "arrayBuffer");
-  if (!got || !got.value) return new Response("Not found", { status: 404 });
-  return new Response(got.value, {
-    headers: {
-      "content-type": (got.metadata && got.metadata.type) || "image/webp",
-      "cache-control": "public, max-age=31536000, immutable",
-    },
-  });
-}
+export const feedImg = (request, env) => servePhoto(request, env, IMG_PREFIX);

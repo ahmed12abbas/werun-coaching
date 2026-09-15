@@ -346,6 +346,7 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .cloud-x:hover{background:var(--bg);color:var(--fg)}
 .cloud-title{font-family:var(--display);font-size:30px;font-weight:600;text-transform:uppercase;
   line-height:1.05;margin:0 0 9px}
+.cloud-photo{display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin:2px 0 11px}
 .cloud-body{font-size:14.5px;line-height:1.6}
 .cloud-body p{margin:0 0 10px}
 .cloud-body p:last-child,.cloud-list:last-child{margin-bottom:0}

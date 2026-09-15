@@ -108,12 +108,26 @@ async function resetLink(request, env, body, action, id) {
   return json({ link: await resetLinkFor(env, request, id) });
 }
 
+/* Off a session's "Who came" list: this athlete's next check-in ends in the
+   feedback box, once — routes/checkin.js spends the flag, and `ask: false`
+   takes it back. An answer of its own, like the reset link: the roster that
+   asked has no use for the whole members table. */
+async function askFeedback(request, env, body, action, id) {
+  if (!(await hasColumn(env, "users", "ask_feedback"))) return json({ error: "no-column" }, 503);
+  const who = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+  if (!who) return json({ error: "no-member" }, 404);
+  const on = body.ask !== false;
+  await env.DB.prepare("UPDATE users SET ask_feedback = ? WHERE id = ?").bind(on ? 1 : 0, id).run();
+  return json({ ask_feedback: on });
+}
+
 const MEMBER_ACTIONS = new Map([
   ["block", setStatus],
   ["unblock", setStatus],
   ["role", setRole],
   ["admin", setAdmin],
   ["reset-link", resetLink],
+  ["ask-feedback", askFeedback],
 ]);
 
 export async function members(request, env) {

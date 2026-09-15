@@ -2141,6 +2141,14 @@ SCREENS.c = function (args, user) {
           el("button", { class: "btn primary", onclick: () => go("points") }, t("aSeePoints")),
           el("button", { class: "btn", onclick: () => go("week") }, t("aSeeWeek")))
       );
+      // An admin asked, off a session's "Who came" list, how it went. The
+      // Worker has already spent the ask, so this shows once — after the
+      // points have landed, not over them.
+      if (r.ask_feedback) {
+        setTimeout(() => {
+          if (box.isConnected) openSheet(t("fbTitle"), feedbackCard({ name: r.session }, { who: user.name }));
+        }, 1200);
+      }
     })
     .catch((e) => {
       box.textContent = "";
@@ -2778,6 +2786,7 @@ function tipCard(tip) {
       el("span", { class: "cloud-kicker" }, t("aCoachTip")),
       published(tip.created || tip.updated)),
     s.title ? el("h2", {}, s.title) : null,
+    tip.photo ? el("img", { class: "post-photo", src: tip.photo, alt: "" }) : null,
     el("div", { class: "post-body" }, written(s.body)),
     // The coach's name and nothing else. The byline icon that goes with it
     // elsewhere carries no size of its own, and there is no rule here to give
