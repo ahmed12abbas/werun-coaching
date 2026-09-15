@@ -56,9 +56,10 @@ var ABOUT_DEFAULT = { sections: [
     // `icon` is an id in SOCIAL (js/brand.js): the chip wears that logo and
     // links where the footer's button does, so neither is a second copy.
     accounts: [
-      { name: "Strava", icon: "strava", count: 0, auto: "strava" },
-      { name: "Instagram", icon: "instagram", count: 17100, auto: "" },
-      { name: "TikTok", icon: "tiktok", count: 11700, auto: "" } // @werun.sa, 15 Sep 2026
+      // men_pct is that account's own split; 0 means it says nothing about it.
+      { name: "Strava", icon: "strava", count: 0, auto: "strava", men_pct: 0 },
+      { name: "Instagram", icon: "instagram", count: 17100, auto: "", men_pct: 56.3 },
+      { name: "TikTok", icon: "tiktok", count: 11732, auto: "", men_pct: 66 } // TikTok analytics, 13 Sep 2026
     ],
     items: [
       { num: "3.1M", label: aboutPair("Views", "مشاهدة") },
@@ -234,7 +235,20 @@ var aboutRender = (function () {
         })));
     },
     social: function (s, L, live) {
-      var men = Math.max(0, Math.min(100, Number(s.men_pct) || 0));
+      // Every account in one number: one that is read by itself counts what
+      // was read, or what was typed until it has been. The men/women split is
+      // the accounts' own splits weighed by their followers; an account with
+      // no men_pct (Strava says nothing about it) is left out of the split,
+      // and the section's own men_pct is only for when no account has one.
+      var total = 0, plats = [], weighed = 0, known = 0;
+      list(s.accounts).forEach(function (a) {
+        var got = a.auto && live && typeof live[a.auto] === "number" ? live[a.auto] : Number(a.count) || 0;
+        var pct = Number(a.men_pct) || 0;
+        total += got;
+        if (pct > 0 && got) { weighed += pct * got; known += got; }
+        plats.push(plat(a, got, L));
+      });
+      var men = Math.max(0, Math.min(100, known ? weighed / known : Number(s.men_pct) || 0));
       var split = null;
       if (men) {
         var a = Math.round(men), b = 100 - a;
@@ -246,14 +260,6 @@ var aboutRender = (function () {
         split = h("div", "", opt("div", "lbl", tx(s.split_title, L)), bar,
           h("div", "legend", h("span", "", h("b", "", a + "%"), tx(s.men, L)), h("span", "", h("b", "", b + "%"), tx(s.women, L))));
       }
-      // Every account in one number: one that is read by itself counts what
-      // was read, or what was typed until it has been.
-      var total = 0, plats = [];
-      list(s.accounts).forEach(function (a) {
-        var got = a.auto && live && typeof live[a.auto] === "number" ? live[a.auto] : Number(a.count) || 0;
-        total += got;
-        plats.push(plat(a, got, L));
-      });
       var stats = list(s.items).map(function (it) {
         return h("div", "", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
       });
