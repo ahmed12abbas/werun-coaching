@@ -101,11 +101,32 @@ async function readSignups(env, userId, from, to) {
   }
 }
 
+/* How many athletes are down for each slot's date — a coach's own read of
+   "coming", never an athlete's: buildDays only attaches it when asked. Same
+   query as rota.js's signupsBetween, kept separate rather than shared across
+   a route boundary for one three-line query. */
+async function readSignupCounts(env, from, to) {
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT schedule_id, date, COUNT(*) AS n FROM session_signups" +
+        " WHERE date BETWEEN ? AND ? GROUP BY schedule_id, date"
+    )
+      .bind(from, to)
+      .all();
+    return rows.results || [];
+  } catch (e) {
+    console.error("week: no session_signups yet (" + (e && e.message) + ")");
+    return [];
+  }
+}
+
 /**
  * Everything standing, plus every change and published session in the range.
- * One read each rather than one per day.
+ * One read each rather than one per day. `withCounts` is a coach asking how
+ * many are coming to each slot — skipped for an athlete's own week, which
+ * carries nothing about anyone else.
  */
-export async function loadWeek(env, from, to, userId) {
+export async function loadWeek(env, from, to, userId, withCounts) {
   const published = await env.DB.prepare(
     "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
       " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
@@ -116,6 +137,7 @@ export async function loadWeek(env, from, to, userId) {
 
   const standing = await readStandingWeek(env, from, to);
   const signups = await readSignups(env, userId, from, to);
+  const counts = withCounts ? await readSignupCounts(env, from, to) : null;
 
   // Outside the tries below on purpose: `users` has always been there, and a
   // database still waiting for the standing-week migration should still put
@@ -126,6 +148,7 @@ export async function loadWeek(env, from, to, userId) {
     published: published.results || [],
     nearby: standing.nearby,
     signups: signups,
+    counts: counts,
     coaches: await coachRoster(env),
     // The club's check-in window, so buildDays can work each session's out
     // rather than read back what its row was written with.
@@ -269,6 +292,7 @@ export function buildDays(dates, data) {
     slotById: slotById,
     publishedFor: groupBy(data.published, (s) => s.date),
     signed: new Set((data.signups || []).map((s) => s.schedule_id + "|" + s.date)),
+    coming: data.counts && new Map(data.counts.map((c) => [c.schedule_id + "|" + c.date, c.n])),
     // Every workout published near this week, grouped by the slot it belongs
     // to. Which one a given day gets is nearestSteps()'s business, per day.
     stepsFor: groupBy(data.nearby || [], (s) => s.schedule_id),
@@ -317,6 +341,7 @@ function dayPlan(date, week) {
   // down on Tuesday's slot is still down once the workout goes out.
   for (const item of items) {
     item.registered = !!(item.schedule_id && week.signed.has(item.schedule_id + "|" + date));
+    if (week.coming && item.schedule_id) item.coming = week.coming.get(item.schedule_id + "|" + date) || 0;
   }
   return { date: date, items: items };
 }

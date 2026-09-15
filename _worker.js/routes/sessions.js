@@ -1,7 +1,7 @@
 /* The club's calendar as the athlete sees it: a week at a time. */
 
 import { json } from "../lib/http.js";
-import { withMember } from "../lib/auth.js";
+import { withMember, isCoach } from "../lib/auth.js";
 import { loadWeek, buildDays } from "../lib/weekplan.js";
 import { coachNames, coachNameFor } from "../lib/coaches.js";
 import { windowMinutes, windowFor, checkinState } from "../lib/checkin.js";
@@ -16,7 +16,8 @@ const isoDay = (d) => d.toISOString().slice(0, 10);
  * Seven days from the Monday the page asks for — the page knows the
  * athlete's own today; the Worker's clock is in whatever region it woke up
  * in. Each day carries the published session, if any, and whether this
- * athlete has checked in to it. Nothing about anyone else.
+ * athlete has checked in to it. Nothing about anyone else — except a coach
+ * also gets each item's `coming` count, never anyone's name.
  */
 export const week = withMember(async (request, env, user) => {
   const url = new URL(request.url);
@@ -35,7 +36,7 @@ export const week = withMember(async (request, env, user) => {
 
   // The standing week, what has changed about it, and anything the coach has
   // actually published — merged in lib/weekplan.js so every caller agrees.
-  const data = await loadWeek(env, dates[0], dates[6], user.id);
+  const data = await loadWeek(env, dates[0], dates[6], user.id, isCoach(user));
   return json({ start: dates[0], days: buildDays(dates, data) });
 });
 

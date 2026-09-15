@@ -1378,7 +1378,8 @@ function homeRow(x) {
     "div",
     { class: "slot-meta" },
     place ? el("span", { class: "place" }, place) : null,
-    el("span", {}, t("aPts", { n: it.points }))
+    el("span", {}, t("aPts", { n: it.points })),
+    Auth.isCoach() && it.coming != null ? el("span", {}, t("aComing", { n: it.coming })) : null
   );
   const soon = countdownPill(it, x.date);
   if (soon) meta.append(soon);
