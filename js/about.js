@@ -71,12 +71,39 @@ var ABOUT_DEFAULT = { sections: [
       { title: aboutPair("Sustain", "استدامة"), text: aboutPair("Sustaining a community of active, healthy, passionate people through long-term relationships.", "استدامة مجتمع نشيط وصحي وشغوف عبر علاقات طويلة الأمد.") }
     ] },
 
+  // Written out from tools/seed-schedule.js and the pins in tools/places.js
+  // as they stood in September 2026. Deliberately a copy the admin edits here
+  // rather than a read of the live schedule: this page is public, and what it
+  // says about where and when the club meets is the admin's call.
+  { type: "sessions", show: true,
+    title: aboutPair("Weekly sessions", "حصص الأسبوع"),
+    text: aboutPair("Ten sessions a week, Sunday to Saturday — Friday is rest. Come to any of them.",
+      "عشر حصص أسبوعياً من الأحد إلى السبت، والجمعة راحة. تعال لأي منها."),
+    items: [
+      { day: aboutPair("Sunday", "الأحد"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Community run", "ركضة مجتمعية"),
+        place: aboutPair("Wadi Mahdia Road", "خط التفتيش - بعد الدوار"), map: "https://maps.app.goo.gl/fwSWCrLb9cxV7JHB6" },
+      { day: aboutPair("Sunday", "الأحد"), time: aboutPair("7:30 pm", "٧:٣٠ م"), title: aboutPair("Easy run", "ركضة خفيفة"),
+        place: aboutPair("Alwaha Park", "حديقة الواحة"), map: "https://maps.app.goo.gl/k28P9vwuudk2CnXC9" },
+      { day: aboutPair("Monday", "الاثنين"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Easy walk/run", "ركض/مشي خفيف"),
+        place: aboutPair("Sports Boulevard", "المسار الرياضي - حطين"), map: "https://maps.app.goo.gl/u6MqqhxKhD6Vhz5b6" },
+      { day: aboutPair("Monday", "الاثنين"), time: aboutPair("7:00 pm", "٧:٠٠ م"), title: aboutPair("Speed session", "تمرين سرعات"),
+        place: aboutPair("Misk City Track", "مضمار مدينة مسك"), map: "https://maps.app.goo.gl/MzdT2kukz4wjfysA6" },
+      { day: aboutPair("Tuesday", "الثلاثاء"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Speed session", "تمرين سرعات"),
+        place: aboutPair("Wadi Mahdia Road", "خط التفتيش - بعد الدوار"), map: "https://maps.app.goo.gl/fwSWCrLb9cxV7JHB6" },
+      { day: aboutPair("Tuesday", "الثلاثاء"), time: aboutPair("7:30 pm", "٧:٣٠ م"), title: aboutPair("Strength session", "تقويات عدائين"),
+        place: aboutPair("Alfaisal University", "جامعة الفيصل"), map: "https://maps.app.goo.gl/uV3WdhQKSzL3p5H88" },
+      { day: aboutPair("Wednesday", "الأربعاء"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Community run", "ركضة مجتمعية"),
+        place: aboutPair("Wadi Hanifa Road-Trail", "وادي حنيفة - تريل"), map: "https://maps.app.goo.gl/eDNvfRb281Uf8MTB8" },
+      { day: aboutPair("Wednesday", "الأربعاء"), time: aboutPair("7:30 pm", "٧:٣٠ م"), title: aboutPair("Easy run", "ركضة خفيفة"),
+        place: aboutPair("Alnahda Park", "حديقة النهضة"), map: "https://maps.app.goo.gl/8ppM7Lp4BanDdANt6" },
+      { day: aboutPair("Thursday", "الخميس"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Speed session", "تمرين سرعات"),
+        place: aboutPair("Wadi Mahdia Road", "خط التفتيش - بعد الدوار"), map: "https://maps.app.goo.gl/fwSWCrLb9cxV7JHB6" },
+      { day: aboutPair("Saturday", "السبت"), time: aboutPair("4:55 am", "٤:٥٥ ص"), title: aboutPair("Long run", "ركضة طويلة"),
+        place: aboutPair("Wadi Hanifa Park", "حديقة وادي حنيفة"), map: "https://maps.app.goo.gl/iKnDTQNvMCCotjhZ7" }
+    ] },
+
   { type: "gallery", show: true,
     title: aboutPair("Where you've seen us", "من فعالياتنا"),
-    tags: [
-      aboutPair("Races", "سباقات"), aboutPair("Workshops", "ورش"), aboutPair("Women's program", "برنامج المرأة"),
-      aboutPair("Kids camp", "معسكر الأطفال"), aboutPair("Collaborations", "شراكات"), aboutPair("Social content", "محتوى التواصل")
-    ],
     // One wide, one tall and six plain tiles fill the grid exactly at both
     // widths; the grid packs densely, so other mixes leave at most one gap.
     items: [
@@ -218,9 +245,22 @@ var aboutRender = (function () {
             opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L)));
         })));
     },
+    sessions: function (s, L) {
+      return h("section", "", opt("h2", "", tx(s.title, L)), opt("p", "muted", tx(s.text, L)),
+        h("div", "sessions", list(s.items).map(function (it) {
+          var map = String(it.map || ""), pin = null;
+          if (map.indexOf("https://") === 0) {
+            pin = h("a", "pin", L === "ar" ? "الموقع على الخريطة" : "Open in Maps");
+            pin.href = map;
+            pin.rel = "noopener noreferrer";
+          }
+          return h("div", "sess",
+            h("div", "when", opt("span", "day", tx(it.day, L)), opt("span", "time", tx(it.time, L))),
+            opt("h3", "", tx(it.title, L)), opt("div", "place", tx(it.place, L)), pin);
+        })));
+    },
     gallery: function (s, L) {
       return h("section", "", opt("h2", "", tx(s.title, L)),
-        h("div", "tags", list(s.tags).map(function (t) { return opt("span", "", tx(t, L)); })),
         h("div", "gallery", list(s.items).map(function (it) {
           var p = img(it.image);
           return p ? h("figure", /^(wide|tall)$/.test(it.size) ? it.size : "", p, opt("figcaption", "", tx(it.caption, L))) : null;

@@ -16,7 +16,7 @@ import { refuseUnlessAdmin } from "../lib/auth.js";
 
 const DOC_KEY = "about-doc";
 const IMG_PREFIX = "about-img:";
-const TYPES = ["hero", "about", "stats", "social", "goals", "gallery", "events", "partners", "text", "cta"];
+const TYPES = ["hero", "about", "stats", "social", "goals", "sessions", "gallery", "events", "partners", "text", "cta"];
 const MAX = { json: 80000, sections: 30, list: 40, keys: 20, text: 3000, depth: 6, img: 900000, imgs: 150 };
 const PHOTO = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
 

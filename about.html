@@ -116,8 +116,6 @@ a{color:var(--brand)}
 .goal p{color:var(--muted);font-size:15px;margin:0}
 
 /* ---- the gallery ---- */
-.tags{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 16px}
-.tags span{padding:5px 12px;border-radius:999px;background:var(--tint);color:var(--brand);font-size:13px;font-weight:600}
 .gallery{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:150px;grid-auto-flow:dense;gap:10px}
 .gallery figure{position:relative;margin:0;border-radius:14px;overflow:hidden;background:var(--line)}
 .gallery img{width:100%;height:100%;object-fit:cover}
@@ -135,6 +133,18 @@ a{color:var(--brand)}
   .gallery img{transition:transform .6s ease}
   .gallery figure:hover img{transform:scale(1.05)}
 }
+
+/* ---- weekly sessions ---- */
+.sessions{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.sess{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;display:grid;gap:4px;align-content:start}
+.sess .when{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sess .day{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
+[dir="rtl"] .sess .day{letter-spacing:0}
+.sess .time{font-family:var(--display);font-size:30px;font-weight:600;line-height:1}
+.sess h3{font-size:22px;margin-top:6px}
+.sess .place{color:var(--muted);font-size:14px}
+.sess .pin{font-size:13px;font-weight:700;text-decoration:none;margin-top:4px}
+.sess .pin:hover{text-decoration:underline}
 
 /* ---- coming up ---- */
 .events{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
@@ -210,7 +220,7 @@ footer a{color:inherit}
 </button>
 
 <script src="js/brand.js?v=4f153237"></script>
-<script src="js/about.js?v=78d304eb"></script>
+<script src="js/about.js?v=b6385dfe"></script>
 <script>
 "use strict";
 var root = document.documentElement;
