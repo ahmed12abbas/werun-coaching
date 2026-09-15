@@ -213,6 +213,29 @@ textarea{width:100%;min-height:90px;padding:11px 12px;font:inherit;font-size:14p
   background:var(--bg);border:1px solid var(--line);border-radius:12px;resize:vertical}
 textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
 
+/* ---- the Who Are We editor ----
+   Sections fold so a phone scrolls through ten headings, not ten forms; the
+   Save bar sticks so it is never a long scroll back up. */
+.ab-tools{position:sticky;top:0;z-index:3;background:var(--card);padding:10px 0;border-bottom:1px solid var(--line)}
+.ab-msg{margin:8px 0 0}
+.ab-sec{border:1px solid var(--line);border-radius:13px;margin-top:10px;background:var(--bg)}
+.ab-sec[open]{border-color:var(--brand)}
+.ab-sec>summary{cursor:pointer;padding:14px 16px;font-weight:700;display:flex;align-items:center;gap:10px}
+.ab-body{padding:0 16px 16px;display:grid;gap:14px}
+.ab-fields{display:grid;gap:14px}
+.ab-list{display:grid;gap:10px}
+.ab-item{border:1px dashed var(--line);border-radius:12px;padding:12px;display:grid;gap:12px;background:var(--card)}
+.ab-acts{display:flex;gap:6px;flex-wrap:wrap}
+.ab-img{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.ab-img>div:not([style]){flex:1 1 180px}
+.ab-thumb{width:128px;height:84px;object-fit:cover;border-radius:10px;background:var(--line)}
+label.ab-up{display:inline-flex;margin:0;font-size:13.5px;letter-spacing:0;text-transform:none;color:var(--fg)}
+.ab-up input{display:none}
+.card select{width:100%;padding:11px 12px;font:inherit;color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:12px}
+@media (min-width:1000px){.ab-item>.ab-fields{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .ab-item>.ab-fields>.two{grid-column:1/-1}}
+
 /* ---- settings ---- */
 .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
 .setgrid .full{grid-column:1/-1}

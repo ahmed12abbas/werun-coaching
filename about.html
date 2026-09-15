@@ -12,7 +12,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/about/hero.webp">
 <script>
 /* Before first paint, same two keys the app writes (js/i18n.js). */
 (function () {
@@ -25,9 +24,8 @@
 })();
 </script>
 <style>
-/* Standalone like privacy.html: a page a partner can be sent to with no login
-   and no script bundle. Text and photos come from the July 2026 sponsorship
-   deck; the package prices in it are deliberately left out. */
+/* Standalone like privacy.html: a page a partner can be sent to with no login.
+   What is on it is js/about.js's document, edited from /admin. */
 :root{
   --brand:#8851F4; --deep:#5B2FC9; --bg:#f7f7fa; --card:#fff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
   --tint:#efe8fe; --radius:18px; --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -44,6 +42,9 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
   font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
 img{max-width:100%;display:block}
 .wrap{max-width:1040px;margin:0 auto;padding:20px 18px 60px}
+/* A PC monitor gets the room: six numbers in a row, a taller banner. */
+@media (min-width:1400px){.wrap{max-width:1240px;padding-top:28px}}
+#page{min-height:70vh}
 .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .top a{color:var(--muted);text-decoration:none;font-size:14px}
 .top .grow{flex:1}
@@ -64,26 +65,25 @@ a{color:var(--brand)}
 [dir="rtl"] .kicker{letter-spacing:0}
 
 /* ---- hero ---- */
-.hero{position:relative;overflow:hidden;border-radius:26px;min-height:clamp(380px,64vh,560px);
+.hero{position:relative;overflow:hidden;border-radius:26px;min-height:clamp(380px,64vh,620px);
   display:flex;align-items:flex-end;color:#fff;background:var(--deep)}
 .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hero::after{content:"";position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(20,10,45,0) 25%,rgba(20,10,45,.35) 50%,rgba(70,30,170,.92))}
-.hero .in{position:relative;z-index:1;padding:28px clamp(20px,4vw,40px)}
+.hero .in{position:relative;z-index:1;padding:28px clamp(20px,4vw,48px)}
 .hero .kicker{color:#fff;opacity:.9}
-.hero h1{font-size:clamp(84px,17vw,150px);line-height:.8;letter-spacing:.01em}
-.hero p{font-size:clamp(17px,2.2vw,20px);max-width:34em;margin:12px 0 16px}
-.badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
+.hero h1{font-size:clamp(84px,17vw,170px);line-height:.8;letter-spacing:.01em}
+.hero p{font-size:clamp(17px,2.2vw,21px);max-width:34em;margin:12px 0 16px}
+.badge{display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
   background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 
 /* ---- about ---- */
 .about{display:grid;gap:28px;align-items:center}
-.about .lead{font-size:clamp(19px,2.4vw,23px);line-height:1.5;font-weight:600}
+.about .lead{font-size:clamp(19px,2.4vw,24px);line-height:1.5;font-weight:600}
 .award{margin:0;border-radius:var(--radius);overflow:hidden;background:var(--card);border:1px solid var(--line)}
 .award img{width:100%;aspect-ratio:3/2;object-fit:cover}
-.award figcaption{padding:14px 18px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
-.award figcaption span:first-child{font-size:22px;line-height:1}
-@media (min-width:820px){.about{grid-template-columns:1.1fr 1fr}}
+.award figcaption{padding:14px 18px;font-size:14px}
+@media (min-width:820px){.about:not(.solo){grid-template-columns:1.1fr 1fr}}
 
 /* ---- numbers ---- */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
@@ -93,7 +93,7 @@ a{color:var(--brand)}
 .band{margin-top:12px;background:var(--deep);color:#fff;border-radius:var(--radius);padding:24px clamp(20px,3vw,32px);
   display:grid;gap:22px}
 .band .kicker{color:#fff;opacity:.8;margin:0}
-.band .row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.band .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:12px}
 .band .num{color:#fff;font-size:clamp(44px,8vw,64px)}
 .band .lbl{color:rgba(255,255,255,.8)}
 .split{display:flex;height:12px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.2);margin:8px 0 6px}
@@ -102,6 +102,7 @@ a{color:var(--brand)}
 .legend{display:flex;justify-content:space-between;gap:10px;font-size:14px;flex-wrap:wrap}
 .legend b{font-family:var(--display);font-size:24px;font-weight:600;margin-inline-end:4px}
 .facts{display:grid;gap:10px 22px;font-size:14px;color:rgba(255,255,255,.88)}
+.facts:empty{display:none}
 @media (min-width:760px){.band{grid-template-columns:1.2fr 1fr}.band .kicker{grid-column:1/-1}.facts{grid-column:1/-1;grid-template-columns:1fr 1fr}}
 
 /* ---- goals ---- */
@@ -112,10 +113,9 @@ a{color:var(--brand)}
 .goal h3{margin-bottom:6px}
 .goal p{color:var(--muted);font-size:15px;margin:0}
 
-/* ---- activations ---- */
+/* ---- the gallery ---- */
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 16px}
 .tags span{padding:5px 12px;border-radius:999px;background:var(--tint);color:var(--brand);font-size:13px;font-weight:600}
-/* Cells add up exactly at both widths: one 2x2, one 1x2 tall, six singles. */
 .gallery{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:150px;grid-auto-flow:dense;gap:10px}
 .gallery figure{position:relative;margin:0;border-radius:14px;overflow:hidden;background:var(--line)}
 .gallery img{width:100%;height:100%;object-fit:cover}
@@ -128,6 +128,7 @@ a{color:var(--brand)}
   .gallery .wide{grid-column:span 2}
   .gallery figcaption{font-size:14px;padding:36px 16px 12px}
 }
+@media (min-width:1400px){.gallery{grid-auto-rows:250px}}
 @media (hover:hover) and (prefers-reduced-motion:no-preference){
   .gallery img{transition:transform .6s ease}
   .gallery figure:hover img{transform:scale(1.05)}
@@ -142,12 +143,16 @@ a{color:var(--brand)}
 .event h3{margin-bottom:4px}
 .event p{margin:0;font-size:14px;color:var(--muted)}
 
+/* ---- a text block added from /admin ---- */
+.textsec p{max-width:48em}
+.textsec img{width:100%;max-height:520px;object-fit:cover;border-radius:var(--radius);margin-top:16px}
+
 /* ---- call to action ---- */
 .cta{position:relative;overflow:hidden;border-radius:26px;color:#fff;text-align:center;padding:56px 22px;background:var(--deep)}
 .cta img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cta::after{content:"";position:absolute;inset:0;background:rgba(60,25,150,.82)}
-.cta .in{position:relative;z-index:1;max-width:560px;margin:0 auto}
-.cta h2{font-size:clamp(48px,9vw,76px);margin-bottom:8px}
+.cta .in{position:relative;z-index:1;max-width:600px;margin:0 auto}
+.cta h2{font-size:clamp(48px,9vw,80px);margin-bottom:8px}
 .cta p{font-size:17px;opacity:.92;margin-bottom:22px}
 .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .btn{display:inline-block;padding:13px 24px;border-radius:999px;font-weight:700;text-decoration:none;font-size:15px}
@@ -164,167 +169,44 @@ footer a{color:inherit}
     <a class="grow" href="/app.html" id="back">← WE RUN</a>
     <button class="tool" type="button" id="lang">العربية</button>
   </div>
-
-  <header class="hero">
-    <img src="assets/about/hero.webp" alt="WE RUN members in club jackets, under the palms in Riyadh" fetchpriority="high">
-    <div class="in">
-      <div class="kicker" data-t="kicker">Who are we</div>
-      <h1>WE RUN</h1>
-      <p data-t="tagline">A Riyadh running community for every level — from a first 5K to a marathon finish line.</p>
-      <span class="badge"><span aria-hidden="true">🏆</span><span data-t="badge">Most Active CSG · SFA Awards 2025</span></span>
-    </div>
-  </header>
-
-  <section class="about">
-    <div>
-      <div class="kicker" data-t="aboutK">About WE RUN</div>
-      <p class="lead" data-t="lead">We're building a running culture that lasts — getting more people moving across Riyadh and the Kingdom, with a clear focus on empowering women and developing Saudi running talent.</p>
-      <p class="muted" data-t="about2">We train with structured, standardised programmes and guidance from regional experts, on a platform open to runners of every level. We push every member toward personal and athletic goals they can measure, and we're building a group that represents Saudi Arabia at national and international events.</p>
-    </div>
-    <figure class="award">
-      <img src="assets/about/award.webp" alt="WE RUN members on stage at the CSGs Awarding Ceremony 2025" loading="lazy" decoding="async">
-      <figcaption><span aria-hidden="true">🏅</span><span data-t="awardCap">Named the most active Community Sports Group by the Saudi Sports for All Federation, 2025.</span></figcaption>
-    </figure>
-  </section>
-
-  <section>
-    <h2 data-t="numbersH">WE RUN in numbers</h2>
-    <div class="stats">
-      <div class="stat"><div class="num">3</div><div class="lbl" data-t="seasons">Seasons</div></div>
-      <div class="stat"><div class="num">2800+</div><div class="lbl" data-t="members">Members</div></div>
-      <div class="stat"><div class="num">1200+</div><div class="lbl" data-t="sessions">Sessions</div></div>
-      <div class="stat"><div class="num">9</div><div class="lbl" data-t="races">Races</div></div>
-      <div class="stat"><div class="num">7</div><div class="lbl" data-t="workshops">Educational workshops</div></div>
-      <div class="stat"><div class="num">1</div><div class="lbl" data-t="award">SFA award</div></div>
-    </div>
-    <div class="band">
-      <div class="kicker" data-t="socialK">On social · growth over three years</div>
-      <div class="row">
-        <div><div class="num">17.1K</div><div class="lbl" data-t="followers">Followers</div></div>
-        <div><div class="num">3.1M</div><div class="lbl" data-t="views">Views</div></div>
-        <div><div class="num">200K</div><div class="lbl" data-t="reach">Reach</div></div>
-      </div>
-      <div>
-        <div class="lbl" data-t="whoFollows">Who follows us</div>
-        <div class="split" role="img" aria-label="Men 56%, women 44%"><i style="width:56.3%"></i><i style="width:43.7%"></i></div>
-        <div class="legend"><span><b>56%</b><span data-t="men">Men</span></span><span><b>44%</b><span data-t="women">Women</span></span></div>
-      </div>
-      <div class="facts">
-        <div data-t="ages">Mostly 25–34 (50%) and 35–44 (36%)</div>
-        <div data-t="countries">Top countries: Saudi Arabia, UAE, Kuwait, Bahrain</div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2 data-t="goalsH">What we're here for</h2>
-    <div class="goals">
-      <div class="goal"><div class="n">01</div><h3 data-t="g1">Empower</h3><p data-t="g1p">Empowering women in the community, starting with the first-ever women's performance group.</p></div>
-      <div class="goal"><div class="n">02</div><h3 data-t="g2">Grow</h3><p data-t="g2p">Growing a culture of running and activity in the heart of Riyadh, through events led by running.</p></div>
-      <div class="goal"><div class="n">03</div><h3 data-t="g3">Represent</h3><p data-t="g3p">Representing the Saudi identity as a Saudi brand — national day runs, and national and international events.</p></div>
-      <div class="goal"><div class="n">04</div><h3 data-t="g4">Sustain</h3><p data-t="g4p">Sustaining a community of active, healthy, passionate people through long-term relationships.</p></div>
-    </div>
-  </section>
-
-  <section>
-    <h2 data-t="actH">Where you've seen us</h2>
-    <div class="tags">
-      <span data-t="t1">Races</span><span data-t="t2">Workshops</span><span data-t="t3">Women's program</span>
-      <span data-t="t4">Kids camp</span><span data-t="t5">Collaborations</span><span data-t="t6">Social content</span>
-    </div>
-    <div class="gallery">
-      <figure class="wide"><img src="assets/about/festival.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c1">Riyadh Marathon Festival 2025</figcaption></figure>
-      <figure class="tall"><img src="assets/about/together.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c2">Together we run — every week, all year</figcaption></figure>
-      <figure><img src="assets/about/race5k.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c3">5K Annual Race 2026</figcaption></figure>
-      <figure><img src="assets/about/race10k.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c4">10K Annual Race 2025 · Wadi Hanifah</figcaption></figure>
-      <figure><img src="assets/about/workshop.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c5">Riyadh Marathon Workshop 2025</figcaption></figure>
-      <figure><img src="assets/about/sheruns.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c6">She Runs — women and girls only, with MISK City</figcaption></figure>
-      <figure><img src="assets/about/kids.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c7">WE RUN Kids Camp 2025</figcaption></figure>
-      <figure><img src="assets/about/games.webp" alt="" loading="lazy" decoding="async"><figcaption data-t="c8">Saudi Games Activation 2024</figcaption></figure>
-    </div>
-  </section>
-
-  <section>
-    <h2 data-t="upH">Coming up</h2>
-    <div class="events">
-      <div class="event"><div class="date"><b>10</b><span data-t="oct">Oct</span></div>
-        <div><h3 data-t="e1">10K Race</h3><p data-t="e1p">Wadi Hanifah, Riyadh · 1,500 runners, kids' race included</p></div></div>
-      <div class="event pink"><div class="date"><b>24</b><span data-t="oct">Oct</span></div>
-        <div><h3>She Runs</h3><p data-t="e2p">MISK City, Riyadh · 400 runners, women only</p></div></div>
-    </div>
-  </section>
-
-  <section class="cta">
-    <img src="assets/about/park.webp" alt="" loading="lazy" decoding="async">
-    <div class="in">
-      <h2 data-t="ctaH">Run with us</h2>
-      <p data-t="ctaP">Ten sessions a week across Riyadh, and every level is welcome. Brands who want to be part of the season — we'd love to hear from you.</p>
-      <div class="btns">
-        <a class="btn primary" href="/app.html" data-t="join">Join the club</a>
-        <a class="btn ghost" href="mailto:werunksa@gmail.com?subject=Partnering%20with%20WE%20RUN" data-t="partner">Partner with us</a>
-        <a class="btn ghost" href="https://www.instagram.com/werun.sa/" rel="noopener noreferrer">@werun.sa</a>
-      </div>
-    </div>
-  </section>
-
-  <footer>WE RUN Coaching · <a href="/privacy" data-t="privacy">Privacy</a></footer>
+  <main id="page"></main>
+  <footer>WE RUN Coaching · <a href="/privacy" id="privacy">Privacy</a></footer>
 </div>
 
+<script src="js/about.js?v=bf0d8244"></script>
 <script>
 "use strict";
-var AR = {
-  kicker: "من نحن",
-  tagline: "مجتمع جري في الرياض لكل المستويات، من أول ٥ كم إلى خط نهاية الماراثون.",
-  badge: "المجموعة الأكثر نشاطاً · جوائز الرياضة للجميع ٢٠٢٥",
-  aboutK: "عن WE RUN",
-  lead: "نبني ثقافة جري تدوم، ونزيد النشاط البدني في الرياض وأنحاء المملكة، مع تركيز واضح على تمكين المرأة وتطوير المواهب السعودية في الجري.",
-  about2: "نتدرّب وفق برامج منظّمة وموحّدة وبإشراف خبراء من المنطقة، في مساحة مفتوحة للعدّائين من كل المستويات. ندفع كل عضو نحو أهداف شخصية ورياضية قابلة للقياس، ونبني فريقاً يمثّل المملكة في الفعاليات المحلية والدولية.",
-  awardCap: "حصلنا على لقب المجموعة الرياضية المجتمعية الأكثر نشاطاً من الاتحاد السعودي للرياضة للجميع، ٢٠٢٥.",
-  numbersH: "WE RUN بالأرقام",
-  seasons: "مواسم", members: "عضو", sessions: "حصة تدريبية", races: "سباقات", workshops: "ورش تثقيفية", award: "جائزة من الاتحاد",
-  socialK: "على منصات التواصل · النمو خلال ثلاث سنوات",
-  followers: "متابع", views: "مشاهدة", reach: "وصول",
-  whoFollows: "من يتابعنا", men: "رجال", women: "نساء",
-  ages: "أغلبهم بين ٢٥ و٣٤ عاماً (٥٠٪) وبين ٣٥ و٤٤ عاماً (٣٦٪)",
-  countries: "أكثر الدول متابعةً: السعودية، الإمارات، الكويت، البحرين",
-  goalsH: "ما نسعى إليه",
-  g1: "تمكين", g1p: "تمكين المرأة في المجتمع، بدءاً بتأسيس أول مجموعة أداء نسائية.",
-  g2: "نموّ", g2p: "تنمية ثقافة الجري والنشاط في قلب الرياض من خلال فعاليات يقودها الجري.",
-  g3: "تمثيل", g3p: "تمثيل الهوية السعودية بعلامة سعودية: جريات اليوم الوطني، والمشاركة في الفعاليات المحلية والدولية.",
-  g4: "استدامة", g4p: "استدامة مجتمع نشيط وصحي وشغوف عبر علاقات طويلة الأمد.",
-  actH: "من فعالياتنا",
-  t1: "سباقات", t2: "ورش", t3: "برنامج المرأة", t4: "معسكر الأطفال", t5: "شراكات", t6: "محتوى التواصل",
-  c1: "مهرجان ماراثون الرياض ٢٠٢٥", c2: "معاً نجري، كل أسبوع وطوال العام", c3: "سباق ٥ كم السنوي ٢٠٢٦",
-  c4: "سباق ١٠ كم السنوي ٢٠٢٥ · وادي حنيفة", c5: "ورشة ماراثون الرياض ٢٠٢٥",
-  c6: "سباق She Runs للنساء والفتيات فقط، بالتعاون مع مدينة مسك", c7: "معسكر WE RUN للأطفال ٢٠٢٥",
-  c8: "فعالية دورة الألعاب السعودية ٢٠٢٤",
-  upH: "فعاليات قادمة", oct: "أكتوبر",
-  e1: "سباق ١٠ كم", e1p: "وادي حنيفة، الرياض · ١٥٠٠ عدّاء، ويشمل سباقاً للأطفال",
-  e2p: "مدينة مسك، الرياض · ٤٠٠ عدّاءة، للنساء فقط",
-  ctaH: "اجرِ معنا",
-  ctaP: "عشر حصص أسبوعياً في أنحاء الرياض، وكل المستويات مرحّب بها. وللعلامات التي تريد أن تكون جزءاً من الموسم: يسعدنا تواصلكم.",
-  join: "انضم إلى النادي", partner: "كن شريكاً لنا", privacy: "الخصوصية"
-};
 var root = document.documentElement;
 var btn = document.getElementById("lang");
-var nodes = document.querySelectorAll("[data-t]");
-var EN = {};
-nodes.forEach(function (n) { EN[n.getAttribute("data-t")] = n.textContent; });
+var page = document.getElementById("page");
+var saved = null; // the admin's copy, once /api/about has answered
+
+function current() { return root.getAttribute("lang") === "ar" ? "ar" : "en"; }
+
 function show(lang) {
-  var dict = lang === "ar" ? AR : EN;
   root.setAttribute("lang", lang);
   root.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-  nodes.forEach(function (n) { var k = n.getAttribute("data-t"); n.textContent = dict[k] || EN[k]; });
   btn.textContent = lang === "ar" ? "English" : "العربية";
   document.getElementById("back").textContent = lang === "ar" ? "→ WE RUN" : "← WE RUN";
+  document.getElementById("privacy").textContent = lang === "ar" ? "الخصوصية" : "Privacy";
   document.title = (lang === "ar" ? "من نحن" : "Who Are We") + " · WE RUN";
+  aboutRender(page, saved || ABOUT_DEFAULT, lang);
 }
+
 btn.addEventListener("click", function () {
-  var next = root.getAttribute("lang") === "ar" ? "en" : "ar";
+  var next = current() === "ar" ? "en" : "ar";
   try { localStorage.setItem("werun.lang", next); } catch (e) {}
   show(next);
 });
-show(root.getAttribute("lang") === "ar" ? "ar" : "en");
+
+/* Drawn once the saved copy is in, so an edited page does not flash the
+   original first -- unless the answer is slow, when the original is better
+   than a blank page and is swapped out when it lands. */
+var early = setTimeout(function () { show(current()); }, 1500);
+fetch("/api/about").then(function (r) { return r.ok ? r.json() : {}; })
+  .then(function (d) { if (d && d.doc && Array.isArray(d.doc.sections)) saved = d.doc; })
+  ["catch"](function () {})
+  .then(function () { clearTimeout(early); show(current()); });
 </script>
 </body>
 </html>

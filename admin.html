@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=dfb177a7">
+<link rel="stylesheet" href="assets/console.css?v=43d3f787">
 </head>
 <body>
 <div class="wrap">
@@ -34,6 +34,7 @@
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
+<script src="js/about.js?v=bf0d8244"></script>
 <script>
 "use strict";
 
@@ -283,6 +284,7 @@ function renderStats(data, tips) {
   app.append(schedulePlanCard());
   app.append(sessionsCard());
   app.append(feedCard());
+  app.append(aboutCard());
   app.append(membersCard());
   app.append(coachesCard());
   app.append(shopCard());
@@ -941,6 +943,295 @@ function feedCard() {
   post({ action: "list" }).then(paint)["catch"](function (e) {
     list.append(el("p", { class: "muted small", style: "margin:4px 0 0" }, e.message));
   });
+  return card;
+}
+
+/* ---- the Who Are We page ----
+   /about is one document of sections, drawn by js/about.js from whatever this
+   card last saved, or from ABOUT_DEFAULT when nothing has been. The editor
+   walks that document rather than knowing each section: a {en, ar} pair is
+   two boxes side by side, `image` is a picker, a list grows, shrinks and
+   reorders, true/false is a switch. So a field added in js/about.js turns up
+   here on its own. */
+var ABOUT_NAMES = {
+  hero: "Top banner", about: "About us", stats: "Numbers", social: "Social media", goals: "Goals",
+  gallery: "Photo gallery", events: "Coming up", text: "Text block", cta: "Closing banner"
+};
+var ABOUT_LABELS = {
+  men_pct: "Men, % of followers", split_title: "Split heading", num: "Number", href: "Link (/page, https://… or mailto:…)",
+  primary: "Filled button", pink: "Pink date", buttons: "Buttons", items: "Items", facts: "Facts", tags: "Tags"
+};
+var ABOUT_PHOTOS = ["hero", "award", "together", "festival", "race5k", "race10k", "workshop", "sheruns", "kids", "games", "park"];
+var ABOUT_LONG = /^(lead|body|text|tagline|caption)$/;
+
+function aboutWords(k) {
+  return ABOUT_LABELS[k] || String(k).replace(/_/g, " ").replace(/^./, function (c) { return c.toUpperCase(); });
+}
+
+function aboutIsPair(v) {
+  return !!v && typeof v === "object" && !Array.isArray(v) && "en" in v && "ar" in v;
+}
+
+/* The same shape with nothing in it: what "Add" puts at the end of a list. */
+function aboutBlank(v) {
+  if (Array.isArray(v)) return [];
+  if (v && typeof v === "object") {
+    var o = {};
+    for (var k in v) o[k] = aboutBlank(v[k]);
+    return o;
+  }
+  return typeof v === "number" ? 0 : typeof v === "boolean" ? false : "";
+}
+
+/* The first section of a type, as shipped: what a new one starts from. */
+function aboutTemplate(type) {
+  var all = ABOUT_DEFAULT.sections.concat(ABOUT_EXTRA);
+  for (var i = 0; i < all.length; i++) if (all[i].type === type) return all[i];
+  return null;
+}
+
+/* A photo shrunk in the browser before it is sent, so a 12 MB phone picture
+   arrives as a couple of hundred KB. Read as a data: URL rather than a blob:
+   one, because the site's content policy allows data: images and blob: ones
+   not. Safari cannot write WebP from a canvas and hands back PNG, several
+   times the size for a photo, so that falls back to JPEG. */
+function aboutShrink(file) {
+  return new Promise(function (ok, no) {
+    var r = new FileReader();
+    r.onerror = function () { no(new Error("Could not read that file.")); };
+    r.onload = function () {
+      var im = new Image();
+      im.onerror = function () { no(new Error("That file is not a photo this browser can open.")); };
+      im.onload = function () {
+        var s = Math.min(1, 1400 / im.naturalWidth);
+        var c = document.createElement("canvas");
+        c.width = Math.round(im.naturalWidth * s);
+        c.height = Math.round(im.naturalHeight * s);
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        var out = c.toDataURL("image/webp", 0.72);
+        if (out.indexOf("data:image/webp") !== 0) out = c.toDataURL("image/jpeg", 0.8);
+        ok(out);
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+function aboutCard() {
+  var card = el("div", { class: "card" }, el("h2", {}, "Who Are We page"));
+  var doc = null;
+  var opened = []; // sections whose box is open, kept across redraws
+  var secs = el("div", {});
+  var msg = el("p", { class: "muted small ab-msg" }, "Loading…");
+  var addType = el("select", {});
+  Object.keys(ABOUT_NAMES).forEach(function (k) { addType.append(el("option", { value: k }, ABOUT_NAMES[k])); });
+
+  function call(payload) { return api("/api/admin/about", payload); }
+  function say(text, bad) { msg.textContent = text; msg.className = (bad ? "err" : "muted small") + " ab-msg"; }
+  function dirty() { say("Unsaved changes — press Save."); }
+  function failed(e) {
+    say(e.code === "too-big" ? "Too large to save. Take something out, or use a smaller photo." :
+      e.code === "too-many" ? "The photo store is full. Reuse a photo already uploaded." : e.message, true);
+  }
+
+  function draw() {
+    secs.textContent = "";
+    doc.sections.forEach(function (s, i) { secs.append(sectionBox(s, i)); });
+  }
+
+  function mover(arr, i, redraw) {
+    function swap(j) {
+      if (j < 0 || j >= arr.length) return;
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+      dirty(); redraw();
+    }
+    return el("div", { class: "ab-acts" },
+      el("button", { class: "btn sm", type: "button", "aria-label": "Move up", onclick: function () { swap(i - 1); } }, "↑"),
+      el("button", { class: "btn sm", type: "button", "aria-label": "Move down", onclick: function () { swap(i + 1); } }, "↓"),
+      el("button", { class: "btn sm", type: "button", onclick: function () {
+        if (!window.confirm("Remove this? It goes when you save.")) return;
+        arr.splice(i, 1); dirty(); redraw();
+      } }, "Remove"));
+  }
+
+  function sectionBox(s, i) {
+    var hiddenTag = el("span", { class: "badge off" }, "Hidden");
+    hiddenTag.hidden = s.show !== false;
+    var show = el("input", { type: "checkbox" });
+    show.checked = s.show !== false;
+    show.addEventListener("change", function () { s.show = show.checked; hiddenTag.hidden = show.checked; dirty(); });
+    var d = el("details", { class: "ab-sec" },
+      el("summary", {}, el("span", {}, ABOUT_NAMES[s.type] || s.type), hiddenTag),
+      el("div", { class: "ab-body" },
+        el("div", { class: "row" },
+          el("div", { style: "flex:1 1 auto" }, el("label", { class: "sw" }, show, el("span", {}, "Show on the page"))),
+          el("div", { style: "flex:0 0 auto" }, mover(doc.sections, i, draw))),
+        fields(s, s.type)));
+    if (opened.indexOf(s) >= 0) d.setAttribute("open", "");
+    d.addEventListener("toggle", function () {
+      var at = opened.indexOf(s);
+      if (d.open && at < 0) opened.push(s);
+      if (!d.open && at >= 0) opened.splice(at, 1);
+    });
+    return d;
+  }
+
+  function fields(o, type) {
+    var box = el("div", { class: "ab-fields" });
+    Object.keys(o).forEach(function (k) {
+      if (k === "type" || k === "show") return;
+      var v = o[k];
+      if (aboutIsPair(v)) box.append(pair(o, k, aboutWords(k)));
+      else if (k === "image") box.append(picker(o, k));
+      else if (k === "size") box.append(sizer(o, k));
+      else if (Array.isArray(v)) box.append(list(v, k, type));
+      else if (typeof v === "boolean") box.append(check(o, k));
+      else box.append(plain(o, k));
+    });
+    return box;
+  }
+
+  function pair(o, k, name) {
+    var long = ABOUT_LONG.test(k) || String(o[k].en || "").length > 70;
+    function input(lang) {
+      var n = long ? el("textarea", { rows: "3" }) : el("input", { type: "text" });
+      n.value = o[k][lang] || "";
+      n.addEventListener("input", function () { o[k][lang] = n.value; dirty(); });
+      return n;
+    }
+    return el("div", { class: "two" },
+      el("div", {}, el("label", {}, name + " · English"), input("en")),
+      el("div", { class: "ar" }, el("label", {}, name + " · العربية"), input("ar")));
+  }
+
+  function plain(o, k) {
+    var num = typeof o[k] === "number";
+    var n = el("input", { type: num ? "number" : "text" });
+    n.value = o[k] == null ? "" : String(o[k]);
+    n.addEventListener("input", function () { o[k] = num ? Number(n.value) || 0 : n.value; dirty(); });
+    return el("div", {}, el("label", {}, aboutWords(k)), n);
+  }
+
+  function check(o, k) {
+    var c = el("input", { type: "checkbox" });
+    c.checked = !!o[k];
+    c.addEventListener("change", function () { o[k] = c.checked; dirty(); });
+    return el("label", { class: "sw" }, c, el("span", {}, aboutWords(k)));
+  }
+
+  function sizer(o, k) {
+    var s = el("select", {},
+      el("option", { value: "" }, "Normal tile"),
+      el("option", { value: "wide" }, "Wide tile (2 × 2)"),
+      el("option", { value: "tall" }, "Tall tile (1 × 2)"));
+    s.value = o[k] || "";
+    s.addEventListener("change", function () { o[k] = s.value; dirty(); });
+    return el("div", {}, el("label", {}, "Tile size"), s);
+  }
+
+  function list(arr, k, type) {
+    var wrap = el("div", { class: "ab-list" });
+    function redraw() {
+      wrap.textContent = "";
+      wrap.append(el("label", {}, aboutWords(k) + " (" + arr.length + ")"));
+      arr.forEach(function (item, i) {
+        wrap.append(el("div", { class: "ab-item" },
+          aboutIsPair(item) ? pair(arr, i, "Line " + (i + 1)) : fields(item, type),
+          mover(arr, i, redraw)));
+      });
+      wrap.append(el("div", {}, el("button", { class: "btn sm", type: "button", onclick: function () {
+        var shipped = aboutTemplate(type);
+        var like = arr[0] || (shipped && shipped[k] && shipped[k][0]) || { en: "", ar: "" };
+        arr.push(aboutBlank(like));
+        dirty(); redraw();
+      } }, "+ Add")));
+    }
+    redraw();
+    return wrap;
+  }
+
+  function picker(o, k) {
+    var thumb = el("img", { class: "ab-thumb", alt: "" });
+    var sel = el("select", {}, el("option", { value: "" }, "No photo"));
+    ABOUT_PHOTOS.forEach(function (p) { sel.append(el("option", { value: "assets/about/" + p + ".webp" }, aboutWords(p))); });
+    function has(v) {
+      for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === v) return true;
+      return false;
+    }
+    function put(v) {
+      if (v && !has(v)) sel.append(el("option", { value: v }, "Uploaded photo"));
+      sel.value = v;
+      o[k] = v;
+      // An empty src would fetch this page again as an image.
+      if (v) thumb.src = v; else thumb.removeAttribute("src");
+      thumb.hidden = !v;
+    }
+    put(o[k] || "");
+    sel.addEventListener("change", function () { put(sel.value); dirty(); });
+
+    var file = el("input", { type: "file", accept: "image/*" });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      say("Uploading the photo…");
+      aboutShrink(f)
+        .then(function (data) { return call({ action: "upload", data: data }); })
+        .then(function (d) { put(d.url); say("Photo uploaded — press Save to put it on the page."); })
+        ["catch"](failed)
+        .then(function () { file.value = ""; });
+    });
+    return el("div", { class: "ab-img" }, thumb,
+      el("div", {}, el("label", {}, "Photo"), sel),
+      el("div", { style: "flex:0 0 auto" }, el("label", { class: "btn sm ab-up" }, "Upload a photo", file)));
+  }
+
+  function save() {
+    say("Saving…");
+    call({ action: "save", doc: doc })
+      .then(function () { say("Saved. /about shows it within a minute."); })["catch"](failed);
+  }
+
+  function reset() {
+    if (!window.confirm("Put the page back the way it was first written? Every edit here is thrown away.")) return;
+    call({ action: "reset" }).then(function () {
+      doc = JSON.parse(JSON.stringify(ABOUT_DEFAULT));
+      opened = [];
+      draw();
+      say("Back to the original.");
+    })["catch"](failed);
+  }
+
+  function add() {
+    var s = JSON.parse(JSON.stringify(aboutTemplate(addType.value)));
+    s.show = true;
+    doc.sections.push(s);
+    opened.push(s);
+    draw();
+    dirty();
+    secs.lastChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  card.append(
+    el("p", { class: "muted small", style: "margin-top:0" },
+      "What visitors see at /about. Open a section to change its words (both languages), photos and lists; " +
+      "the arrows reorder, the switch hides a section without losing it. Nothing changes on the page until you save."),
+    el("div", { class: "ab-tools" },
+      el("div", { class: "row" },
+        el("div", { style: "flex:0 0 auto" }, el("button", { class: "btn primary", type: "button", onclick: save }, "Save")),
+        el("div", { style: "flex:0 0 auto" }, el("a", { class: "btn", href: "/about", target: "_blank", rel: "noopener" }, "Open the page")),
+        el("div", { style: "flex:0 0 auto" }, el("button", { class: "btn", type: "button", onclick: reset }, "Back to the original"))),
+      msg),
+    secs,
+    el("div", { class: "row", style: "margin-top:14px" },
+      el("div", {}, el("label", {}, "Add a section"), addType),
+      el("div", { style: "flex:0 0 auto" }, el("button", { class: "btn", type: "button", onclick: add }, "+ Add section"))));
+
+  call({}).then(function (d) {
+    doc = d.doc && Array.isArray(d.doc.sections) ? d.doc : JSON.parse(JSON.stringify(ABOUT_DEFAULT));
+    draw();
+    say(d.doc ? "" : "This is the original page; nothing has been saved from here yet.");
+  })["catch"](failed);
   return card;
 }
 

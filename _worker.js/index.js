@@ -11,6 +11,8 @@
      POST /api/feedback         — one athlete's stars, name and comment
      GET  /api/tips             — the one article the coach has put live
      GET  /api/health           — which bindings are live; no data
+     GET  /api/about            — the Who Are We page as an admin last saved it
+     GET  /api/about/img?id=    — a photo uploaded for that page
 
      POST /api/auth/signup      — join the club          (rate-limited, has a switch)
      POST /api/auth/login       — log in                 (rate-limited)
@@ -76,6 +78,7 @@
      POST /api/admin/orders     — who is owed one, and handing it over
      POST /api/admin/schedule   — saving and deleting a standing slot
      POST /api/admin/schedule-change — one occurrence moved or called off
+     POST /api/admin/about      — the Who Are We page editor, and its photos
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the feedback and articles
@@ -124,6 +127,7 @@ import { reactions } from "./routes/reactions.js";
 import { strava, stravaCallback } from "./routes/strava.js";
 import { coros, corosCallback } from "./routes/coros.js";
 import { intervals, intervalsCallback } from "./routes/intervals.js";
+import { about, aboutImg, adminAbout } from "./routes/about.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -162,6 +166,7 @@ const POST = {
   "/api/strava": strava,
   "/api/coros": coros,
   "/api/intervals": intervals,
+  "/api/admin/about": adminAbout,
 };
 const GET = {
   "/api/tips": tips,
@@ -179,6 +184,8 @@ const GET = {
   "/api/strava/callback": stravaCallback,
   "/api/coros/callback": corosCallback,
   "/api/intervals/callback": intervalsCallback,
+  "/api/about": about,
+  "/api/about/img": aboutImg,
 };
 
 /* What every answer carries, static file and API alike.

@@ -25,7 +25,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const root = path.join(__dirname, "..");
-const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html"];
+const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html", "about.html"];
 
 // Matches src="js/anything.js" and stylesheet href="assets/anything.css", with
 // or without a version already on it, so a second run replaces the old stamp

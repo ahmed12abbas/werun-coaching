@@ -1,0 +1,244 @@
+"use strict";
+
+/* =========================================================================
+   The Who Are We page: what is on it, and how it is drawn.
+
+   One document of sections, each { type, show, ...its fields }, with every
+   line of text a { en, ar } pair. ABOUT_DEFAULT is the page as first written
+   from the July 2026 sponsorship deck (package prices deliberately left out);
+   once an admin saves from /admin, GET /api/about hands back their copy.
+
+   Loaded by about.html, which draws it, and by admin.html, whose editor walks
+   the same document -- so a field added here turns up in the editor with no
+   code there. Everything is written with textContent, never innerHTML, and
+   links and photos are checked on the way out, because the words come from
+   whoever holds an admin login.
+   ========================================================================= */
+
+function aboutPair(en, ar) { return { en: en, ar: ar }; }
+
+var ABOUT_DEFAULT = { sections: [
+  { type: "hero", show: true, image: "assets/about/hero.webp",
+    kicker: aboutPair("Who are we", "من نحن"),
+    title: "WE RUN",
+    tagline: aboutPair("A Riyadh running community for every level — from a first 5K to a marathon finish line.",
+      "مجتمع جري في الرياض لكل المستويات، من أول ٥ كم إلى خط نهاية الماراثون."),
+    badge: aboutPair("Most Active CSG · SFA Awards 2025", "المجموعة الأكثر نشاطاً · جوائز الرياضة للجميع ٢٠٢٥") },
+
+  { type: "about", show: true,
+    kicker: aboutPair("About WE RUN", "عن WE RUN"),
+    lead: aboutPair("We're building a running culture that lasts — getting more people moving across Riyadh and the Kingdom, with a clear focus on empowering women and developing Saudi running talent.",
+      "نبني ثقافة جري تدوم، ونزيد النشاط البدني في الرياض وأنحاء المملكة، مع تركيز واضح على تمكين المرأة وتطوير المواهب السعودية في الجري."),
+    body: aboutPair("We train with structured, standardised programmes and guidance from regional experts, on a platform open to runners of every level. We push every member toward personal and athletic goals they can measure, and we're building a group that represents Saudi Arabia at national and international events.",
+      "نتدرّب وفق برامج منظّمة وموحّدة وبإشراف خبراء من المنطقة، في مساحة مفتوحة للعدّائين من كل المستويات. ندفع كل عضو نحو أهداف شخصية ورياضية قابلة للقياس، ونبني فريقاً يمثّل المملكة في الفعاليات المحلية والدولية."),
+    image: "assets/about/award.webp",
+    caption: aboutPair("Named the most active Community Sports Group by the Saudi Sports for All Federation, 2025.",
+      "حصلنا على لقب المجموعة الرياضية المجتمعية الأكثر نشاطاً من الاتحاد السعودي للرياضة للجميع، ٢٠٢٥.") },
+
+  { type: "stats", show: true,
+    title: aboutPair("WE RUN in numbers", "WE RUN بالأرقام"),
+    items: [
+      { num: "3", label: aboutPair("Seasons", "مواسم") },
+      { num: "2800+", label: aboutPair("Members", "عضو") },
+      { num: "1200+", label: aboutPair("Sessions", "حصة تدريبية") },
+      { num: "9", label: aboutPair("Races", "سباقات") },
+      { num: "7", label: aboutPair("Educational workshops", "ورش تثقيفية") },
+      { num: "1", label: aboutPair("SFA award", "جائزة من الاتحاد") }
+    ] },
+
+  { type: "social", show: true,
+    kicker: aboutPair("On social · growth over three years", "على منصات التواصل · النمو خلال ثلاث سنوات"),
+    items: [
+      { num: "17.1K", label: aboutPair("Followers", "متابع") },
+      { num: "3.1M", label: aboutPair("Views", "مشاهدة") },
+      { num: "200K", label: aboutPair("Reach", "وصول") }
+    ],
+    split_title: aboutPair("Who follows us", "من يتابعنا"),
+    men_pct: 56.3,
+    men: aboutPair("Men", "رجال"),
+    women: aboutPair("Women", "نساء"),
+    facts: [
+      aboutPair("Mostly 25–34 (50%) and 35–44 (36%)", "أغلبهم بين ٢٥ و٣٤ عاماً (٥٠٪) وبين ٣٥ و٤٤ عاماً (٣٦٪)"),
+      aboutPair("Top countries: Saudi Arabia, UAE, Kuwait, Bahrain", "أكثر الدول متابعةً: السعودية، الإمارات، الكويت، البحرين")
+    ] },
+
+  { type: "goals", show: true,
+    title: aboutPair("What we're here for", "ما نسعى إليه"),
+    items: [
+      { title: aboutPair("Empower", "تمكين"), text: aboutPair("Empowering women in the community, starting with the first-ever women's performance group.", "تمكين المرأة في المجتمع، بدءاً بتأسيس أول مجموعة أداء نسائية.") },
+      { title: aboutPair("Grow", "نموّ"), text: aboutPair("Growing a culture of running and activity in the heart of Riyadh, through events led by running.", "تنمية ثقافة الجري والنشاط في قلب الرياض من خلال فعاليات يقودها الجري.") },
+      { title: aboutPair("Represent", "تمثيل"), text: aboutPair("Representing the Saudi identity as a Saudi brand — national day runs, and national and international events.", "تمثيل الهوية السعودية بعلامة سعودية: جريات اليوم الوطني، والمشاركة في الفعاليات المحلية والدولية.") },
+      { title: aboutPair("Sustain", "استدامة"), text: aboutPair("Sustaining a community of active, healthy, passionate people through long-term relationships.", "استدامة مجتمع نشيط وصحي وشغوف عبر علاقات طويلة الأمد.") }
+    ] },
+
+  { type: "gallery", show: true,
+    title: aboutPair("Where you've seen us", "من فعالياتنا"),
+    tags: [
+      aboutPair("Races", "سباقات"), aboutPair("Workshops", "ورش"), aboutPair("Women's program", "برنامج المرأة"),
+      aboutPair("Kids camp", "معسكر الأطفال"), aboutPair("Collaborations", "شراكات"), aboutPair("Social content", "محتوى التواصل")
+    ],
+    // One wide, one tall and six plain tiles fill the grid exactly at both
+    // widths; the grid packs densely, so other mixes leave at most one gap.
+    items: [
+      { image: "assets/about/festival.webp", size: "wide", caption: aboutPair("Riyadh Marathon Festival 2025", "مهرجان ماراثون الرياض ٢٠٢٥") },
+      { image: "assets/about/together.webp", size: "tall", caption: aboutPair("Together we run — every week, all year", "معاً نجري، كل أسبوع وطوال العام") },
+      { image: "assets/about/race5k.webp", size: "", caption: aboutPair("5K Annual Race 2026", "سباق ٥ كم السنوي ٢٠٢٦") },
+      { image: "assets/about/race10k.webp", size: "", caption: aboutPair("10K Annual Race 2025 · Wadi Hanifah", "سباق ١٠ كم السنوي ٢٠٢٥ · وادي حنيفة") },
+      { image: "assets/about/workshop.webp", size: "", caption: aboutPair("Riyadh Marathon Workshop 2025", "ورشة ماراثون الرياض ٢٠٢٥") },
+      { image: "assets/about/sheruns.webp", size: "", caption: aboutPair("She Runs — women and girls only, with MISK City", "سباق She Runs للنساء والفتيات فقط، بالتعاون مع مدينة مسك") },
+      { image: "assets/about/kids.webp", size: "", caption: aboutPair("WE RUN Kids Camp 2025", "معسكر WE RUN للأطفال ٢٠٢٥") },
+      { image: "assets/about/games.webp", size: "", caption: aboutPair("Saudi Games Activation 2024", "فعالية دورة الألعاب السعودية ٢٠٢٤") }
+    ] },
+
+  { type: "events", show: true,
+    title: aboutPair("Coming up", "فعاليات قادمة"),
+    items: [
+      { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, title: aboutPair("10K Race", "سباق ١٠ كم"),
+        text: aboutPair("Wadi Hanifah, Riyadh · 1,500 runners, kids' race included", "وادي حنيفة، الرياض · ١٥٠٠ عدّاء، ويشمل سباقاً للأطفال") },
+      { day: "24", month: aboutPair("Oct", "أكتوبر"), pink: true, title: aboutPair("She Runs", "She Runs"),
+        text: aboutPair("MISK City, Riyadh · 400 runners, women only", "مدينة مسك، الرياض · ٤٠٠ عدّاءة، للنساء فقط") }
+    ] },
+
+  { type: "cta", show: true, image: "assets/about/park.webp",
+    title: aboutPair("Run with us", "اجرِ معنا"),
+    text: aboutPair("Ten sessions a week across Riyadh, and every level is welcome. Brands who want to be part of the season — we'd love to hear from you.",
+      "عشر حصص أسبوعياً في أنحاء الرياض، وكل المستويات مرحّب بها. وللعلامات التي تريد أن تكون جزءاً من الموسم: يسعدنا تواصلكم."),
+    buttons: [
+      { label: aboutPair("Join the club", "انضم إلى النادي"), href: "/app.html", primary: true },
+      { label: aboutPair("Partner with us", "كن شريكاً لنا"), href: "mailto:werunksa@gmail.com?subject=Partnering%20with%20WE%20RUN", primary: false },
+      { label: aboutPair("@werun.sa", "@werun.sa"), href: "https://www.instagram.com/werun.sa/", primary: false }
+    ] }
+] };
+
+/* Sections the original page does not have, which /admin can add. */
+var ABOUT_EXTRA = [
+  { type: "text", show: true, title: aboutPair("", ""), body: aboutPair("", ""), image: "" }
+];
+
+var aboutRender = (function () {
+  /* A photo is one of ours or one uploaded through /admin; the page's content
+     policy would refuse anything else anyway, but a broken tile is worse than
+     none. A link is a page here, https, or mail -- never javascript:. */
+  var PHOTO = /^(assets\/[\w\/.-]+\.(webp|jpe?g|png|svg)|\/api\/about\/img\?id=[a-f0-9]{32})$/;
+  var LINK = /^(https:\/\/|mailto:|\/(?!\/))/;
+
+  function tx(v, lang) {
+    if (v && typeof v === "object") return String(v[lang] || v.en || "");
+    return v == null ? "" : String(v);
+  }
+  function list(v) { return Array.isArray(v) ? v : []; }
+
+  function h(tag, cls) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    for (var i = 2; i < arguments.length; i++) put(n, arguments[i]);
+    return n;
+  }
+  function put(n, c) {
+    if (c == null || c === "") return;
+    if (Array.isArray(c)) c.forEach(function (x) { put(n, x); });
+    else n.append(c);
+  }
+  /* An element only when it has something to say. */
+  function opt(tag, cls, text) { return text ? h(tag, cls, text) : null; }
+  function paras(text, cls) {
+    return text.split(/\n\s*\n/).map(function (p) { return opt("p", cls, p.trim()); });
+  }
+  function img(src, eager) {
+    src = String(src || "");
+    if (!PHOTO.test(src)) return null;
+    var i = document.createElement("img");
+    i.src = src;
+    i.alt = "";
+    i.decoding = "async";
+    if (!eager) i.loading = "lazy";
+    return i;
+  }
+
+  var DRAW = {
+    hero: function (s, L) {
+      return h("header", "hero", img(s.image, true),
+        h("div", "in", opt("div", "kicker", tx(s.kicker, L)), opt("h1", "", tx(s.title, L)),
+          opt("p", "", tx(s.tagline, L)), opt("span", "badge", tx(s.badge, L))));
+    },
+    about: function (s, L) {
+      var pic = img(s.image);
+      return h("section", "about" + (pic ? "" : " solo"),
+        h("div", "", opt("div", "kicker", tx(s.kicker, L)), opt("p", "lead", tx(s.lead, L)), paras(tx(s.body, L), "muted")),
+        pic ? h("figure", "award", pic, opt("figcaption", "", tx(s.caption, L))) : null);
+    },
+    stats: function (s, L) {
+      return h("section", "", opt("h2", "", tx(s.title, L)),
+        h("div", "stats", list(s.items).map(function (it) {
+          return h("div", "stat", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
+        })));
+    },
+    social: function (s, L) {
+      var men = Math.max(0, Math.min(100, Number(s.men_pct) || 0));
+      var split = null;
+      if (men) {
+        var a = Math.round(men), b = 100 - a;
+        var bar = h("div", "split", h("i"), h("i"));
+        bar.firstChild.style.width = men + "%";
+        bar.lastChild.style.width = (100 - men) + "%";
+        bar.setAttribute("role", "img");
+        bar.setAttribute("aria-label", tx(s.men, L) + " " + a + "%, " + tx(s.women, L) + " " + b + "%");
+        split = h("div", "", opt("div", "lbl", tx(s.split_title, L)), bar,
+          h("div", "legend", h("span", "", h("b", "", a + "%"), tx(s.men, L)), h("span", "", h("b", "", b + "%"), tx(s.women, L))));
+      }
+      return h("section", "band", opt("div", "kicker", tx(s.kicker, L)),
+        h("div", "row", list(s.items).map(function (it) {
+          return h("div", "", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
+        })),
+        split,
+        h("div", "facts", list(s.facts).map(function (f) { return opt("div", "", tx(f, L)); })));
+    },
+    goals: function (s, L) {
+      return h("section", "", opt("h2", "", tx(s.title, L)),
+        h("div", "goals", list(s.items).map(function (it, i) {
+          return h("div", "goal", h("div", "n", String(i + 1).padStart(2, "0")),
+            opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L)));
+        })));
+    },
+    gallery: function (s, L) {
+      return h("section", "", opt("h2", "", tx(s.title, L)),
+        h("div", "tags", list(s.tags).map(function (t) { return opt("span", "", tx(t, L)); })),
+        h("div", "gallery", list(s.items).map(function (it) {
+          var p = img(it.image);
+          return p ? h("figure", /^(wide|tall)$/.test(it.size) ? it.size : "", p, opt("figcaption", "", tx(it.caption, L))) : null;
+        })));
+    },
+    events: function (s, L) {
+      return h("section", "", opt("h2", "", tx(s.title, L)),
+        h("div", "events", list(s.items).map(function (it) {
+          return h("div", "event" + (it.pink ? " pink" : ""),
+            h("div", "date", h("b", "", tx(it.day, L)), opt("span", "", tx(it.month, L))),
+            h("div", "", opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L))));
+        })));
+    },
+    text: function (s, L) {
+      return h("section", "textsec", opt("h2", "", tx(s.title, L)), paras(tx(s.body, L)), img(s.image));
+    },
+    cta: function (s, L) {
+      return h("section", "cta", img(s.image),
+        h("div", "in", opt("h2", "", tx(s.title, L)), opt("p", "", tx(s.text, L)),
+          h("div", "btns", list(s.buttons).map(function (b) {
+            var href = String(b.href || ""), label = tx(b.label, L);
+            if (!label || !LINK.test(href)) return null;
+            var a = h("a", "btn " + (b.primary ? "primary" : "ghost"), label);
+            a.href = href;
+            // "@werun.sa" in an Arabic page would otherwise read "werun.sa@".
+            a.dir = "auto";
+            if (href.indexOf("https:") === 0) a.rel = "noopener noreferrer";
+            return a;
+          }))));
+    }
+  };
+
+  return function (root, doc, lang) {
+    root.textContent = "";
+    list(doc && doc.sections).forEach(function (s) {
+      if (s && s.show !== false && DRAW[s.type]) root.append(DRAW[s.type](s, lang));
+    });
+  };
+})();

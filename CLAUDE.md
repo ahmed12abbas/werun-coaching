@@ -94,6 +94,7 @@ node tools/smoke-coach.js      # the coaches list, and a coach put on a session
 node tools/smoke-rota.js       # the coaches' rota: who is taking what this week
 node tools/smoke-signup.js     # putting your name down for a session, and the weekly goal
 node tools/smoke-push.js       # reminders: subscribing, the sender's guard, the VAPID signature
+node tools/smoke-about.js      # the Who Are We page editor: admin-only, cleaned saves, photos, reset
 node tools/seed-schedule.js    # writes the club's ten standing sessions
 node tools/seed-week.js        # September's wording, and this week's dated bits
 node tools/qr-test.js          # js/qr.js round-tripped through a real decoder
