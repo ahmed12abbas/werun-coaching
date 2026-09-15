@@ -383,11 +383,35 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .splash{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
   background:var(--bg);animation:splashOut .25s ease .35s forwards}
 .splash img{width:min(46vw,190px);animation:splashIn .34s cubic-bezier(.34,1.56,.64,1) both}
+.splash-nd{display:none}
 @keyframes splashIn{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
 @keyframes splashOut{to{opacity:0;visibility:hidden;pointer-events:none}}
 @media (prefers-reduced-motion:reduce){
   .splash{animation-duration:.01s;animation-delay:.2s}
   .splash img{animation:none}
+}
+
+/* ---------- Saudi National Day, one week only ------------------------------
+   Sat 19 – Thu 24 Sep 2026, Riyadh time — gated by app.html's early script,
+   which sets data-event="nationalday" on <html>. Scoped to this attribute
+   and to app.css (not loaded by index.html/admin/coach), so nothing else
+   on the site changes. */
+html[data-event="nationalday"]{
+  --brand:#0F8A4B; --brand-deep:#0B5C34; --brand-soft:#E3F3EA;
+}
+html[data-event="nationalday"][data-theme="dark"]{
+  --brand:#3FC783; --brand-deep:#7FDCA8; --brand-soft:#123023;
+}
+html[data-event="nationalday"] .splash{background:#0b3b2c}
+html[data-event="nationalday"] .splash-default{display:none}
+html[data-event="nationalday"] .splash-nd{display:block;width:min(78vw,320px);
+  animation:splashIn .34s cubic-bezier(.34,1.56,.64,1) both}
+@media (prefers-reduced-motion:reduce){html[data-event="nationalday"] .splash-nd{animation:none}}
+/* Recolors the WE RUN wordmark image itself (brand.js draws it the same way
+   on every page; this filter is the only app-only way to reach it). Tuned
+   by eye against the actual logo.png, not computed. */
+html[data-event="nationalday"] .brand-logo{
+  filter:brightness(0) saturate(100%) invert(37%) sepia(89%) saturate(900%) hue-rotate(115deg) brightness(95%) contrast(101%);
 }
 
 /* The sparks over a check-in. Above the card, under nothing — it is gone in

@@ -21,13 +21,25 @@
 <!-- The saved theme, before anything paints: i18n.js sets it too, but only
      at the bottom of the page, after the splash has drawn in light. -->
 <script>try{var t=localStorage.getItem("werun.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<!-- Saudi National Day, one week only: Sat 19 Sep – Thu 24 Sep 2026, Riyadh
+     time (UTC+3, no DST). App page only — see assets/app.css for the theme
+     and .splash-nd below for the swapped intro. ?nd=1 on localhost previews
+     it early; it does nothing anywhere else. -->
+<script>try{
+  var ndStart=Date.UTC(2026,8,18,21,0,0), ndEnd=Date.UTC(2026,8,24,21,0,0), now=Date.now();
+  var ndPreview=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&/(^|[?&])nd=1(&|$)/.test(location.search);
+  if(ndPreview||(now>=ndStart&&now<ndEnd))document.documentElement.setAttribute("data-event","nationalday")
+}catch(e){}</script>
 <script>window.ME_EARLY=fetch("/api/auth/me",{credentials:"same-origin",headers:{accept:"application/json"}}).catch(function(){return null})</script>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="assets/site.css?v=aa803476">
-<link rel="stylesheet" href="assets/app.css?v=f4259f64">
+<link rel="stylesheet" href="assets/app.css?v=90043cdf">
 </head>
 <body>
-<div class="splash" aria-hidden="true"><img src="assets/logo.png" alt=""></div>
+<div class="splash" aria-hidden="true">
+<img class="splash-default" src="assets/logo.png" alt="">
+<img class="splash-nd" src="assets/nationalday-emblem.webp" alt="">
+</div>
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
 
