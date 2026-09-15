@@ -48,6 +48,8 @@ img{max-width:100%;display:block}
 .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .top a{color:var(--muted);text-decoration:none;font-size:14px}
 .top .grow{flex:1}
+.tool.icon{width:36px;height:36px;padding:0;display:grid;place-items:center}
+.tool.icon svg{width:18px;height:18px}
 .tool{font:inherit;font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;
   background:var(--card);color:var(--fg);cursor:pointer}
 h1,h2,h3{font-family:var(--display);font-weight:600;text-transform:uppercase;margin:0;line-height:1}
@@ -194,6 +196,7 @@ footer a{color:inherit}
 <div class="wrap">
   <div class="top">
     <a class="grow" href="/app.html" id="back">← WE RUN</a>
+    <button class="tool icon" type="button" id="theme"></button>
     <button class="tool" type="button" id="lang">العربية</button>
   </div>
   <main id="page"></main>
@@ -227,8 +230,32 @@ function show(lang) {
   document.getElementById("socials").setAttribute("aria-label", lang === "ar" ? "WE RUN على منصات التواصل" : "WE RUN on social");
   up.setAttribute("aria-label", lang === "ar" ? "إلى الأعلى" : "Back to top");
   up.title = up.getAttribute("aria-label");
+  paintTheme();
   aboutRender(page, saved || ABOUT_DEFAULT, lang);
 }
+
+/* Light and dark, the same switch as the app's (Theme in js/i18n.js): the
+   same key, the same attribute, so a choice made in either carries to the
+   other. Not loaded from i18n.js for four lines out of twelve hundred. */
+var themeBtn = document.getElementById("theme");
+function isDark() {
+  var t = root.getAttribute("data-theme");
+  return t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function paintTheme() {
+  var dark = isDark(), ar = current() === "ar";
+  themeBtn.innerHTML = dark ? ICON.sun : ICON.moon;
+  var label = dark ? (ar ? "الوضع الفاتح" : "Light mode") : (ar ? "الوضع الداكن" : "Dark mode");
+  themeBtn.title = label;
+  themeBtn.setAttribute("aria-label", label);
+}
+themeBtn.addEventListener("click", function () {
+  var next = isDark() ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("werun.theme", next); } catch (e) {}
+  paintTheme();
+});
+paintTheme();
 
 /* The app's own five links, drawn from its list rather than a second copy.
    The svg is ours, from js/brand.js, never anything an admin typed. */
