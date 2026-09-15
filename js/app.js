@@ -257,7 +257,8 @@ function render() {
    not el()'s: handed a null it writes the word "null" onto the page. */
 function appendFoot(app, route) {
   if (route === "session") return;
-  app.append(el("footer", {}, socialRow(), el("a", { href: "/privacy" }, t("privacy"))));
+  app.append(el("footer", {}, socialRow(),
+    el("a", { href: "/about" }, t("aboutUs")), " · ", el("a", { href: "/privacy" }, t("privacy"))));
 }
 
 /** The coach's line across the top of the app, in the reader's language. */
