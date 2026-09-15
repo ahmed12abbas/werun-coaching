@@ -31,9 +31,9 @@
   --tint:#efe8fe; --radius:18px; --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840; --tint:#2a2145;
-}}
+/* Light until somebody picks dark with the switch -- not the phone's own
+   setting: the club wants a first visit, a partner's included, to see the
+   page as it was designed. */
 :root[data-theme="dark"]{
   --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840; --tint:#2a2145;
 }
@@ -323,8 +323,7 @@ function show(lang) {
    other. Not loaded from i18n.js for four lines out of twelve hundred. */
 var themeBtn = document.getElementById("theme");
 function isDark() {
-  var t = root.getAttribute("data-theme");
-  return t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return root.getAttribute("data-theme") === "dark"; // nothing chosen yet is light
 }
 function paintTheme() {
   var dark = isDark(), ar = current() === "ar";
