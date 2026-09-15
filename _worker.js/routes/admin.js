@@ -28,10 +28,12 @@ async function memberList(env) {
       admin +
       leader +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
-      " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
+      " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins," +
+      " (SELECT COUNT(*) FROM email_tokens t WHERE t.user_id = u.id AND t.purpose = 'reset'" +
+      "   AND t.used_at IS NULL AND t.expires_at > ?) AS pending_reset" +
       " FROM users u ORDER BY u.created_at DESC LIMIT ?"
   )
-    .bind(MEMBER_CAP)
+    .bind(nowISO(), MEMBER_CAP)
     .all();
   return rows.results || [];
 }

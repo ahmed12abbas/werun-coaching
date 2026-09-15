@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=43d3f787">
+<link rel="stylesheet" href="assets/console.css?v=725e6dc5">
 </head>
 <body>
 <div class="wrap">
@@ -401,11 +401,12 @@ function membersCard() {
         })["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); })
           .then(function () { resetBtn.disabled = false; });
       } }, "Reset link");
-      rows.append(el("tr", { class: blocked ? "blocked" : "" },
+      rows.append(el("tr", { class: (blocked ? "blocked" : "") + (m.pending_reset ? " reset-pending" : "") },
         el("td", { class: "name", dir: "auto" }, m.name,
           now !== "athlete" ? el("span", { class: "badge" }, LABEL[now]) : null,
           m.is_admin ? el("span", { class: "badge" }, "Admin") : null,
-          blocked ? el("span", { class: "badge off" }, "Blocked") : null),
+          blocked ? el("span", { class: "badge off" }, "Blocked") : null,
+          m.pending_reset && !blocked ? el("span", { class: "badge", title: "Asked to reset their password" }, "Reset requested") : null),
         el("td", { class: "left" }, m.email),
         el("td", {}, stamp(m.created_at) || "?"),
         el("td", {}, stamp(m.last_seen_at) || "--"),

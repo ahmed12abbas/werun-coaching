@@ -312,6 +312,14 @@ table.members td.name{font-weight:650}
 table.members td.name .badge{margin-inline-start:8px}
 .badge.off{color:var(--err);background:transparent;border:1px solid var(--err)}
 table.members tr.blocked td{color:var(--muted)}
+/* A member waiting on their own reset link — same glow the app gives a
+   session happening now, but as a background pulse: box-shadow does not
+   reliably paint on a table row across browsers the way it does on a div. */
+table.members tr.reset-pending td{background:var(--brand-soft)}
+@keyframes rowGlow{from{background:var(--brand-soft)}to{background:transparent}}
+table.members tr.reset-pending td{animation:rowGlow 2.4s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){
+  table.members tr.reset-pending td{animation:none}}
 table.members td.acts .btn+.btn{margin-inline-start:6px}
 table.members td.conf{text-align:center;font-weight:700;color:var(--ok)}
 /* ---- the page heading, and the two toggles ----
