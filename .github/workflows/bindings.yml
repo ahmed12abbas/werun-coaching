@@ -72,7 +72,7 @@ jobs:
     steps:
       # For tools/vapid-keys.js, which mints the push pair below. Nothing else
       # here reads the repo.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Masking before anything else runs: a secret that reaches the log once
       # is burned, and this workflow exists because that already happened to a
