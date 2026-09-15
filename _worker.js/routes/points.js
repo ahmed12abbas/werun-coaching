@@ -5,18 +5,25 @@ import { withMember, withUser } from "../lib/auth.js";
 import { totalFor, streakFor } from "../lib/points.js";
 import { hasColumn } from "../lib/columns.js";
 import { tooOften } from "../lib/limit.js";
+import { weekStartEpoch } from "../lib/week.js";
 
 const HISTORY = 60;
 const BOARD = 50;
 
 /* ---------- GET /api/points/me -------------------------------------------- */
 
-/* The number, how it was arrived at, and the run they are on. */
+/* The number, how it was arrived at, and the run they are on.
+
+   "How it was arrived at" only goes back to this club week (Sunday, Riyadh
+   time) — the total and the leaderboard stay all-time, unaffected; this list
+   is the one thing that starts over. The ledger itself keeps every row
+   forever (see lib/points.js); only what this query asks for changed. */
 export const pointsMe = withMember(async (request, env, user) => {
+  const since = new Date(weekStartEpoch().epoch * 1000).toISOString();
   const rows = await env.DB.prepare(
-    "SELECT delta, reason, note, at FROM points_ledger WHERE user_id = ? ORDER BY at DESC LIMIT ?"
+    "SELECT delta, reason, note, at FROM points_ledger WHERE user_id = ? AND at >= ? ORDER BY at DESC LIMIT ?"
   )
-    .bind(user.id, HISTORY)
+    .bind(user.id, since, HISTORY)
     .all();
   const attended = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM checkins WHERE user_id = ? AND voided_at IS NULL"
