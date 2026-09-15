@@ -209,6 +209,14 @@ a.plat:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .btn{display:inline-block;padding:13px 24px;border-radius:999px;font-weight:700;text-decoration:none;font-size:15px}
 .btn.primary{background:#fff;color:var(--deep)}
+/* The one button the page is for, glowing like the award badge above it.
+   Still for anyone who asked for less motion; Arabic is never letter-spaced. */
+.cta .btn.primary{letter-spacing:.06em;box-shadow:0 0 16px rgba(255,255,255,.55),0 0 38px rgba(200,170,255,.5)}
+[dir="rtl"] .cta .btn.primary{letter-spacing:0}
+@media (prefers-reduced-motion:no-preference){.cta .btn.primary{animation:join-glow 2.4s ease-in-out infinite alternate}}
+@keyframes join-glow{
+  from{box-shadow:0 0 10px rgba(255,255,255,.4),0 0 24px rgba(200,170,255,.3)}
+  to{box-shadow:0 0 22px rgba(255,255,255,.85),0 0 54px rgba(200,170,255,.7)}}
 .btn.ghost{border:1.5px solid rgba(255,255,255,.75);color:#fff}
 .btn:focus-visible,.tool:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
 /* ---- partner logos ----
@@ -275,7 +283,7 @@ footer a{color:inherit}
 
 <script src="js/brand.js?v=4f153237"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
-<script src="js/about.js?v=6b6bebac"></script>
+<script src="js/about.js?v=6ea6f164"></script>
 <script>
 "use strict";
 var root = document.documentElement;

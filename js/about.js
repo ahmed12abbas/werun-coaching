@@ -160,7 +160,7 @@ var ABOUT_DEFAULT = { sections: [
     text: aboutPair("Ten sessions a week across Riyadh, and every level is welcome. Brands who want to be part of the season — we'd love to hear from you.",
       "عشر حصص أسبوعياً في أنحاء الرياض، وكل المستويات مرحّب بها. وللعلامات التي تريد أن تكون جزءاً من الموسم: يسعدنا تواصلكم."),
     buttons: [
-      { label: aboutPair("Join the club", "انضم إلى النادي"), href: "/app.html", primary: true },
+      { label: aboutPair("JOIN US", "انضم إلينا"), href: "/app.html", primary: true },
       { label: aboutPair("Partner with us", "كن شريكاً لنا"), href: "mailto:werunksa@gmail.com?subject=Partnering%20with%20WE%20RUN", primary: false },
       { label: aboutPair("@werun.sa", "@werun.sa"), href: "https://www.instagram.com/werun.sa/", primary: false }
     ] }
