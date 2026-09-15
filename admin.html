@@ -471,7 +471,9 @@ function coachesCard() {
         "they can run this console with their own login."));
     } else {
       var rows = el("tbody", {});
-      coaches.forEach(function (c) {
+      // Sorted for this table only -- the pickers built off COACHES.list stay
+      // alphabetical, which is what finding a name in a dropdown wants.
+      coaches.slice().sort(function (a, b) { return (b.attended || 0) - (a.attended || 0); }).forEach(function (c) {
         var off = el("button", { class: "btn sm", onclick: function () {
           if (!window.confirm("Take " + c.name + " off the coaches? They keep their account, their " +
             "check-ins and their points -- they just cannot run this console or be put on a session.")) return;
