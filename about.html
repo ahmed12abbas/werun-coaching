@@ -122,7 +122,10 @@ a{color:var(--brand)}
 .plats{display:flex;flex-wrap:wrap;gap:8px}
 .plats span{background:rgba(255,255,255,.13);border-radius:999px;padding:4px 12px;font-size:13px;color:rgba(255,255,255,.92)}
 .plats b{font-family:var(--display);font-size:18px;font-weight:600;margin-inline-end:5px;color:#fff}
-@media (min-width:760px){.plats{grid-column:1/-1}}
+/* Wide, the numbers and the men/women split sit side by side and the account
+   chips run underneath both; placed in source order they would push the split
+   onto a row of its own and leave half the band empty. */
+@media (min-width:760px){.plats{grid-column:1/-1;order:1}.facts{order:2}}
 @media (min-width:760px){.band{grid-template-columns:1.2fr 1fr}.band .kicker{grid-column:1/-1}.facts{grid-column:1/-1;grid-template-columns:1fr 1fr}}
 
 /* ---- goals ---- */
