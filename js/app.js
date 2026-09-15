@@ -2805,6 +2805,8 @@ function ledgerRow(row) {
   const label =
     row.reason === "checkin"
       ? t("rCheckin", { n: row.delta, name: row.note || "" })
+      : row.reason === "adjust" && row.note
+      ? t("rAdjustNote", { note: row.note })
       : t(key);
   const when = new Date(row.at);
   return el(

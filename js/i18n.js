@@ -400,6 +400,7 @@ const STRINGS = {
     rCheckin: "+{n} for {name}",
     rStreak: "Streak bonus",
     rAdjust: "Coach adjustment",
+    rAdjustNote: "Coach adjustment: {note}",
     rVoid: "Check-in removed",
 
     /* the app: check-in refusals, each said plainly */
@@ -943,6 +944,7 @@ const STRINGS = {
     rCheckin: "+{n} لـ {name}",
     rStreak: "مكافأة استمرارية",
     rAdjust: "تعديل من الكوتش",
+    rAdjustNote: "تعديل من الكوتش: {note}",
     rVoid: "أُلغي تسجيل الحضور",
 
     /* the app: أسباب رفض التسجيل */
