@@ -24,7 +24,10 @@ var ABOUT_DEFAULT = { sections: [
     logo: "assets/logo.png",
     tagline: aboutPair("A Riyadh running community for every level — from a first 5K to a marathon finish line.",
       "مجتمع جري في الرياض لكل المستويات، من أول ٥ كم إلى خط نهاية الماراثون."),
-    badge: aboutPair("Most Active CSG · SFA Awards 2025", "المجموعة الأكثر نشاطاً · جوائز الرياضة للجميع ٢٠٢٥") },
+    badge: aboutPair("Most Active CSG · SFA Awards 2025", "المجموعة الأكثر نشاطاً · جوائز الرياضة للجميع ٢٠٢٥"),
+    // Where the badge goes: the award photo further down until the admin
+    // gives it somewhere else. Empty makes it plain text again.
+    badge_link: "#award" },
 
   { type: "about", show: true,
     kicker: aboutPair("About WE RUN", "عن WE RUN"),
@@ -177,7 +180,7 @@ var aboutRender = (function () {
      policy would refuse anything else anyway, but a broken tile is worse than
      none. A link is a page here, https, or mail -- never javascript:. */
   var PHOTO = /^(assets\/[\w\/.-]+\.(webp|jpe?g|png|svg)|\/api\/about\/img\?id=[a-f0-9]{32})$/;
-  var LINK = /^(https:\/\/|mailto:|\/(?!\/))/;
+  var LINK = /^(https:\/\/|mailto:|\/(?!\/)|#[A-Za-z][\w-]*$)/;
 
   function tx(v, lang) {
     if (v && typeof v === "object") return String(v[lang] || v.en || "");
@@ -220,13 +223,13 @@ var aboutRender = (function () {
       return h("header", "hero", img(s.image, true),
         h("div", "in", opt("div", "kicker", tx(s.kicker, L)),
           mark ? h("h1", "logo", mark) : opt("h1", "", tx(s.title, L)),
-          opt("p", "", tx(s.tagline, L)), opt("span", "badge", tx(s.badge, L))));
+          opt("p", "", tx(s.tagline, L)), badge(s, L)));
     },
     about: function (s, L) {
       var pic = img(s.image);
       return h("section", "about" + (pic ? "" : " solo"),
         h("div", "", opt("div", "kicker", tx(s.kicker, L)), opt("p", "lead", tx(s.lead, L)), paras(tx(s.body, L), "muted")),
-        pic ? h("figure", "award", pic, opt("figcaption", "", tx(s.caption, L))) : null);
+        pic ? withId(h("figure", "award", pic, opt("figcaption", "", tx(s.caption, L))), "award") : null);
     },
     stats: function (s, L) {
       return h("section", "", opt("h2", "", tx(s.title, L)),
@@ -361,6 +364,23 @@ var aboutRender = (function () {
           }))));
     }
   };
+
+  function withId(n, id) { n.id = id; return n; }
+
+  /* The award line in the banner: a link once it has somewhere to go that
+     LINK allows, plain text otherwise. Off the site, it opens in a new tab. */
+  function badge(s, L) {
+    var text = tx(s.badge, L), href = String(s.badge_link || "");
+    if (!text) return null;
+    if (!LINK.test(href)) return h("span", "badge", text);
+    var a = h("a", "badge", text);
+    a.href = href;
+    if (href.indexOf("https:") === 0) {
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+    }
+    return a;
+  }
 
   /* One account as a chip: its logo and link from SOCIAL (js/brand.js, which
      only about.html loads), and its number once there is one. The svg is

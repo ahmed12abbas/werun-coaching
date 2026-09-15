@@ -93,6 +93,15 @@ a{color:var(--brand)}
   from{box-shadow:0 0 10px rgba(205,175,255,.45),0 0 26px rgba(160,110,255,.25),inset 0 0 8px rgba(255,255,255,.14)}
   to{box-shadow:0 0 20px rgba(220,195,255,.85),0 0 48px rgba(160,110,255,.55),inset 0 0 14px rgba(255,255,255,.28)}}
 
+/* The badge as a link: an arrow that says so, pointing the way the page reads. */
+a.badge{color:#fff;text-decoration:none;cursor:pointer}
+a.badge::after{content:"\2192";margin-inline-start:8px;font-weight:700}
+[dir="rtl"] a.badge::after{content:"\2190"}
+a.badge:hover,a.badge:focus-visible{background:rgba(255,255,255,.26)}
+a.badge:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+#award{scroll-margin-top:24px}
+
 /* ---- about ---- */
 .about{display:grid;gap:28px;align-items:center}
 .about .lead{font-size:clamp(19px,2.4vw,24px);line-height:1.5;font-weight:600}
@@ -283,7 +292,7 @@ footer a{color:inherit}
 
 <script src="js/brand.js?v=4f153237"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
-<script src="js/about.js?v=bf1d33be"></script>
+<script src="js/about.js?v=cafa6f1d"></script>
 <script>
 "use strict";
 var root = document.documentElement;
@@ -396,7 +405,7 @@ SOCIAL.forEach(function (s) {
 /* js/sfx.js sounds every button on its own; the social links and the account
    chips are pressed like buttons too, so they click as well. */
 document.addEventListener("click", function (e) {
-  if (e.target.closest && e.target.closest(".socials a, a.plat")) SFX.click();
+  if (e.target.closest && e.target.closest(".socials a, a.plat, a.badge")) SFX.click();
 }, true);
 
 /* Shown once the top is a long way off; kept out of the tab order while it
