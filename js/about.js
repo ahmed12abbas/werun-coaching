@@ -53,12 +53,13 @@ var ABOUT_DEFAULT = { sections: [
     // Added up into the followers number. An account with `auto` set is read
     // by the Worker (routes/about.js) and falls back to its typed count. The
     // deck's 17.1K sits under Instagram until the admin splits it.
+    // `icon` is an id in SOCIAL (js/brand.js): the chip wears that logo and
+    // links where the footer's button does, so neither is a second copy.
     accounts: [
-      { name: "Instagram", count: 17100, auto: "" },
-      { name: "TikTok", count: 0, auto: "" },
-      { name: "X", count: 0, auto: "" },
-      { name: "Telegram", count: 0, auto: "telegram" },
-      { name: "Strava", count: 0, auto: "strava" }
+      { name: "Strava", icon: "strava", count: 0, auto: "strava" },
+      { name: "Instagram", icon: "instagram", count: 17100, auto: "" },
+      { name: "TikTok", icon: "tiktok", count: 0, auto: "" },
+      { name: "X", icon: "x", count: 0, auto: "" }
     ],
     items: [
       { num: "3.1M", label: aboutPair("Views", "مشاهدة") },
@@ -252,7 +253,7 @@ var aboutRender = (function () {
       list(s.accounts).forEach(function (a) {
         var got = a.auto && live && typeof live[a.auto] === "number" ? live[a.auto] : Number(a.count) || 0;
         total += got;
-        if (got) plats.push(h("span", "", h("b", "", compact(got)), tx(a.name, L)));
+        plats.push(plat(a, got, L));
       });
       var stats = list(s.items).map(function (it) {
         return h("div", "", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
@@ -274,18 +275,45 @@ var aboutRender = (function () {
         })));
     },
     sessions: function (s, L) {
+      // Small tiles that say when; one dialog for the section that says the
+      // rest. The pop and its reverse are js/sfx.js's, where it is loaded.
+      var sfx = typeof SFX !== "undefined" ? SFX : null;
+      var box = h("div", "in");
+      var dlg = h("dialog", "sess-dlg", box);
+      function shut() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
+      // A tap on the dim backdrop lands on the dialog itself, outside .in.
+      dlg.addEventListener("click", function (e) { if (e.target === dlg) shut(); });
+      dlg.addEventListener("close", function () { if (sfx) sfx.unpop(); });
+      function open(it) {
+        var x = h("button", "x", "×");
+        x.type = "button";
+        x.setAttribute("data-sfx", "off"); // the close event makes the sound
+        x.setAttribute("aria-label", L === "ar" ? "إغلاق" : "Close");
+        x.addEventListener("click", shut);
+        var map = String(it.map || ""), pin = null;
+        if (map.indexOf("https://") === 0) {
+          pin = h("a", "btn map", L === "ar" ? "افتح الموقع في الخرائط" : "Open in Maps");
+          pin.href = map;
+          pin.rel = "noopener noreferrer";
+        }
+        box.textContent = "";
+        box.append(x);
+        put(box, [opt("div", "day", tx(it.day, L)), opt("div", "time", tx(it.time, L)),
+          opt("h3", "", tx(it.title, L)), opt("p", "place", tx(it.place, L)), pin]);
+        if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+        if (sfx) sfx.pop();
+      }
       return h("section", "", opt("h2", "", tx(s.title, L)), opt("p", "muted", tx(s.text, L)),
         h("div", "sessions", list(s.items).map(function (it) {
-          var map = String(it.map || ""), pin = null;
-          if (map.indexOf("https://") === 0) {
-            pin = h("a", "pin", L === "ar" ? "الموقع على الخريطة" : "Open in Maps");
-            pin.href = map;
-            pin.rel = "noopener noreferrer";
-          }
-          return h("div", "sess",
-            h("div", "when", opt("span", "day", tx(it.day, L)), opt("span", "time", tx(it.time, L))),
-            opt("h3", "", tx(it.title, L)), opt("div", "place", tx(it.place, L)), pin);
-        })));
+          var b = h("button", "sess", opt("span", "day", tx(it.day, L)), opt("span", "time", tx(it.time, L)),
+            opt("span", "what", tx(it.title, L)));
+          b.type = "button";
+          b.setAttribute("data-sfx", "off"); // opening plays its own pop
+          b.setAttribute("aria-haspopup", "dialog");
+          b.addEventListener("click", function () { open(it); });
+          return b;
+        })),
+        dlg);
     },
     gallery: function (s, L) {
       return h("section", "", opt("h2", "", tx(s.title, L)),
@@ -329,6 +357,30 @@ var aboutRender = (function () {
     }
   };
 
+  /* One account as a chip: its logo and link from SOCIAL (js/brand.js, which
+     only about.html loads), and its number once there is one. The svg is
+     ours; the admin's `icon` only picks which. No such logo, and the chip is
+     its name instead. */
+  function plat(a, got, L) {
+    var soc = typeof SOCIAL !== "undefined" ? SOCIAL.filter(function (x) { return x.id === a.icon; })[0] : null;
+    var name = tx(a.name, L);
+    var chip = h(soc ? "a" : "span", "plat");
+    if (soc) {
+      chip.href = soc.href;
+      chip.target = "_blank";
+      chip.rel = "noopener noreferrer";
+      var ic = h("span", "ic");
+      ic.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + soc.svg + "</svg>";
+      chip.append(ic);
+    } else {
+      chip.append(name);
+    }
+    if (got) chip.append(h("b", "", compact(got)));
+    chip.title = name;
+    chip.setAttribute("aria-label", name + (got ? ", " + compact(got) : ""));
+    return chip;
+  }
+
   /* 17100 -> "17.1K", the way the deck wrote it. */
   function compact(n) {
     if (n >= 1e6) return +(n / 1e6).toFixed(1) + "M";
@@ -336,7 +388,7 @@ var aboutRender = (function () {
     return String(n);
   }
 
-  /* `live` is what GET /api/about read by itself: { telegram, strava }. */
+  /* `live` is what GET /api/about read by itself: { strava }. */
   return function (root, doc, lang, live) {
     root.textContent = "";
     list(doc && doc.sections).forEach(function (s) {

@@ -17,7 +17,6 @@ import { stravaReady, freshToken } from "../lib/strava.js";
 
 const DOC_KEY = "about-doc";
 const LIVE_KEY = "about-live";
-const TG_CHAT_KEY = "about-tg-chat";
 const LIVE_EVERY = 6 * 3600 * 1000;
 const STRAVA_CLUB = "1184584"; // the club SOCIAL links to, js/brand.js
 const IMG_PREFIX = "about-img:";
@@ -37,61 +36,25 @@ export async function about(request, env) {
 
 /* ---------- the counts that keep themselves up to date ------------------- */
 
-/* The two follower counts that can be read for free — Telegram's group and
-   Strava's club; Instagram, TikTok and X want paid plans or app reviews, so
-   the admin types those. Kept for six hours, so a visit costs one KV read and
-   only the first in each window asks anybody: Pages has no cron (see
-   remind.yml), and a public page can be a few hours behind. A source that
-   fails keeps its last number, or none, and the page shows the typed one. */
+/* The one follower count that can be read for free: the Strava club's.
+   Instagram, TikTok and X want paid plans or app reviews, so the admin types
+   those. Kept for six hours, so a visit costs one KV read and only the first
+   in each window asks Strava: Pages has no cron (see remind.yml), and a
+   public page can be a few hours behind. A failed read keeps the last number,
+   or none, and the page shows the typed one. */
 async function liveCounts(env) {
   try {
     const was = await env.STATS.get(LIVE_KEY, "json");
     if (was && Date.now() - was.at < LIVE_EVERY) return was;
-    if (!env.TELEGRAM_BOT_TOKEN && !(stravaReady(env) && env.DB)) return was;
-    const [tg, st] = await Promise.all([
-      telegramCount(env).catch((e) => { console.error("about telegram: " + e.message); return null; }),
-      stravaCount(env).catch((e) => { console.error("about strava: " + e.message); return null; }),
-    ]);
-    const now = {
-      at: Date.now(),
-      telegram: tg ?? (was && was.telegram) ?? null,
-      strava: st ?? (was && was.strava) ?? null,
-    };
+    if (!(stravaReady(env) && env.DB)) return was;
+    const st = await stravaCount(env).catch((e) => { console.error("about strava: " + e.message); return null; });
+    const now = { at: Date.now(), strava: st ?? (was && was.strava) ?? null };
     await env.STATS.put(LIVE_KEY, JSON.stringify(now));
     return now;
   } catch (e) {
     console.error("about live: " + e.message);
     return null; // the page never waits on this, it only loses the live number
   }
-}
-
-/* TELEGRAM_BOT_TOKEN, from @BotFather, with the bot added to the group.
-   TELEGRAM_CHAT_ID is optional: without it the group is found from Telegram's
-   own note that the bot was added, which it only keeps for a day — so it is
-   remembered the first time it is seen. */
-async function telegramCount(env) {
-  if (!env.TELEGRAM_BOT_TOKEN) return null;
-  const api = "https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/";
-  let chat = env.TELEGRAM_CHAT_ID || (await env.STATS.get(TG_CHAT_KEY));
-  if (!chat) {
-    const up = await tgGet(api + "getUpdates");
-    const found = (up.result || [])
-      .map((u) => (u.my_chat_member || u.message || {}).chat)
-      .find((c) => c && /group/.test(c.type));
-    if (!found) return null;
-    chat = String(found.id);
-    await env.STATS.put(TG_CHAT_KEY, chat);
-  }
-  const r = await tgGet(api + "getChatMemberCount?chat_id=" + encodeURIComponent(chat));
-  return typeof r.result === "number" ? r.result : null;
-}
-
-/* The URL carries the token, so only Telegram's own description is logged. */
-async function tgGet(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-  const d = await res.json().catch(() => ({}));
-  if (!d.ok) throw new Error("HTTP " + res.status + " " + (d.description || ""));
-  return d;
 }
 
 /* Read with the Strava link of somebody who runs the club, never an athlete's:

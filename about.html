@@ -120,8 +120,14 @@ a{color:var(--brand)}
 .facts{display:grid;gap:10px 22px;font-size:14px;color:rgba(255,255,255,.88)}
 .facts:empty{display:none}
 .plats{display:flex;flex-wrap:wrap;gap:8px}
-.plats span{background:rgba(255,255,255,.13);border-radius:999px;padding:4px 12px;font-size:13px;color:rgba(255,255,255,.92)}
-.plats b{font-family:var(--display);font-size:18px;font-weight:600;margin-inline-end:5px;color:#fff}
+.plat{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding-block:6px;padding-inline:7px 14px;
+  background:rgba(255,255,255,.14);border-radius:999px;font-size:13px;color:#fff;text-decoration:none}
+a.plat:hover,a.plat:focus-visible{background:rgba(255,255,255,.26)}
+a.plat:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.plat .ic{width:28px;height:28px;border-radius:50%;background:#fff;color:var(--deep);display:grid;place-items:center;flex:none}
+.plat .ic svg{width:15px;height:15px}
+.plat b{font-family:var(--display);font-size:20px;font-weight:600;line-height:1;padding-top:2px}
+@media (prefers-reduced-motion:no-preference){a.plat{transition:background .2s}}
 /* Wide, the numbers and the men/women split sit side by side and the account
    chips run underneath both; placed in source order they would push the split
    onto a row of its own and leave half the band empty. */
@@ -155,17 +161,30 @@ a{color:var(--brand)}
   .gallery figure:hover img{transform:scale(1.05)}
 }
 
-/* ---- weekly sessions ---- */
-.sessions{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.sess{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;display:grid;gap:4px;align-content:start}
-.sess .when{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.sess .day{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
-[dir="rtl"] .sess .day{letter-spacing:0}
-.sess .time{font-family:var(--display);font-size:30px;font-weight:600;line-height:1}
-.sess h3{font-size:22px;margin-top:6px}
-.sess .place{color:var(--muted);font-size:14px}
-.sess .pin{font-size:13px;font-weight:700;text-decoration:none;margin-top:4px}
-.sess .pin:hover{text-decoration:underline}
+/* ---- weekly sessions ----
+   Small tiles, two across on a phone; a tap opens the rest in a dialog. */
+.sessions{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+@media (min-width:1000px){.sessions{grid-template-columns:repeat(5,1fr)}}
+.sess{font:inherit;color:inherit;text-align:start;cursor:pointer;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:12px 14px;display:grid;gap:2px;align-content:start}
+.sess:hover,.sess:focus-visible{border-color:var(--brand)}
+.sess:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sess .day,.sess-dlg .day{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
+[dir="rtl"] .sess .day,[dir="rtl"] .sess-dlg .day{letter-spacing:0}
+.sess .time{font-family:var(--display);font-size:26px;font-weight:600;line-height:1;margin-top:2px}
+.sess .what{font-size:13px;font-weight:600;color:var(--muted);line-height:1.3}
+.sess-dlg{border:0;padding:0;border-radius:22px;background:var(--card);color:var(--fg);
+  width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(20,10,45,.35)}
+.sess-dlg::backdrop{background:rgba(16,10,35,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.sess-dlg .in{position:relative;padding:24px 22px 22px}
+.sess-dlg .x{position:absolute;inset-inline-end:12px;top:12px;width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--line);background:var(--bg);color:var(--fg);font-size:22px;line-height:1;cursor:pointer}
+.sess-dlg .time{font-family:var(--display);font-size:46px;font-weight:600;line-height:1;margin:6px 0 8px}
+.sess-dlg h3{font-size:26px;margin-bottom:6px;padding-inline-end:44px}
+.sess-dlg .place{color:var(--muted);margin-bottom:18px}
+.sess-dlg .btn.map{background:var(--brand);color:#fff}
+@media (prefers-reduced-motion:no-preference){.sess-dlg[open]{animation:dlg-in .22s cubic-bezier(.2,.7,.2,1)}}
+@keyframes dlg-in{from{opacity:0;transform:translateY(12px) scale(.97)}}
 
 /* ---- coming up ---- */
 .events{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
@@ -241,7 +260,7 @@ footer a{color:inherit}
 <div class="wrap">
   <div class="top">
     <a class="grow" href="/app.html" id="back">← WE RUN</a>
-    <button class="tool icon" type="button" id="theme"></button>
+    <button class="tool icon" type="button" id="theme" data-sfx="flip"></button>
     <button class="tool" type="button" id="lang">العربية</button>
   </div>
   <main id="page"></main>
@@ -255,7 +274,8 @@ footer a{color:inherit}
 </button>
 
 <script src="js/brand.js?v=4f153237"></script>
-<script src="js/about.js?v=341381ca"></script>
+<script src="js/sfx.js?v=7b9bd8c9"></script>
+<script src="js/about.js?v=39e7b3c9"></script>
 <script>
 "use strict";
 var root = document.documentElement;
@@ -364,6 +384,12 @@ SOCIAL.forEach(function (s) {
   a.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + s.svg + "</svg>";
   document.getElementById("socials").append(a);
 });
+
+/* js/sfx.js sounds every button on its own; the social links and the account
+   chips are pressed like buttons too, so they click as well. */
+document.addEventListener("click", function (e) {
+  if (e.target.closest && e.target.closest(".socials a, a.plat")) SFX.click();
+}, true);
 
 /* Shown once the top is a long way off; kept out of the tab order while it
    is hidden, and it hands focus back to the top so a keyboard follows. */

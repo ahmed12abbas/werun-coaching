@@ -34,7 +34,7 @@
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/about.js?v=341381ca"></script>
+<script src="js/about.js?v=39e7b3c9"></script>
 <script>
 "use strict";
 
@@ -1091,6 +1091,7 @@ function aboutCard() {
       else if (k === "image" || k === "logo") box.append(picker(o, k));
       else if (k === "size") box.append(sizer(o, k));
       else if (k === "auto") box.append(source(o, k));
+      else if (k === "icon") box.append(iconPick(o, k));
       else if (Array.isArray(v)) box.append(list(v, k, type));
       else if (typeof v === "boolean") box.append(check(o, k));
       else box.append(plain(o, k));
@@ -1132,7 +1133,6 @@ function aboutCard() {
   function source(o, k) {
     var s = el("select", {},
       el("option", { value: "" }, "Typed in"),
-      el("option", { value: "telegram" }, "Telegram group members (automatic)"),
       el("option", { value: "strava" }, "Strava club members (automatic)"));
     s.value = o[k] || "";
     var note = el("div", { class: "set-note" });
@@ -1140,11 +1140,25 @@ function aboutCard() {
       var n = o[k] ? live[o[k]] : null;
       note.textContent = !o[k] ? "" : typeof n === "number"
         ? "Now " + n + ", read automatically. The number typed above is used only if it cannot be read."
-        : "Not read yet: the typed number shows until it is. Telegram needs TELEGRAM_BOT_TOKEN set on Pages; Strava needs an admin's Strava linked in the app.";
+        : "Not read yet: the typed number shows until it is. Strava needs an admin's or coach's Strava linked in the app.";
     }
     s.addEventListener("change", function () { o[k] = s.value; tell(); dirty(); });
     tell();
     return el("div", {}, el("label", {}, "Updates from"), s, note);
+  }
+
+  /* Which logo an account chip wears, and so where it links: the ids of the
+     footer's own buttons (SOCIAL in js/brand.js). */
+  function iconPick(o, k) {
+    var s = el("select", {},
+      el("option", { value: "" }, "No logo (shows the name)"),
+      el("option", { value: "strava" }, "Strava"),
+      el("option", { value: "instagram" }, "Instagram"),
+      el("option", { value: "tiktok" }, "TikTok"),
+      el("option", { value: "x" }, "X"));
+    s.value = o[k] || "";
+    s.addEventListener("change", function () { o[k] = s.value; dirty(); });
+    return el("div", {}, el("label", {}, "Logo and link"), s);
   }
 
   function sizer(o, k) {
