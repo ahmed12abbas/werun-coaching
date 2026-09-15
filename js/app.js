@@ -54,6 +54,56 @@ async function appBoot() {
   // follows them to the account. Quietly: the page has already switched.
   if (Auth.user && Auth.user.lang !== I18N.lang) Auth.update({ lang: I18N.lang }).catch(() => {});
   render();
+  if (Auth.user) checkFeedGlow();
+}
+
+/* ---------- an unseen post lights the News tab -----------------------------
+
+   Per device, not per account: the same /api/feed call the News tab itself
+   makes (API.get memoizes it 30s, so this costs nothing extra when they then
+   tap in), compared against the newest thing they have actually opened News
+   to see. No server change, no new table — just a clock kept in
+   localStorage, cleared the moment SCREENS.feed below draws that content. */
+const FEED_SEEN_KEY = "werun.feedSeen";
+
+function feedSeenAt() {
+  try {
+    return Number(localStorage.getItem(FEED_SEEN_KEY)) || 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function newestFeedAt(tips, posts) {
+  const stamps = (posts || [])
+    .map((p) => p.published_at)
+    .concat((tips || []).map((a) => a.updated || a.created))
+    .map((s) => Date.parse(s))
+    .filter(Number.isFinite);
+  return stamps.length ? Math.max(...stamps) : 0;
+}
+
+function feedTab() {
+  return document.querySelector('.appnav a[href="#/feed"]');
+}
+
+function checkFeedGlow() {
+  API.get("/api/feed")
+    .then((d) => {
+      const tab = feedTab();
+      if (tab && newestFeedAt(d.tips, d.posts) > feedSeenAt()) tab.classList.add("glow");
+    })
+    .catch(() => {});
+}
+
+/** Called once News has actually drawn what came back, so the tap that opens
+ * it is also the tap that clears it. */
+function markFeedSeen(tips, posts) {
+  try {
+    localStorage.setItem(FEED_SEEN_KEY, String(newestFeedAt(tips, posts) || Date.now()));
+  } catch (e) {}
+  const tab = feedTab();
+  if (tab) tab.classList.remove("glow");
 }
 
 /* A code scanned by someone not logged in yet.
@@ -2510,6 +2560,7 @@ SCREENS.feed = function () {
       FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
       list.append(...feedCards(d.tips || [], d.posts));
       if (d.whatsapp) list.append(whatsappButton(d.whatsapp));
+      markFeedSeen(d.tips, d.posts);
     })
     .catch((e) => {
       list.textContent = "";
@@ -2579,6 +2630,7 @@ function postCard(p) {
         published(p.published_at)
       ),
       el("h2", {}, side(p, "title")),
+      p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "" }) : null,
       el("div", { class: "post-body" }, written(side(p, "body")))
     )
   );

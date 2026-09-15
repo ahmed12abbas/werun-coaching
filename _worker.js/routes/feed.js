@@ -12,8 +12,16 @@ import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
 import { reactionsFor } from "./reactions.js";
 import { getSetting } from "../lib/settings.js";
+import { hasColumn } from "../lib/columns.js";
 
-const MAX = { title: 140, body: 9000, posts: 200, list: 40 };
+const MAX = { title: 140, body: 9000, posts: 200, list: 40, img: 900000, imgs: 150 };
+
+// A post's photo, uploaded the same way an About page photo is (routes/about.js):
+// shrunk in the browser, checked here only for type and size, kept in KV under
+// its own prefix. photo_url is 0027 — see hasColumn() calls below for the
+// window before that migration is pasted into the D1 console.
+const PHOTO = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
+const IMG_PREFIX = "post-img:";
 
 const cleanTitle = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX.title);
 
@@ -26,7 +34,7 @@ const cleanBody = (s) =>
     .trim()
     .slice(0, MAX.body);
 
-const publicPost = (p) => ({
+const publicPost = (p, hasPhoto) => ({
   id: p.id,
   title_en: p.title_en,
   title_ar: p.title_ar,
@@ -34,6 +42,7 @@ const publicPost = (p) => ({
   body_ar: p.body_ar,
   pinned: !!p.pinned,
   published_at: p.published_at,
+  photo_url: hasPhoto ? p.photo_url || null : null,
 });
 
 /* ---------- GET /api/feed -------------------------------------------------- */
@@ -47,6 +56,7 @@ const publicPost = (p) => ({
  * Friday.
  */
 export const feed = withMember(async (request, env, user) => {
+  const hasPhoto = await hasColumn(env, "posts", "photo_url");
   const rows = await env.DB.prepare(
     "SELECT * FROM posts WHERE published_at IS NOT NULL AND published_at <= ?" +
       " ORDER BY pinned DESC, published_at DESC LIMIT ?"
@@ -75,7 +85,7 @@ export const feed = withMember(async (request, env, user) => {
     }
   }
 
-  const posts = (rows.results || []).map(publicPost);
+  const posts = (rows.results || []).map((p) => publicPost(p, hasPhoto));
   // Every face on the screen in one read, keyed the way the page draws them.
   const faces = await reactionsFor(
     env,
@@ -95,10 +105,11 @@ export const feed = withMember(async (request, env, user) => {
 /* ---------- POST /api/admin/posts ------------------------------------------ */
 
 async function listAll(env) {
+  const hasPhoto = await hasColumn(env, "posts", "photo_url");
   const rows = await env.DB.prepare("SELECT * FROM posts ORDER BY pinned DESC, COALESCE(published_at, updated_at) DESC LIMIT ?")
     .bind(MAX.posts)
     .all();
-  return (rows.results || []).map((p) => Object.assign(publicPost(p), { updated_at: p.updated_at }));
+  return (rows.results || []).map((p) => Object.assign(publicPost(p, hasPhoto), { updated_at: p.updated_at }));
 }
 
 /* `publish` is what the button says; `publish_at` is what a coach writing
@@ -112,7 +123,7 @@ function publishedAtFrom(post) {
   return post.publish ? nowISO() : null;
 }
 
-function readPost(post) {
+function readPost(post, hasPhoto) {
   const title_en = cleanTitle(post.title_en);
   const title_ar = cleanTitle(post.title_ar);
   if (!title_en && !title_ar) return { error: "bad-title" };
@@ -125,32 +136,32 @@ function readPost(post) {
     body_ar: cleanBody(post.body_ar),
     pinned: post.pinned ? 1 : 0,
     published_at: publishedAt,
+    photo_url: hasPhoto && post.photo_url ? String(post.photo_url).slice(0, 200) : null,
   };
 }
 
-async function updatePost(env, id, f) {
+async function updatePost(env, id, f, hasPhoto) {
   const before = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
   if (!before) return json({ error: "no-post" }, 404);
   // Unpublishing is deliberate: the editor sends publish:false with no date,
   // and that takes it off the feed rather than leaving it up.
-  await env.DB.prepare(
-    "UPDATE posts SET title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ? WHERE id = ?"
-  )
-    .bind(f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO(), id)
-    .run();
+  const cols = "title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ?" + (hasPhoto ? ", photo_url = ?" : "");
+  const vals = [f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO()];
+  if (hasPhoto) vals.push(f.photo_url);
+  vals.push(id);
+  await env.DB.prepare("UPDATE posts SET " + cols + " WHERE id = ?").bind(...vals).run();
   return null;
 }
 
-async function insertPost(env, f) {
+async function insertPost(env, f, hasPhoto) {
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM posts").first();
   if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
   const now = nowISO();
-  await env.DB.prepare(
-    "INSERT INTO posts (id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at)" +
-      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  )
-    .bind(uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now)
-    .run();
+  const cols = "id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at" + (hasPhoto ? ", photo_url" : "");
+  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (hasPhoto ? ", ?" : "");
+  const vals = [uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now];
+  if (hasPhoto) vals.push(f.photo_url);
+  await env.DB.prepare("INSERT INTO posts (" + cols + ") VALUES (" + marks + ")").bind(...vals).run();
   return null;
 }
 
@@ -158,11 +169,12 @@ async function insertPost(env, f) {
    Publishing is a date, not a flag, so "post it now" and "post it on Sunday
    morning" are the same operation. */
 async function savePost(body, env) {
+  const hasPhoto = await hasColumn(env, "posts", "photo_url");
   const post = objectIn(body.post);
-  const f = readPost(post);
+  const f = readPost(post, hasPhoto);
   if (f.error) return json({ error: f.error }, 400);
   const id = savedId(post);
-  const failed = id ? await updatePost(env, id, f) : await insertPost(env, f);
+  const failed = id ? await updatePost(env, id, f, hasPhoto) : await insertPost(env, f, hasPhoto);
   return failed || json({ posts: await listAll(env) });
 }
 
@@ -175,7 +187,26 @@ async function listPosts(body, env) {
   return json({ posts: await listAll(env) });
 }
 
-const POST_ACTIONS = new Map([["save", savePost], ["delete", deletePost], ["list", listPosts]]);
+/* The browser has already shrunk the photo (admin.html, aboutShrink) — same
+   function the About page photos use — so this only has to refuse what is
+   not a photo or is still too large. Mirrors routes/about.js's upload/img
+   pair with its own KV prefix: a post's photo is a different resource from
+   an About page one, not a second copy of the same thing. */
+async function uploadPhoto(body, env) {
+  if (!env.STATS) return json({ error: "no-store" }, 503);
+  const m = PHOTO.exec(String(body.data || ""));
+  if (!m) return json({ error: "bad-image" }, 400);
+  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+  if (bytes.length > MAX.img) return json({ error: "too-big" }, 400);
+  const listed = await env.STATS.list({ prefix: IMG_PREFIX });
+  if (listed.keys.length >= MAX.imgs) return json({ error: "too-many" }, 400);
+
+  const id = crypto.randomUUID().replace(/-/g, "");
+  await env.STATS.put(IMG_PREFIX + id, bytes.buffer, { metadata: { type: m[1] } });
+  return json({ url: "/api/feed/img?id=" + id });
+}
+
+const POST_ACTIONS = new Map([["save", savePost], ["delete", deletePost], ["list", listPosts], ["upload", uploadPhoto]]);
 
 /* One route for the whole editor. */
 export async function adminPosts(request, env) {
@@ -185,4 +216,21 @@ export async function adminPosts(request, env) {
 
   const run = POST_ACTIONS.get(String(body.action || "list"));
   return run ? run(body, env) : json({ error: "bad-request" }, 400);
+}
+
+/* ---------- GET /api/feed/img?id= ------------------------------------------ */
+
+/* Public, like /api/about/img — an id is only ever minted once and never
+   overwritten, so the browser may keep the photo for good. */
+export async function feedImg(request, env) {
+  const id = new URL(request.url).searchParams.get("id") || "";
+  if (!env.STATS || !/^[a-f0-9]{32}$/.test(id)) return new Response("Not found", { status: 404 });
+  const got = await env.STATS.getWithMetadata(IMG_PREFIX + id, "arrayBuffer");
+  if (!got || !got.value) return new Response("Not found", { status: 404 });
+  return new Response(got.value, {
+    headers: {
+      "content-type": (got.metadata && got.metadata.type) || "image/webp",
+      "cache-control": "public, max-age=31536000, immutable",
+    },
+  });
 }

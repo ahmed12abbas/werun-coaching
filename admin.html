@@ -847,6 +847,40 @@ function feedCard() {
     var when = el("input", { type: "datetime-local" });
     var err = el("p", { class: "err", style: "display:none" });
 
+    // The photo, uploaded the same way an About page one is (aboutShrink,
+    // action "upload" on this same /api/admin/posts route). Optional — most
+    // posts have none — and held as a plain URL until Post/Save writes it.
+    var photoUrl = (editing && editing.photo_url) || "";
+    var thumb = el("img", { class: "ab-thumb", alt: "" });
+    if (photoUrl) thumb.src = photoUrl; else thumb.hidden = true;
+    var file = el("input", { type: "file", accept: "image/*" });
+    var upLabel = el("label", { class: "btn sm ab-up" }, photoUrl ? "Replace photo" : "Add a photo", file);
+    var removeBtn = el("button", { type: "button", class: "btn sm", style: photoUrl ? "" : "display:none" },
+      "Remove photo");
+    removeBtn.addEventListener("click", function () {
+      photoUrl = "";
+      thumb.hidden = true;
+      thumb.removeAttribute("src");
+      removeBtn.style.display = "none";
+      upLabel.firstChild.textContent = "Add a photo";
+    });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      err.style.display = "none";
+      aboutShrink(f)
+        .then(function (data) { return post({ action: "upload", data: data }); })
+        .then(function (d) {
+          photoUrl = d.url;
+          thumb.src = d.url;
+          thumb.hidden = false;
+          removeBtn.style.display = "";
+          upLabel.firstChild.textContent = "Replace photo";
+        })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; })
+        .then(function () { file.value = ""; });
+    });
+
     if (editing) {
       titleEn.value = editing.title_en || "";
       titleAr.value = editing.title_ar || "";
@@ -868,7 +902,8 @@ function feedCard() {
           id: editing ? editing.id : null,
           title_en: titleEn.value, title_ar: titleAr.value,
           body_en: bodyEn.value, body_ar: bodyAr.value,
-          pinned: pin.checked
+          pinned: pin.checked,
+          photo_url: photoUrl || null
         }
       };
       if (publish === "now") body.post.publish = true;
@@ -890,6 +925,11 @@ function feedCard() {
       el("div", { style: "flex:0 0 auto" },
         el("label", { class: "sw" }, pin, el("span", {}, "Pin to the top"))),
       el("div", {}, el("label", {}, "Post at (optional)"), when)));
+
+    editor.append(el("div", { class: "ab-img", style: "margin-top:12px" },
+      thumb,
+      el("div", { style: "flex:0 0 auto" }, upLabel),
+      el("div", { style: "flex:0 0 auto" }, removeBtn)));
 
     editor.append(err);
     editor.append(el("div", { class: "row", style: "margin-top:12px" },

@@ -37,6 +37,15 @@ body{position:fixed;inset:0;overscroll-behavior:none}
   text-transform:uppercase;letter-spacing:.04em;text-decoration:none;color:var(--muted);line-height:1.1}
 .appnav a[aria-current="page"]{background:var(--brand);color:var(--brand-ink);border-color:transparent;
   flex-grow:1.35;padding-block:11px}
+/* A post they have not opened News to see yet: a small dot that breathes
+   rather than a static badge, gone the moment they tap in (js/app.js,
+   markFeedSeen). --brand rather than currentColor so it still stands out
+   against the tab's own muted, unselected text. */
+.appnav a.glow{position:relative}
+.appnav a.glow::after{content:"";position:absolute;top:6px;inset-inline-end:10px;width:7px;height:7px;
+  border-radius:50%;background:var(--brand);animation:navGlow 1.4s ease-in-out infinite}
+@keyframes navGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(1.4)}}
+@media (prefers-reduced-motion:reduce){.appnav a.glow::after{animation:none}}
 /* A tap answers on the way down instead of after the redraw: the 300ms grey
    box the phone draws is what "slow" was, not the render. */
 .appnav a,button.day,.btn,.tool,.card button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -154,6 +163,7 @@ button.day:hover{background:var(--brand-soft)}
 /* ---- the feed ---- */
 .post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .post h2{margin:0}
+.post-photo{width:100%;border-radius:12px;display:block;object-fit:cover;max-height:260px}
 .post .tag{padding:2px 9px 0}
 .post-body{font-size:14.5px;line-height:1.6}
 .post-body p{margin:0 0 10px}

@@ -36,6 +36,7 @@
      GET  /api/points/board     — the club leaderboard               (logged in)
      GET  /api/members/search   — a runner by name, as the board shows them (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
+     GET  /api/feed/img?id=     — a photo uploaded for a post
      GET  /api/store            — what is for sale, and my orders     (logged in)
      GET  /api/store/order?id=  — one of my orders                    (logged in)
      POST /api/store/checkout   — start a payment on Stripe's page    (logged in)
@@ -113,7 +114,7 @@ import { members, settings, coaches } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility, memberSearch } from "./routes/points.js";
-import { feed, adminPosts } from "./routes/feed.js";
+import { feed, adminPosts, feedImg } from "./routes/feed.js";
 import { verifySend, verify, resetRequest, reset } from "./routes/email.js";
 import { adminExport } from "./routes/export.js";
 import { store, checkout, order } from "./routes/store.js";
@@ -178,6 +179,7 @@ const GET = {
   "/api/points/board": pointsBoard,
   "/api/members/search": memberSearch,
   "/api/feed": feed,
+  "/api/feed/img": feedImg,
   "/api/store": store,
   "/api/store/order": order,
   "/api/push/next": pushNext,
