@@ -94,6 +94,8 @@
      STRAVA_CLIENT_SECRET   its pair, from strava.com/settings/api
      INTERVALS_CLIENT_ID     switches the Home Intervals.icu card on (optional)
      INTERVALS_CLIENT_SECRET its pair, from intervals.icu/settings/apps (client id 961)
+     TELEGRAM_BOT_TOKEN     counts the Telegram group on /about (optional; bot added to the group)
+     TELEGRAM_CHAT_ID       that group's id, if the Worker should not find it itself (optional)
    Without them the site still works: the dashboard stays locked rather than
    falling open, and the platform routes answer "no-db" instead of crashing.
 

@@ -119,6 +119,10 @@ a{color:var(--brand)}
 .legend b{font-family:var(--display);font-size:24px;font-weight:600;margin-inline-end:4px}
 .facts{display:grid;gap:10px 22px;font-size:14px;color:rgba(255,255,255,.88)}
 .facts:empty{display:none}
+.plats{display:flex;flex-wrap:wrap;gap:8px}
+.plats span{background:rgba(255,255,255,.13);border-radius:999px;padding:4px 12px;font-size:13px;color:rgba(255,255,255,.92)}
+.plats b{font-family:var(--display);font-size:18px;font-weight:600;margin-inline-end:5px;color:#fff}
+@media (min-width:760px){.plats{grid-column:1/-1}}
 @media (min-width:760px){.band{grid-template-columns:1.2fr 1fr}.band .kicker{grid-column:1/-1}.facts{grid-column:1/-1;grid-template-columns:1fr 1fr}}
 
 /* ---- goals ---- */
@@ -196,6 +200,20 @@ a{color:var(--brand)}
 .logos img{max-width:100%;max-height:84px;object-fit:contain}
 @media (min-width:1000px){.logos{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}.logos div{height:128px}.logos img{max-height:100px}}
 
+/* ---- rising into view ----
+   Only with .reveal on the root, which the script sets when the browser can
+   say what is on screen and the reader has not asked for less motion; without
+   it the page is simply there. Cards follow their section in, a beat apart
+   (the delays are set by the script). */
+.reveal #page > *{opacity:0;transform:translateY(28px);
+  transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal #page > .in{opacity:1;transform:none}
+.reveal #page > * :is(.stat,.goal,.sess,.gallery figure,.logos > div,.event){opacity:0;transform:translateY(16px) scale(.98);
+  transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1)}
+.reveal #page > .in :is(.stat,.goal,.sess,.gallery figure,.logos > div,.event){opacity:1;transform:none}
+/* Paper has no scrolling: a partner printing the page gets all of it. */
+@media print{.reveal #page > *,.reveal #page > * *{opacity:1 !important;transform:none !important}}
+
 footer{margin-top:40px;text-align:center;font-size:13px;color:var(--muted)}
 footer a{color:inherit}
 /* The same five as the app's footer, from the same list (SOCIAL in js/brand.js). */
@@ -234,13 +252,14 @@ footer a{color:inherit}
 </button>
 
 <script src="js/brand.js?v=4f153237"></script>
-<script src="js/about.js?v=9f80f096"></script>
+<script src="js/about.js?v=341381ca"></script>
 <script>
 "use strict";
 var root = document.documentElement;
 var btn = document.getElementById("lang");
 var page = document.getElementById("page");
 var saved = null; // the admin's copy, once /api/about has answered
+var live = null;  // the follower counts the Worker read by itself
 
 function current() { return root.getAttribute("lang") === "ar" ? "ar" : "en"; }
 
@@ -255,7 +274,8 @@ function show(lang) {
   up.setAttribute("aria-label", lang === "ar" ? "إلى الأعلى" : "Back to top");
   up.title = up.getAttribute("aria-label");
   paintTheme();
-  aboutRender(page, saved || ABOUT_DEFAULT, lang);
+  aboutRender(page, saved || ABOUT_DEFAULT, lang, live);
+  revealAll();
 }
 
 /* Light and dark, the same switch as the app's (Theme in js/i18n.js): the
@@ -280,6 +300,53 @@ themeBtn.addEventListener("click", function () {
   paintTheme();
 });
 paintTheme();
+
+/* Sections rise into place as they come into view and their numbers count
+   up to themselves -- once each, and only for a reader who has not asked for
+   less motion, in a browser that can say what is on screen. */
+var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var seen = !calm && "IntersectionObserver" in window ? new IntersectionObserver(function (entries) {
+  entries.forEach(function (e) {
+    if (!e.isIntersecting) return;
+    e.target.classList.add("in");
+    seen.unobserve(e.target);
+    e.target.querySelectorAll(".num").forEach(countUp);
+  });
+}, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }) : null;
+if (seen) root.classList.add("reveal");
+
+function revealAll() {
+  if (!seen) return;
+  Array.prototype.forEach.call(page.children, function (sec) {
+    sec.querySelectorAll(".stat,.goal,.sess,.gallery figure,.logos > div,.event").forEach(function (c, i) {
+      c.style.transitionDelay = Math.min(i, 10) * 60 + "ms";
+    });
+    // What is already on screen (or scrolled past) is simply there, rather
+    // than invisible until the observer's first report -- which never comes
+    // in a view that is not painting.
+    if (sec.getBoundingClientRect().top < window.innerHeight) {
+      sec.classList.add("in");
+      sec.querySelectorAll(".num").forEach(countUp);
+    } else {
+      seen.observe(sec);
+    }
+  });
+}
+
+/* "2800+" from 0+, "17.1K" from 0.0K: the number moves, whatever follows it
+   stays put. Anything that does not start with digits is left alone. */
+function countUp(n) {
+  var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(n.textContent.trim());
+  if (!m) return;
+  var end = parseFloat(m[1]), dp = (m[1].split(".")[1] || "").length, rest = m[2], t0 = null;
+  function step(t) {
+    if (t0 === null) t0 = t;
+    var p = Math.min(1, (t - t0) / 1200);
+    n.textContent = (end * (1 - Math.pow(1 - p, 3))).toFixed(dp) + rest;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
 /* The app's own five links, drawn from its list rather than a second copy.
    The svg is ours, from js/brand.js, never anything an admin typed. */
@@ -322,7 +389,10 @@ btn.addEventListener("click", function () {
    than a blank page and is swapped out when it lands. */
 var early = setTimeout(function () { show(current()); }, 1500);
 fetch("/api/about").then(function (r) { return r.ok ? r.json() : {}; })
-  .then(function (d) { if (d && d.doc && Array.isArray(d.doc.sections)) saved = d.doc; })
+  .then(function (d) {
+    if (d && d.doc && Array.isArray(d.doc.sections)) saved = d.doc;
+    live = (d && d.live) || null;
+  })
   ["catch"](function () {})
   .then(function () { clearTimeout(early); show(current()); });
 </script>

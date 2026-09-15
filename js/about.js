@@ -48,9 +48,19 @@ var ABOUT_DEFAULT = { sections: [
     ] },
 
   { type: "social", show: true,
-    kicker: aboutPair("On social · growth over three years", "على منصات التواصل · النمو خلال ثلاث سنوات"),
+    kicker: aboutPair("On social · across all our accounts", "على منصات التواصل · كل حساباتنا"),
+    followers_label: aboutPair("Followers", "متابع"),
+    // Added up into the followers number. An account with `auto` set is read
+    // by the Worker (routes/about.js) and falls back to its typed count. The
+    // deck's 17.1K sits under Instagram until the admin splits it.
+    accounts: [
+      { name: "Instagram", count: 17100, auto: "" },
+      { name: "TikTok", count: 0, auto: "" },
+      { name: "X", count: 0, auto: "" },
+      { name: "Telegram", count: 0, auto: "telegram" },
+      { name: "Strava", count: 0, auto: "strava" }
+    ],
     items: [
-      { num: "17.1K", label: aboutPair("Followers", "متابع") },
       { num: "3.1M", label: aboutPair("Views", "مشاهدة") },
       { num: "200K", label: aboutPair("Reach", "وصول") }
     ],
@@ -223,7 +233,7 @@ var aboutRender = (function () {
           return h("div", "stat", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
         })));
     },
-    social: function (s, L) {
+    social: function (s, L, live) {
       var men = Math.max(0, Math.min(100, Number(s.men_pct) || 0));
       var split = null;
       if (men) {
@@ -236,10 +246,23 @@ var aboutRender = (function () {
         split = h("div", "", opt("div", "lbl", tx(s.split_title, L)), bar,
           h("div", "legend", h("span", "", h("b", "", a + "%"), tx(s.men, L)), h("span", "", h("b", "", b + "%"), tx(s.women, L))));
       }
+      // Every account in one number: one that is read by itself counts what
+      // was read, or what was typed until it has been.
+      var total = 0, plats = [];
+      list(s.accounts).forEach(function (a) {
+        var got = a.auto && live && typeof live[a.auto] === "number" ? live[a.auto] : Number(a.count) || 0;
+        total += got;
+        if (got) plats.push(h("span", "", h("b", "", compact(got)), tx(a.name, L)));
+      });
+      var stats = list(s.items).map(function (it) {
+        return h("div", "", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
+      });
+      if (Array.isArray(s.accounts)) {
+        stats.unshift(h("div", "", h("div", "num", compact(total)), opt("div", "lbl", tx(s.followers_label, L))));
+      }
       return h("section", "band", opt("div", "kicker", tx(s.kicker, L)),
-        h("div", "row", list(s.items).map(function (it) {
-          return h("div", "", h("div", "num", tx(it.num, L)), opt("div", "lbl", tx(it.label, L)));
-        })),
+        h("div", "row", stats),
+        plats.length ? h("div", "plats", plats) : null,
         split,
         h("div", "facts", list(s.facts).map(function (f) { return opt("div", "", tx(f, L)); })));
     },
@@ -306,10 +329,18 @@ var aboutRender = (function () {
     }
   };
 
-  return function (root, doc, lang) {
+  /* 17100 -> "17.1K", the way the deck wrote it. */
+  function compact(n) {
+    if (n >= 1e6) return +(n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return +(n / 1e3).toFixed(1) + "K";
+    return String(n);
+  }
+
+  /* `live` is what GET /api/about read by itself: { telegram, strava }. */
+  return function (root, doc, lang, live) {
     root.textContent = "";
     list(doc && doc.sections).forEach(function (s) {
-      if (s && s.show !== false && DRAW[s.type]) root.append(DRAW[s.type](s, lang));
+      if (s && s.show !== false && DRAW[s.type]) root.append(DRAW[s.type](s, lang, live));
     });
   };
 })();

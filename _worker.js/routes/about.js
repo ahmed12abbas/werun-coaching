@@ -13,8 +13,13 @@
 
 import { json, readBody } from "../lib/http.js";
 import { refuseUnlessAdmin } from "../lib/auth.js";
+import { stravaReady, freshToken } from "../lib/strava.js";
 
 const DOC_KEY = "about-doc";
+const LIVE_KEY = "about-live";
+const TG_CHAT_KEY = "about-tg-chat";
+const LIVE_EVERY = 6 * 3600 * 1000;
+const STRAVA_CLUB = "1184584"; // the club SOCIAL links to, js/brand.js
 const IMG_PREFIX = "about-img:";
 const TYPES = ["hero", "about", "stats", "social", "goals", "sessions", "gallery", "events", "partners", "text", "cta"];
 const MAX = { json: 80000, sections: 30, list: 40, keys: 20, text: 3000, depth: 6, img: 900000, imgs: 150 };
@@ -22,10 +27,102 @@ const PHOTO = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
 
 /* ---------- GET /api/about ---------------------------------------------- */
 
-/* Public: the saved page, or null for the one js/about.js was shipped with. */
+/* Public: the saved page, or null for the one js/about.js was shipped with,
+   and the follower counts read by themselves. */
 export async function about(request, env) {
-  if (!env.STATS) return json({ doc: null });
-  return json({ doc: await env.STATS.get(DOC_KEY, "json") });
+  if (!env.STATS) return json({ doc: null, live: null });
+  const [doc, live] = await Promise.all([env.STATS.get(DOC_KEY, "json"), liveCounts(env)]);
+  return json({ doc: doc, live: live });
+}
+
+/* ---------- the counts that keep themselves up to date ------------------- */
+
+/* The two follower counts that can be read for free — Telegram's group and
+   Strava's club; Instagram, TikTok and X want paid plans or app reviews, so
+   the admin types those. Kept for six hours, so a visit costs one KV read and
+   only the first in each window asks anybody: Pages has no cron (see
+   remind.yml), and a public page can be a few hours behind. A source that
+   fails keeps its last number, or none, and the page shows the typed one. */
+async function liveCounts(env) {
+  try {
+    const was = await env.STATS.get(LIVE_KEY, "json");
+    if (was && Date.now() - was.at < LIVE_EVERY) return was;
+    if (!env.TELEGRAM_BOT_TOKEN && !(stravaReady(env) && env.DB)) return was;
+    const [tg, st] = await Promise.all([
+      telegramCount(env).catch((e) => { console.error("about telegram: " + e.message); return null; }),
+      stravaCount(env).catch((e) => { console.error("about strava: " + e.message); return null; }),
+    ]);
+    const now = {
+      at: Date.now(),
+      telegram: tg ?? (was && was.telegram) ?? null,
+      strava: st ?? (was && was.strava) ?? null,
+    };
+    await env.STATS.put(LIVE_KEY, JSON.stringify(now));
+    return now;
+  } catch (e) {
+    console.error("about live: " + e.message);
+    return null; // the page never waits on this, it only loses the live number
+  }
+}
+
+/* TELEGRAM_BOT_TOKEN, from @BotFather, with the bot added to the group.
+   TELEGRAM_CHAT_ID is optional: without it the group is found from Telegram's
+   own note that the bot was added, which it only keeps for a day — so it is
+   remembered the first time it is seen. */
+async function telegramCount(env) {
+  if (!env.TELEGRAM_BOT_TOKEN) return null;
+  const api = "https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/";
+  let chat = env.TELEGRAM_CHAT_ID || (await env.STATS.get(TG_CHAT_KEY));
+  if (!chat) {
+    const up = await tgGet(api + "getUpdates");
+    const found = (up.result || [])
+      .map((u) => (u.my_chat_member || u.message || {}).chat)
+      .find((c) => c && /group/.test(c.type));
+    if (!found) return null;
+    chat = String(found.id);
+    await env.STATS.put(TG_CHAT_KEY, chat);
+  }
+  const r = await tgGet(api + "getChatMemberCount?chat_id=" + encodeURIComponent(chat));
+  return typeof r.result === "number" ? r.result : null;
+}
+
+/* The URL carries the token, so only Telegram's own description is logged. */
+async function tgGet(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+  const d = await res.json().catch(() => ({}));
+  if (!d.ok) throw new Error("HTTP " + res.status + " " + (d.description || ""));
+  return d;
+}
+
+/* Read with the Strava link of somebody who runs the club, never an athlete's:
+   it is the club's number, asked for on the club's behalf. Nobody on staff
+   linked, or a table not there yet, and it is simply not read. */
+async function stravaCount(env) {
+  if (!stravaReady(env) || !env.DB) return null;
+  let link = null;
+  try {
+    link = await env.DB.prepare(
+      "SELECT l.* FROM strava_links l JOIN users u ON u.id = l.user_id " +
+        "WHERE u.status <> 'blocked' AND (u.is_admin = 1 OR u.role = 'coach') ORDER BY u.is_admin DESC LIMIT 1"
+    ).first();
+  } catch (e) {
+    return null;
+  }
+  if (!link) return null;
+  const t = await freshToken(env, link);
+  // Strava hands out a new refresh token with each new access token; the old
+  // one stops working, so the row has to hear about it.
+  if (t.access_token !== link.access_token) {
+    await env.DB.prepare("UPDATE strava_links SET access_token = ?, refresh_token = ?, expires_at = ? WHERE user_id = ?")
+      .bind(t.access_token, t.refresh_token, t.expires_at, link.user_id).run();
+  }
+  const res = await fetch("https://www.strava.com/api/v3/clubs/" + STRAVA_CLUB, {
+    headers: { authorization: "Bearer " + t.access_token },
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!res.ok) throw new Error("club " + res.status);
+  const club = await res.json();
+  return typeof club.member_count === "number" ? club.member_count : null;
 }
 
 /* ---------- GET /api/about/img?id= --------------------------------------- */
@@ -61,7 +158,8 @@ export async function adminAbout(request, env) {
     return json({ doc: null, saved: true });
   }
   if (body.action === "upload") return upload(env, body.data);
-  return json({ doc: await env.STATS.get(DOC_KEY, "json") });
+  const [doc, live] = await Promise.all([env.STATS.get(DOC_KEY, "json"), liveCounts(env)]);
+  return json({ doc: doc, live: live });
 }
 
 async function save(env, raw) {

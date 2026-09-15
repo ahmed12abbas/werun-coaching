@@ -34,7 +34,7 @@
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/about.js?v=9f80f096"></script>
+<script src="js/about.js?v=341381ca"></script>
 <script>
 "use strict";
 
@@ -960,7 +960,8 @@ var ABOUT_NAMES = {
 var ABOUT_LABELS = {
   men_pct: "Men, % of followers", split_title: "Split heading", num: "Number", href: "Link (/page, https://… or mailto:…)",
   primary: "Filled button", pink: "Pink date", buttons: "Buttons", items: "Items", facts: "Facts", tags: "Tags",
-  name: "Name (read out in place of the logo)", map: "Map link (https://…, or leave empty)"
+  name: "Name (read out in place of the logo)", map: "Map link (https://…, or leave empty)",
+  accounts: "Accounts (added up into one followers number)", count: "Followers", followers_label: "Followers label"
 };
 var ABOUT_PHOTOS = ["hero", "award", "together", "festival", "race5k", "race10k", "workshop", "sheruns", "kids", "games", "park",
   "partner-joe", "partner-calo", "partner-ghiam", "partner-nike", "partner-echo", "partner-rare",
@@ -1025,6 +1026,7 @@ function aboutCard() {
   var card = el("div", { class: "card" }, el("h2", {}, "Who Are We page"));
   var doc = null;
   var opened = []; // sections whose box is open, kept across redraws
+  var live = {};   // what the Worker last read by itself (routes/about.js)
   var secs = el("div", {});
   var msg = el("p", { class: "muted small ab-msg" }, "Loading…");
   var addType = el("select", {});
@@ -1088,6 +1090,7 @@ function aboutCard() {
       if (aboutIsPair(v)) box.append(pair(o, k, aboutWords(k)));
       else if (k === "image" || k === "logo") box.append(picker(o, k));
       else if (k === "size") box.append(sizer(o, k));
+      else if (k === "auto") box.append(source(o, k));
       else if (Array.isArray(v)) box.append(list(v, k, type));
       else if (typeof v === "boolean") box.append(check(o, k));
       else box.append(plain(o, k));
@@ -1121,6 +1124,27 @@ function aboutCard() {
     c.checked = !!o[k];
     c.addEventListener("change", function () { o[k] = c.checked; dirty(); });
     return el("label", { class: "sw" }, c, el("span", {}, aboutWords(k)));
+  }
+
+  /* Where an account's number comes from: typed here, or read by the Worker
+     every six hours. The note says what it last read, so a source that is not
+     set up yet shows as that rather than as a mysterious zero. */
+  function source(o, k) {
+    var s = el("select", {},
+      el("option", { value: "" }, "Typed in"),
+      el("option", { value: "telegram" }, "Telegram group members (automatic)"),
+      el("option", { value: "strava" }, "Strava club members (automatic)"));
+    s.value = o[k] || "";
+    var note = el("div", { class: "set-note" });
+    function tell() {
+      var n = o[k] ? live[o[k]] : null;
+      note.textContent = !o[k] ? "" : typeof n === "number"
+        ? "Now " + n + ", read automatically. The number typed above is used only if it cannot be read."
+        : "Not read yet: the typed number shows until it is. Telegram needs TELEGRAM_BOT_TOKEN set on Pages; Strava needs an admin's Strava linked in the app.";
+    }
+    s.addEventListener("change", function () { o[k] = s.value; tell(); dirty(); });
+    tell();
+    return el("div", {}, el("label", {}, "Updates from"), s, note);
   }
 
   function sizer(o, k) {
@@ -1232,6 +1256,7 @@ function aboutCard() {
       el("div", { style: "flex:0 0 auto" }, el("button", { class: "btn", type: "button", onclick: add }, "+ Add section"))));
 
   call({}).then(function (d) {
+    live = d.live || {};
     doc = d.doc && Array.isArray(d.doc.sections) ? d.doc : JSON.parse(JSON.stringify(ABOUT_DEFAULT));
     draw();
     say(d.doc ? "" : "This is the original page; nothing has been saved from here yet.");
