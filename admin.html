@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=f8bd019e">
+<link rel="stylesheet" href="assets/console.css?v=e35b75a7">
 </head>
 <body>
 <div class="wrap">
@@ -484,13 +484,14 @@ function coachesCard() {
         rows.append(el("tr", {},
           el("td", { class: "name", dir: "auto" }, c.name, el("span", { class: "badge" }, c.is_leader ? "Leader" : "Coach")),
           el("td", { class: "left" }, c.email),
-          el("td", { class: "acts" }, flip, off)));
+          el("td", { class: "acts" }, flip, off),
+          el("td", { class: "center" }, el("span", { class: "attend-badge", title: (c.attended || 0) + " sessions attended" }, String(c.attended || 0)))));
       });
       body.append(el("p", { class: "muted small", style: "margin:10px 0 6px" },
         coaches.length + (coaches.length === 1 ? " coach" : " coaches") +
         ". Any of them can run this console, and any of them can be put on a session."));
       body.append(el("div", { class: "scroll" }, el("table", { class: "members" },
-        el("thead", {}, el("tr", {}, el("th", {}, "Name"), el("th", {}, "Email"), el("th", {}, ""))), rows)));
+        el("thead", {}, el("tr", {}, el("th", {}, "Name"), el("th", {}, "Email"), el("th", {}, ""), el("th", {}, "Attended"))), rows)));
     }
 
     var pick = el("select", {});

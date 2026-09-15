@@ -39,10 +39,14 @@ export async function coachRoster(env) {
   return rows.results || [];
 }
 
-/** The same list for the console, which does show the address. */
+/** The same list for the console, which does show the address, and how many
+    sessions each of them has attended -- the same live count the members
+    table already carries, so it needs no ledger of its own. */
 export async function coachList(env) {
   const rows = await env.DB.prepare(
-    "SELECT id, name, email, is_leader FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
+    "SELECT id, name, email, is_leader," +
+      " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = users.id AND c.voided_at IS NULL) AS attended" +
+      " FROM users WHERE role = 'coach' AND status <> 'blocked' ORDER BY name ASC LIMIT ?"
   )
     .bind(CAP)
     .all();

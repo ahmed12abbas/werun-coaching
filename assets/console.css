@@ -322,6 +322,13 @@ table.members tr.reset-pending td{animation:rowGlow 2.4s ease-in-out infinite al
 @media (prefers-reduced-motion:reduce){
   table.members tr.reset-pending td{animation:none}}
 table.members td.acts .btn+.btn{margin-inline-start:6px}
+table.members td.center{text-align:center}
+/* Sessions attended, same purple number-badge the athlete app uses for
+   "how many are coming" -- just small enough to sit in a table row. */
+.attend-badge{display:inline-flex;align-items:center;justify-content:center;
+  min-width:26px;height:26px;padding:0 6px;border-radius:8px;
+  background:var(--brand);color:var(--brand-ink);
+  font-family:var(--display);font-size:14px;font-weight:600}
 table.members td.conf{text-align:center;font-weight:700;color:var(--ok)}
 /* ---- the page heading, and the two toggles ----
    /coach draws its own heading so the language toggle can redraw it. The
