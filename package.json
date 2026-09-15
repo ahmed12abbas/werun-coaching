@@ -2,7 +2,7 @@
   "name": "werun-coaching",
   "version": "1.0.0",
   "private": true,
-  "description": "Every script in js/ is plain, unbundled JavaScript the browser loads directly — there is no build step and there is not going to be one. The site ships exactly one third-party file to a browser, js/vendor/jsqr-1.4.0.js, vendored from the jsqr devDependency below and fetched only when an athlete opens the check-in scanner; see js/vendor/README.md. Everything else here is for the tools: wrangler, which runs the Worker and the D1 database locally and applies migrations on deploy, and the two libraries the QR test uses to check js/qr.js against a real encoder and a real decoder.",
+  "description": "Every script in js/ is plain, unbundled JavaScript the browser loads directly — there is no build step and there is not going to be one. The site ships exactly one third-party file to a browser, js/vendor/jsqr-1.4.0.js, vendored from the jsqr devDependency below and fetched only when an athlete opens the check-in scanner; see js/vendor/README.md. Everything else here is for the tools: wrangler, which runs the Worker and the D1 database locally and applies migrations on deploy, and jsqr, which the QR test uses to check js/qr.js against a real decoder.",
   "scripts": {
     "dev": "node tools/dev.js",
     "stamp": "node tools/version-assets.js",
@@ -11,7 +11,6 @@
   },
   "devDependencies": {
     "jsqr": "^1.4.0",
-    "qrcode-generator": "^1.4.4",
     "wrangler": "^4.129.0"
   },
   "allowScripts": {

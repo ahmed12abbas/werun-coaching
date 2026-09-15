@@ -6,6 +6,8 @@
    Intervals.icu hands the athlete's id back in the token response itself —
    no separate profile call needed, unlike Strava's `athlete.id`. */
 
+import { postForm } from "./oauth.js";
+
 export const intervalsReady = (env) => !!(env.INTERVALS_CLIENT_ID && env.INTERVALS_CLIENT_SECRET);
 
 const TOKEN_URL = "https://intervals.icu/api/oauth/token";
@@ -23,13 +25,7 @@ export function authorizeUrl(env, redirectUri, state) {
 }
 
 async function tokenRequest(env, form) {
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_id: env.INTERVALS_CLIENT_ID, client_secret: env.INTERVALS_CLIENT_SECRET, ...form }).toString(),
-  });
-  if (!res.ok) throw new Error("intervals-token-" + res.status);
-  const t = await res.json();
+  const t = await postForm(TOKEN_URL, { client_id: env.INTERVALS_CLIENT_ID, client_secret: env.INTERVALS_CLIENT_SECRET, ...form }, "intervals-token");
   return {
     access_token: t.access_token,
     refresh_token: t.refresh_token || form.refresh_token || "",

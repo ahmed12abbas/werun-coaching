@@ -33,6 +33,3 @@ export async function hasColumn(env, table, column) {
   known.set(key, found);
   return found;
 }
-
-/** Forget what we learned — for tests that change the schema underneath us. */
-export const forgetColumns = () => known.clear();

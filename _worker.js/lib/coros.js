@@ -5,6 +5,7 @@
    which is the nearest thing there is to documentation of the flow. */
 
 import { sha256 } from "./crypto.js";
+import { postForm } from "./oauth.js";
 
 const GATEWAY = "https://mcp.coros.com";
 const SCOPES = "openid offline_access mcp.tools";
@@ -77,17 +78,13 @@ export function authorizeUrl(issuer, clientId, redirectUri, challenge, state) {
 }
 
 async function tokenRequest(issuer, form) {
-  const res = await fetch(issuer + "/oauth2/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(form).toString(),
-  });
-  if (!res.ok) {
-    const err = new Error("coros-token-" + res.status);
-    err.refused = res.status === 400 || res.status === 401; // invalid_grant: revoked, for good
-    throw err;
+  let t;
+  try {
+    t = await postForm(issuer + "/oauth2/token", form, "coros-token");
+  } catch (e) {
+    e.refused = e.status === 400 || e.status === 401; // invalid_grant: revoked, for good
+    throw e;
   }
-  const t = await res.json();
   if (!t.access_token) throw new Error("coros-token-empty");
   return {
     access_token: t.access_token,
