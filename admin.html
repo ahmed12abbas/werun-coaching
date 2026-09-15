@@ -28,13 +28,13 @@
   <footer>WE RUN Coaching · <a href="/app.html">back to the app</a></footer>
 </div>
 
-<script src="js/i18n.js?v=11fa0eb9"></script>
+<script src="js/i18n.js?v=b004ec73"></script>
 <script src="js/model.js?v=7d87c03a"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/about.js?v=bf0d8244"></script>
+<script src="js/about.js?v=78d304eb"></script>
 <script>
 "use strict";
 
@@ -955,13 +955,16 @@ function feedCard() {
    here on its own. */
 var ABOUT_NAMES = {
   hero: "Top banner", about: "About us", stats: "Numbers", social: "Social media", goals: "Goals",
-  gallery: "Photo gallery", events: "Coming up", text: "Text block", cta: "Closing banner"
+  gallery: "Photo gallery", events: "Coming up", partners: "Partner logos", text: "Text block", cta: "Closing banner"
 };
 var ABOUT_LABELS = {
   men_pct: "Men, % of followers", split_title: "Split heading", num: "Number", href: "Link (/page, https://… or mailto:…)",
-  primary: "Filled button", pink: "Pink date", buttons: "Buttons", items: "Items", facts: "Facts", tags: "Tags"
+  primary: "Filled button", pink: "Pink date", buttons: "Buttons", items: "Items", facts: "Facts", tags: "Tags",
+  name: "Name (read out in place of the logo)"
 };
-var ABOUT_PHOTOS = ["hero", "award", "together", "festival", "race5k", "race10k", "workshop", "sheruns", "kids", "games", "park"];
+var ABOUT_PHOTOS = ["hero", "award", "together", "festival", "race5k", "race10k", "workshop", "sheruns", "kids", "games", "park",
+  "partner-joe", "partner-calo", "partner-ghiam", "partner-nike", "partner-echo", "partner-rare",
+  "partner-alfaisal", "partner-ministry", "partner-boulevard"];
 var ABOUT_LONG = /^(lead|body|text|tagline|caption)$/;
 
 function aboutWords(k) {

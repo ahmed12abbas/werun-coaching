@@ -99,6 +99,24 @@ var ABOUT_DEFAULT = { sections: [
         text: aboutPair("MISK City, Riyadh · 400 runners, women only", "مدينة مسك، الرياض · ٤٠٠ عدّاءة، للنساء فقط") }
     ] },
 
+  // Cropped from the deck's partner slide on its own purple, which is why
+  // about.html paints the band that exact colour.
+  { type: "partners", show: true,
+    title: aboutPair("Our partners", "شركاؤنا"),
+    text: aboutPair("Brands, universities and public bodies we've run alongside.",
+      "علامات تجارية وجامعات وجهات حكومية جرينا معها."),
+    items: [
+      { image: "assets/about/partner-joe.webp", name: "Joe & The Juice" },
+      { image: "assets/about/partner-calo.webp", name: "CALO" },
+      { image: "assets/about/partner-ghiam.webp", name: "GHIAM" },
+      { image: "assets/about/partner-nike.webp", name: "Nike" },
+      { image: "assets/about/partner-echo.webp", name: "ECHO" },
+      { image: "assets/about/partner-rare.webp", name: "RARE" },
+      { image: "assets/about/partner-alfaisal.webp", name: "Alfaisal University" },
+      { image: "assets/about/partner-ministry.webp", name: "Ministry of Sport" },
+      { image: "assets/about/partner-boulevard.webp", name: "Sports Boulevard" }
+    ] },
+
   { type: "cta", show: true, image: "assets/about/park.webp",
     title: aboutPair("Run with us", "اجرِ معنا"),
     text: aboutPair("Ten sessions a week across Riyadh, and every level is welcome. Brands who want to be part of the season — we'd love to hear from you.",
@@ -144,12 +162,12 @@ var aboutRender = (function () {
   function paras(text, cls) {
     return text.split(/\n\s*\n/).map(function (p) { return opt("p", cls, p.trim()); });
   }
-  function img(src, eager) {
+  function img(src, eager, alt) {
     src = String(src || "");
     if (!PHOTO.test(src)) return null;
     var i = document.createElement("img");
     i.src = src;
-    i.alt = "";
+    i.alt = alt || "";
     i.decoding = "async";
     if (!eager) i.loading = "lazy";
     return i;
@@ -214,6 +232,14 @@ var aboutRender = (function () {
           return h("div", "event" + (it.pink ? " pink" : ""),
             h("div", "date", h("b", "", tx(it.day, L)), opt("span", "", tx(it.month, L))),
             h("div", "", opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L))));
+        })));
+    },
+    partners: function (s, L) {
+      return h("section", "partners", opt("h2", "", tx(s.title, L)), opt("p", "", tx(s.text, L)),
+        h("div", "logos", list(s.items).map(function (it) {
+          // A logo is the partner's name, so the name is its alt text.
+          var p = img(it.image, false, tx(it.name, L));
+          return p ? h("div", "", p) : null;
         })));
     },
     text: function (s, L) {

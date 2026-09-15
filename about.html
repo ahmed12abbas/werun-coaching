@@ -159,8 +159,35 @@ a{color:var(--brand)}
 .btn.primary{background:#fff;color:var(--deep)}
 .btn.ghost{border:1.5px solid rgba(255,255,255,.75);color:#fff}
 .btn:focus-visible,.tool:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
-footer{margin-top:34px;text-align:center;font-size:13px;color:var(--muted)}
+/* ---- partner logos ----
+   The logos were cut from the deck on its own purple, so the band is that
+   exact colour in both themes and their edges disappear into it. */
+.partners{background:#8a52f7;color:#fff;border-radius:26px;padding:30px clamp(18px,3vw,40px)}
+.partners h2{color:#fff;margin-bottom:6px}
+.partners p{opacity:.92;margin-bottom:18px}
+.logos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.logos div{height:108px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:10px}
+.logos img{max-width:100%;max-height:84px;object-fit:contain}
+@media (min-width:1000px){.logos{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}.logos div{height:128px}.logos img{max-height:100px}}
+
+footer{margin-top:40px;text-align:center;font-size:13px;color:var(--muted)}
 footer a{color:inherit}
+/* The same five as the app's footer, from the same list (SOCIAL in js/brand.js). */
+.socials{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.socials a{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--tint);color:var(--brand)}
+.socials a:hover,.socials a:focus-visible{background:var(--brand);color:#fff}
+.socials svg{width:20px;height:20px}
+
+/* ---- back to the top ---- */
+.totop{position:fixed;inset-inline-end:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:10;
+  width:50px;height:50px;border-radius:50%;border:0;background:var(--brand);color:#fff;cursor:pointer;
+  display:grid;place-items:center;box-shadow:0 8px 22px rgba(60,25,150,.35);
+  opacity:0;pointer-events:none;transform:translateY(10px)}
+.totop.on{opacity:1;pointer-events:auto;transform:none}
+.totop svg{width:22px;height:22px}
+.totop:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+@media (prefers-reduced-motion:no-preference){.totop{transition:opacity .25s ease,transform .25s ease}
+  .socials a{transition:background .2s,color .2s}}
 </style>
 </head>
 <body>
@@ -170,10 +197,17 @@ footer a{color:inherit}
     <button class="tool" type="button" id="lang">العربية</button>
   </div>
   <main id="page"></main>
-  <footer>WE RUN Coaching · <a href="/privacy" id="privacy">Privacy</a></footer>
+  <footer>
+    <nav class="socials" id="socials" aria-label="WE RUN on social"></nav>
+    WE RUN Coaching · <a href="/privacy" id="privacy">Privacy</a>
+  </footer>
 </div>
+<button class="totop" id="totop" type="button" aria-label="Back to top" title="Back to top" tabindex="-1" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
 
-<script src="js/about.js?v=bf0d8244"></script>
+<script src="js/brand.js?v=4f153237"></script>
+<script src="js/about.js?v=78d304eb"></script>
 <script>
 "use strict";
 var root = document.documentElement;
@@ -190,8 +224,41 @@ function show(lang) {
   document.getElementById("back").textContent = lang === "ar" ? "→ WE RUN" : "← WE RUN";
   document.getElementById("privacy").textContent = lang === "ar" ? "الخصوصية" : "Privacy";
   document.title = (lang === "ar" ? "من نحن" : "Who Are We") + " · WE RUN";
+  document.getElementById("socials").setAttribute("aria-label", lang === "ar" ? "WE RUN على منصات التواصل" : "WE RUN on social");
+  up.setAttribute("aria-label", lang === "ar" ? "إلى الأعلى" : "Back to top");
+  up.title = up.getAttribute("aria-label");
   aboutRender(page, saved || ABOUT_DEFAULT, lang);
 }
+
+/* The app's own five links, drawn from its list rather than a second copy.
+   The svg is ours, from js/brand.js, never anything an admin typed. */
+var up = document.getElementById("totop");
+SOCIAL.forEach(function (s) {
+  var a = document.createElement("a");
+  a.href = s.href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.title = s.label;
+  a.setAttribute("aria-label", s.label);
+  a.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + s.svg + "</svg>";
+  document.getElementById("socials").append(a);
+});
+
+/* Shown once the top is a long way off; kept out of the tab order while it
+   is hidden, and it hands focus back to the top so a keyboard follows. */
+function upState() {
+  var on = window.scrollY > 700;
+  up.classList.toggle("on", on);
+  up.tabIndex = on ? 0 : -1;
+  up.setAttribute("aria-hidden", on ? "false" : "true");
+}
+window.addEventListener("scroll", upState, { passive: true });
+upState();
+up.addEventListener("click", function () {
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+  document.getElementById("back").focus({ preventScroll: true });
+});
 
 btn.addEventListener("click", function () {
   var next = current() === "ar" ? "en" : "ar";
