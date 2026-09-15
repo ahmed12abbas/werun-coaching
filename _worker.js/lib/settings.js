@@ -29,6 +29,9 @@ export const DEFAULTS = {
   // logging in and out keeps working for everyone, so this cannot lock the
   // club out of its own site.
   maintenance: false,
+  // Off until an admin turns it on: whether showing the check-in code also
+  // needs the coach's phone to be near the meeting point. See lib/geo.js.
+  checkin_location_required: false,
 };
 
 const TTL = 60 * 1000;

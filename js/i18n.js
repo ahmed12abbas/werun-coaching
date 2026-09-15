@@ -342,6 +342,8 @@ const STRINGS = {
     e_blocked: "This account is blocked — talk to the coach.",
     "e_not-logged-in": "Please log in.",
     "e_no-db": "The club database isn't connected yet.",
+    "e_need-location": "Allow location to show the code — it confirms you're at the meeting point.",
+    "e_too-far": "You're not at the meeting point — the code opens within 300 m of the pin.",
 
     /* the app: the session, checking in, points */
     aBack: "Back to the week",
@@ -868,6 +870,8 @@ const STRINGS = {
 
     /* the app: what went wrong */
     e_generic: "حدث خطأ — حاول مرة أخرى.",
+    "e_need-location": "اسمح بالموقع لعرض الرمز — للتأكد أنك في نقطة التجمع.",
+    "e_too-far": "أنت لست في نقطة التجمع — يظهر الرمز ضمن ٣٠٠ م من الموقع.",
     "e_push-off": "التذكيرات غير مفعّلة في النادي بعد.",
     "e_push-refused": "جوالك رفض الإشعارات — فعّلها لهذا الموقع من الإعدادات.",
     "e_bad-endpoint": "لا يمكن تذكير هذا المتصفح — جرّب من التطبيق.",

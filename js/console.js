@@ -86,8 +86,18 @@ var SAYS = {
   "too-often": "cErrTooOften",
   "qr-off": "cErrQrOff",
   "called-off": "cErrCalledOff",
-  "not-configured": "cErrNotConfigured"
+  "not-configured": "cErrNotConfigured",
+  "need-location": "e_need-location",
+  "too-far": "e_too-far"
 };
+
+/* Whether /admin has turned the meeting-point check on, learned from
+   whichever /api/admin/sessions answer last carried the key (the "list" and
+   "open" actions both do) — there is no other moment before qrScreen draws
+   to ask separately. Off until told otherwise, matching the setting's own
+   default, so a club that has never turned this on never sees a location
+   prompt at all. */
+var LOCATION_REQUIRED = false;
 
 /* An Error that still says which code the Worker sent, so a caller can tell
    "nobody is logged in here yet" from "the database is missing". */
@@ -107,7 +117,10 @@ function api(route, payload) {
     body: JSON.stringify(body)
   }).then(function (res) {
     return res.json()["catch"](function () { return {}; }).then(function (data) {
-      if (res.ok) return data;
+      if (res.ok) {
+        if (typeof data.location_required === "boolean") LOCATION_REQUIRED = data.location_required;
+        return data;
+      }
       var said = SAYS[data.error];
       if (said) throw coded(data.error, t(said));
       var err = new Error(t("cErrServer", { status: res.status, code: data.error || "?" }));
@@ -270,6 +283,21 @@ function stamp(iso) {
   });
 }
 
+/* Where this phone is, for the Worker to check against the meeting point.
+   Only called when LOCATION_REQUIRED says the admin turned the check on, so
+   a club that has not sees no prompt at all. Resolves to {} on any refusal
+   or absence rather than rejecting — the Worker decides whether that
+   matters. A copy of the one in js/app.js: the two pages share no script
+   this belongs in. */
+function here() {
+  return new Promise(function (ok) {
+    if (!navigator.geolocation) return ok({});
+    navigator.geolocation.getCurrentPosition(function (p) {
+      ok({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy });
+    }, function () { ok({}); }, { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 });
+  });
+}
+
 /* ---- the code on the screen ----
    A fresh code every thirty seconds, drawn by js/qr.js rather than fetched,
    so it keeps working when the track has no signal to speak of. The bar
@@ -307,7 +335,9 @@ function qrScreen(session) {
 
   function refresh() {
     if (dead) return;
-    api("/api/admin/qr", { id: session.id }).then(function (d) {
+    (LOCATION_REQUIRED ? here() : Promise.resolve({})).then(function (at) {
+      return api("/api/admin/qr", Object.assign({ id: session.id }, at));
+    }).then(function (d) {
       if (dead) return;
       img.innerHTML = qrSvg(d.url, "M");
       count.textContent = String(d.came || 0);

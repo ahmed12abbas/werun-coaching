@@ -100,6 +100,9 @@ async function clubFor(env) {
     announcement_en: await getSetting(env, "announcement_en"),
     announcement_ar: await getSetting(env, "announcement_ar"),
     maintenance: !!(await getSetting(env, "maintenance")),
+    // Whether the app's own code screen (js/app.js, codeLoop) must ask for
+    // location before showing the code. Off by default — see lib/settings.js.
+    location_required: !!(await getSetting(env, "checkin_location_required")),
   };
 }
 

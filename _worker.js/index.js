@@ -214,7 +214,9 @@ const SECURITY = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "camera=(self), microphone=(), geolocation=(), payment=()",
+  // geolocation=(self): the meeting-point check (lib/geo.js), off by default
+  // and only asked of a coach when an admin turns it on in /admin.
+  "permissions-policy": "camera=(self), microphone=(), geolocation=(self), payment=()",
   "cross-origin-opener-policy": "same-origin",
 };
 

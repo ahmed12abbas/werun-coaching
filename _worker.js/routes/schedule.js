@@ -5,8 +5,9 @@
    Phase 3 moves this behind a coach login; the answers keep their shape. */
 
 import { json, readBody } from "../lib/http.js";
-import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.js";
+import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin, currentUser } from "../lib/auth.js";
 import { getSetting } from "../lib/settings.js";
+import { pinFor, beyond } from "../lib/geo.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS } from "../lib/week.js";
@@ -299,7 +300,11 @@ async function openSession(body, env) {
   }, await windowAround(env, starts)));
 
   const made = await env.DB.prepare("SELECT * FROM club_sessions WHERE id = ?").bind(id).first();
-  return json({ session: made, sessions: await sessionList(env) });
+  return json({
+    session: made,
+    sessions: await sessionList(env),
+    location_required: await getSetting(env, "checkin_location_required"),
+  });
 }
 
 async function list(body, env) {
@@ -310,6 +315,11 @@ async function list(body, env) {
     coaches: await coachRoster(env),
     qr: !!env.QR_SECRET,
     points_per_checkin: await getSetting(env, "points_per_checkin"),
+    // Whether showing a code also needs the coach's phone nearby — read here
+    // by both console pages so the code screen knows whether to ask before
+    // the button is even tapped, and by js/console.js's api() for the "open"
+    // action too, which answers with the same key.
+    location_required: await getSetting(env, "checkin_location_required"),
   });
 }
 
@@ -356,12 +366,26 @@ export async function adminQr(request, env) {
   if (!env.QR_SECRET) return json({ error: "qr-off" }, 503);
 
   const id = String(body.id || "");
+  // The pin the athletes were sent to that morning: the day's change if it
+  // moved the place, otherwise the slot's own. Only fetched for the check
+  // below, but one join is not worth a second query path for when it is off.
   const session = await env.DB.prepare(
-    "SELECT id, name, starts_at, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
+    "SELECT s.id, s.name, s.starts_at, s.window_open_at, s.window_close_at," +
+      " COALESCE(NULLIF(c.map_url, ''), e.map_url) AS map_url FROM club_sessions s" +
+      " LEFT JOIN schedule e ON e.id = s.schedule_id" +
+      " LEFT JOIN schedule_changes c ON c.schedule_id = s.schedule_id AND c.date = s.date" +
+      " WHERE s.id = ?"
   )
     .bind(id)
     .first();
   if (!session) return json({ error: "no-session" }, 404);
+
+  // Off by default (lib/settings.js): a club that has never turned this on
+  // sees no change at all, not even a location prompt in the console.
+  if (await getSetting(env, "checkin_location_required")) {
+    const far = await notHere(request, env, body, session.map_url);
+    if (far) return far;
+  }
 
   const slot = slotNow();
   const sig = await signSlot(env.QR_SECRET, session.id, slot);
@@ -379,6 +403,20 @@ export async function adminQr(request, env) {
     window_close_at: w.close,
     came: await liveCheckins(env, session.id),
   });
+}
+
+/* A coach or leader showing the code has to be standing at the pin. Only a
+   login is held to it: the club password is nobody in particular, and it is
+   the way back in when everything else is broken — a head coach fixing a
+   session from home must not be stopped by the same check. */
+async function notHere(request, env, body, mapUrl) {
+  if (!(await currentUser(request, env))) return null;
+  const pin = await pinFor(env, mapUrl);
+  if (!pin) return null;
+  const at = { lat: body.lat, lng: body.lng, acc: body.acc };
+  if (!Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return json({ error: "need-location" }, 403);
+  const out = beyond(pin, at);
+  return out > 0 ? json({ error: "too-far", metres: Math.round(out) }, 403) : null;
 }
 
 /* Check-ins on a session that still count. A voided one is a check-in the

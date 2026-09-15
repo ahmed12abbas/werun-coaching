@@ -166,6 +166,27 @@ function nextDate(weekday) {
   r = await athlete.call("GET", "/api/session?id=" + opened.id);
   check("the athlete sees the name on it", r.data.session && r.data.session.coach === "Coach " + stamp, r.data.session);
 
+  /* ---- the meeting-point check, off by default, on only if admin says so ---- */
+  const PIN = { lat: 24.669761, lng: 46.578431 };
+  await plan({ action: "save", entry: Object.assign({}, slot, { coach_id: coachId, map_url: "https://maps.google.com/?q=" + PIN.lat + "," + PIN.lng }) });
+
+  r = await admin("/api/admin/settings", {});
+  check("off by default", r.data.settings.checkin_location_required === false, r.data.settings);
+
+  r = await coach.call("POST", "/api/admin/qr", { id: opened.id, lat: PIN.lat + 0.02, lng: PIN.lng });
+  check("far away is fine while the setting is off", r.status === 200 && !!r.data.url, r);
+
+  await admin("/api/admin/settings", { set: { checkin_location_required: true } });
+  r = await coach.call("POST", "/api/admin/qr", { id: opened.id });
+  check("turned on: a leader with no location is asked for it", r.status === 403 && r.data.error === "need-location", r);
+  r = await coach.call("POST", "/api/admin/qr", { id: opened.id, lat: PIN.lat + 0.02, lng: PIN.lng, acc: 10 });
+  check("…2 km away is refused", r.status === 403 && r.data.error === "too-far", r);
+  r = await coach.call("POST", "/api/admin/qr", { id: opened.id, lat: PIN.lat + 0.001, lng: PIN.lng, acc: 15 });
+  check("…at the pin gets the code", r.status === 200 && !!r.data.url, r);
+  r = await admin("/api/admin/qr", { id: opened.id });
+  check("the club password is not held to it", r.status === 200 && !!r.data.url, r);
+  await admin("/api/admin/settings", { set: { checkin_location_required: false } });
+
   r = await admin("/api/admin/sessions", { action: "delete", id: opened.id });
   check("the opened session clears away", r.status === 200, r.status);
 
