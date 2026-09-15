@@ -79,6 +79,20 @@ a{color:var(--brand)}
 .badge{display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
   background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 
+/* The team's mark in the banner, in white: the purple original would sink
+   into the purple fade behind it. More specific than `.hero img`, which is
+   the full-bleed photo. */
+.hero h1.logo{line-height:0;margin:6px 0 4px}
+.hero h1.logo img{position:static;inset:auto;width:clamp(150px,24vw,250px);height:auto;object-fit:contain;
+  filter:brightness(0) invert(1) drop-shadow(0 6px 22px rgba(20,10,45,.45))}
+/* The award, glowing. Still for anyone who asked for less motion. */
+.hero .badge{border-color:rgba(255,255,255,.6);
+  box-shadow:0 0 14px rgba(205,175,255,.6),0 0 36px rgba(160,110,255,.4),inset 0 0 10px rgba(255,255,255,.2)}
+@media (prefers-reduced-motion:no-preference){.hero .badge{animation:badge-glow 2.6s ease-in-out infinite alternate}}
+@keyframes badge-glow{
+  from{box-shadow:0 0 10px rgba(205,175,255,.45),0 0 26px rgba(160,110,255,.25),inset 0 0 8px rgba(255,255,255,.14)}
+  to{box-shadow:0 0 20px rgba(220,195,255,.85),0 0 48px rgba(160,110,255,.55),inset 0 0 14px rgba(255,255,255,.28)}}
+
 /* ---- about ---- */
 .about{display:grid;gap:28px;align-items:center}
 .about .lead{font-size:clamp(19px,2.4vw,24px);line-height:1.5;font-weight:600}
@@ -220,7 +234,7 @@ footer a{color:inherit}
 </button>
 
 <script src="js/brand.js?v=4f153237"></script>
-<script src="js/about.js?v=b6385dfe"></script>
+<script src="js/about.js?v=9f80f096"></script>
 <script>
 "use strict";
 var root = document.documentElement;

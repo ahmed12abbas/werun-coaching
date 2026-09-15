@@ -21,6 +21,7 @@ var ABOUT_DEFAULT = { sections: [
   { type: "hero", show: true, image: "assets/about/hero.webp",
     kicker: aboutPair("Who are we", "من نحن"),
     title: "WE RUN",
+    logo: "assets/logo.png",
     tagline: aboutPair("A Riyadh running community for every level — from a first 5K to a marathon finish line.",
       "مجتمع جري في الرياض لكل المستويات، من أول ٥ كم إلى خط نهاية الماراثون."),
     badge: aboutPair("Most Active CSG · SFA Awards 2025", "المجموعة الأكثر نشاطاً · جوائز الرياضة للجميع ٢٠٢٥") },
@@ -202,8 +203,12 @@ var aboutRender = (function () {
 
   var DRAW = {
     hero: function (s, L) {
+      // The team's own mark when there is one, with the title as its alt text
+      // so the heading still reads "WE RUN"; the plain title otherwise.
+      var mark = img(s.logo, true, tx(s.title, L) || "WE RUN");
       return h("header", "hero", img(s.image, true),
-        h("div", "in", opt("div", "kicker", tx(s.kicker, L)), opt("h1", "", tx(s.title, L)),
+        h("div", "in", opt("div", "kicker", tx(s.kicker, L)),
+          mark ? h("h1", "logo", mark) : opt("h1", "", tx(s.title, L)),
           opt("p", "", tx(s.tagline, L)), opt("span", "badge", tx(s.badge, L))));
     },
     about: function (s, L) {

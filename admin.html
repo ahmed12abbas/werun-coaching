@@ -34,7 +34,7 @@
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/console.js?v=262aad5d"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/about.js?v=b6385dfe"></script>
+<script src="js/about.js?v=9f80f096"></script>
 <script>
 "use strict";
 
@@ -1086,7 +1086,7 @@ function aboutCard() {
       if (k === "type" || k === "show") return;
       var v = o[k];
       if (aboutIsPair(v)) box.append(pair(o, k, aboutWords(k)));
-      else if (k === "image") box.append(picker(o, k));
+      else if (k === "image" || k === "logo") box.append(picker(o, k));
       else if (k === "size") box.append(sizer(o, k));
       else if (Array.isArray(v)) box.append(list(v, k, type));
       else if (typeof v === "boolean") box.append(check(o, k));
@@ -1158,6 +1158,7 @@ function aboutCard() {
     var thumb = el("img", { class: "ab-thumb", alt: "" });
     var sel = el("select", {}, el("option", { value: "" }, "No photo"));
     ABOUT_PHOTOS.forEach(function (p) { sel.append(el("option", { value: "assets/about/" + p + ".webp" }, aboutWords(p))); });
+    sel.append(el("option", { value: "assets/logo.png" }, "Team logo"));
     function has(v) {
       for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === v) return true;
       return false;
@@ -1185,7 +1186,7 @@ function aboutCard() {
         .then(function () { file.value = ""; });
     });
     return el("div", { class: "ab-img" }, thumb,
-      el("div", {}, el("label", {}, "Photo"), sel),
+      el("div", {}, el("label", {}, k === "logo" ? "Logo" : "Photo"), sel),
       el("div", { style: "flex:0 0 auto" }, el("label", { class: "btn sm ab-up" }, "Upload a photo", file)));
   }
 
