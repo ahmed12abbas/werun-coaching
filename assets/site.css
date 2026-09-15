@@ -499,9 +499,11 @@ footer a{color:inherit}
 }
 
 /* ---- socials ---- */
-.socials{display:flex;justify-content:center;gap:10px;margin:0 0 14px}
-.social{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;
+/* Same size as the socials row on /about (about.html), so the row reads as
+   one design wherever it turns up. */
+.socials{display:flex;justify-content:center;gap:12px;margin:0 0 14px}
+.social{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;
   background:var(--brand-soft);border:1px solid var(--line);color:var(--brand);
   transition:background .15s ease,color .15s ease,transform .15s ease}
 .social:hover{background:var(--brand);color:var(--brand-ink);transform:translateY(-2px)}
-.social svg{width:18px;height:18px;display:block}
+.social svg{width:20px;height:20px;display:block}

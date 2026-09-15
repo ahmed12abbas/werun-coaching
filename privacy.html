@@ -55,6 +55,14 @@ h2{font-family:var(--display);font-size:26px;font-weight:600;text-transform:uppe
 p,li{margin:0 0 10px}
 ul{padding-inline-start:20px;margin:0 0 10px}
 a{color:var(--brand)}
+footer{margin-top:34px}
+/* Same size as the app's own social row (assets/site.css .social) and the
+   one on /about, so the row reads the same wherever it turns up. */
+.socials{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:0}
+.socials a{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--card);
+  border:1px solid var(--line);color:var(--brand)}
+.socials a:hover,.socials a:focus-visible{background:var(--brand);color:#fff}
+.socials svg{width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -189,8 +197,13 @@ a{color:var(--brand)}
       <p class="muted">إذا تغيّرت هذه الصفحة يتغيّر التاريخ في أعلاها معها.</p>
     </div>
   </article>
+
+  <footer>
+    <nav class="socials" id="socials" aria-label="WE RUN on social"></nav>
+  </footer>
 </div>
 
+<script src="js/brand.js"></script>
 <script>
 "use strict";
 var root = document.documentElement;
@@ -202,6 +215,7 @@ function show(lang) {
   document.getElementById("ar").hidden = lang !== "ar";
   btn.textContent = lang === "ar" ? "English" : "العربية";
   document.getElementById("back").textContent = lang === "ar" ? "→ WE RUN" : "← WE RUN";
+  document.getElementById("socials").setAttribute("aria-label", lang === "ar" ? "WE RUN على منصات التواصل" : "WE RUN on social");
   document.title = (lang === "ar" ? "الخصوصية" : "Privacy") + " · WE RUN";
 }
 btn.addEventListener("click", function () {
@@ -210,6 +224,19 @@ btn.addEventListener("click", function () {
   show(next);
 });
 show(root.getAttribute("lang") === "ar" ? "ar" : "en");
+
+/* The app's own five links, drawn from its list (SOCIAL in js/brand.js)
+   rather than a second copy. */
+SOCIAL.forEach(function (s) {
+  var a = document.createElement("a");
+  a.href = s.href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.title = s.label;
+  a.setAttribute("aria-label", s.label);
+  a.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + s.svg + "</svg>";
+  document.getElementById("socials").append(a);
+});
 </script>
 </body>
 </html>
