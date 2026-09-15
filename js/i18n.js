@@ -1171,7 +1171,7 @@ function kindLabel(type) {
 const Theme = {
   KEY: "werun.theme",
 
-  /** "light" | "dark" | null (follow the device). */
+  /** "light" | "dark" | null (nothing picked yet, which is light). */
   saved() {
     try {
       const v = localStorage.getItem(Theme.KEY);
@@ -1181,9 +1181,11 @@ const Theme = {
     }
   },
 
-  /** What the page is actually showing right now. */
+  /** What the page is actually showing right now: light until somebody picks
+      dark, whatever the phone is set to -- the club wants a first visit to see
+      the app as it was designed. */
   current() {
-    return Theme.saved() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    return Theme.saved() || "light";
   },
 
   apply(mode) {

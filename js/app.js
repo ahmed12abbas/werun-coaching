@@ -3118,7 +3118,4 @@ wireSwipeNav();
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());
 window.addEventListener("hashchange", render);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (!Theme.saved()) render();
-});
 appBoot();

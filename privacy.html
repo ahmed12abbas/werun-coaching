@@ -31,9 +31,7 @@
   --radius:16px; --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
-}}
+/* Light unless dark was picked in the app: the same rule as the app itself. */
 :root[data-theme="dark"]{
   --brand:#A47CF8; --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
 }

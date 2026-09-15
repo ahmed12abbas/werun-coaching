@@ -55,9 +55,5 @@ Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());
 
 window.addEventListener("hashchange", boot);
-// Following the device theme means reacting when the device changes it.
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (!Theme.saved()) boot();
-});
 
 boot();

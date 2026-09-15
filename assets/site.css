@@ -1,11 +1,11 @@
 /* WE RUN Coaching — the one stylesheet.
-   Light is the base; the two dark blocks must stay in step. Shared by
+   Light is the base; dark is only ever picked, never the phone's. Shared by
    index.html (builder + viewer) and app.html (the athlete app); the coach
    pages carry their own copies of the tokens. Edits here need the ?v=
    stamp refreshed: node tools/version-assets.js (a hook does it). */
 
 
-/* ---- light is the base; both dark blocks below must stay in step -------- */
+/* ---- light is the base; dark is the one block below -------------------- */
 :root{
   --brand:#8851F4; --brand-ink:#ffffff; --brand-deep:#5B32BC; --brand-soft:#F2ECFE;
   --bg:#f7f7fa; --card:#ffffff; --fg:#14121c; --muted:#6a6580; --line:#e6e3ef;
@@ -16,14 +16,8 @@
   --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
-    --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
-    --work:#A47CF8; --repeat:#A47CF8;
-    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.35);
-  }
-}
+/* Dark only when somebody picks it (Theme in js/i18n.js): a first visit is
+   light whatever the phone is set to. */
 :root[data-theme="dark"]{
   --brand:#A47CF8; --brand-ink:#1b1030; --brand-deep:#C0A5FA; --brand-soft:#241a3d;
   --bg:#101019; --card:#191826; --fg:#eeecf5; --muted:#9d99b5; --line:#2a2840;
