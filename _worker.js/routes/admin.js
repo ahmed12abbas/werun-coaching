@@ -227,6 +227,10 @@ export async function settings(request, env) {
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
     const value = settingValue(DEFAULTS[key], set[key]);
+    // The app puts this straight into an href, so only a web address is kept.
+    if (key === "announcement_url" && value && !/^https?:\/\/\S+$/i.test(value)) {
+      return json({ error: "bad-url" }, 400);
+    }
     if (value !== undefined) await setSetting(env, key, value);
   }
 

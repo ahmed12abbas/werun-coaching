@@ -33,7 +33,13 @@ const cleanBody = (s) =>
     .trim()
     .slice(0, MAX.body);
 
-const publicPost = (p, hasPhoto) => ({
+/* Which of the newer columns exist yet: photo_url is 0027, popup is 0030. */
+async function postColumns(env) {
+  const [photo, popup] = await Promise.all([hasColumn(env, "posts", "photo_url"), hasColumn(env, "posts", "popup")]);
+  return { photo: photo, popup: popup };
+}
+
+const publicPost = (p, has) => ({
   id: p.id,
   title_en: p.title_en,
   title_ar: p.title_ar,
@@ -41,7 +47,8 @@ const publicPost = (p, hasPhoto) => ({
   body_ar: p.body_ar,
   pinned: !!p.pinned,
   published_at: p.published_at,
-  photo_url: hasPhoto ? p.photo_url || null : null,
+  photo_url: has.photo ? p.photo_url || null : null,
+  popup: has.popup ? !!p.popup : false,
 });
 
 /* ---------- GET /api/feed -------------------------------------------------- */
@@ -55,7 +62,7 @@ const publicPost = (p, hasPhoto) => ({
  * Friday.
  */
 export const feed = withMember(async (request, env, user) => {
-  const hasPhoto = await hasColumn(env, "posts", "photo_url");
+  const has = await postColumns(env);
   const rows = await env.DB.prepare(
     "SELECT * FROM posts WHERE published_at IS NOT NULL AND published_at <= ?" +
       " ORDER BY pinned DESC, published_at DESC LIMIT ?"
@@ -84,7 +91,7 @@ export const feed = withMember(async (request, env, user) => {
     }
   }
 
-  const posts = (rows.results || []).map((p) => publicPost(p, hasPhoto));
+  const posts = (rows.results || []).map((p) => publicPost(p, has));
   // Every face on the screen in one read, keyed the way the page draws them.
   const faces = await reactionsFor(
     env,
@@ -104,11 +111,11 @@ export const feed = withMember(async (request, env, user) => {
 /* ---------- POST /api/admin/posts ------------------------------------------ */
 
 async function listAll(env) {
-  const hasPhoto = await hasColumn(env, "posts", "photo_url");
+  const has = await postColumns(env);
   const rows = await env.DB.prepare("SELECT * FROM posts ORDER BY pinned DESC, COALESCE(published_at, updated_at) DESC LIMIT ?")
     .bind(MAX.posts)
     .all();
-  return (rows.results || []).map((p) => Object.assign(publicPost(p, hasPhoto), { updated_at: p.updated_at }));
+  return (rows.results || []).map((p) => Object.assign(publicPost(p, has), { updated_at: p.updated_at }));
 }
 
 /* `publish` is what the button says; `publish_at` is what a coach writing
@@ -122,7 +129,7 @@ function publishedAtFrom(post) {
   return post.publish ? nowISO() : null;
 }
 
-function readPost(post, hasPhoto) {
+function readPost(post, has) {
   const title_en = cleanTitle(post.title_en);
   const title_ar = cleanTitle(post.title_ar);
   if (!title_en && !title_ar) return { error: "bad-title" };
@@ -135,31 +142,36 @@ function readPost(post, hasPhoto) {
     body_ar: cleanBody(post.body_ar),
     pinned: post.pinned ? 1 : 0,
     published_at: publishedAt,
-    photo_url: hasPhoto && post.photo_url ? String(post.photo_url).slice(0, 200) : null,
+    photo_url: has.photo && post.photo_url ? String(post.photo_url).slice(0, 200) : null,
+    popup: has.popup && post.popup ? 1 : 0,
   };
 }
 
-async function updatePost(env, id, f, hasPhoto) {
+async function updatePost(env, id, f, has) {
   const before = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
   if (!before) return json({ error: "no-post" }, 404);
   // Unpublishing is deliberate: the editor sends publish:false with no date,
   // and that takes it off the feed rather than leaving it up.
-  const cols = "title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ?" + (hasPhoto ? ", photo_url = ?" : "");
+  const cols = "title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ?" +
+    (has.photo ? ", photo_url = ?" : "") + (has.popup ? ", popup = ?" : "");
   const vals = [f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO()];
-  if (hasPhoto) vals.push(f.photo_url);
+  if (has.photo) vals.push(f.photo_url);
+  if (has.popup) vals.push(f.popup);
   vals.push(id);
   await env.DB.prepare("UPDATE posts SET " + cols + " WHERE id = ?").bind(...vals).run();
   return null;
 }
 
-async function insertPost(env, f, hasPhoto) {
+async function insertPost(env, f, has) {
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM posts").first();
   if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
   const now = nowISO();
-  const cols = "id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at" + (hasPhoto ? ", photo_url" : "");
-  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (hasPhoto ? ", ?" : "");
+  const cols = "id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at" +
+    (has.photo ? ", photo_url" : "") + (has.popup ? ", popup" : "");
+  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (has.photo ? ", ?" : "") + (has.popup ? ", ?" : "");
   const vals = [uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now];
-  if (hasPhoto) vals.push(f.photo_url);
+  if (has.photo) vals.push(f.photo_url);
+  if (has.popup) vals.push(f.popup);
   await env.DB.prepare("INSERT INTO posts (" + cols + ") VALUES (" + marks + ")").bind(...vals).run();
   return null;
 }
@@ -168,12 +180,12 @@ async function insertPost(env, f, hasPhoto) {
    Publishing is a date, not a flag, so "post it now" and "post it on Sunday
    morning" are the same operation. */
 async function savePost(body, env) {
-  const hasPhoto = await hasColumn(env, "posts", "photo_url");
+  const has = await postColumns(env);
   const post = objectIn(body.post);
-  const f = readPost(post, hasPhoto);
+  const f = readPost(post, has);
   if (f.error) return json({ error: f.error }, 400);
   const id = savedId(post);
-  const failed = id ? await updatePost(env, id, f, hasPhoto) : await insertPost(env, f, hasPhoto);
+  const failed = id ? await updatePost(env, id, f, has) : await insertPost(env, f, has);
   return failed || json({ posts: await listAll(env) });
 }
 

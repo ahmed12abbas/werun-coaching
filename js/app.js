@@ -54,7 +54,46 @@ async function appBoot() {
   // follows them to the account. Quietly: the page has already switched.
   if (Auth.user && Auth.user.lang !== I18N.lang) Auth.update({ lang: I18N.lang }).catch(() => {});
   render();
-  if (Auth.user) checkFeedGlow();
+  if (Auth.user) {
+    checkFeedGlow();
+    maybeNewsPopup();
+  }
+}
+
+/* ---------- a post the coach wants seen pops up once a day ----------------
+   Per device, like the News glow: the last post shown and the day it was shown
+   on, kept in localStorage. A different post the same day still shows, since
+   the coach has just said something new; the same one waits for tomorrow. With
+   storage refused it never shows, rather than on every single open. */
+const POPUP_KEY = "werun.newsPopup";
+
+function maybeNewsPopup() {
+  API.get("/api/feed")
+    .then((d) => {
+      const p = (d.posts || []).find((x) => x.popup);
+      if (!p || meSheet) return;
+      const now = new Date();
+      const mark = p.id + "|" + now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+      try {
+        if (localStorage.getItem(POPUP_KEY) === mark) return;
+        localStorage.setItem(POPUP_KEY, mark);
+      } catch (e) {
+        return;
+      }
+      openSheet(
+        side(p, "title"),
+        el(
+          "div",
+          { class: "stack post", dir: "auto" },
+          el("div", { class: "post-head" }, published(p.published_at)),
+          el("h2", {}, side(p, "title")),
+          p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "" }) : null,
+          el("div", { class: "post-body" }, written(side(p, "body"))),
+          el("button", { class: "btn primary block", type: "button", onclick: () => { closeMe(); go("feed"); } }, t("navFeed2"))
+        )
+      );
+    })
+    .catch(() => {});
 }
 
 /* ---------- an unseen post lights the News tab -----------------------------
@@ -317,6 +356,12 @@ function announcement() {
     ? Auth.club.announcement_ar || Auth.club.announcement_en
     : Auth.club.announcement_en || Auth.club.announcement_ar;
   if (!text) return null;
+  // Only a web address is ever made a link; the Worker checks it on the way in
+  // and this checks again on the way out, since it lands in an href.
+  const url = Auth.club.announcement_url || "";
+  if (/^https?:\/\/\S+$/i.test(url)) {
+    return el("a", { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer", dir: "auto" }, text);
+  }
   return el("div", { class: "announce", dir: "auto" }, text);
 }
 
@@ -2601,10 +2646,15 @@ SCREENS.feed = function () {
   return list;
 };
 
-/* The live article first, then the posts — or, with neither, a line saying
-   there is no news yet. */
+/* Posts and articles in one list: pinned posts at the top, then everything
+   else newest first by the day it went up. */
 function feedCards(tips, posts) {
-  const cards = tips.map((tip) => tipCard(tip)).concat(posts.map((p) => postCard(p)));
+  const when = (iso) => Date.parse(iso) || 0;
+  const items = tips
+    .map((tip) => ({ pinned: false, at: when(tip.created || tip.updated), card: tipCard(tip) }))
+    .concat(posts.map((p) => ({ pinned: !!p.pinned, at: when(p.published_at), card: postCard(p) })));
+  items.sort((a, b) => b.pinned - a.pinned || b.at - a.at);
+  const cards = items.map((i) => i.card);
   return cards.length ? cards : [el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews")))];
 }
 
@@ -3198,6 +3248,50 @@ function wireSwipeNav() {
   }, { passive: true });
 }
 wireSwipeNav();
+
+/* Pull down from the very top of a screen to draw it again from fresh reads —
+   the gesture every phone app has. Only when #app is already at its top and the
+   drag is mostly vertical, so an ordinary scroll or a tab swipe never trips it.
+   The remembered reads are dropped first: without that the 30s memo would hand
+   back the very answer they are trying to get past. */
+function wirePullRefresh() {
+  const app = $("#app");
+  const PULL = 80;
+  let sy = 0, sx = 0, pulling = false, dy = 0;
+  const badge = el("div", { class: "ptr", "aria-hidden": "true" }, el("span", { class: "spin" }));
+  document.body.append(badge);
+
+  const reset = () => {
+    pulling = false;
+    dy = 0;
+    badge.classList.remove("show", "go");
+  };
+
+  app.addEventListener("touchstart", (e) => {
+    pulling = e.touches.length === 1 && app.scrollTop <= 0 && !meSheet && !e.target.closest(".scroll");
+    if (!pulling) return;
+    sy = e.touches[0].clientY;
+    sx = e.touches[0].clientX;
+  }, { passive: true });
+
+  app.addEventListener("touchmove", (e) => {
+    if (!pulling) return;
+    dy = e.touches[0].clientY - sy;
+    if (app.scrollTop > 0 || dy < 0 || Math.abs(e.touches[0].clientX - sx) > dy) return reset();
+    badge.classList.add("show");
+    badge.classList.toggle("go", dy >= PULL);
+  }, { passive: true });
+
+  app.addEventListener("touchend", () => {
+    const fire = pulling && dy >= PULL;
+    reset();
+    if (!fire) return;
+    API.clear();
+    render();
+  }, { passive: true });
+  app.addEventListener("touchcancel", reset, { passive: true });
+}
+wirePullRefresh();
 
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());

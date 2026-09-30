@@ -216,7 +216,23 @@ function check(name, ok, detail) {
   check("an announcement saves", r.status === 200 && r.data.settings.announcement_en === "Track closed Thursday", r.status);
   r = await athlete.call("GET", "/api/auth/me");
   check("and reaches the app through /me", r.data.club && r.data.club.announcement_ar === "المضمار مغلق الخميس", r.data.club);
-  await coach.call("POST", "/api/admin/settings", { set: { announcement_en: "", announcement_ar: "" } });
+  r = await coach.call("POST", "/api/admin/settings", { set: { announcement_url: "javascript:alert(1)" } });
+  check("an announcement link must be a web address", r.status === 400 && r.data.error === "bad-url", r);
+  r = await coach.call("POST", "/api/admin/settings", { set: { announcement_url: "https://example.com/race" } });
+  check("a web address saves as the announcement link", r.status === 200 && r.data.settings.announcement_url === "https://example.com/race", r.status);
+  r = await athlete.call("GET", "/api/auth/me");
+  check("and the link reaches the app through /me", r.data.club && r.data.club.announcement_url === "https://example.com/race", r.data.club);
+  await coach.call("POST", "/api/admin/settings", { set: { announcement_en: "", announcement_ar: "", announcement_url: "" } });
+
+  r = await coach.call("POST", "/api/admin/posts", {
+    action: "save",
+    post: { title_en: "Race day", title_ar: "يوم السباق", popup: true, publish: true },
+  });
+  const popped = r.data.posts.find((p) => p.title_en === "Race day");
+  check("a post can be marked to pop up", !!popped && popped.popup === true, r.data.posts);
+  r = await athlete.call("GET", "/api/feed");
+  check("and the feed says so", (r.data.posts || []).some((p) => p.id === popped.id && p.popup === true), r.data.posts);
+  await coach.call("POST", "/api/admin/posts", { action: "delete", id: popped.id });
 
   /* Maintenance: athletes held, coach working, nobody locked out. */
   r = await coach.call("POST", "/api/admin/settings", { set: { maintenance: true } });

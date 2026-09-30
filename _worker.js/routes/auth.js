@@ -99,6 +99,7 @@ async function clubFor(env) {
     name: await getSetting(env, "club_name"),
     announcement_en: await getSetting(env, "announcement_en"),
     announcement_ar: await getSetting(env, "announcement_ar"),
+    announcement_url: await getSetting(env, "announcement_url"),
     maintenance: !!(await getSetting(env, "maintenance")),
     // Whether the app's own code screen (js/app.js, codeLoop) must ask for
     // location before showing the code. Off by default — see lib/settings.js.

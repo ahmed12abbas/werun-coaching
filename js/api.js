@@ -50,6 +50,10 @@ const API = {
     p.catch(() => recent.delete(path));
     return p;
   },
+  /** Forget every remembered read, so the next draw asks the server. */
+  clear() {
+    recent.clear();
+  },
   post: (path, body) => API.call("POST", path, body || {}),
 };
 

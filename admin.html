@@ -868,6 +868,7 @@ function feedCard() {
     var bodyEn = el("textarea", { placeholder: "Anything longer. **Bold** works, and lines starting with - become a list." });
     var bodyAr = el("textarea", { placeholder: "النص بالعربية" });
     var pin = el("input", { type: "checkbox" });
+    var popup = el("input", { type: "checkbox" });
     var when = el("input", { type: "datetime-local" });
     var err = el("p", { class: "err", style: "display:none" });
 
@@ -911,6 +912,7 @@ function feedCard() {
       bodyEn.value = editing.body_en || "";
       bodyAr.value = editing.body_ar || "";
       if (editing.pinned) pin.setAttribute("checked", "");
+      if (editing.popup) popup.setAttribute("checked", "");
       if (editing.published_at) {
         // datetime-local wants the coach's own clock, not UTC.
         var d = new Date(editing.published_at);
@@ -927,6 +929,7 @@ function feedCard() {
           title_en: titleEn.value, title_ar: titleAr.value,
           body_en: bodyEn.value, body_ar: bodyAr.value,
           pinned: pin.checked,
+          popup: popup.checked,
           photo_url: photoUrl || null
         }
       };
@@ -948,6 +951,8 @@ function feedCard() {
     editor.append(el("div", { class: "row", style: "margin-top:12px" },
       el("div", { style: "flex:0 0 auto" },
         el("label", { class: "sw" }, pin, el("span", {}, "Pin to the top"))),
+      el("div", { style: "flex:0 0 auto" },
+        el("label", { class: "sw" }, popup, el("span", {}, "Pop up once a day"))),
       el("div", {}, el("label", {}, "Post at (optional)"), when)));
 
     editor.append(el("div", { class: "ab-img", style: "margin-top:12px" },
@@ -984,12 +989,14 @@ function feedCard() {
             ahead ? el("span", { class: "badge" }, "Scheduled") :
               el("span", { class: "muted small" }, "draft"),
           p.pinned ? el("span", { class: "badge" }, "Pinned") : null,
+          p.popup ? el("span", { class: "badge" }, "Pop-up") : null,
           el("span", { class: "muted small" }, stamp(p.published_at || p.updated_at) || "")));
       var acts = el("div", { class: "acts" },
         el("button", { class: "btn sm", onclick: function () { editing = p; form(); editor.scrollIntoView({ block: "nearest" }); } }, "Edit"),
         out ? el("button", { class: "btn sm", onclick: function () {
           post({ action: "save", post: { id: p.id, title_en: p.title_en, title_ar: p.title_ar,
-            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, publish: false } })
+            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, popup: p.popup,
+            photo_url: p.photo_url, publish: false } })
             .then(paint)["catch"](function (e) { row.append(el("p", { class: "err" }, e.message)); });
         } }, "Take it down") : null,
         el("button", { class: "btn sm", onclick: function () {
@@ -1328,7 +1335,8 @@ var SETTINGS_FIELDS = [
   { key: "currency", label: "Currency", type: "text", note: "Stripe's code: usd, egp, aed, gbp, eur. Change it before anything is sold." },
   { key: "whatsapp_url", label: "Group chat link", type: "text", note: "Shown at the foot of the News tab. Leave empty for none." },
   { key: "announcement_en", label: "Announcement (English)", type: "text", full: true, note: "A line across the top of the app. Empty means none." },
-  { key: "announcement_ar", label: "Announcement (العربية)", type: "text", full: true, note: "" }
+  { key: "announcement_ar", label: "Announcement (العربية)", type: "text", full: true, note: "" },
+  { key: "announcement_url", label: "Announcement link (optional)", type: "text", full: true, note: "https://… — when set, the announcement is tappable and opens this. Empty means plain text." }
 ];
 
 function settingsCard() {
@@ -1421,7 +1429,10 @@ function settingsCard() {
       paint(d.settings);
       saved.textContent = "Saved.";
       setTimeout(function () { saved.textContent = ""; }, 2500);
-    })["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+    })["catch"](function (e) {
+      err.textContent = e.code === "bad-url" ? "The announcement link must start with http:// or https://" : e.message;
+      err.style.display = "";
+    });
   }
 
   api("/api/admin/settings", {}).then(function (d) { paint(d.settings); })

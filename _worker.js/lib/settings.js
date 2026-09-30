@@ -25,6 +25,7 @@ export const DEFAULTS = {
   whatsapp_url: "", // the group, linked from the app's feed
   announcement_en: "", // a line across the top of the app; empty means none
   announcement_ar: "",
+  announcement_url: "", // where the announcement goes when tapped; empty means it is just text
   // Athletes see a message instead of the week; coaches carry on working, and
   // logging in and out keeps working for everyone, so this cannot lock the
   // club out of its own site.
