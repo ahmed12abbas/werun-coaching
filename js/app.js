@@ -1650,8 +1650,7 @@ function slotRow(item, date) {
    address is checked again here because it goes straight into window.open. */
 const raceLink = (item) => (item.theme === "race" && /^https:/i.test(item.link_url || "") ? item.link_url : "");
 
-/* A background rather than an <img>: which of the two marks (purple on light,
-   white on dark) is chosen by the theme in CSS, and only that one is fetched. */
+/* A background rather than an <img>, so it is never a stray image to the page. */
 const raceMark = () => el("span", { class: "race-mark", "aria-hidden": "true" });
 
 function raceNode(item, date, clock, body, tag) {
