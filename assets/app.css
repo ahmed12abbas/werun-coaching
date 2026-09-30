@@ -587,3 +587,5 @@ html[data-event="nationalday"] .brand-logo{
 /* The points tag and the control stack in the check-in strip, which is a row
    of two and would otherwise put them side by side and squeeze the title. */
 .ci-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+
+.post-link{color:inherit;text-decoration:underline;text-underline-offset:3px}

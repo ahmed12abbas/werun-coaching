@@ -234,6 +234,17 @@ function check(name, ok, detail) {
   check("and the feed says so", (r.data.posts || []).some((p) => p.id === popped.id && p.popup === true), r.data.posts);
   await coach.call("POST", "/api/admin/posts", { action: "delete", id: popped.id });
 
+  r = await coach.call("POST", "/api/admin/posts", { action: "save", post: { title_en: "Bad link", link_url: "javascript:alert(1)", publish: true } });
+  check("a title link must be a web address", r.status === 400 && r.data.error === "bad-url", r);
+  r = await coach.call("POST", "/api/admin/posts", {
+    action: "save",
+    post: { title_en: "Linked", title_ar: "رابط", link_url: "https://example.com/entry", publish: true },
+  });
+  const linked = r.data.posts.find((p) => p.title_en === "Linked");
+  r = await athlete.call("GET", "/api/feed");
+  check("a web address is kept and reaches the feed", (r.data.posts || []).some((p) => p.id === linked.id && p.link_url === "https://example.com/entry"), r.data.posts);
+  await coach.call("POST", "/api/admin/posts", { action: "delete", id: linked.id });
+
   /* Maintenance: athletes held, coach working, nobody locked out. */
   r = await coach.call("POST", "/api/admin/settings", { set: { maintenance: true } });
   check("maintenance goes on", r.status === 200 && r.data.settings.maintenance === true, r.status);

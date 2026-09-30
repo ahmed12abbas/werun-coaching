@@ -869,6 +869,7 @@ function feedCard() {
     var bodyAr = el("textarea", { placeholder: "النص بالعربية" });
     var pin = el("input", { type: "checkbox" });
     var popup = el("input", { type: "checkbox" });
+    var linkUrl = el("input", { type: "text", maxlength: 500, placeholder: "https://…" });
     var when = el("input", { type: "datetime-local" });
     var err = el("p", { class: "err", style: "display:none" });
 
@@ -913,6 +914,7 @@ function feedCard() {
       bodyAr.value = editing.body_ar || "";
       if (editing.pinned) pin.setAttribute("checked", "");
       if (editing.popup) popup.setAttribute("checked", "");
+      linkUrl.value = editing.link_url || "";
       if (editing.published_at) {
         // datetime-local wants the coach's own clock, not UTC.
         var d = new Date(editing.published_at);
@@ -930,6 +932,7 @@ function feedCard() {
           body_en: bodyEn.value, body_ar: bodyAr.value,
           pinned: pin.checked,
           popup: popup.checked,
+          link_url: linkUrl.value.trim() || null,
           photo_url: photoUrl || null
         }
       };
@@ -939,7 +942,10 @@ function feedCard() {
       else if (editing && editing.published_at) body.post.publish_at = editing.published_at;
 
       post(body).then(function (d) { editing = null; form(); paint(d); })
-        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+        ["catch"](function (e) {
+          err.textContent = e.code === "bad-url" ? "The title link must start with http:// or https://" : e.message;
+          err.style.display = "";
+        });
     }
 
     editor.append(el("div", { class: "two" },
@@ -947,6 +953,10 @@ function feedCard() {
         el("div", { style: "margin-top:10px" }, el("label", {}, "Body (English)"), bodyEn)),
       el("div", { class: "ar" }, el("label", {}, "Title (العربية)"), titleAr,
         el("div", { style: "margin-top:10px" }, el("label", {}, "Body (العربية)"), bodyAr))));
+
+    editor.append(el("div", { style: "margin-top:12px" },
+      el("label", {}, "Title link (optional)"), linkUrl,
+      el("div", { class: "set-note" }, "https://… — when set, the post's title in the app is tappable and opens this.")));
 
     editor.append(el("div", { class: "row", style: "margin-top:12px" },
       el("div", { style: "flex:0 0 auto" },
@@ -995,7 +1005,7 @@ function feedCard() {
         el("button", { class: "btn sm", onclick: function () { editing = p; form(); editor.scrollIntoView({ block: "nearest" }); } }, "Edit"),
         out ? el("button", { class: "btn sm", onclick: function () {
           post({ action: "save", post: { id: p.id, title_en: p.title_en, title_ar: p.title_ar,
-            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, popup: p.popup,
+            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, popup: p.popup, link_url: p.link_url,
             photo_url: p.photo_url, publish: false } })
             .then(paint)["catch"](function (e) { row.append(el("p", { class: "err" }, e.message)); });
         } }, "Take it down") : null,

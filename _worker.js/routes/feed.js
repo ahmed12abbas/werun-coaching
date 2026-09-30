@@ -33,10 +33,29 @@ const cleanBody = (s) =>
     .trim()
     .slice(0, MAX.body);
 
-/* Which of the newer columns exist yet: photo_url is 0027, popup is 0030. */
+/* Which of the newer columns exist yet: photo_url is 0027, popup is 0030,
+   link_url is 0031. */
 async function postColumns(env) {
-  const [photo, popup] = await Promise.all([hasColumn(env, "posts", "photo_url"), hasColumn(env, "posts", "popup")]);
-  return { photo: photo, popup: popup };
+  const [photo, popup, link] = await Promise.all([
+    hasColumn(env, "posts", "photo_url"),
+    hasColumn(env, "posts", "popup"),
+    hasColumn(env, "posts", "link_url"),
+  ]);
+  return { photo: photo, popup: popup, link: link };
+}
+
+/* The address a title links to: a web address or nothing. It lands in an href,
+   so anything else (javascript:, data:) is refused rather than trimmed. null
+   for none, undefined for one that will not do. */
+function cleanLink(raw) {
+  const s = String(raw || "").trim().slice(0, 500);
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" || u.protocol === "http:" ? s : undefined;
+  } catch (e) {
+    return undefined;
+  }
 }
 
 const publicPost = (p, has) => ({
@@ -49,6 +68,7 @@ const publicPost = (p, has) => ({
   published_at: p.published_at,
   photo_url: has.photo ? p.photo_url || null : null,
   popup: has.popup ? !!p.popup : false,
+  link_url: has.link ? p.link_url || null : null,
 });
 
 /* ---------- GET /api/feed -------------------------------------------------- */
@@ -135,6 +155,8 @@ function readPost(post, has) {
   if (!title_en && !title_ar) return { error: "bad-title" };
   const publishedAt = publishedAtFrom(post);
   if (publishedAt === undefined) return { error: "bad-time" };
+  const link = cleanLink(post.link_url);
+  if (link === undefined) return { error: "bad-url" };
   return {
     title_en: title_en,
     title_ar: title_ar,
@@ -144,6 +166,7 @@ function readPost(post, has) {
     published_at: publishedAt,
     photo_url: has.photo && post.photo_url ? String(post.photo_url).slice(0, 200) : null,
     popup: has.popup && post.popup ? 1 : 0,
+    link_url: has.link ? link : null,
   };
 }
 
@@ -153,10 +176,11 @@ async function updatePost(env, id, f, has) {
   // Unpublishing is deliberate: the editor sends publish:false with no date,
   // and that takes it off the feed rather than leaving it up.
   const cols = "title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ?" +
-    (has.photo ? ", photo_url = ?" : "") + (has.popup ? ", popup = ?" : "");
+    (has.photo ? ", photo_url = ?" : "") + (has.popup ? ", popup = ?" : "") + (has.link ? ", link_url = ?" : "");
   const vals = [f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO()];
   if (has.photo) vals.push(f.photo_url);
   if (has.popup) vals.push(f.popup);
+  if (has.link) vals.push(f.link_url);
   vals.push(id);
   await env.DB.prepare("UPDATE posts SET " + cols + " WHERE id = ?").bind(...vals).run();
   return null;
@@ -167,11 +191,12 @@ async function insertPost(env, f, has) {
   if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
   const now = nowISO();
   const cols = "id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at" +
-    (has.photo ? ", photo_url" : "") + (has.popup ? ", popup" : "");
-  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (has.photo ? ", ?" : "") + (has.popup ? ", ?" : "");
+    (has.photo ? ", photo_url" : "") + (has.popup ? ", popup" : "") + (has.link ? ", link_url" : "");
+  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (has.photo ? ", ?" : "") + (has.popup ? ", ?" : "") + (has.link ? ", ?" : "");
   const vals = [uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now];
   if (has.photo) vals.push(f.photo_url);
   if (has.popup) vals.push(f.popup);
+  if (has.link) vals.push(f.link_url);
   await env.DB.prepare("INSERT INTO posts (" + cols + ") VALUES (" + marks + ")").bind(...vals).run();
   return null;
 }

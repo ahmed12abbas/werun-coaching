@@ -86,7 +86,7 @@ function maybeNewsPopup() {
           "div",
           { class: "stack post", dir: "auto" },
           el("div", { class: "post-head" }, published(p.published_at)),
-          el("h2", {}, side(p, "title")),
+          postTitle(p),
           p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "" }) : null,
           el("div", { class: "post-body" }, written(side(p, "body"))),
           el("button", { class: "btn primary block", type: "button", onclick: () => { closeMe(); go("feed"); } }, t("navFeed2"))
@@ -2698,6 +2698,14 @@ function published(iso) {
   return el("span", { class: "muted small" }, d.toLocaleDateString(locale(), how));
 }
 
+/* A post's title, a link when the coach gave it one. The Worker only keeps a
+   web address, and this looks again on the way out because it lands in an href. */
+function postTitle(p) {
+  const title = side(p, "title");
+  const ok = /^https?:/i.test(p.link_url || "");
+  return el("h2", {}, ok ? el("a", { class: "post-link", href: p.link_url, target: "_blank", rel: "noopener noreferrer" }, title) : title);
+}
+
 function postCard(p) {
   return reactable(
     "post:" + p.id,
@@ -2710,7 +2718,7 @@ function postCard(p) {
         p.pinned ? el("span", { class: "tag open" }, t("aPinned")) : null,
         published(p.published_at)
       ),
-      el("h2", {}, side(p, "title")),
+      postTitle(p),
       p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "" }) : null,
       el("div", { class: "post-body" }, written(side(p, "body")))
     )
