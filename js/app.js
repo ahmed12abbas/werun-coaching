@@ -3291,6 +3291,29 @@ function wireSwipeNav() {
 }
 wireSwipeNav();
 
+/* On an iPhone the installed app's layout viewport can stop short of the real
+   bottom of the screen by the height of the home-indicator strip, while
+   env(safe-area-inset-bottom) still reports that strip — so the page ended
+   above it and the tabs, padded for it a second time, floated with an empty
+   band underneath. When the window is shorter than the screen by no more than
+   the safe area, the body is let run down over the difference. Portrait and
+   standalone only, and never by more than the safe area itself. */
+function fitToScreen() {
+  const probe = el("div", { style: "position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)" });
+  document.body.append(probe);
+  const safe = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  probe.remove();
+  const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const full = Math.max(screen.width, screen.height);
+  const gap = standalone && portrait ? Math.round(full - window.innerHeight) : 0;
+  const extend = gap > 0 && gap <= safe + 2 ? Math.min(gap, safe) : 0;
+  document.body.style.bottom = extend ? "-" + extend + "px" : "";
+}
+fitToScreen();
+window.addEventListener("resize", fitToScreen);
+window.addEventListener("orientationchange", () => setTimeout(fitToScreen, 300));
+
 /* Pull down from the very top of a screen to draw it again from fresh reads —
    the gesture every phone app has. Only when #app is already at its top and the
    drag is mostly vertical, so an ordinary scroll or a tab swipe never trips it.
