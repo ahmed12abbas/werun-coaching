@@ -57,13 +57,16 @@ button.day:active{background:var(--brand-soft)}
 }
 [dir="rtl"] .appnav a{font-size:15px;letter-spacing:0}
 
-/* The tabs sit at the foot of the screen, inside the thumb's reach. They stay
-   in .apptop's markup (the header is built and kept as one node) and are taken
-   out of it here: fixed, centred to .wrap's 660px, clear of the home bar. */
-.apptop .appnav{position:fixed;bottom:0;inset-inline:0;max-width:660px;margin:0 auto;
+/* The tabs are the last child of <body>, under the scroller (js/app.js,
+   mountNav): the body is a column, #app takes what is left and scrolls, and the
+   tabs sit flush with the bottom of the screen. The bottom safe area moves from
+   the body into the tabs, so the strip above the home indicator is theirs
+   instead of empty. */
+body{display:flex;flex-direction:column;padding-bottom:0}
+#app{flex:1 1 auto;min-height:0;height:auto;width:100%}
+body>.appnav{flex:none;width:100%;max-width:660px;margin:0 auto;
   padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--bg);
-  border-top:1px solid var(--line);z-index:20}
-#app{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+  border-top:1px solid var(--line)}
 
 /* ---- forms ---- */
 .form-err{color:var(--err);font-weight:650;font-size:14px;margin:0}

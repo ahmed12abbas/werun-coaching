@@ -222,9 +222,20 @@ function appTop(route, user) {
     bar.prepend(el("div", { class: "appbar-left" }, meBadge(user), searchBtn()));
   }
   wireHomeMark(bar);
-  const top = el("div", { class: "apptop" }, bar);
-  if (user) top.append(appNav(route));
-  return top;
+  return el("div", { class: "apptop" }, bar);
+}
+
+/* The tabs are not part of the header: they are the last child of <body>, below
+   the scroller, so the page itself is laid out as a column and they sit flush
+   with the bottom edge — a fixed bar was left floating above the phone's
+   home-indicator strip. Rebuilt whenever the header is, so a language or theme
+   toggle redraws them as before. */
+let navNode = null;
+
+function mountNav(route, user) {
+  if (navNode) navNode.remove();
+  navNode = user ? appNav(route) : null;
+  if (navNode) $("#app").after(navNode);
 }
 
 /* The header persists across an ordinary tab change instead of being torn
@@ -243,7 +254,8 @@ const headerKeyFor = (user) =>
 function ensureHeader(app, route, user) {
   const key = headerKeyFor(user);
   if (headerNode && headerKey === key && headerNode.isConnected) {
-    updateNavCurrent(headerNode, route);
+    if (user && !(navNode && navNode.isConnected)) mountNav(route, user);
+    updateNavCurrent(navNode, route);
     return headerNode;
   }
   // A rebuild also clears whatever appBoot()'s "loading…" placeholder or a
@@ -253,11 +265,11 @@ function ensureHeader(app, route, user) {
   headerNode = appTop(route, user);
   headerKey = key;
   app.append(headerNode);
+  mountNav(route, user);
   return headerNode;
 }
 
-function updateNavCurrent(header, route) {
-  const nav = header.querySelector(".appnav");
+function updateNavCurrent(nav, route) {
   if (!nav) return;
   for (const a of nav.querySelectorAll("a")) {
     if (a.getAttribute("href").slice(2) === route) a.setAttribute("aria-current", "page");
