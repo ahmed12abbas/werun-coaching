@@ -1650,12 +1650,9 @@ function slotRow(item, date) {
    address is checked again here because it goes straight into window.open. */
 const raceLink = (item) => (item.theme === "race" && /^https:/i.test(item.link_url || "") ? item.link_url : "");
 
-function raceMark() {
-  const img = el("img", { class: "race-mark", src: "/assets/race-2026.png", alt: "" });
-  // Until the mark is on the server the row still says it is the race.
-  img.addEventListener("error", () => img.replaceWith(el("span", { class: "race-mark flag", "aria-hidden": "true" }, "🏁")));
-  return img;
-}
+/* A background rather than an <img>: which of the two marks (purple on light,
+   white on dark) is chosen by the theme in CSS, and only that one is fetched. */
+const raceMark = () => el("span", { class: "race-mark", "aria-hidden": "true" });
 
 function raceNode(item, date, clock, body, tag) {
   const link = raceLink(item);
@@ -1663,9 +1660,11 @@ function raceNode(item, date, clock, body, tag) {
     ? () => window.open(link, "_blank", "noopener,noreferrer")
     : () => go("plan/" + item.schedule_id + "/" + date);
   if (item.cancelled) return el("div", { class: "slot off" }, clock, body, tag);
-  // The tag rides in the text column so clock, mark and words stay on one line.
+  // Clock and tag ride in the text column, so the mark and the words share the
+  // row's width instead of the clock taking a third of it.
+  body.prepend(clock);
   if (tag) body.append(tag);
-  return el("button", { class: "slot race", type: "button", onclick: go_ }, clock, raceMark(), body);
+  return el("button", { class: "slot race", type: "button", onclick: go_ }, raceMark(), body);
 }
 
 /* The line under the title: where, what it is worth, and who has it. */
