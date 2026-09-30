@@ -1630,7 +1630,8 @@ function slotRow(item, date) {
     el("div", { class: "slot-title" }, side(item, "title")),
     what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
     meta,
-    note ? el("div", { class: "slot-note" }, note) : null
+    note ? el("div", { class: "slot-note" }, note) : null,
+    raceLink(item) ? el("div", { class: "race-cta" }, t("aRaceRegister")) : null
   );
 
   const clock = el("div", { class: "slot-at num" }, prettyTime(item, date));
@@ -1639,9 +1640,32 @@ function slotRow(item, date) {
   const soon = item.cancelled ? null : countdownPill(item, date);
   if (soon) meta.append(soon);
 
-  const node = slotNode(item, date, clock, body, tag);
+  const node = item.theme === "race" ? raceNode(item, date, clock, body, tag) : slotNode(item, date, clock, body, tag);
   lightWhenLive(node, item, date);
   return node;
+}
+
+/* The club's race, in place of an ordinary session that one day: purple, with
+   its mark, and the whole row opens the sign-up page rather than the plan. The
+   address is checked again here because it goes straight into window.open. */
+const raceLink = (item) => (item.theme === "race" && /^https:/i.test(item.link_url || "") ? item.link_url : "");
+
+function raceMark() {
+  const img = el("img", { class: "race-mark", src: "/assets/race-2026.png", alt: "" });
+  // Until the mark is on the server the row still says it is the race.
+  img.addEventListener("error", () => img.replaceWith(el("span", { class: "race-mark flag", "aria-hidden": "true" }, "🏁")));
+  return img;
+}
+
+function raceNode(item, date, clock, body, tag) {
+  const link = raceLink(item);
+  const go_ = link
+    ? () => window.open(link, "_blank", "noopener,noreferrer")
+    : () => go("plan/" + item.schedule_id + "/" + date);
+  if (item.cancelled) return el("div", { class: "slot off" }, clock, body, tag);
+  // The tag rides in the text column so clock, mark and words stay on one line.
+  if (tag) body.append(tag);
+  return el("button", { class: "slot race", type: "button", onclick: go_ }, clock, raceMark(), body);
 }
 
 /* The line under the title: where, what it is worth, and who has it. */
@@ -1790,7 +1814,7 @@ function planHead(item, date) {
 
 function planTag(item) {
   if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
-  if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+  if (item.moved && !item.theme) return el("span", { class: "tag open" }, t("aChanged"));
   return null;
 }
 
@@ -1942,7 +1966,7 @@ function slotTag(item, date) {
    week red. */
 function standingTag(item, date) {
   if (item.cancelled) return el("span", { class: "tag miss" }, t("aCalledOff"));
-  if (item.moved) return el("span", { class: "tag open" }, t("aChanged"));
+  if (item.moved && !item.theme) return el("span", { class: "tag open" }, t("aChanged"));
   const from = opensTime(item, date);
   const till = closesTime(item, date);
   if (from === null || till === null) return null;

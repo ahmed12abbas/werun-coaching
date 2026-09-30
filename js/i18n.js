@@ -480,6 +480,7 @@ const STRINGS = {
     aRestDay: "Rest day",
     aCalledOff: "Called off",
     aChanged: "Changed",
+    aRaceRegister: "Tap to register",
     aOpenMap: "Open in maps",
     aNothingWeek: "Nothing on this week yet.",
 
@@ -1027,6 +1028,7 @@ const STRINGS = {
     aRestDay: "يوم راحة",
     aCalledOff: "أُلغيت",
     aChanged: "تغيّرت",
+    aRaceRegister: "اضغط للتسجيل",
     aOpenMap: "افتح الموقع على الخريطة",
     aNothingWeek: "لا شيء هذا الأسبوع بعد.",
 

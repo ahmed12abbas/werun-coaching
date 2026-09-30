@@ -28,7 +28,7 @@
   <footer>WE RUN Coaching · <a href="/app.html">back to the app</a></footer>
 </div>
 
-<script src="js/i18n.js?v=222f2fd6"></script>
+<script src="js/i18n.js?v=51ddade1"></script>
 <script src="js/model.js?v=7d87c03a"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
@@ -1825,6 +1825,14 @@ function schedulePlanCard() {
     var at = el("input", { type: "time", value: entry.at });
     var place = el("input", { type: "text", maxlength: 100, placeholder: entry.place_en || "somewhere else" });
     var note = el("input", { type: "text", maxlength: 200, placeholder: "Meeting at the far gate" });
+    // A one-off can also be the club's race: renamed, linked to the sign-up
+    // page, pinned to its own place, and dressed in purple with the race mark.
+    var titleEn = el("input", { type: "text", maxlength: 80, placeholder: entry.title_en || "We Run Race 2026" });
+    var titleAr = el("input", { type: "text", maxlength: 80, dir: "rtl", placeholder: "سباق وي ران 2026" });
+    var placeAr = el("input", { type: "text", maxlength: 100, dir: "rtl", placeholder: "وادي نمار" });
+    var map = el("input", { type: "text", maxlength: 300, placeholder: "https://maps.app.goo.gl/…" });
+    var link = el("input", { type: "text", maxlength: 300, placeholder: "https://… (sign-up page)" });
+    var race = el("input", { type: "checkbox" });
     var err = el("p", { class: "err", style: "display:none" });
     var box = el("div", { style: "margin-top:10px" });
 
@@ -1841,12 +1849,24 @@ function schedulePlanCard() {
         el("div", {}, el("label", {}, "New time"), at),
         el("div", {}, el("label", {}, "Somewhere else"), place)),
       el("div", { style: "margin-top:10px" }, el("label", {}, "A word to the club"), note),
+      el("div", { class: "set-note", style: "margin-top:14px" }, "Making it an event (optional)"),
+      el("div", { class: "row" },
+        el("div", {}, el("label", {}, "Name it (English)"), titleEn),
+        el("div", {}, el("label", {}, "Name it (العربية)"), titleAr)),
+      el("div", { class: "row", style: "margin-top:10px" },
+        el("div", {}, el("label", {}, "Map link"), map),
+        el("div", {}, el("label", {}, "Somewhere else (العربية)"), placeAr)),
+      el("div", { style: "margin-top:10px" }, el("label", {}, "Link (tapping the row opens it)"), link),
+      el("div", { style: "margin-top:10px" },
+        el("label", { class: "sw" }, race, el("span", {}, "Show it as the race (purple, with the race mark)"))),
       err,
       el("div", { class: "row", style: "margin-top:10px" },
         el("div", { style: "flex:0 0 auto" },
           el("button", { class: "btn primary", onclick: function () {
-            send({ action: "set", at: at.value, place_en: place.value, note_en: note.value });
-          } }, "Move it")),
+            send({ action: "set", at: at.value, place_en: place.value, place_ar: placeAr.value, note_en: note.value,
+              title_en: titleEn.value, title_ar: titleAr.value, map_url: map.value, link_url: link.value,
+              theme: race.checked ? "race" : "" });
+          } }, "Save the change")),
         el("div", { style: "flex:0 0 auto" },
           el("button", { class: "btn", onclick: function () {
             if (!window.confirm("Call this one off? Athletes see it struck through with your note.")) return;
@@ -1870,7 +1890,7 @@ function schedulePlanCard() {
       changes.append(el("div", { class: "change-row" },
         el("span", { class: "when" }, c.date),
         el("span", { style: "flex:1 1 auto" }, (c.title_en || c.title_ar) +
-          (c.cancelled ? " — called off" : c.at ? " — moved to " + c.at : " — changed") +
+          (c.cancelled ? " — called off" : c.theme === "race" ? " — race" : c.at ? " — moved to " + c.at : " — changed") +
           (c.note_en ? " · " + c.note_en : "")),
         el("button", { class: "btn sm", onclick: function () {
           api("/api/admin/schedule-change", { action: "clear", schedule_id: c.schedule_id, date: c.date })

@@ -222,6 +222,18 @@ function nextDates(weekday) {
     .find((i) => i.schedule_id === mine.id);
   check("and the steps go when the workout does", gone && !gone.steps_id, gone);
 
+  /* ---- one occurrence, made the club's race ---- */
+  r = await change({ schedule_id: mine.id, date: second, title_en: "We Run Race 2026", title_ar: "سباق وي ران 2026",
+    place_en: "Wadi Namar", map_url: "https://maps.app.goo.gl/example2", link_url: "https://example.com/race", theme: "race" });
+  check("a date can be made the race", r.status === 200, r.data);
+  r = await athlete.call("GET", "/api/week?start=" + second);
+  const race = (((r.data.days || []).find((d) => d.date === second) || {}).items || []).find((i) => i.schedule_id === mine.id);
+  check("…renamed, moved, linked and themed", race && race.title_en === "We Run Race 2026" && race.place_en === "Wadi Namar" &&
+    race.link_url === "https://example.com/race" && race.theme === "race", race);
+  r = await change({ schedule_id: mine.id, date: second, link_url: "http://example.com/race", theme: "race" });
+  check("…and its link must be https", r.status === 400 && r.data.error === "bad-url", r);
+  await change({ action: "clear", schedule_id: mine.id, date: second });
+
   r = await plan({ action: "delete", id: mine.id });
   check("and it can be removed", r.status === 200 && !(r.data.schedule || []).some((e) => e.id === mine.id), r.status);
 

@@ -142,13 +142,22 @@ export async function adminSchedule(request, env) {
 const optionalPlace = (v) => (v === undefined ? null : clean(v, MAX.place));
 const optionalNote = (v) => clean(v, MAX.note) || null;
 
+/* The one look a change can give a session: the club's race. */
+const THEMES = new Set(["race"]);
+
 /* One occurrence as the form describes it, or why it cannot be saved. */
 function readChange(body) {
   const at = body.at ? String(body.at) : null;
   if (at !== null && !validTime(at)) return { error: "bad-time" };
   const map_url = body.map_url === undefined ? null : cleanUrl(body.map_url);
   if (map_url === null && body.map_url) return { error: "bad-url" };
+  const link_url = body.link_url === undefined ? null : cleanUrl(body.link_url);
+  if (link_url === null && body.link_url) return { error: "bad-url" };
   return {
+    title_en: optionalPlace(body.title_en) || null,
+    title_ar: optionalPlace(body.title_ar) || null,
+    link_url: link_url || null,
+    theme: THEMES.has(body.theme) ? body.theme : null,
     cancelled: body.cancelled ? 1 : 0,
     at: at,
     place_en: optionalPlace(body.place_en),
@@ -159,15 +168,23 @@ function readChange(body) {
   };
 }
 
+/* title_en … theme are 0032: behind hasColumn() for the window between the
+   deploy and the paste into the D1 console. */
+const EVENT_COLS = ["title_en", "title_ar", "link_url", "theme"];
+
 async function upsertChange(env, scheduleId, date, c) {
+  const extra = (await hasColumn(env, "schedule_changes", "theme")) ? EVENT_COLS : [];
   await env.DB.prepare(
-    "INSERT INTO schedule_changes (id, schedule_id, date, cancelled, at, place_en, place_ar, map_url, note_en, note_ar, created_at)" +
-      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+    "INSERT INTO schedule_changes (id, schedule_id, date, cancelled, at, place_en, place_ar, map_url, note_en, note_ar, created_at" +
+      extra.map((k) => ", " + k).join("") + ")" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" + extra.map(() => ", ?").join("") + ")" +
       " ON CONFLICT(schedule_id, date) DO UPDATE SET cancelled = excluded.cancelled, at = excluded.at," +
       " place_en = excluded.place_en, place_ar = excluded.place_ar, map_url = excluded.map_url," +
-      " note_en = excluded.note_en, note_ar = excluded.note_ar"
+      " note_en = excluded.note_en, note_ar = excluded.note_ar" +
+      extra.map((k) => ", " + k + " = excluded." + k).join("")
   )
-    .bind(uid(), scheduleId, date, c.cancelled, c.at, c.place_en, c.place_ar, c.map_url, c.note_en, c.note_ar, nowISO())
+    .bind(uid(), scheduleId, date, c.cancelled, c.at, c.place_en, c.place_ar, c.map_url, c.note_en, c.note_ar, nowISO(),
+      ...extra.map((k) => c[k]))
     .run();
 }
 

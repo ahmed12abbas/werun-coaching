@@ -247,6 +247,9 @@ function standingItem(row, change, steps, names, mins) {
     moved: false,
     note_en: "",
     note_ar: "",
+    // A one-off made into an event (0032): where to sign up, and the look.
+    link_url: "",
+    theme: "",
     // Where the steps live, when the coach has published this slot before.
     steps_id: steps ? steps.id : null,
     steps_date: steps ? steps.date : null,
@@ -255,7 +258,7 @@ function standingItem(row, change, steps, names, mins) {
 }
 
 /* The fields a one-off change can move, beside the time. */
-const MOVABLE = ["place_en", "place_ar", "map_url"];
+const MOVABLE = ["place_en", "place_ar", "map_url", "title_en", "title_ar"];
 const named = (v) => v !== null && v !== undefined && v !== "";
 
 /* One occurrence moved or called off. Only the fields the change actually
@@ -271,6 +274,8 @@ function applyChange(item, change) {
     if (item[f] !== change[f]) item.moved = true;
     item[f] = change[f];
   }
+  item.link_url = change.link_url || "";
+  item.theme = change.theme || "";
   item.note_en = change.note_en || "";
   item.note_ar = change.note_ar || "";
   return item;
