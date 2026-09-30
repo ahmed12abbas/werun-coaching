@@ -30,3 +30,7 @@ werun-*.sql
 
 # graphify knowledge graph, built locally by /graphify — regenerable, never shipped
 graphify-out/
+
+# Expo shell build output
+mobile/.expo/
+mobile/.env

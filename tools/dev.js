@@ -2,7 +2,7 @@
  * Local development: the real Worker in front of the real pages, with KV and
  * D1 emulated by wrangler, the same way Pages runs them.
  *
- *   node tools/dev.js [port]        (default 4323)
+ *   node tools/dev.js [port] [--lan]   (default 4323, loopback)
  *
  * What it does
  *   1. assembles _site/ exactly as the deploy workflow does — pages, js/,
@@ -21,7 +21,11 @@ const { spawn, spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
 const SITE = path.join(ROOT, "_site");
-const PORT = process.argv[2] || "4323";
+const PORT = process.argv.slice(2).find((a) => /^\d+$/.test(a)) || "4323";
+/* Loopback, unless `--lan`: the phone shell in mobile/ cannot reach 127.0.0.1
+   on this machine. Off by default because the LAN would otherwise get the
+   club's local database and whatever is in .dev.vars. */
+const IP = process.argv.includes("--lan") ? "0.0.0.0" : "127.0.0.1";
 /* sw.js and the manifest sit beside the pages rather than in js/: the
    service worker only controls what it is served alongside, so it has to be
    at the root here exactly as it is on Pages. */
@@ -82,7 +86,7 @@ fs.watch(ROOT, { recursive: true }, (event, file) => {
 const wrangler = spawn(
   process.execPath,
   [WRANGLER, "pages", "dev", "_site",
-   "--port", PORT, "--ip", "127.0.0.1",
+   "--port", PORT, "--ip", IP,
    "--kv", "STATS", "--d1", "DB=werun-db-local",
    "--persist-to", STATE,
    "--compatibility-date", "2026-08-01"],
