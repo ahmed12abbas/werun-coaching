@@ -26,6 +26,9 @@ body{position:fixed;inset:0;overscroll-behavior:none}
 .apptop{position:sticky;top:0;z-index:20;background:var(--bg);
   margin:0 -16px 16px;padding:14px 16px 12px}
 .apptop .brand{margin-bottom:13px}
+/* A size up from the 42px brand.js draws everywhere else: on the app it is the
+   only thing in the middle of the bar. Important because logoNode() sets it inline. */
+.apptop .brand-logo{height:54px!important}
 /* The gap under the tabs is the block's padding, not the nav's margin: a
    margin sits outside the background and the rows would scroll through it. */
 .apptop .appnav{margin-bottom:0}
@@ -170,7 +173,7 @@ button.day:hover{background:var(--brand-soft)}
 /* ---- the coach's line across the top ---- */
 .announce{background:var(--brand-soft);color:var(--brand-deep);border:1px solid var(--brand);
   border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:14px}
-a.announce.link{display:block;text-decoration:underline;text-underline-offset:3px}
+a.announce.link{display:block;text-decoration:none}
 
 /* ---- the feed ---- */
 .post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

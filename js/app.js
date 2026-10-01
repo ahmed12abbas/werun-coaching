@@ -3295,19 +3295,18 @@ wireSwipeNav();
    bottom of the screen by the height of the home-indicator strip, while
    env(safe-area-inset-bottom) still reports that strip — so the page ended
    above it and the tabs, padded for it a second time, floated with an empty
-   band underneath. When the window is shorter than the screen by no more than
-   the safe area, the body is let run down over the difference. Portrait and
-   standalone only, and never by more than the safe area itself. */
+   band underneath. When the installed app's window is shorter than the screen,
+   the body is let run down over the difference. The first version only did
+   so up to the safe area (34pt), but on an iPhone on 1 Oct the band was
+   nearer the status bar's height and the fix never fired; 120px is the cap,
+   because anything bigger is a real toolbar, not this bug. Portrait and
+   standalone only. */
 function fitToScreen() {
-  const probe = el("div", { style: "position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)" });
-  document.body.append(probe);
-  const safe = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
-  probe.remove();
   const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
   const portrait = window.innerHeight >= window.innerWidth;
   const full = Math.max(screen.width, screen.height);
   const gap = standalone && portrait ? Math.round(full - window.innerHeight) : 0;
-  const extend = gap > 0 && gap <= safe + 2 ? Math.min(gap, safe) : 0;
+  const extend = gap > 0 && gap <= 120 ? gap : 0;
   document.body.style.bottom = extend ? "-" + extend + "px" : "";
 }
 fitToScreen();
