@@ -14,6 +14,7 @@
      GET  /api/health           — which bindings are live; no data
      GET  /api/about            — the Who Are We page as an admin last saved it
      GET  /api/about/img?id=    — a photo uploaded for that page
+     GET  /api/brand/img?id=    — the app logo or intro an admin uploaded
 
      POST /api/auth/signup      — join the club          (rate-limited, has a switch)
      POST /api/auth/login       — log in                 (rate-limited)
@@ -64,6 +65,8 @@
      POST /api/admin/schedule   — list                (the rest is the club's)
      POST /api/coach/rota       — who is taking which session this week; the
                                   coaches' own rota, which no athlete sees
+     POST /api/coach/point-requests — ask an admin to count an athlete who
+                                  could not scan (routes/requests.js)
      POST /api/tips-admin       — the article editor; its own TIPS_PASSWORD as
                                   well, and its own audience. Writing the
                                   club's articles is not running the club.
@@ -81,6 +84,7 @@
      POST /api/admin/schedule   — saving and deleting a standing slot
      POST /api/admin/schedule-change — one occurrence moved or called off
      POST /api/admin/about      — the Who Are We page editor, and its photos
+     POST /api/admin/point-requests — approve or reject those asks
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the feedback and articles
@@ -111,7 +115,7 @@ import { tips, tipsAdmin, tipsImg } from "./routes/tips.js";
 import { health } from "./routes/health.js";
 import { signup, login, logout, logoutAll, me, profile, password } from "./routes/auth.js";
 import { week, session } from "./routes/sessions.js";
-import { members, settings, coaches } from "./routes/admin.js";
+import { members, settings, coaches, brandImg } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility, memberSearch } from "./routes/points.js";
@@ -130,6 +134,8 @@ import { strava, stravaCallback } from "./routes/strava.js";
 import { coros, corosCallback } from "./routes/coros.js";
 import { intervals, intervalsCallback } from "./routes/intervals.js";
 import { about, aboutImg, adminAbout } from "./routes/about.js";
+import { coachRequests, adminRequests } from "./routes/requests.js";
+import { themedAsset } from "./lib/theme.js";
 
 const POST = {
   "/api/feedback": feedback,
@@ -169,6 +175,8 @@ const POST = {
   "/api/coros": coros,
   "/api/intervals": intervals,
   "/api/admin/about": adminAbout,
+  "/api/coach/point-requests": coachRequests,
+  "/api/admin/point-requests": adminRequests,
 };
 const GET = {
   "/api/tips": tips,
@@ -190,6 +198,7 @@ const GET = {
   "/api/intervals/callback": intervalsCallback,
   "/api/about": about,
   "/api/about/img": aboutImg,
+  "/api/brand/img": brandImg,
 };
 
 /* What every answer carries, static file and API alike.
@@ -270,5 +279,5 @@ async function route(request, env) {
   // Pages leaves _worker.js/ out of the uploaded assets, but the local dev
   // server does not, and the source has no business on the wire either way.
   if (pathname.startsWith("/_worker.js")) return new Response("Not found", { status: 404 });
-  return env.ASSETS.fetch(request); // every real page and file
+  return themedAsset(request, env); // every real page and file, in the club's colours
 }

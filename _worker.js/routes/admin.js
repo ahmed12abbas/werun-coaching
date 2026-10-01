@@ -10,6 +10,9 @@ import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
 import { coachList } from "../lib/coaches.js";
 import { resetLinkFor } from "./email.js";
+import { storePhoto, servePhoto } from "../lib/photos.js";
+
+const BRAND_IMG = "brand-img:";
 
 const MEMBER_CAP = 500;
 
@@ -223,6 +226,9 @@ export async function settings(request, env) {
   const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
+  // A logo or intro image for the theme; saved as a setting afterwards.
+  if (body.action === "upload") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img");
+
   const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
@@ -230,6 +236,12 @@ export async function settings(request, env) {
     // The app puts this straight into an href, so only a web address is kept.
     if (key === "announcement_url" && value && !/^https?:\/\/\S+$/i.test(value)) {
       return json({ error: "bad-url" }, 400);
+    }
+    // These three go into every athlete page's markup and CSS (lib/theme.js),
+    // so only a colour and only our own uploads are kept.
+    if (key === "theme_color" && value && !/^#[0-9a-f]{6}$/i.test(value)) return json({ error: "bad-color" }, 400);
+    if ((key === "logo_url" || key === "intro_url") && value && !/^\/api\/brand\/img\?id=[a-f0-9]{32}$/.test(value)) {
+      return json({ error: "bad-image" }, 400);
     }
     if (value !== undefined) await setSetting(env, key, value);
   }
@@ -248,3 +260,7 @@ function settingValue(fallback, want) {
   }
   return String(want).slice(0, 500);
 }
+
+/* ---------- GET /api/brand/img?id= --------------------------------------- */
+
+export const brandImg = (request, env) => servePhoto(request, env, BRAND_IMG);

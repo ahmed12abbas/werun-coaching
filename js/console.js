@@ -88,7 +88,14 @@ var SAYS = {
   "called-off": "cErrCalledOff",
   "not-configured": "cErrNotConfigured",
   "need-location": "e_need-location",
-  "too-far": "e_too-far"
+  "too-far": "e_too-far",
+  "coach-login": "cErrCoachLogin",
+  "not-yet": "cErrNotYet",
+  "already": "cErrAlready",
+  "asked": "cErrAsked",
+  "no-table": "cErrNoTable",
+  "decided": "cErrDecided",
+  "bad-color": "cErrBadColor"
 };
 
 /* Whether /admin has turned the meeting-point check on, learned from

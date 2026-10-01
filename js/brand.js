@@ -139,7 +139,8 @@ function socialRow() {
 }
 
 /**
- * The WE RUN mark. Uses assets/logo.png when it's there and quietly falls
+ * The WE RUN mark — the logo an admin uploaded (data-logo, written onto
+ * <html> by _worker.js/lib/theme.js) or assets/logo.png. Quietly falls
  * back to a Teko wordmark when it isn't, so the page never renders broken.
  */
 function logoNode(height) {
@@ -152,7 +153,7 @@ function logoNode(height) {
   );
   const img = el("img", {
     class: "brand-logo",
-    src: "assets/logo.png",
+    src: document.documentElement.getAttribute("data-logo") || "assets/logo.png",
     alt: "WE RUN",
     style: "height:" + h + "px",
     onerror: function () {

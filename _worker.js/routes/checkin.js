@@ -3,9 +3,8 @@
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, uid, nowISO } from "../lib/auth.js";
-import { getSetting } from "../lib/settings.js";
 import { slotValid, windowMinutes, windowFor } from "../lib/checkin.js";
-import { addPoints, totalFor, streakFor } from "../lib/points.js";
+import { award, totalFor, streakFor } from "../lib/points.js";
 
 /* ---------- POST /api/checkin --------------------------------------------- */
 
@@ -75,24 +74,6 @@ async function insertCheckin(env, id, sessionId, userId, now) {
     if (/UNIQUE/i.test(String(e && e.message))) return json({ error: "already" }, 409);
     throw e;
   }
-}
-
-async function streakBonus(env, userId, id, streak) {
-  const every = await getSetting(env, "streak_every");
-  const size = await getSetting(env, "streak_bonus");
-  if (!(every > 0 && size > 0 && streak > 0 && streak % every === 0)) return 0;
-  await addPoints(env, userId, size, "streak", id, String(streak));
-  return size;
-}
-
-/* Points for turning up, and the streak bonus if this one completes a run.
-   The streak is counted after the row lands, so this session is in it. */
-async function award(env, userId, session, id) {
-  const earned = Number(session.points) || 0;
-  if (earned) await addPoints(env, userId, earned, "checkin", id, session.name);
-  const streak = await streakFor(env, userId);
-  const bonus = await streakBonus(env, userId, id, streak);
-  return { earned, bonus, streak };
 }
 
 /* An admin asked, off a session's "Who came" list, how it went: this scan is

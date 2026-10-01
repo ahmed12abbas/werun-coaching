@@ -6,6 +6,7 @@
    something back is another row rather than a rewrite. */
 
 import { uid, nowISO } from "./auth.js";
+import { getSetting } from "./settings.js";
 
 export async function addPoints(env, userId, delta, reason, refId, note) {
   await env.DB.prepare(
@@ -45,4 +46,22 @@ export async function streakFor(env, userId) {
     streak++;
   }
   return streak;
+}
+
+async function streakBonus(env, userId, id, streak) {
+  const every = await getSetting(env, "streak_every");
+  const size = await getSetting(env, "streak_bonus");
+  if (!(every > 0 && size > 0 && streak > 0 && streak % every === 0)) return 0;
+  await addPoints(env, userId, size, "streak", id, String(streak));
+  return size;
+}
+
+/* Points for turning up, and the streak bonus if this one completes a run.
+   The streak is counted after the row lands, so this session is in it. */
+export async function award(env, userId, session, id) {
+  const earned = Number(session.points) || 0;
+  if (earned) await addPoints(env, userId, earned, "checkin", id, session.name);
+  const streak = await streakFor(env, userId);
+  const bonus = await streakBonus(env, userId, id, streak);
+  return { earned, bonus, streak };
 }

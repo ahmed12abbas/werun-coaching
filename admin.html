@@ -28,13 +28,13 @@
   <footer>WE RUN Coaching · <a href="/app.html">back to the app</a></footer>
 </div>
 
-<script src="js/i18n.js?v=51ddade1"></script>
+<script src="js/i18n.js?v=e6c94671"></script>
 <script src="js/model.js?v=7d87c03a"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
-<script src="js/console.js?v=9f9fefd3"></script>
+<script src="js/console.js?v=19fe7450"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
-<script src="js/shrink.js?v=120a68ee"></script>
+<script src="js/shrink.js?v=6a2c4ccc"></script>
 <script src="js/about.js?v=cafa6f1d"></script>
 <script>
 "use strict";
@@ -282,6 +282,7 @@ function renderStats(data, tips) {
   }
 
   attendanceCards(app, data.weeks);
+  app.append(requestsCard());
   app.append(feedbackCard(data.feedback));
   app.append(tipsCard(tips));
   app.append(schedulePlanCard());
@@ -293,6 +294,7 @@ function renderStats(data, tips) {
   app.append(shopCard());
   app.append(ordersCard());
   app.append(settingsCard());
+  app.append(themeCard());
   app.append(exportCard());
   app.append(controls());
   // Every card shut but the week's head count: thirteen open at once is a
@@ -1447,6 +1449,114 @@ function settingsCard() {
 
   api("/api/admin/settings", {}).then(function (d) { paint(d.settings); })
     ["catch"](function (e) { card.append(el("p", { class: "muted small" }, e.message)); });
+  return card;
+}
+
+/* ---- the app's look ----
+   One colour and two images, stored as settings and written into every
+   athlete page by the Worker (_worker.js/lib/theme.js) before it paints.
+   Empty means the club's own purple and logo. */
+function themeCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Theme")),
+    el("p", { class: "muted small", style: "margin:6px 0 12px" },
+      "The app's colour, its logo and the intro shown while it opens. Athletes see a change on their next visit."));
+  var body = el("div", { class: "stack" });
+  var err = el("p", { class: "err", style: "display:none" });
+  card.append(body, err);
+
+  function save(set) {
+    err.style.display = "none";
+    return api("/api/admin/settings", { set: set }).then(function (d) { paint(d.settings); })
+      ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+  }
+
+  function image(key, label, fallback, s) {
+    var thumb = el("img", { class: "ab-thumb", alt: "", src: s[key] || fallback,
+      style: "max-height:64px;background:#222;padding:6px;border-radius:10px" });
+    var file = el("input", { type: "file", accept: "image/*" });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      shrinkPhoto(f, true)
+        .then(function (data) { return api("/api/admin/settings", { action: "upload", data: data }); })
+        .then(function (d) { var set = {}; set[key] = d.url; return save(set); })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+    });
+    var reset = s[key] ? el("button", { class: "btn sm", onclick: function () {
+      var set = {}; set[key] = ""; save(set);
+    } }, "Use the club's own") : null;
+    return el("div", {}, el("label", {}, label),
+      el("div", { class: "row", style: "flex-wrap:wrap" }, thumb,
+        el("label", { class: "btn sm ab-up" }, "Upload", file), reset));
+  }
+
+  function paint(s) {
+    body.textContent = "";
+    var colour = el("input", { type: "color", value: s.theme_color || "#8851f4",
+      style: "width:56px;height:36px;padding:0;border:0;background:none" });
+    colour.addEventListener("change", function () { save({ theme_color: colour.value }); });
+    body.append(el("div", {}, el("label", {}, "Colour"),
+      el("div", { class: "row" }, colour,
+        s.theme_color ? el("button", { class: "btn sm", onclick: function () { save({ theme_color: "" }); } },
+          "Use the club's own") : el("span", { class: "muted small" }, "The club's own purple"))));
+    body.append(image("logo_url", "App logo", "assets/logo.png", s));
+    body.append(image("intro_url", "Intro logo", "assets/logo.png", s));
+  }
+
+  api("/api/admin/settings", {}).then(function (d) { paint(d.settings); })
+    ["catch"](function (e) { card.append(el("p", { class: "muted small" }, e.message)); });
+  return card;
+}
+
+/* ---- missed check-ins ----
+   A coach or leader asks, from a session's "Who came" on /coach, for an
+   athlete who was there and could not scan. Only an admin decides; a yes is a
+   real check-in with the session's points (_worker.js/routes/requests.js). */
+function requestsCard() {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Missed check-ins")));
+  var body = el("div", {});
+  card.append(body);
+
+  function line(r, buttons) {
+    return el("div", { class: "note" },
+      el("div", { class: "notehead" },
+        el("b", { dir: "auto" }, r.athlete),
+        el("span", { class: "muted small" }, r.session_name + " · " + r.session_date +
+          " · asked by " + (r.asked_by_name || "a coach"))),
+      said(r.reason),
+      buttons);
+  }
+
+  function decide(r, action, btn) {
+    btn.disabled = true;
+    api("/api/admin/point-requests", { action: action, id: r.id }).then(paint)
+      ["catch"](function (e) { btn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+  }
+
+  function paint(d) {
+    body.textContent = "";
+    var pending = d.pending || [];
+    if (!pending.length) body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, "Nothing waiting."));
+    pending.forEach(function (r) {
+      var yes = el("button", { class: "btn sm primary", onclick: function () { decide(r, "approve", yes); } }, "Approve");
+      var no = el("button", { class: "btn sm", onclick: function () { decide(r, "reject", no); } }, "Reject");
+      body.append(line(r, el("div", { class: "row", style: "margin-top:8px" }, yes, no)));
+    });
+    var done = d.decided || [];
+    if (done.length) {
+      body.append(el("h3", { style: "margin:16px 0 4px" }, "Lately decided"));
+      done.forEach(function (r) {
+        body.append(line(r, el("span", { class: "badge" }, r.status === "approved" ? "Approved" : "Rejected")));
+      });
+    }
+  }
+
+  api("/api/admin/point-requests", {}).then(paint)["catch"](function (e) {
+    body.append(el("p", { class: "muted small" }, e.code === "no-table"
+      ? "Not set up yet — migration 0033 has not been applied to the database." : e.message));
+  });
   return card;
 }
 

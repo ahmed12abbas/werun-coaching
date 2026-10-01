@@ -26,9 +26,9 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=51ddade1"></script>
+<script src="js/i18n.js?v=e6c94671"></script>
 <script src="js/qr.js?v=814df91c"></script>
-<script src="js/console.js?v=9f9fefd3"></script>
+<script src="js/console.js?v=19fe7450"></script>
 <script>
 "use strict";
 
@@ -371,6 +371,7 @@ function weekCard(plan, sess, rota) {
           });
           box.append(ol);
         }
+        box.append(missedForm(spec.session));
         whoBox = box;
         line.append(box);
         box.scrollIntoView({ block: "nearest" });
@@ -383,6 +384,68 @@ function weekCard(plan, sess, rota) {
   }
 
   return card;
+}
+
+/* ---- somebody who was there and could not scan ----
+   The coach names them and says why; an admin decides on /admin, and only a
+   yes counts them (_worker.js/routes/requests.js). Under "Who came", because
+   that list is where a coach notices who is missing from it. */
+function missedForm(session) {
+  var box = el("div", { class: "missed" }, el("h3", {}, t("cMissedTitle")));
+  var list = el("div", {});
+  var err = el("p", { class: "err", style: "display:none" });
+  var picked = null;
+
+  function show(d) {
+    list.textContent = "";
+    (d.requests || []).forEach(function (r) {
+      list.append(el("p", { class: "small", dir: "auto", style: "margin:4px 0" },
+        r.athlete + " · ", el("b", {}, r.status === "approved" ? t("cMissed_approved")
+          : r.status === "rejected" ? t("cMissed_rejected") : t("cMissed_pending")),
+        el("span", { class: "muted" }, " · " + r.reason)));
+    });
+  }
+  function fail(e) { err.textContent = e.message; err.style.display = ""; }
+
+  var who = el("input", { type: "text", maxlength: 40, placeholder: t("cMissedWho"), dir: "auto" });
+  var hits = el("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin:6px 0" });
+  var reason = el("textarea", { maxlength: 300, placeholder: t("cMissedWhy"), dir: "auto" });
+  var timer = null;
+  who.addEventListener("input", function () {
+    picked = null;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      api("/api/coach/point-requests", { action: "find", q: who.value }).then(function (d) {
+        hits.textContent = "";
+        (d.results || []).forEach(function (u) {
+          hits.append(el("button", { class: "btn sm", type: "button", dir: "auto", onclick: function () {
+            picked = u;
+            who.value = u.name;
+            hits.textContent = "";
+          } }, u.name));
+        });
+      })["catch"](fail);
+    }, 300);
+  });
+
+  var send = el("button", { class: "btn sm primary", onclick: function () {
+    err.style.display = "none";
+    if (!picked) return fail(new Error(t("cMissedPick")));
+    if (!reason.value.trim()) return fail(new Error(t("cMissedNeedWhy")));
+    send.disabled = true;
+    api("/api/coach/point-requests", { action: "ask", session: session.id, user: picked.id, reason: reason.value })
+      .then(function (d) {
+        show(d);
+        picked = null;
+        who.value = "";
+        reason.value = "";
+      })["catch"](fail)
+      .then(function () { send.disabled = false; });
+  } }, t("cMissedSend"));
+
+  box.append(list, who, hits, reason, el("div", { style: "margin-top:6px" }, send), err);
+  api("/api/coach/point-requests", { action: "list", session: session.id }).then(show)["catch"](function () {});
+  return box;
 }
 
 Theme.apply(Theme.saved());

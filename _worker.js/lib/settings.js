@@ -33,6 +33,12 @@ export const DEFAULTS = {
   // Off until an admin turns it on: whether showing the check-in code also
   // needs the coach's phone to be near the meeting point. See lib/geo.js.
   checkin_location_required: false,
+  // The app's look, from /admin: the brand colour ("#rrggbb") and two
+  // uploaded images, each "" for the club's own. Put into every athlete page
+  // by lib/theme.js before it paints.
+  theme_color: "",
+  logo_url: "",
+  intro_url: "",
 };
 
 const TTL = 60 * 1000;
