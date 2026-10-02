@@ -334,6 +334,11 @@ var aboutRender = (function () {
       return h("section", "", opt("h2", "", tx(s.title, L)),
         h("div", "events", list(s.items).map(function (it) {
           // An event with a link LINK allows is one tappable box.
+          // An admin's saved copy predates href/glow_until, so borrow them from the shipped event it was copied from.
+          var base = ABOUT_DEFAULT.sections.filter(function (x) { return x.type === "events"; })[0].items
+            .filter(function (d) { return d.day === it.day && tx(d.title, "en") === tx(it.title, "en"); })[0] || {};
+          it = { day: it.day, month: it.month, pink: it.pink, title: it.title, text: it.text,
+            href: it.href || base.href, glow_until: it.glow_until || base.glow_until };
           var href = String(it.href || ""), linked = LINK.test(href);
           // glow_until is a Riyadh calendar day (UTC+3, no DST), lit through its last minute.
           var glow = /^\d{4}-\d\d-\d\d$/.test(it.glow_until || "") &&
