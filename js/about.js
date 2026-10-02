@@ -135,7 +135,7 @@ var ABOUT_DEFAULT = { sections: [
   { type: "events", show: true,
     title: aboutPair("Coming up", "فعاليات قادمة"),
     items: [
-      { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, title: aboutPair("10K Race", "سباق ١٠ كم"),
+      { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, href: "https://www.kaminsports.sa/events/we-run-race-2026", glow_until: "2026-10-10", title: aboutPair("10K Race", "سباق ١٠ كم"),
         text: aboutPair("Wadi Hanifah, Riyadh · 1,500 runners, kids' race included", "وادي حنيفة، الرياض · ١٥٠٠ عدّاء، ويشمل سباقاً للأطفال") },
       { day: "24", month: aboutPair("Oct", "أكتوبر"), pink: true, title: aboutPair("She Runs", "She Runs"),
         text: aboutPair("MISK City, Riyadh · 400 runners, women only", "مدينة مسك، الرياض · ٤٠٠ عدّاءة، للنساء فقط") }
@@ -333,9 +333,19 @@ var aboutRender = (function () {
     events: function (s, L) {
       return h("section", "", opt("h2", "", tx(s.title, L)),
         h("div", "events", list(s.items).map(function (it) {
-          return h("div", "event" + (it.pink ? " pink" : ""),
+          // An event with a link LINK allows is one tappable box.
+          var href = String(it.href || ""), linked = LINK.test(href);
+          // glow_until is a Riyadh calendar day (UTC+3, no DST), lit through its last minute.
+          var glow = /^\d{4}-\d\d-\d\d$/.test(it.glow_until || "") &&
+            new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10) <= it.glow_until;
+          var box = h(linked ? "a" : "div", "event" + (it.pink ? " pink" : "") + (glow ? " glow" : ""),
             h("div", "date", h("b", "", tx(it.day, L)), opt("span", "", tx(it.month, L))),
             h("div", "", opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L))));
+          if (linked) {
+            box.href = href;
+            if (href.indexOf("https:") === 0) { box.target = "_blank"; box.rel = "noopener noreferrer"; }
+          }
+          return box;
         })));
     },
     partners: function (s, L) {

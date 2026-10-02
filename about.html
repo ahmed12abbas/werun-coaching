@@ -201,6 +201,11 @@ a.plat:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .date{flex:none;width:76px;text-align:center;background:var(--deep);color:#fff;border-radius:14px;padding:10px 0 8px;font-size:12px;font-weight:700;text-transform:uppercase}
 .date b{display:block;font-family:var(--display);font-size:44px;line-height:.8;font-weight:600;padding-top:4px}
 .event.pink .date{background:#D6428E}
+a.event{color:inherit;text-decoration:none}
+a.event:hover{border-color:var(--brand,#5B2EC9)}
+.event.glow{border-color:#5B2EC9;animation:evglow 2s ease-in-out infinite}
+@keyframes evglow{0%,100%{box-shadow:0 0 6px rgba(91,46,201,.35)}50%{box-shadow:0 0 22px 4px rgba(91,46,201,.7)}}
+@media (prefers-reduced-motion:reduce){.event.glow{animation:none;box-shadow:0 0 16px 2px rgba(91,46,201,.55)}}
 .event h3{margin-bottom:4px}
 .event p{margin:0;font-size:14px;color:var(--muted)}
 
@@ -292,7 +297,7 @@ footer a{color:inherit}
 
 <script src="js/brand.js?v=5e9c7c18"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
-<script src="js/about.js?v=cafa6f1d"></script>
+<script src="js/about.js?v=eac1823e"></script>
 <script>
 "use strict";
 var root = document.documentElement;
