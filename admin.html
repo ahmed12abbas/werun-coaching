@@ -1616,6 +1616,13 @@ function exportCard() {
    the form asks for whole money and converts. The coach never sees a card
    number and neither does this site: paying happens on Stripe's page, and
    the order only becomes real when their signed webhook says so. */
+/* Minor units, the way Stripe counts, as money in that currency. */
+function money(minor, cur) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: cur.toUpperCase() }).format(minor / 100);
+  } catch (e) { return (minor / 100).toFixed(2) + " " + cur.toUpperCase(); }
+}
+
 function shopCard() {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" }, el("h2", {}, "Shop")));
@@ -1625,13 +1632,6 @@ function shopCard() {
 
   var editing = null;
   var currency = "usd";
-
-  function money(minor) {
-    try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() })
-        .format(minor / 100);
-    } catch (e) { return (minor / 100).toFixed(2) + " " + currency.toUpperCase(); }
-  }
 
   function form() {
     editor.textContent = "";
@@ -1712,7 +1712,7 @@ function shopCard() {
       var row = el("div", { class: "prod-row" + (p.active ? " live" : "") },
         el("div", { class: "head" },
           el("span", { class: "t", dir: "auto" }, p.name_en || p.name_ar || "Untitled"),
-          el("span", { class: "money" }, money(p.price)),
+          el("span", { class: "money" }, money(p.price, currency)),
           p.active ? el("span", { class: "badge" }, "On sale") : el("span", { class: "muted small" }, "hidden"),
           el("span", { class: "muted small" },
             (p.options ? p.options + " \u00b7 " : "") +
@@ -1754,12 +1754,6 @@ function ordersCard() {
   card.append(body);
   var currency = "usd";
 
-  function money(minor, cur) {
-    try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency: (cur || currency).toUpperCase() })
-        .format(minor / 100);
-    } catch (e) { return (minor / 100).toFixed(2); }
-  }
   function post(payload) { return api("/api/admin/orders", payload); }
 
   function paint(d) {
@@ -1777,7 +1771,7 @@ function ordersCard() {
           el("div", { class: "l" }, "To hand over")));
       (d.taken || []).forEach(function (t) {
         tiles.append(el("div", { class: "tile" },
-          el("div", { class: "n" }, money(t.total, t.currency)),
+          el("div", { class: "n" }, money(t.total, t.currency || currency)),
           el("div", { class: "l" }, "Taken", el("small", {}, String(t.currency || "").toUpperCase()))));
       });
       body.append(tiles);
@@ -1819,7 +1813,7 @@ function ordersCard() {
       rows.append(el("tr", { class: o.status },
         el("td", { dir: "auto" }, o.who, el("small", { style: "display:block;color:var(--muted)" }, o.email)),
         el("td", { dir: "auto" }, o.name + (o.variant ? " \u00b7 " + o.variant : "") + (o.qty > 1 ? " \u00d7 " + o.qty : "")),
-        el("td", { class: "money" }, money(o.amount, o.currency)),
+        el("td", { class: "money" }, money(o.amount, o.currency || currency)),
         el("td", {}, stamp(o.paid_at || o.created_at) || ""),
         el("td", {}, act)));
     });

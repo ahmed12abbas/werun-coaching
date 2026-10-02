@@ -32,6 +32,15 @@ export function clubWeekStart(iso) {
   return d.toISOString().slice(0, 10);
 }
 
+const DAY_MS = 86400000;
+
+/** A YYYY-MM-DD moved n days. */
+export const shiftDay = (iso, n) =>
+  new Date(Date.parse(iso + "T00:00:00Z") + n * DAY_MS).toISOString().slice(0, 10);
+
+/** Today (UTC) moved n days — the ±N-day bounds on what a request may touch. */
+export const shiftDate = (n) => new Date(Date.now() + n * DAY_MS).toISOString().slice(0, 10);
+
 const CLUB_OFFSET = "+03:00"; // Riyadh, all year, no daylight saving
 
 /** Today in Riyadh, YYYY-MM-DD, whatever the server's own clock says. */

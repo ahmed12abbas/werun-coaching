@@ -486,13 +486,13 @@ GitHub Pages mirror, where no Worker answers `/api/tips`.
 ### Switching it on
 
 Nothing extra to create: the articles live in the **same `STATS` KV namespace**
-as the share counts, under their own key, so if `/admin` works then `/tips`
+as the athletes’ feedback, under their own key, so if `/admin` works then `/tips`
 works.
 
 The password is **`TIPS_PASSWORD`** if it is set, otherwise `ADMIN_PASSWORD`.
 Set the separate one — same Settings page, same *Encrypt* button — when the
-coach who writes the articles should not also hold the key to the share
-dashboard. Either way the check happens in the Worker, never in JavaScript the
+coach who writes the articles should not also hold the key to
+`/admin`. Either way the check happens in the Worker, never in JavaScript the
 site serves, and the editor holds the password in memory only, so a reload asks
 again.
 

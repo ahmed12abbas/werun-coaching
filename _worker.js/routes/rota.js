@@ -14,6 +14,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { nowISO, currentUser, refuseUnlessCoach, isCoach, isAdmin } from "../lib/auth.js";
 import { safeEqual } from "../lib/crypto.js";
+import { shiftDate } from "../lib/week.js";
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -27,7 +28,6 @@ const ROTA_DAYS = 90;
    that one read stays one read: ten slots times a fortnight of coaches. */
 const LIST = 500;
 
-const shiftDate = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const inRange = (date) => date >= shiftDate(-ROTA_DAYS) && date <= shiftDate(ROTA_DAYS);
 
 /**

@@ -10,6 +10,13 @@ export const hex = (bytes) =>
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
+export const b64url = (bytes) => {
+  let s = "";
+  const view = new Uint8Array(bytes);
+  for (let i = 0; i < view.length; i++) s += String.fromCharCode(view[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
 export const sha256 = (s) => crypto.subtle.digest("SHA-256", enc.encode(s));
 
 /**

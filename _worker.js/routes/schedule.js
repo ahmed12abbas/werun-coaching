@@ -10,7 +10,7 @@ import { getSetting } from "../lib/settings.js";
 import { pinFor, beyond } from "../lib/geo.js";
 import { signSlot, slotNow, slotRemaining, checkinUrl, windowMinutes, windowFor } from "../lib/checkin.js";
 import { addPoints } from "../lib/points.js";
-import { dayFromName, DAYS } from "../lib/week.js";
+import { dayFromName, DAYS, shiftDate } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 import { hasColumn } from "../lib/columns.js";
@@ -28,7 +28,6 @@ const TRACK = new Set(["list", "roster", "open"]);
    coach setting up next month's race, short enough that the calendar cannot
    be filled with sessions nobody asked for. */
 const OPEN_DAYS = 60;
-const shiftDate = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 const MAX = { name: 80, payload: 4000 };
 const LIST = 40;

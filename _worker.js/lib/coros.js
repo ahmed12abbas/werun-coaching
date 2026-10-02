@@ -4,7 +4,7 @@
    helper (github.com/coroslab/COROS-MCP, skill/coros_mcp_login_gateway),
    which is the nearest thing there is to documentation of the flow. */
 
-import { sha256 } from "./crypto.js";
+import { sha256, b64url } from "./crypto.js";
 import { postForm } from "./oauth.js";
 
 const GATEWAY = "https://mcp.coros.com";
@@ -13,13 +13,6 @@ const CLIENT_NAME = "WE RUN Coaching";
 // COROS's own sport codes for Run, Indoor Run, Trail Run and Track Run.
 const RUN_TYPES = [100, 101, 102, 103];
 const RIYADH_S = 3 * 3600; // UTC+3 all year
-
-const b64url = (bytes) =>
-  btoa(String.fromCharCode(...new Uint8Array(bytes)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
 /** The cluster the gateway picks — US, EU or CN — as its issuer URL. */
 export async function discoverIssuer() {
   const res = await fetch(GATEWAY + "/.well-known/openid-configuration");

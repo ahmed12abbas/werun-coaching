@@ -8,7 +8,7 @@
 import { json, readBody } from "../lib/http.js";
 import { refuseUnlessCoach } from "../lib/auth.js";
 import { readFeedback } from "../lib/kv.js";
-import { clubWeekStart } from "../lib/week.js";
+import { clubWeekStart, shiftDay } from "../lib/week.js";
 import { FB_MAX, feedbackSummary } from "./feedback.js";
 
 /* Roughly two months at the club's ten sessions a week — far enough back to
@@ -55,9 +55,6 @@ function groupByWeek(rows) {
   }
   return byWeek;
 }
-
-const shiftDay = (iso, n) =>
-  new Date(Date.parse(iso + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
 
 /**
  * The club runs ten standing sessions a week, and most of them have no

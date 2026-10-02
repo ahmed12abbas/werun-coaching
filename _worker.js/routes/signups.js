@@ -14,6 +14,7 @@
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO, isCoach } from "../lib/auth.js";
+import { shiftDate } from "../lib/week.js";
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -23,7 +24,6 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/;
    a tick for 2087 is a typo. */
 const SIGNUP_DAYS = 60;
 
-const shiftDate = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 /* ---------- POST /api/signups --------------------------------------------- */
 

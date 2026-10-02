@@ -14,6 +14,7 @@
    here. What this hands back is the date, the time as written, and what it
    is for. */
 
+import { shiftDay } from "./week.js";
 import { coachRoster, coachNameFor } from "./coaches.js";
 import { windowMinutes, windowFor, checkinState } from "./checkin.js";
 
@@ -39,10 +40,6 @@ const titleAr = (name) => KNOWN_TITLES_AR[String(name || "").trim().toLowerCase(
    stops a one-off published for a race in December from becoming "the steps"
    on every Monday between now and then. */
 const STEPS_DAYS = 28;
-
-const DAY_MS = 86400000;
-const shiftDay = (iso, n) =>
-  new Date(Date.parse(iso + "T00:00:00Z") + n * DAY_MS).toISOString().slice(0, 10);
 
 /** 0 = Sunday … 6 = Saturday, from a YYYY-MM-DD written in the club's week. */
 export const weekdayOf = (iso) => new Date(iso + "T00:00:00Z").getUTCDay();

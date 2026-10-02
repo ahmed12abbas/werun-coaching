@@ -16,14 +16,9 @@
    Neither set means no push at all, which the routes answer plainly rather
    than pretending — the same way email does without RESEND_API_KEY. */
 
-const enc = new TextEncoder();
+import { b64url } from "./crypto.js";
 
-const b64url = (bytes) => {
-  let s = "";
-  const view = new Uint8Array(bytes);
-  for (let i = 0; i < view.length; i++) s += String.fromCharCode(view[i]);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
+const enc = new TextEncoder();
 
 const unb64url = (s) => {
   const pad = String(s).replace(/-/g, "+").replace(/_/g, "/");
