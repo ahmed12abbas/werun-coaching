@@ -232,8 +232,9 @@ button.slot:hover{background:var(--brand-soft)}
 .slot-meta{display:flex; flex-wrap:wrap; gap:2px 10px; font-size:13px; color:var(--muted)}
 .slot-meta .place{color:var(--muted)}
 /* The club's race: the brand colour on the whole row, with its mark. */
-button.slot.race{background:var(--brand);color:var(--brand-ink);margin:0 -6px;padding:10px 10px;border-radius:12px;align-items:center}
-button.slot.race:hover{background:var(--brand)}
+/* The club's own purple, not --brand, which an admin can recolour to anything. */
+button.slot.race{background:#8851F4;color:#fff;margin:0 -6px;padding:10px 10px;border-radius:12px;align-items:center}
+button.slot.race:hover{background:#8851F4}
 .slot.race .slot-at,.slot.race .slot-meta,.slot.race .slot-meta .place,.slot.race .slot-desc{color:inherit;opacity:.9}
 .slot.race a.place{color:inherit}
 /* The standing run's own line and coach are not the race's to claim. */
