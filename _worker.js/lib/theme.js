@@ -26,12 +26,13 @@ const css = (c) =>
 
 async function themeOf(env) {
   if (!env.DB) return null;
-  const [color, logo, intro] = await Promise.all([
+  const [color, logo, intro, swoosh] = await Promise.all([
     getSetting(env, "theme_color"),
     getSetting(env, "logo_url"),
     getSetting(env, "intro_url"),
+    getSetting(env, "intro_swoosh"),
   ]);
-  return color || logo || intro ? { color, logo, intro } : null;
+  return color || logo || intro || swoosh === false ? { color, logo, intro, swoosh } : null;
 }
 
 /** The static file for `request`, with the club's theme written into it if it is a page. */
@@ -57,6 +58,8 @@ export async function themedAsset(request, env) {
   }
   // js/brand.js reads data-logo for every logo it draws.
   if (theme.logo) rw = rw.on("html", { element: (e) => e.setAttribute("data-logo", theme.logo) });
+  // app.css hides the swoosh on this attribute.
+  if (theme.swoosh === false) rw = rw.on("html", { element: (e) => e.setAttribute("data-swoosh", "off") });
   if (theme.intro) rw = rw.on("img.splash-default", { element: (e) => e.setAttribute("src", theme.intro) });
 
   const out = rw.transform(res);

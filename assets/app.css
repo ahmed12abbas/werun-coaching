@@ -426,7 +426,7 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .splash .splash-row img{width:min(38vw,170px)}
 .splash-swoosh-dark,[data-theme="dark"] .splash-swoosh-light{display:none}
 [data-theme="dark"] .splash-swoosh-dark{display:block}
-html[data-event="nationalday"] .splash-swoosh{display:none!important}
+html[data-event="nationalday"] .splash-swoosh,html[data-swoosh="off"] .splash-swoosh{display:none!important}
 .splash img{width:min(46vw,190px);animation:splashIn .34s cubic-bezier(.34,1.56,.64,1) both}
 .splash-nd{display:none}
 @keyframes splashIn{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}

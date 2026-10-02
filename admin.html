@@ -1502,6 +1502,10 @@ function themeCard() {
           "Use the club's own") : el("span", { class: "muted small" }, "The club's own purple"))));
     body.append(image("logo_url", "App logo", "assets/logo.png", s));
     body.append(image("intro_url", "Intro logo", "assets/logo.png", s));
+    var sw = el("input", { type: "checkbox" });
+    if (s.intro_swoosh !== false) sw.setAttribute("checked", "");
+    sw.addEventListener("change", function () { save({ intro_swoosh: sw.checked }); });
+    body.append(el("label", { class: "row" }, sw, " Show the swoosh beside the logo on the intro"));
   }
 
   api("/api/admin/settings", {}).then(function (d) { paint(d.settings); })

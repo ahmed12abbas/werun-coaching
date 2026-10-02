@@ -39,6 +39,7 @@ export const DEFAULTS = {
   theme_color: "",
   logo_url: "",
   intro_url: "",
+  intro_swoosh: true, // the swoosh beside the logo on the intro
 };
 
 const TTL = 60 * 1000;
