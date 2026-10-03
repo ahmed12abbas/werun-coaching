@@ -139,10 +139,8 @@ export const publicUser = (u) => ({
   // The face beside their name, or "" for their initial. Until 0007 is
   // applied the column is not there, and "" is exactly the right answer.
   avatar: u.avatar || "",
-  // Whether the Me screen offers the console. Until 0010 is applied the
-  // column is not there, and every coach still runs the club — which is what
-  // adminUnknown() below decides, and this has to agree with it.
-  is_admin: u.is_admin === undefined ? undefined : !!u.is_admin,
+  // Whether the Me screen offers the console.
+  is_admin: !!u.is_admin,
   // A coach under another label (0024); only the word on their card changes.
   is_leader: !!u.is_leader,
   // How many sessions a week they are aiming for, which the home screen
@@ -239,22 +237,6 @@ export const isCoach = (u) => !!(u && u.role === "coach" && u.status !== "blocke
 /** An admin in good standing — the person who runs the club. */
 export const isAdmin = (u) => !!(u && u.is_admin && u.status !== "blocked");
 
-/*
- * The window between a deploy and the migration behind it: 0010 adds
- * `is_admin`, and until it is applied nobody has one, which would lock every
- * coach out of the console they had this morning. So while the column is
- * missing the old rule stands — a coach runs the club — and the moment it
- * lands the real boundary takes over. Take this out once 0010 is in.
- *
- * Read off the row rather than asked of the schema: currentUser() does
- * SELECT u.*, so a missing column is `undefined` and a present one is 0 or 1.
- * hasColumn() would answer this too, but it caches — and it cannot tell a
- * column that is absent from a PRAGMA that threw, so one transient D1 error
- * would hand every coach the whole console. A row that could not be read is
- * no user at all, and refused a line above. Fail closed, and say why.
- */
-const adminUnknown = (u) => !!u && u.is_admin === undefined;
-
 /**
  * The console's own guard: an admin, known either by their login or by the
  * club password in the body.
@@ -267,7 +249,6 @@ export async function refuseUnlessAdmin(request, env, body) {
   if (!env.DB) return json({ error: "no-db" }, 503);
   const user = await currentUser(request, env);
   if (isAdmin(user)) return null;
-  if (isCoach(user) && adminUnknown(user)) return null;
 
   // A coach who is logged in and sent no password is told what they are,
   // rather than asked for one they have no reason to have: they are not a

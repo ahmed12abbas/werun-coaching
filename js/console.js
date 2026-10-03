@@ -81,7 +81,6 @@ var SAYS = {
   "has-checkins": "cErrHasCheckins",
   "bad-password": "cErrBadPassword",
   "not-admin": "cErrNotAdmin",
-  "no-column": "cErrNoColumn",
   "not-yourself": "cErrNotYourself",
   "too-often": "cErrTooOften",
   "qr-off": "cErrQrOff",

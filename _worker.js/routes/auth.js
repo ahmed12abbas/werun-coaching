@@ -4,7 +4,6 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
 import { emailOn } from "../lib/mail.js";
-import { hasColumn } from "../lib/columns.js";
 import { storeOn } from "../lib/stripe.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
@@ -135,25 +134,13 @@ function readSignup(body) {
   return form;
 }
 
-/* Until 0006 is applied, gender and birth year are not there — and joining
-   the club matters far more than recording an age group, so the row goes in
-   without them rather than the whole signup failing. */
 async function insertUser(env, u) {
   const now = nowISO();
-  if (await hasColumn(env, "users", "birth_year")) {
-    await env.DB.prepare(
-      "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
-        " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
-    )
-      .bind(u.id, u.email, u.name, u.salt, u.hash, u.lang, now, now, u.gender, u.birthYear)
-      .run();
-    return;
-  }
   await env.DB.prepare(
-    "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at)" +
-      " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?)"
+    "INSERT INTO users (id, email, name, pass_salt, pass_hash, role, lang, status, created_at, last_seen_at, gender, birth_year)" +
+      " VALUES (?, ?, ?, ?, ?, 'athlete', ?, 'active', ?, ?, ?, ?)"
   )
-    .bind(u.id, u.email, u.name, u.salt, u.hash, u.lang, now, now)
+    .bind(u.id, u.email, u.name, u.salt, u.hash, u.lang, now, now, u.gender, u.birthYear)
     .run();
 }
 
@@ -267,9 +254,7 @@ function readProfile(body, user) {
     strava_athlete: sentOr(body, "strava_athlete", cleanAthlete, user.strava_athlete || ""),
     strava_hidden: flag(sentOr(body, "strava_hidden", Boolean, user.strava_hidden)),
     bio_hidden: flag(sentOr(body, "bio_hidden", Boolean, user.bio_hidden)),
-    // Not `user.week_goal` on its own: before 0012 there is no column to read
-    // back, and undefined there would look exactly like a refused number.
-    week_goal: sentOr(body, "week_goal", cleanGoal, user.week_goal == null ? 3 : user.week_goal),
+    week_goal: sentOr(body, "week_goal", cleanGoal, user.week_goal),
   };
 }
 
@@ -280,48 +265,18 @@ function refusedField(p) {
   return null;
 }
 
-/* Only the columns this database actually has: 0006 and 0007 are applied by
-   hand here, so between a deploy and its migration the name and the language
-   must still save rather than the whole form failing on a column nobody made
-   yet. Each row comes out once its migration is in. `probe` is the column
-   whose presence says the migration ran. */
-const OPTIONAL_COLUMNS = [
-  { probe: "birth_year", cols: ["gender", "birth_year"] },
-  { probe: "avatar", cols: ["avatar"] },
-  { probe: "week_goal", cols: ["week_goal"] },
-  { probe: "bio", cols: ["bio"] },
-  { probe: "bio_hidden", cols: ["bio_hidden"] },
-  { probe: "instagram", cols: ["instagram"] },
-  { probe: "instagram_hidden", cols: ["instagram_hidden"] },
-  { probe: "strava_athlete", cols: ["strava_athlete"] },
-  { probe: "strava_hidden", cols: ["strava_hidden"] },
-];
-
-/* What went in is what comes back: a field the database could not hold is not
-   echoed as though it had been kept, or the app shows an avatar that the next
-   reload takes away again. */
-async function columnsHeld(env, p) {
-  const saved = { name: p.name, lang: p.lang };
-  for (const { probe, cols } of OPTIONAL_COLUMNS) {
-    if (!(await hasColumn(env, "users", probe))) continue;
-    for (const col of cols) saved[col] = p[col];
-  }
-  return saved;
-}
-
 export const profile = withUser(async (request, env, user) => {
   const p = readProfile(await readBody(request), user);
   const refused = refusedField(p);
   if (refused) return json({ error: refused }, 400);
 
-  // Column names come only from OPTIONAL_COLUMNS above, never from the body.
-  const saved = await columnsHeld(env, p);
-  const cols = Object.keys(saved);
+  // Column names are readProfile()'s own keys, never anything from the body.
+  const cols = Object.keys(p);
   await env.DB.prepare("UPDATE users SET " + cols.map((c) => c + " = ?").join(", ") + " WHERE id = ?")
-    .bind(...cols.map((c) => saved[c]), user.id)
+    .bind(...cols.map((c) => p[c]), user.id)
     .run();
 
-  return json({ user: publicUser(Object.assign({}, user, saved)) });
+  return json({ user: publicUser(Object.assign({}, user, p)) });
 });
 
 /* ---------- POST /api/auth/password -------------------------------------- */

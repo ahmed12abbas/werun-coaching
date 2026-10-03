@@ -13,7 +13,6 @@ import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS, shiftDate } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
-import { hasColumn } from "../lib/columns.js";
 
 /* Riyadh is UTC+3 all year with no daylight saving, so a standing session's
    wall-clock "04:55" becomes a real instant by saying which clock it is on. */
@@ -55,9 +54,8 @@ async function sessionList(env) {
    routes/export.js are the admin-only way to those. */
 async function rosterOf(env, sessionId) {
   // user_id and the ask are for /admin's "Ask for feedback" (migration 0028).
-  const ask = (await hasColumn(env, "users", "ask_feedback")) ? ", u.ask_feedback" : ", 0 AS ask_feedback";
   const rows = await env.DB.prepare(
-    "SELECT c.id, c.user_id, c.at, c.voided_at, u.name" + ask +
+    "SELECT c.id, c.user_id, c.at, c.voided_at, u.name, u.ask_feedback" +
       " FROM checkins c JOIN users u ON u.id = c.user_id" +
       " WHERE c.session_id = ? ORDER BY c.at ASC"
   )

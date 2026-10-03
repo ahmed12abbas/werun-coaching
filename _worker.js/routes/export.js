@@ -6,7 +6,6 @@
 
 import { json, readBody } from "../lib/http.js";
 import { refuseUnlessAdmin } from "../lib/auth.js";
-import { hasColumn } from "../lib/columns.js";
 
 const CAP = 5000;
 
@@ -53,9 +52,8 @@ function memberRow(m) {
 }
 
 async function membersFile(env, day) {
-  const bio = (await hasColumn(env, "users", "birth_year")) ? " u.gender, u.birth_year," : " '' AS gender, NULL AS birth_year,";
   const rows = await env.DB.prepare(
-    "SELECT u.name, u.email, u.role, u.is_leader, u.status, u.lang," + bio + " u.created_at, u.last_seen_at, u.email_verified_at," +
+    "SELECT u.name, u.email, u.role, u.is_leader, u.status, u.lang, u.gender, u.birth_year, u.created_at, u.last_seen_at, u.email_verified_at," +
       " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins" +
       " FROM users u ORDER BY u.created_at ASC LIMIT ?"

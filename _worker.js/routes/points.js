@@ -3,7 +3,6 @@
 import { json, readBody } from "../lib/http.js";
 import { withMember, withUser } from "../lib/auth.js";
 import { totalFor, streakFor } from "../lib/points.js";
-import { hasColumn } from "../lib/columns.js";
 import { tooOften } from "../lib/limit.js";
 import { weekStartEpoch } from "../lib/week.js";
 
@@ -55,10 +54,8 @@ export const pointsMe = withMember(async (request, env, user) => {
  * board still sees where they are without scrolling to find themselves.
  */
 /*
- * A column a member may keep to themselves, as its piece of the SELECT: ''
- * before the migration that adds it has landed, the value blanked for anyone
- * who has hidden it, and the value itself otherwise. `col` and `hiddenCol`
- * are only ever the names written below, never anything from a request.
+ * A column a member may keep to themselves, as its piece of the SELECT: the
+ * value blanked for anyone who has hidden it, and the value itself otherwise.
  *
  * Hidden is decided here, in the SELECT, and not in the page: the row that
  * reaches the browser has to be the row the club is allowed to read, or
@@ -66,13 +63,7 @@ export const pointsMe = withMember(async (request, env, user) => {
  * Being on the board and keeping a line to yourself are two separate answers
  * — board_hidden takes the whole row away, this takes one field off it.
  */
-async function privateColumn(env, col, hiddenCol) {
-  if (!(await hasColumn(env, "users", col))) return " '' AS " + col + ",";
-  if (await hasColumn(env, "users", hiddenCol)) {
-    return " CASE WHEN u." + hiddenCol + " = 1 THEN '' ELSE u." + col + " END AS " + col + ",";
-  }
-  return " u." + col + ",";
-}
+const privateColumn = (col, hiddenCol) => " CASE WHEN u." + hiddenCol + " = 1 THEN '' ELSE u." + col + " END AS " + col + ",";
 
 /* One place on the board: who, how many points, and whether it is the reader. */
 const boardRow = (r, place, userId) => ({
@@ -92,22 +83,12 @@ const boardRow = (r, place, userId) => ({
    `having` are only ever the literals written in this file; anything from a
    request travels in `binds`. */
 async function runnerRows(env, where, binds, having, limit) {
-  // Asked together: a fresh isolate has none of them cached, and each is its
-  // own round trip.
-  const [face, line, ig, strava] = await Promise.all([
-    // Until 0007 is applied there is no column to read, and everyone is on the
-    // board as their initial — which is what an empty avatar means anyway.
-    hasColumn(env, "users", "avatar").then((has) => (has ? " u.avatar," : " '' AS avatar,")),
-    // The line they wrote about themselves, under their name (0013, 0014), and
-    // their Instagram (0015). All three are applied by hand and land after the
-    // deploy that reads them, and a board that will not draw at all is a worse
-    // answer than a board without the lines.
-    privateColumn(env, "bio", "bio_hidden"),
-    privateColumn(env, "instagram", "instagram_hidden"),
-    privateColumn(env, "strava_athlete", "strava_hidden"),
-  ]);
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name, u.role, u.is_leader," + face + line + ig + strava + " COALESCE(SUM(p.delta), 0) AS points," +
+    "SELECT u.id, u.name, u.role, u.is_leader, u.avatar," +
+      privateColumn("bio", "bio_hidden") +
+      privateColumn("instagram", "instagram_hidden") +
+      privateColumn("strava_athlete", "strava_hidden") +
+      " COALESCE(SUM(p.delta), 0) AS points," +
       " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS sessions" +
       " FROM users u LEFT JOIN points_ledger p ON p.user_id = u.id" +
       " WHERE u.status = 'active' AND u.board_hidden = 0" + where +
