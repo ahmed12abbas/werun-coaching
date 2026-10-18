@@ -63,9 +63,14 @@ async function sessionRow(env, userId, id) {
   return env.DB.prepare(
     "SELECT s.*, c.at AS checked_in_at, c.voided_at, e.coach_id AS slot_coach_id," +
       desc +
-      " e.place_en AS place_en, e.place_ar AS place_ar, e.map_url AS map_url FROM club_sessions s" +
+      // A change that moved this one occurrence's place wins over the slot's,
+      // the same as on the week (publishedItem in lib/weekplan.js).
+      " CASE WHEN x.place_en <> '' THEN x.place_en ELSE e.place_en END AS place_en," +
+      " CASE WHEN x.place_en <> '' THEN x.place_ar ELSE e.place_ar END AS place_ar," +
+      " CASE WHEN x.place_en <> '' THEN x.map_url ELSE e.map_url END AS map_url FROM club_sessions s" +
       " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
       " LEFT JOIN schedule e ON e.id = s.schedule_id" +
+      " LEFT JOIN schedule_changes x ON x.schedule_id = s.schedule_id AND x.date = s.date" +
       " WHERE s.id = ?"
   )
     .bind(userId, id)

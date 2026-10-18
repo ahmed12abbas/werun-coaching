@@ -12,3 +12,13 @@ FROM schedule s, (SELECT '2026-10-19' AS date UNION ALL SELECT '2026-10-26') d
 WHERE s.weekday = 1 AND s.active = 1 AND s.at >= '12:00'
 ON CONFLICT(schedule_id, date) DO UPDATE SET cancelled = 0, at = excluded.at,
   place_en = excluded.place_en, place_ar = excluded.place_ar, map_url = excluded.map_url;
+
+-- A workout already published into either evening carries its own instant,
+-- which no change moves: 19:30 Riyadh is 16:30Z. The window columns are only
+-- a record (windowFor() works it out from starts_at), kept honest at 1h/2h.
+UPDATE club_sessions
+SET starts_at = date || 'T16:30:00.000Z',
+    window_open_at = date || 'T15:30:00.000Z',
+    window_close_at = date || 'T18:30:00.000Z'
+WHERE date IN ('2026-10-19', '2026-10-26')
+  AND schedule_id IN (SELECT id FROM schedule WHERE weekday = 1 AND active = 1 AND at >= '12:00');

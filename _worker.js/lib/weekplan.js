@@ -190,10 +190,16 @@ function nearestSteps(list, date) {
 /* A field off the standing slot, or "" when there is no slot or no value. */
 const slotField = (slot, key) => (slot && slot[key]) || "";
 
-function publishedItem(s, slot, names, mins) {
+function publishedItem(s, slot, names, mins, change) {
   // When check-in opens and shuts is worked out from the start and the club's
   // rule, not read back off the row — see lib/checkin.js.
   const w = windowFor(s, mins);
+  // A change that moved this occurrence's place moves the published workout
+  // too, or a session published ahead of a move stays at the old corner. The
+  // time is starts_at's, an instant the check-in window hangs off, not this.
+  if (change && named(change.place_en)) {
+    slot = Object.assign({}, slot, { place_en: change.place_en, place_ar: change.place_ar, map_url: change.map_url });
+  }
   return {
     kind: "session",
     id: s.id,
@@ -342,7 +348,10 @@ function dayPlan(date, week) {
         week.data.window
       )
     )
-    .concat(sessions.map((x) => publishedItem(x, week.slotById.get(x.schedule_id), week.names, week.data.window)));
+    .concat(sessions.map((x) =>
+      publishedItem(x, week.slotById.get(x.schedule_id), week.names, week.data.window,
+        week.changeFor.get(x.schedule_id + "|" + date))
+    ));
 
   items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
   // Whether this athlete has said they are coming. Set here rather than in

@@ -198,6 +198,20 @@ function nextDates(weekday) {
     .filter((i) => i.schedule_id === mine.id);
   check("…and the day still has one of it", again.length === 1 && again[0].title_en === "Test workout " + stamp + " v2", again);
 
+  /* Moving that one date's place after the workout went out moves the workout
+     too — the October Mondays, published by the marathon plan, did not. */
+  await change({ schedule_id: mine.id, date: first, place_en: "Wadi Mahdia Road", place_ar: "خط التفتيش - بعد الدوار",
+    map_url: "https://maps.app.goo.gl/example3" });
+  r = await athlete.call("GET", "/api/week?start=" + first);
+  const movedPub = (((r.data.days || []).find((d) => d.date === first) || {}).items || []).find((i) => i.schedule_id === mine.id);
+  check("a moved place reaches a published workout", movedPub && movedPub.kind === "session" &&
+    movedPub.place_en === "Wadi Mahdia Road" && movedPub.map_url === "https://maps.app.goo.gl/example3", movedPub);
+  r = await athlete.call("GET", "/api/session?id=" + published);
+  check("…and its own page", r.data && r.data.session && r.data.session.place_ar === "خط التفتيش - بعد الدوار", r.data);
+  await change({ action: "clear", schedule_id: mine.id, date: first });
+  r = await athlete.call("GET", "/api/session?id=" + published);
+  check("…and putting it back puts the slot's place back", r.data && r.data.session && r.data.session.place_en === "Wadi Hanifa Park", r.data);
+
   /* The same slot a week later has no workout of its own, so it carries the
      steps of the one that does — that is the Steps button on the summary. */
   const nextWeek = addDays(first, 7);
