@@ -1637,7 +1637,7 @@ SCREENS.week = function (args) {
       list.textContent = "";
       list.append(el("p", { class: "form-err" }, errorText(e)));
     });
-  return card;
+  return el("div", { class: "stack" }, planToggle(), card);
 };
 
 function longDate(iso) {
