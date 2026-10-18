@@ -1066,21 +1066,12 @@ SCREENS.home = function (args, user) {
 
 /* The watch services an athlete can link. Connecting and disconnecting live
    in Settings ("Connect my apps"); Home only shows what they bring in.
-   Strava's button is its own brand asset, not a text button — required by
-   their developer guidelines (developers.strava.com/guidelines); COROS asks
-   for none. */
+   Strava and COROS are no longer offered — Intervals.icu reaches both watches
+   and sends the sessions as well — but an athlete already linked keeps the
+   mileage and the row to disconnect it, so they have no button here. */
 const SERVICES = [
-  {
-    name: "Strava",
-    path: "/api/strava",
-    button: () =>
-      connectButton(
-        "/api/strava",
-        { type: "button", style: "border:0;background:none;padding:0;cursor:pointer", "aria-label": t("aStravaConnect") },
-        el("img", { src: "assets/strava-connect.svg", alt: t("aStravaConnect"), style: "height:48px" })
-      ),
-  },
-  { name: "COROS", path: "/api/coros", button: () => connectButton("/api/coros", { type: "button", class: "btn" }, t("aCorosConnect")) },
+  { name: "Strava", path: "/api/strava" },
+  { name: "COROS", path: "/api/coros" },
   {
     name: "Intervals.icu",
     path: "/api/intervals",
@@ -1111,7 +1102,7 @@ function connectButton(path, attrs, content) {
 function loadMileage(box) {
   Promise.allSettled(SERVICES.map((s) => API.post(s.path, { action: "home" }))).then((rs) => {
     const linked = rs
-      .map((r, i) => (r.status === "fulfilled" && r.value.connected ? weekCard(SERVICES[i].name, r.value.week) : null))
+      .map((r, i) => (r.status === "fulfilled" && r.value.connected && r.value.week ? weekCard(SERVICES[i].name, r.value.week) : null))
       .filter(Boolean);
     const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
     if (iv && iv.status === "fulfilled" && iv.value.connected) syncIntervals();
@@ -1150,11 +1141,12 @@ function appsCard() {
     API.post(s.path, { action: "home" })
       .then((d) => {
         if (d.connected) row.append(el("span", { class: "muted small" }, t("aConnected")), disconnectLink(s.path));
-        else row.append(s.button());
+        else if (s.button) row.append(s.button());
+        else row.remove();
       })
       .catch(() => row.remove());
   }
-  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aStravaHint")), rows, calendarRow());
+  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aAppsHint")), rows, calendarRow());
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
@@ -1319,7 +1311,8 @@ function calendarRow() {
   return el(
     "div",
     { class: "stack" },
-    el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" }, el("strong", { class: "grow" }, t("aCal")), add, copy),
+    el("strong", {}, t("aCal")),
+    el("div", { class: "row", style: "gap:12px;flex-wrap:wrap" }, add, copy),
     el("p", { class: "muted small" }, t("aCalHint"))
   );
 }

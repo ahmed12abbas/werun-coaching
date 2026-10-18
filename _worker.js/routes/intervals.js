@@ -76,12 +76,16 @@ async function home(env, user) {
     const activities = await activitiesSince(link.athlete_id, fresh.access_token, sunday);
     return json({ connected: true, week: weekSummary(activities, sunday) });
   } catch (err) {
-    // A refresh Intervals.icu refuses is an athlete who revoked us on their
-    // side — the row is dead either way, so it comes down rather than
-    // failing the same way on every Home load from here on.
+    // A token Intervals.icu refuses is an athlete who revoked us on their
+    // side — the row is dead, so it comes down rather than failing the same
+    // way on every Home load. Anything else (a 404, a hiccup) keeps the link:
+    // taking it down for those is what silently unlinked everybody.
     console.error("intervals: home failed (" + (err && err.message) + ")");
-    await env.DB.prepare("DELETE FROM intervals_links WHERE user_id = ?").bind(user.id).run();
-    return json({ connected: false });
+    if (err.status === 401 || err.status === 403) {
+      await env.DB.prepare("DELETE FROM intervals_links WHERE user_id = ?").bind(user.id).run();
+      return json({ connected: false });
+    }
+    return json({ connected: true, week: null });
   }
 }
 
