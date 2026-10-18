@@ -2131,7 +2131,15 @@ function checkinCard(s) {
   // own facts, so saying it here too would say it twice. Only one of the two
   // cards below is ever built, so the node is safe to share between them.
   const what = s.payload ? side(s, "desc") : "";
-  const whatLine = what ? el("div", { class: "ci-what", dir: "auto" }, what) : null;
+  // Where, for the same reason: noStepsCard already says it among its facts.
+  const place = s.payload ? side(s, "place") : "";
+  const whatLine = what || place
+    ? el("div", { class: "ci-what", dir: "auto" },
+      what ? el("div", {}, what) : null,
+      place && s.map_url
+        ? el("a", { class: "place", href: s.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
+        : place || null)
+    : null;
 
   if (s.checked_in) return checkedInCard(s, who ? time + " · " + who : time, whatLine);
   return windowCard(s, who, whatLine, soon);
