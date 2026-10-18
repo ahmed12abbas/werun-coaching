@@ -1106,6 +1106,7 @@ function loadMileage(box) {
       .filter(Boolean);
     const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
     if (iv && iv.status === "fulfilled" && iv.value.connected) syncIntervals();
+    else if (iv && iv.status === "fulfilled") maybeWatchGuide();
     if (linked.length) box.append(...linked);
     else if (rs.some((r) => r.status === "fulfilled")) box.append(noMileageCard());
   });
@@ -1146,7 +1147,8 @@ function appsCard() {
       })
       .catch(() => row.remove());
   }
-  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aAppsHint")), rows, calendarRow());
+  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aAppsHint")),
+    el("button", { type: "button", class: "btn sm", onclick: watchGuide }, t("aFlowOpen")), rows, calendarRow());
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
@@ -1315,6 +1317,43 @@ function calendarRow() {
     el("div", { class: "row", style: "gap:12px;flex-wrap:wrap" }, add, copy),
     el("p", { class: "muted small" }, t("aCalHint"))
   );
+}
+
+/* How a session reaches the watch, as four boxes and three arrows: the steps
+   happen on two different sites, and a list of sentences did not make that
+   clear. Opens by itself once per phone for an athlete not yet linked (from
+   loadMileage, which already knows), and any time from Settings. */
+const WATCH_GUIDE_KEY = "werun-watch-guide";
+
+function watchGuide() {
+  const step = (n, title, body, extra) =>
+    el("div", { class: "flow-step" }, el("span", { class: "flow-n", "aria-hidden": "true" }, n),
+      el("div", { class: "stack", style: "gap:4px" }, el("strong", {}, title), el("p", { class: "muted small" }, body), extra));
+  const arrow = () => el("div", { class: "flow-arrow", "aria-hidden": "true" }, "↓");
+  openSheet(t("aFlowTitle"), el("div", { class: "card pad stack" },
+    el("h2", {}, t("aFlowTitle")),
+    el("ol", { class: "flow" },
+      el("li", {}, step("1", t("aFlow1"), t("aFlow1b"),
+        el("a", { class: "btn sm", href: "https://intervals.icu", target: "_blank", rel: "noopener noreferrer" }, "intervals.icu"))),
+      arrow(),
+      el("li", {}, step("2", t("aFlow2"), t("aFlow2b"))),
+      arrow(),
+      el("li", {}, step("3", t("aFlow3"), t("aFlow3b"),
+        connectButton("/api/intervals", { type: "button", class: "btn sm primary" }, t("aIntervalsConnect")))),
+      arrow(),
+      el("li", {}, step("✓", t("aFlow4"), t("aFlow4b")))),
+    el("p", { class: "muted small" }, t("aFlowApple"))));
+}
+
+function maybeWatchGuide() {
+  if (meSheet) return; // another sheet is up; try again next visit
+  try {
+    if (localStorage.getItem(WATCH_GUIDE_KEY)) return;
+    localStorage.setItem(WATCH_GUIDE_KEY, "1");
+  } catch (e) {
+    return;
+  }
+  watchGuide();
 }
 
 /* "Good morning, Sara" — the greeting swaps with the clock, not with data

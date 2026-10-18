@@ -626,3 +626,12 @@ a.announce.link{animation:linkGlowBox 2s ease-in-out infinite}
   a.announce.link{animation:none;box-shadow:0 0 10px 1px var(--brand)}
   .post-link{animation:none;text-shadow:0 0 8px var(--brand)}
 }
+
+/* The watch guide's flow chart (watchGuide in js/app.js): boxes down the page
+   with an arrow between, the same in both directions so RTL needs nothing. */
+.flow{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;align-items:stretch}
+.flow-step{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)}
+.flow-step .btn{align-self:flex-start}
+.flow-n{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;
+  background:var(--brand);color:var(--brand-ink);font-weight:800}
+.flow-arrow{text-align:center;color:var(--brand);font-size:20px;line-height:1;padding:4px 0}
