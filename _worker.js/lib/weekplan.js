@@ -216,6 +216,9 @@ function publishedItem(s, slot, names, mins) {
     // The week still shows it, and it still counts — there are just no steps
     // to open, and the page has to know that before it tries to decode nothing.
     has_steps: !!s.payload,
+    // The full-marathon group's version; blank when it is the same session.
+    title_fm_en: s.payload_fm ? s.name_fm || s.name : "",
+    title_fm_ar: s.payload_fm ? titleAr(s.name_fm || s.name) : "",
     ...checkinState(s),
   };
 }

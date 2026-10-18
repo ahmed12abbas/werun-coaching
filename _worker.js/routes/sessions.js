@@ -113,6 +113,8 @@ export const session = withMember(async (request, env, user) => {
         registered: registered,
         day: row.day,
         payload: row.payload,
+        name_fm: row.name_fm || "",
+        payload_fm: row.payload_fm || "",
       },
       slotText(row),
       {

@@ -227,6 +227,9 @@ const STRINGS = {
     /* the app: the week */
     aWeekOf: "Week of {date}",
     aThisWeek: "This week",
+    aPlanLabel: "Training plan",
+    aPlanHm: "Half marathon",
+    aPlanFm: "Full marathon",
     aPrevWeek: "Last week",
     aNextWeek: "Next week",
     aPts: "{n} pts",
@@ -795,6 +798,9 @@ const STRINGS = {
     /* the app: the week */
     aWeekOf: "أسبوع {date}",
     aThisWeek: "هذا الأسبوع",
+    aPlanLabel: "خطة التدريب",
+    aPlanHm: "نصف ماراثون",
+    aPlanFm: "ماراثون كامل",
     aPrevWeek: "الأسبوع الماضي",
     aNextWeek: "الأسبوع القادم",
     aPts: "{n} نقطة",

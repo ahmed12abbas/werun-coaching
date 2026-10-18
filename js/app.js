@@ -967,6 +967,46 @@ SCREENS.signup = function () {
    ways rather than three endpoints of its own.
    ------------------------------------------------------------------------- */
 
+/* Half or full marathon: which group's version of a session this phone shows.
+   One calendar and one code for both — only the workout differs — so it is a
+   way of reading the week, kept on the phone, not anything the club stores. */
+const PLAN_KEY = "werun-plan";
+function planFm() {
+  try {
+    return localStorage.getItem(PLAN_KEY) === "fm";
+  } catch (e) {
+    return false;
+  }
+}
+
+/* The week as this phone's group sees it: a session with a full-marathon
+   version takes that title. Done once on the data so every list agrees, and on
+   a copy: the answer may be a cached object the other plan reads next. */
+function weekForPlan(data) {
+  if (!planFm()) return data;
+  const swap = (it) => (it.title_fm_en ? Object.assign({}, it, { title_en: it.title_fm_en, title_ar: it.title_fm_ar }) : it);
+  return Object.assign({}, data, { days: (data.days || []).map((d) => Object.assign({}, d, { items: (d.items || []).map(swap) })) });
+}
+
+function planToggle() {
+  const fm = planFm();
+  const pick = (want) => () => {
+    if (want === fm) return;
+    try {
+      localStorage.setItem(PLAN_KEY, want ? "fm" : "hm");
+    } catch (e) {
+      return;
+    }
+    render();
+  };
+  return el(
+    "div",
+    { class: "seg", role: "group", "aria-label": t("aPlanLabel") },
+    el("button", { type: "button", "aria-pressed": fm ? "false" : "true", onclick: pick(false) }, t("aPlanHm")),
+    el("button", { type: "button", "aria-pressed": fm ? "true" : "false", onclick: pick(true) }, t("aPlanFm"))
+  );
+}
+
 SCREENS.home = function (args, user) {
   const start = localISO(weekStartOf(new Date()));
   const today = localISO(new Date());
@@ -977,6 +1017,7 @@ SCREENS.home = function (args, user) {
   );
 
   API.get("/api/week?start=" + start)
+    .then(weekForPlan)
     .then((data) => {
       const week = weekSoFar(data.days, today);
       box.textContent = "";
@@ -996,7 +1037,7 @@ SCREENS.home = function (args, user) {
   const mileage = el("div", { class: "stack" });
   loadMileage(mileage);
 
-  return el("div", { class: "stack" }, greetingHeader(user), box, mileage);
+  return el("div", { class: "stack" }, planToggle(), greetingHeader(user), box, mileage);
 };
 
 /* The watch services an athlete can link. Connecting and disconnecting live
@@ -1584,6 +1625,7 @@ SCREENS.week = function (args) {
   const card = el("div", { class: "card pad stack" }, head, list);
 
   API.get("/api/week?start=" + start)
+    .then(weekForPlan)
     .then((data) => {
       list.textContent = "";
       const any = data.days.some((d) => d.items && d.items.length);
@@ -1745,6 +1787,7 @@ SCREENS.plan = function (args) {
   // the pattern, the changes and the published sessions, and a second way of
   // resolving a single day would be a second answer waiting to disagree.
   API.get("/api/week?start=" + localISO(weekStartOf(new Date(date + "T00:00:00"))))
+    .then(weekForPlan)
     .then((data) => {
       const day = (data.days || []).find((d) => d.date === date);
       const item = day && (day.items || []).find((it) => String(it.schedule_id) === id);
@@ -2005,7 +2048,10 @@ SCREENS.session = function (args) {
 
   API.get("/api/session?id=" + encodeURIComponent(args[0] || ""))
     .then((data) => {
-      const s = data.session;
+      // The full-marathon group's workout, on a copy for the same reason as weekForPlan.
+      const s = planFm() && data.session.payload_fm
+        ? Object.assign({}, data.session, { name: data.session.name_fm || data.session.name, payload: data.session.payload_fm })
+        : data.session;
       box.textContent = "";
       box.append(checkinCard(s));
       // A session the coach opened only to hand out a code carries no

@@ -1,0 +1,167 @@
+/**
+ * The four-week half / full marathon block, published against its dates.
+ *
+ *   node tools/seed-plan.js                              (local dev)
+ *   SMOKE_ADMIN_PASSWORD=… node tools/seed-plan.js https://weruncoaching.pages.dev
+ *
+ * From the coach's sheet (HM_FM_schedule_1.pdf). Each session goes out once,
+ * with the half plan as the session and the full plan beside it (payload_fm),
+ * so both groups meet at one place under one code and the app's Home toggle
+ * picks which workout a phone shows. The sheet's "Monday" runs twice — Monday
+ * evening and Tuesday morning — and Wednesday's easy run both ends of the day.
+ * Monday morning, Tuesday evening and Sunday are left to the standing week.
+ *
+ * Safe to re-run: publishing a slot and date that already has a session
+ * rewrites that session rather than adding one.
+ */
+const fs = require("fs");
+const vm = require("vm");
+const path = require("path");
+
+const BASE = (process.argv[2] || "http://127.0.0.1:4323").replace(/\/+$/, "");
+const ADMIN = process.env.SMOKE_ADMIN_PASSWORD || "letmein";
+const FIRST_MONDAY = "2026-10-19";
+const CLUB_OFFSET = "+03:00"; // Riyadh, no daylight saving
+
+// The real encoder, so these links are the ones the builder would make.
+const box = { TextEncoder, TextDecoder, btoa, atob, console, t: (k) => k, I18N: { lang: "en" } };
+vm.createContext(box);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../js/model.js"), "utf8"), box);
+const { blankStep, encodeWorkout } = vm.runInContext("({ blankStep, encodeWorkout })", box);
+
+/* ---- step shorthand ---- */
+const step = (type, fields) => Object.assign(blankStep(type), fields);
+const dist = (m, note) => step("work", { durType: "distance", meters: m, note });
+const time = (min, note) => step("work", { durType: "time", seconds: min * 60, note });
+const rec = (sec, note) => step("recovery", { durType: "time", seconds: sec, note: note || "jog" });
+const lap = (type, note) => step(type, { durType: "open", note });
+const rep = (reps, ...steps) => ({ kind: "repeat", reps, steps });
+const strides = () => rep(6, dist(100, "stride"), lap("recovery", "walk back"));
+
+// The club's warm up and cool down around every speed session, on the lap
+// button — the sheet gives only the main set.
+const speed = (...main) => [
+  step("warmup", { durType: "open", estSeconds: 900, note: "15 min" }),
+  lap("rest", "ABC drills + strides"),
+  ...main,
+  step("cooldown", { durType: "open", estSeconds: 900, note: "15 min" }),
+];
+const easy = (min, withStrides) => [time(min, "easy"), ...(withStrides ? [strides()] : [])];
+const long = (min, km) => [time(min, "easy, or " + km + " km")];
+const hills = () =>
+  speed(rep(6, dist(100, "hill @best"), lap("recovery", "jog down")), rep(6, dist(200, "hill @best"), lap("recovery", "jog down")));
+const ladder = () => [time(4, "@HM"), rec(120), time(6, "@HM"), rec(180), time(8, "@HM"), rec(180)];
+
+/* ---- the sheet, week by week: [name, blocks] for HM then FM ---- */
+const WEEKS = [
+  {
+    mon: [
+      ["Speed — 400m ×4 + 200m ×4", speed(rep(4, dist(400, "@10K"), rec(90)), rep(4, dist(200, "@5K"), rec(60)))],
+      ["Speed — 400m ×6 + 200m ×6", speed(rep(6, dist(400, "@10K"), rec(90)), rep(6, dist(200, "@5K"), rec(60)))],
+    ],
+    wed: [["Easy run — 45 min + strides", easy(45, true)], ["Easy run — 60 min + strides", easy(60, true)]],
+    thu: [
+      ["Speed — 1 km ×4 @HM", speed(rep(4, dist(1000, "@HM"), rec(120)))],
+      ["Speed — 1 km ×6 @FM", speed(rep(6, dist(1000, "@FM"), rec(120)))],
+    ],
+    sat: [["Long run — 65 min / 11 km", long(65, 11)], ["Long run — 75 min / 12 km", long(75, 12)]],
+  },
+  {
+    mon: [
+      ["Speed — 2 min ×4 + 4-6-8 min @HM", speed(rep(4, time(2, "@10K"), rec(60)), ...ladder())],
+      ["Speed — 4-6-8 min @HM ×2", speed(rep(2, ...ladder()))],
+    ],
+    wed: [["Easy run — 50 min", easy(50)], ["Easy run — 60 min", easy(60)]],
+    thu: [["Hills — 100m ×6 + 200m ×6", hills()], null],
+    sat: [["Long run — 70 min / 12 km", long(70, 12)], ["Long run — 90 min / 14 km", long(90, 14)]],
+  },
+  {
+    mon: [
+      ["Speed — 400-800-400 ×3 @10K", speed(rep(3, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
+      ["Speed — 400-800-400 ×4 @10K", speed(rep(4, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
+    ],
+    wed: [["Easy run — 55 min + strides", easy(55, true)], ["Easy run — 60 min + strides", easy(60, true)]],
+    thu: [
+      ["Speed — 1.5 km ×4 @HM", speed(rep(4, dist(1500, "@HM"), rec(180)))],
+      ["Speed — 1.5 km ×6 @FM", speed(rep(6, dist(1500, "@FM"), rec(180)))],
+    ],
+    sat: [["Long run — 75 min / 13 km", long(75, 13)], ["Long run — 1:40 / 16 km", long(100, 16)]],
+  },
+  {
+    // The recovery week.
+    mon: [
+      ["Speed — 200m ×10 @10K", speed(rep(10, dist(200, "@10K"), rec(60)))],
+      ["Speed — 200m ×12 @10K", speed(rep(12, dist(200, "@10K"), rec(60)))],
+    ],
+    wed: [["Easy run — 60 min", easy(60)], null],
+    thu: [
+      ["Fartlek — 2 min @HM / 1 min easy ×10", speed(rep(10, time(2, "@HM"), rec(60, "easy")))],
+      ["Fartlek — 2 min @FM / 1 min easy ×12", speed(rep(12, time(2, "@FM"), rec(60, "easy")))],
+    ],
+    sat: [["Long run — 50 min / 9 km", long(50, 9)], ["Long run — 65 min / 11 km", long(65, 11)]],
+  },
+];
+
+/* Which standing slots each line of the sheet goes into: [weekday, time, days after Monday]. */
+const SLOTS = {
+  mon: [[1, "19:00", 0], [2, "04:55", 1]],
+  wed: [[3, "04:55", 2], [3, "19:30", 2]],
+  thu: [[4, "04:55", 3]],
+  sat: [[6, "04:55", 5]],
+};
+
+const encode = ([name, blocks]) =>
+  encodeWorkout({ name, date: "", coach: "", note: "", units: "km", blocks });
+
+function addDays(iso, n) {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+async function call(p, payload) {
+  const res = await fetch(BASE + p, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(Object.assign({ password: ADMIN }, payload)),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(p + " -> HTTP " + res.status + " " + JSON.stringify(data));
+  return data;
+}
+
+(async () => {
+  const slots = (await call("/api/admin/schedule", { action: "list" })).schedule || [];
+  const slotAt = (weekday, at) => slots.find((e) => e.weekday === weekday && e.at === at);
+
+  for (const [w, week] of WEEKS.entries()) {
+    const monday = addDays(FIRST_MONDAY, 7 * w);
+    console.log("Week " + (w + 1) + " (from " + monday + ")");
+    for (const [key, where] of Object.entries(SLOTS)) {
+      const [hm, fm] = week[key];
+      for (const [weekday, at, offset] of where) {
+        const slot = slotAt(weekday, at);
+        const date = addDays(monday, offset);
+        if (!slot) {
+          console.log("  ? no " + at + " slot on day " + weekday + " — skipped");
+          continue;
+        }
+        await call("/api/admin/sessions", {
+          action: "publish",
+          schedule_id: slot.id,
+          date,
+          starts_at: new Date(date + "T" + at + ":00" + CLUB_OFFSET).toISOString(),
+          points: slot.points,
+          name: hm[0],
+          payload: encode(hm),
+          name_fm: fm ? fm[0] : "",
+          payload_fm: fm ? encode(fm) : "",
+        });
+        console.log("  " + date + " " + at + "  " + hm[0] + (fm ? "  |  FM: " + fm[0] : "  (same for FM)"));
+      }
+    }
+  }
+})().catch((e) => {
+  console.error("seed-plan: " + (e.message || e));
+  process.exit(1);
+});

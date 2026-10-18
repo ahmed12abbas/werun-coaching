@@ -13,6 +13,7 @@ import { addPoints } from "../lib/points.js";
 import { dayFromName, DAYS, shiftDate } from "../lib/week.js";
 import { weekdayOf } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
+import { hasColumn } from "../lib/columns.js";
 
 /* Riyadh is UTC+3 all year with no daylight saving, so a standing session's
    wall-clock "04:55" becomes a real instant by saying which clock it is on. */
@@ -90,6 +91,9 @@ function readPublishForm(body) {
     payload: String(body.payload || "").slice(0, MAX.payload),
     date: String(body.date || ""),
     startsAt: new Date(String(body.starts_at || "")),
+    // The full-marathon group's version, when it differs; blank is "same as above".
+    nameFm: String(body.name_fm || "").replace(/\s+/g, " ").trim().slice(0, MAX.name),
+    payloadFm: String(body.payload_fm || "").slice(0, MAX.payload),
   };
   if (!form.name) return { error: "bad-name" };
   if (!form.payload) return { error: "bad-payload" };
@@ -180,11 +184,22 @@ async function publish(body, env) {
   const [dup, ...others] = await sameSessions(env, row);
   if (dup) {
     await rewriteSession(env, dup, others, row);
+    await writeFm(env, dup.id, form);
     return json({ id: dup.id, replaced: true, sessions: await sessionList(env), coaches: await coachRoster(env) });
   }
   row.id = uid();
   await insertSession(env, row);
+  await writeFm(env, row.id, form);
   return json({ id: row.id, sessions: await sessionList(env), coaches: await coachRoster(env) });
+}
+
+/* Its own statement so the insert and rewrite above stay the same between a
+   deploy and migration 0034; until then the full plan is simply not kept. */
+async function writeFm(env, id, form) {
+  if (!(await hasColumn(env, "club_sessions", "payload_fm"))) return;
+  await env.DB.prepare("UPDATE club_sessions SET name_fm = ?, payload_fm = ? WHERE id = ?")
+    .bind(form.payloadFm ? form.nameFm : "", form.payloadFm, id)
+    .run();
 }
 
 /* ---- roster, void, delete ---- */
