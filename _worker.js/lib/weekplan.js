@@ -54,6 +54,7 @@ const DETAIL_AR = [
   [/(\d)\s*min\b/g, "$1 دقيقة"],
   [/(\d)\s*m\b/g, "$1 متر"],
   [/\bstrides\b/gi, "فتحات"],
+  [/\bhills?\b/gi, "طلعة"],
   [/@HM\b/g, "@هاف"],
   [/@FM\b/g, "@فل"],
 ];
