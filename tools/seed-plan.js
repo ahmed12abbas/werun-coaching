@@ -56,47 +56,47 @@ const ladder = () => [time(4, "@HM"), rec(120), time(6, "@HM"), rec(180), time(8
 const WEEKS = [
   {
     mon: [
-      ["Speed — 400m ×4 + 200m ×4", speed(rep(4, dist(400, "@10K"), rec(90)), rep(4, dist(200, "@5K"), rec(60)))],
-      ["Speed — 400m ×6 + 200m ×6", speed(rep(6, dist(400, "@10K"), rec(90)), rep(6, dist(200, "@5K"), rec(60)))],
+      ["Speed session — 400m ×4 + 200m ×4", speed(rep(4, dist(400, "@10K"), rec(90)), rep(4, dist(200, "@5K"), rec(60)))],
+      ["Speed session — 400m ×6 + 200m ×6", speed(rep(6, dist(400, "@10K"), rec(90)), rep(6, dist(200, "@5K"), rec(60)))],
     ],
     wed: [["Easy run — 45 min + strides", easy(45, true)], ["Easy run — 60 min + strides", easy(60, true)]],
     thu: [
-      ["Speed — 1 km ×4 @HM", speed(rep(4, dist(1000, "@HM"), rec(120)))],
-      ["Speed — 1 km ×6 @FM", speed(rep(6, dist(1000, "@FM"), rec(120)))],
+      ["Speed session — 1 km ×4 @HM", speed(rep(4, dist(1000, "@HM"), rec(120)))],
+      ["Speed session — 1 km ×6 @FM", speed(rep(6, dist(1000, "@FM"), rec(120)))],
     ],
     sat: [["Long run — 65 min / 11 km", long(65, 11)], ["Long run — 75 min / 12 km", long(75, 12)]],
   },
   {
     mon: [
-      ["Speed — 2 min ×4 + 4-6-8 min @HM", speed(rep(4, time(2, "@10K"), rec(60)), ...ladder())],
-      ["Speed — 4-6-8 min @HM ×2", speed(rep(2, ...ladder()))],
+      ["Speed session — 2 min ×4 + 4-6-8 min @HM", speed(rep(4, time(2, "@10K"), rec(60)), ...ladder())],
+      ["Speed session — 4-6-8 min @HM ×2", speed(rep(2, ...ladder()))],
     ],
     wed: [["Easy run — 50 min", easy(50)], ["Easy run — 60 min", easy(60)]],
-    thu: [["Hills — 100m ×6 + 200m ×6", hills()], null],
+    thu: [["Speed session — Hills 100m ×6 + 200m ×6", hills()], null],
     sat: [["Long run — 70 min / 12 km", long(70, 12)], ["Long run — 90 min / 14 km", long(90, 14)]],
   },
   {
     mon: [
-      ["Speed — 400-800-400 ×3 @10K", speed(rep(3, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
-      ["Speed — 400-800-400 ×4 @10K", speed(rep(4, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
+      ["Speed session — 400-800-400 ×3 @10K", speed(rep(3, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
+      ["Speed session — 400-800-400 ×4 @10K", speed(rep(4, dist(400, "@10K"), rec(60), dist(800, "@10K"), rec(120), dist(400, "@10K"), rec(180)))],
     ],
     wed: [["Easy run — 55 min + strides", easy(55, true)], ["Easy run — 60 min + strides", easy(60, true)]],
     thu: [
-      ["Speed — 1.5 km ×4 @HM", speed(rep(4, dist(1500, "@HM"), rec(180)))],
-      ["Speed — 1.5 km ×6 @FM", speed(rep(6, dist(1500, "@FM"), rec(180)))],
+      ["Speed session — 1.5 km ×4 @HM", speed(rep(4, dist(1500, "@HM"), rec(180)))],
+      ["Speed session — 1.5 km ×6 @FM", speed(rep(6, dist(1500, "@FM"), rec(180)))],
     ],
     sat: [["Long run — 75 min / 13 km", long(75, 13)], ["Long run — 1:40 / 16 km", long(100, 16)]],
   },
   {
     // The recovery week.
     mon: [
-      ["Speed — 200m ×10 @10K", speed(rep(10, dist(200, "@10K"), rec(60)))],
-      ["Speed — 200m ×12 @10K", speed(rep(12, dist(200, "@10K"), rec(60)))],
+      ["Speed session — 200m ×10 @10K", speed(rep(10, dist(200, "@10K"), rec(60)))],
+      ["Speed session — 200m ×12 @10K", speed(rep(12, dist(200, "@10K"), rec(60)))],
     ],
     wed: [["Easy run — 60 min", easy(60)], null],
     thu: [
-      ["Fartlek — 2 min @HM / 1 min easy ×10", speed(rep(10, time(2, "@HM"), rec(60, "easy")))],
-      ["Fartlek — 2 min @FM / 1 min easy ×12", speed(rep(12, time(2, "@FM"), rec(60, "easy")))],
+      ["Speed session — Fartlek 2 min @HM / 1 min easy ×10", speed(rep(10, time(2, "@HM"), rec(60, "easy")))],
+      ["Speed session — Fartlek 2 min @FM / 1 min easy ×12", speed(rep(12, time(2, "@FM"), rec(60, "easy")))],
     ],
     sat: [["Long run — 50 min / 9 km", long(50, 9)], ["Long run — 65 min / 11 km", long(65, 11)]],
   },

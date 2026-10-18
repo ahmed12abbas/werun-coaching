@@ -1003,7 +1003,12 @@ function planFm() {
    a copy: the answer may be a cached object the other plan reads next. */
 function weekForPlan(data) {
   if (!planFm()) return data;
-  const swap = (it) => (it.title_fm_en ? Object.assign({}, it, { title_en: it.title_fm_en, title_ar: it.title_fm_ar }) : it);
+  const swap = (it) => {
+    if (!it.title_fm_en) return it;
+    const fm = Object.assign({}, it, { title_en: it.title_fm_en, title_ar: it.title_fm_ar });
+    if (it.desc_fm) fm.desc_en = fm.desc_ar = it.desc_fm;
+    return fm;
+  };
   return Object.assign({}, data, { days: (data.days || []).map((d) => Object.assign({}, d, { items: (d.items || []).map(swap) })) });
 }
 
@@ -1494,7 +1499,10 @@ function homeRow(x) {
   const meta = el(
     "div",
     { class: "slot-meta" },
-    place ? el("span", { class: "place" }, place) : null,
+    place && it.map_url
+      ? el("a", { class: "place", href: it.map_url, target: "_blank", rel: "noopener noreferrer",
+                  title: t("aOpenMap"), onclick: (e) => e.stopPropagation() }, place)
+      : place ? el("span", { class: "place" }, place) : null,
     el("span", {}, t("aPts", { n: it.points }))
   );
   const soon = countdownPill(it, x.date);
@@ -2069,7 +2077,8 @@ SCREENS.session = function (args) {
     .then((data) => {
       // The full-marathon group's workout, on a copy for the same reason as weekForPlan.
       const s = planFm() && data.session.payload_fm
-        ? Object.assign({}, data.session, { name: data.session.name_fm || data.session.name, payload: data.session.payload_fm })
+        ? Object.assign({}, data.session, { name: data.session.name_fm || data.session.name, payload: data.session.payload_fm },
+          data.session.desc_fm ? { desc_en: data.session.desc_fm, desc_ar: data.session.desc_fm } : {})
         : data.session;
       box.textContent = "";
       box.append(checkinCard(s));

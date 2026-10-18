@@ -2,7 +2,7 @@
 
 import { json } from "../lib/http.js";
 import { withMember, isCoach } from "../lib/auth.js";
-import { loadWeek, buildDays } from "../lib/weekplan.js";
+import { loadWeek, buildDays, splitName } from "../lib/weekplan.js";
 import { coachNames, coachNameFor } from "../lib/coaches.js";
 import { windowMinutes, windowFor, checkinState } from "../lib/checkin.js";
 import { hasColumn } from "../lib/columns.js";
@@ -101,6 +101,15 @@ async function isRegistered(env, row, userId) {
 const SLOT_TEXT = ["place_en", "place_ar", "desc_en", "desc_ar", "map_url"];
 const slotText = (row) => Object.fromEntries(SLOT_TEXT.map((k) => [k, row[k] || ""]));
 
+/* This week's numbers off the session's own name, over the slot's standing
+   line — the same split the week makes (splitName in lib/weekplan.js). */
+function detailText(row) {
+  const hm = splitName(row.name).detail;
+  const out = hm ? { desc_en: hm, desc_ar: hm } : {};
+  if (row.payload_fm) out.desc_fm = splitName(row.name_fm || row.name).detail;
+  return out;
+}
+
 export const session = withMember(async (request, env, user) => {
   const id = new URL(request.url).searchParams.get("id") || "";
   const row = await sessionRow(env, user.id, id);
@@ -122,6 +131,7 @@ export const session = withMember(async (request, env, user) => {
         payload_fm: row.payload_fm || "",
       },
       slotText(row),
+      detailText(row),
       {
         coach: coachNameFor(await coachNames(env), row.coach_id, row.slot_coach_id),
         starts_at: row.starts_at,

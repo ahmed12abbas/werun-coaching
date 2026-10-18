@@ -31,7 +31,20 @@ export const validTime = (s) => HHMM.test(String(s || ""));
 const KNOWN_TITLES_AR = {
   "community run": "ركضة مجتمعية",
   "speed session": "تمرين سرعات",
+  "easy run": "ركضة خفيفة",
+  "long run": "ركضة طويلة",
 };
+
+/* "Easy run — 60 min + strides": the coach names a plan session as what it is,
+   a dash, and this week's numbers. The week shows the first half as the title
+   and the second as the line under it, in place of the slot's standing line —
+   which is the same every week and so cannot say this week's 45 or 60. The
+   numbers read the same in both languages, so the detail is not translated. */
+export function splitName(name) {
+  const s = String(name || "");
+  const at = s.indexOf(" — ");
+  return at < 0 ? { title: s, detail: "" } : { title: s.slice(0, at), detail: s.slice(at + 3) };
+}
 const titleAr = (name) => KNOWN_TITLES_AR[String(name || "").trim().toLowerCase()] || name;
 
 /* How far either side of the week on screen to look for a slot workout.
@@ -200,16 +213,18 @@ function publishedItem(s, slot, names, mins, change) {
   if (change && named(change.place_en)) {
     slot = Object.assign({}, slot, { place_en: change.place_en, place_ar: change.place_ar, map_url: change.map_url });
   }
+  const hm = splitName(s.name);
+  const fm = splitName(s.name_fm || s.name);
   return {
     kind: "session",
     id: s.id,
     schedule_id: s.schedule_id || null,
-    title_en: s.name,
-    title_ar: titleAr(s.name),
+    title_en: hm.title,
+    title_ar: titleAr(hm.title),
     place_en: slotField(slot, "place_en"),
     place_ar: slotField(slot, "place_ar"),
-    desc_en: slotField(slot, "desc_en"),
-    desc_ar: slotField(slot, "desc_ar"),
+    desc_en: hm.detail || slotField(slot, "desc_en"),
+    desc_ar: hm.detail || slotField(slot, "desc_ar"),
     map_url: slotField(slot, "map_url"),
     // Who took it — what it was published under, or the slot's usual coach.
     coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
@@ -223,8 +238,9 @@ function publishedItem(s, slot, names, mins, change) {
     // to open, and the page has to know that before it tries to decode nothing.
     has_steps: !!s.payload,
     // The full-marathon group's version; blank when it is the same session.
-    title_fm_en: s.payload_fm ? s.name_fm || s.name : "",
-    title_fm_ar: s.payload_fm ? titleAr(s.name_fm || s.name) : "",
+    title_fm_en: s.payload_fm ? fm.title : "",
+    title_fm_ar: s.payload_fm ? titleAr(fm.title) : "",
+    desc_fm: s.payload_fm ? fm.detail : "",
     ...checkinState(s),
   };
 }
