@@ -5,15 +5,18 @@
    with a code, "home" reads this week live. The state round trip is the CSRF
    defence, exactly as for Strava.
 
-   Read-only for now: pushing the coach's sessions onto an athlete's calendar
-   (CALENDAR:WRITE, the other scope this app was registered for) is a
-   separate feature, not built yet. */
+   "sync" writes the club's next four weeks onto the athlete's Intervals.icu
+   calendar, which passes them on to their watch. The phone builds the events
+   — it already decodes a session and writes its .fit (js/model.js, js/fit.js),
+   and the Worker has neither — and this only checks their shape and forwards
+   them. All it can write is the caller's own calendar, which they could
+   write themselves. */
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
-import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince } from "../lib/intervals.js";
+import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, putEvents, dropEvents } from "../lib/intervals.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
 
 const STATE_TTL = 600;
@@ -36,6 +39,7 @@ export async function intervals(request, env) {
     if (action === "connect") return connect(e, req, user);
     if (action === "disconnect") return disconnect(e, user);
     if (action === "home") return home(e, user);
+    if (action === "sync") return sync(e, user, body);
     return json({ error: "bad-request" }, 400);
   })(request, env);
 }
@@ -79,6 +83,57 @@ async function home(env, user) {
     await env.DB.prepare("DELETE FROM intervals_links WHERE user_id = ?").bind(user.id).run();
     return json({ connected: false });
   }
+}
+
+/* What the phone may send: four weeks of the club's sessions and nothing
+   bigger. A .fit for a speed session is a couple of kilobytes. */
+const SYNC_MAX = 80; // ten slots a week over four weeks is ~48, plus one-offs
+const FIT_MAX = 12000; // base64 characters
+const EXT_ID = /^werun-[A-Za-z0-9_-]{1,64}-\d{4}-\d{2}-\d{2}$/;
+const LOCAL_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/;
+const cut = (v, n) => String(v == null ? "" : v).slice(0, n);
+
+function cleanEvent(e) {
+  if (!e || !EXT_ID.test(String(e.external_id)) || !LOCAL_START.test(String(e.start))) return null;
+  const out = {
+    category: "WORKOUT",
+    type: "Run",
+    external_id: e.external_id,
+    start_date_local: e.start,
+    name: cut(e.name, 120) || "WE RUN",
+    description: cut(e.description, 500),
+  };
+  const fit = String(e.fit || "");
+  if (fit && fit.length <= FIT_MAX && /^[A-Za-z0-9+/]+=*$/.test(fit)) {
+    out.filename = "werun.fit";
+    out.file_contents_base64 = fit;
+  }
+  return out;
+}
+
+async function sync(env, user, body) {
+  const events = (Array.isArray(body.events) ? body.events : []).slice(0, SYNC_MAX).map(cleanEvent).filter(Boolean);
+  const remove = (Array.isArray(body.remove) ? body.remove : []).slice(0, SYNC_MAX).filter((id) => EXT_ID.test(String(id)));
+  let link;
+  try {
+    link = await env.DB.prepare("SELECT * FROM intervals_links WHERE user_id = ?").bind(user.id).first();
+  } catch (err) {
+    link = null;
+  }
+  if (!link) return json({ error: "intervals-not-linked" }, 409);
+
+  const fresh = await freshToken(env, link);
+  if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
+  try {
+    if (events.length) await putEvents(link.athlete_id, fresh.access_token, events);
+    if (remove.length) await dropEvents(link.athlete_id, fresh.access_token, remove);
+  } catch (err) {
+    // Linked before calendar writing was asked for: the token can read runs
+    // but not write the calendar, and only connecting again fixes that.
+    if (err.status === 401 || err.status === 403) return json({ error: "intervals-reconnect" }, 409);
+    throw err;
+  }
+  return json({ ok: true, sent: events.length, removed: remove.length });
 }
 
 async function saveTokens(env, userId, t) {

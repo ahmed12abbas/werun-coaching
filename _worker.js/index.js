@@ -51,6 +51,8 @@
      GET  /api/coros/callback   — COROS sending the browser back (state- and PKCE-checked)
      POST /api/intervals           — the same for Intervals.icu (logged in)
      GET  /api/intervals/callback  — Intervals.icu sending the browser back (state-checked)
+     POST /api/calendar            — this athlete's calendar feed link (logged in)
+     GET  /api/calendar.ics        — the next four weeks as a calendar feed (signed link, no cookie)
 
    Two guards, both in lib/auth.js, both taking either a login or the club
    password in the body. refuseUnlessCoach() is the track — what a coach needs
@@ -133,6 +135,7 @@ import { reactions } from "./routes/reactions.js";
 import { strava, stravaCallback } from "./routes/strava.js";
 import { coros, corosCallback } from "./routes/coros.js";
 import { intervals, intervalsCallback } from "./routes/intervals.js";
+import { calendarLink, calendarFeed } from "./routes/calendar.js";
 import { about, aboutImg, adminAbout } from "./routes/about.js";
 import { coachRequests, adminRequests } from "./routes/requests.js";
 import { themedAsset } from "./lib/theme.js";
@@ -174,6 +177,7 @@ const POST = {
   "/api/strava": strava,
   "/api/coros": coros,
   "/api/intervals": intervals,
+  "/api/calendar": calendarLink,
   "/api/admin/about": adminAbout,
   "/api/coach/point-requests": coachRequests,
   "/api/admin/point-requests": adminRequests,
@@ -196,6 +200,7 @@ const GET = {
   "/api/strava/callback": stravaCallback,
   "/api/coros/callback": corosCallback,
   "/api/intervals/callback": intervalsCallback,
+  "/api/calendar.ics": calendarFeed,
   "/api/about": about,
   "/api/about/img": aboutImg,
   "/api/brand/img": brandImg,

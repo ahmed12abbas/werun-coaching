@@ -1113,6 +1113,8 @@ function loadMileage(box) {
     const linked = rs
       .map((r, i) => (r.status === "fulfilled" && r.value.connected ? weekCard(SERVICES[i].name, r.value.week) : null))
       .filter(Boolean);
+    const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
+    if (iv && iv.status === "fulfilled" && iv.value.connected) syncIntervals();
     if (linked.length) box.append(...linked);
     else if (rs.some((r) => r.status === "fulfilled")) box.append(noMileageCard());
   });
@@ -1152,7 +1154,7 @@ function appsCard() {
       })
       .catch(() => row.remove());
   }
-  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aStravaHint")), rows);
+  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aStravaHint")), rows, calendarRow());
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
@@ -1219,6 +1221,107 @@ function disconnectLink(path) {
       .catch(() => {});
   });
   return link;
+}
+
+/* The club's next four weeks onto the athlete's Intervals.icu calendar, which
+   hands them on to the watch they linked there. The phone builds the events
+   because it is what decodes a session and writes its .fit; the Worker only
+   checks their shape and forwards them. Every six hours at most, from Home —
+   ponytail: so a change reaches the watch the next time the app is opened, not
+   the moment the coach saves it; a server-side push would need the link
+   decoder in the Worker. */
+const IV_SYNC_KEY = "werun-iv-sync";
+const IV_SYNC_MS = 6 * 3600 * 1000;
+const IV_WEEKS = 5; // this week and four more, so "today + 28 days" is always covered
+
+function syncIntervals() {
+  try {
+    if (Date.now() - Number(localStorage.getItem(IV_SYNC_KEY) || 0) < IV_SYNC_MS) return;
+    localStorage.setItem(IV_SYNC_KEY, String(Date.now()));
+  } catch (e) {
+    return; // no storage, no memory of the last send: better to skip than send on every visit
+  }
+  const today = localISO(new Date());
+  const first = localISO(weekStartOf(new Date()));
+  const weeks = [];
+  for (let i = 0; i < IV_WEEKS; i++) weeks.push(API.get("/api/week?start=" + addDays(first, i * 7)).then(weekForPlan));
+  Promise.all(weeks)
+    .then((ws) => {
+      const items = [];
+      for (const w of ws) for (const d of w.days) if (d.date >= today && d.date <= addDays(today, 28)) for (const it of d.items) items.push([d.date, it]);
+      return Promise.all(items.map(([date, it]) => ivEvent(date, it)));
+    })
+    .then((list) =>
+      API.post("/api/intervals", {
+        action: "sync",
+        events: list.filter((e) => e && !e.cancelled),
+        remove: list.filter((e) => e && e.cancelled).map((e) => e.external_id),
+      })
+    )
+    .catch((e) => {
+      if (e && e.code === "intervals-reconnect") toast(errorText(e));
+      try {
+        localStorage.removeItem(IV_SYNC_KEY); // try again next visit
+      } catch (x) {}
+    });
+}
+
+/* One day's session as an Intervals.icu event, with its steps as a .fit when it
+   has any. Named in English: not every watch draws Arabic. */
+function ivEvent(date, it) {
+  const external_id = "werun-" + String(it.schedule_id || it.id).replace(/[^A-Za-z0-9_-]/g, "") + "-" + date;
+  if (it.cancelled) return Promise.resolve({ external_id: external_id, cancelled: true });
+  const at = it.kind === "session" && it.starts_at ? new Date(it.starts_at) : null;
+  const start = (at && !isNaN(at) ? localISO(at) + "T" + pad2(at.getHours()) + ":" + pad2(at.getMinutes()) : date + "T" + it.at) + ":00";
+  const ev = {
+    external_id: external_id,
+    start: start,
+    name: it.title_en + (it.desc_en ? " — " + it.desc_en : ""),
+    description: [it.place_en, it.map_url].filter(Boolean).join("\n"),
+  };
+  const stepsId = it.kind === "session" ? (it.has_steps ? it.id : null) : it.steps_id;
+  if (!stepsId) return Promise.resolve(ev);
+  return API.get("/api/session?id=" + encodeURIComponent(stepsId))
+    .then((data) => {
+      const s = data.session;
+      const w = decodeWorkout(planFm() && s.payload_fm ? s.payload_fm : s.payload);
+      w.name = it.title_en;
+      w.date = date;
+      ev.fit = b64url.fromBytes(buildFitFile(w)).replace(/-/g, "+").replace(/_/g, "/");
+      ev.fit += "===".slice((ev.fit.length + 3) % 4);
+      return ev;
+    })
+    .catch(() => ev); // no steps beats no session
+}
+
+/* The same four weeks as a calendar feed the phone subscribes to — how the
+   week reaches an Apple Watch, which has no other way in, and any watch that
+   shows the phone's calendar. */
+function calendarRow() {
+  let url = null;
+  const link = () =>
+    url
+      ? Promise.resolve(url)
+      : API.post("/api/calendar").then((d) => (url = d.url + (I18N.lang === "ar" ? "&lang=ar" : "")));
+  const add = el("button", { type: "button", class: "btn" }, t("aCalAdd"));
+  add.addEventListener("click", () =>
+    link()
+      .then((u) => (window.location.href = u.replace(/^https?:/, "webcal:")))
+      .catch((e) => toast(errorText(e)))
+  );
+  const copy = el("button", { type: "button", class: "btn" }, t("aCalCopy"));
+  copy.addEventListener("click", () =>
+    link()
+      .then((u) => navigator.clipboard.writeText(u))
+      .then(() => toast(t("aCalCopied")))
+      .catch((e) => toast(errorText(e)))
+  );
+  return el(
+    "div",
+    { class: "stack" },
+    el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" }, el("strong", { class: "grow" }, t("aCal")), add, copy),
+    el("p", { class: "muted small" }, t("aCalHint"))
+  );
 }
 
 /* "Good morning, Sara" — the greeting swaps with the clock, not with data

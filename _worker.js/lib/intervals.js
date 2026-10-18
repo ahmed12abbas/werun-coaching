@@ -12,13 +12,13 @@ export const intervalsReady = (env) => !!(env.INTERVALS_CLIENT_ID && env.INTERVA
 
 const TOKEN_URL = "https://intervals.icu/api/oauth/token";
 
-/** The authorize screen the browser is sent to, scoped to read-only. */
+/** The authorize screen the browser is sent to: read their runs, write the club's sessions onto their calendar. */
 export function authorizeUrl(env, redirectUri, state) {
   const q = new URLSearchParams({
     client_id: env.INTERVALS_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "ACTIVITY:READ",
+    scope: "ACTIVITY:READ,CALENDAR:WRITE",
     state: state,
   });
   return "https://intervals.icu/oauth/authorize?" + q.toString();
@@ -53,3 +53,24 @@ export async function activitiesSince(athleteId, accessToken, sunday) {
   if (!res.ok) throw new Error("intervals-activities-" + res.status);
   return res.json();
 }
+
+/* The club's sessions onto the athlete's Intervals.icu calendar, which hands
+   them on to whatever watch they linked there (Garmin, COROS, Suunto…).
+   external_id is the upsert key, so sending the same four weeks again updates
+   them in place rather than stacking copies. */
+async function calendarCall(athleteId, accessToken, method, path, body) {
+  const res = await fetch("https://intervals.icu/api/v1/athlete/" + encodeURIComponent(athleteId) + "/events/" + path, {
+    method: method,
+    headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = new Error("intervals-events-" + res.status);
+    err.status = res.status;
+    throw err;
+  }
+}
+
+export const putEvents = (athleteId, token, events) => calendarCall(athleteId, token, "POST", "bulk?upsert=true", events);
+export const dropEvents = (athleteId, token, ids) =>
+  calendarCall(athleteId, token, "PUT", "bulk-delete", ids.map((id) => ({ external_id: id })));
