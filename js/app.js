@@ -1239,19 +1239,20 @@ function syncIntervals() {
   const first = localISO(weekStartOf(new Date()));
   const weeks = [];
   for (let i = 0; i < IV_WEEKS; i++) weeks.push(API.get("/api/week?start=" + addDays(first, i * 7)).then(weekForPlan));
+  const soon = ([date]) => date >= today && date <= addDays(today, 28);
   Promise.all(weeks)
     .then((ws) => {
-      const items = [];
-      for (const w of ws) for (const d of w.days) if (d.date >= today && d.date <= addDays(today, 28)) for (const it of d.items) items.push([d.date, it]);
-      return Promise.all(items.map(([date, it]) => ivEvent(date, it)));
+      const keep = [];
+      const drop = [];
+      for (const w of ws) {
+        const p = watchPlan(w.days);
+        keep.push(...p.keep.filter(soon));
+        drop.push(...p.drop.filter(soon));
+      }
+      return Promise.all(keep.map(([date, it]) => ivEvent(date, it))).then((events) =>
+        API.post("/api/intervals", { action: "sync", events: events, remove: drop.map(([date, it]) => ivId(date, it)) })
+      );
     })
-    .then((list) =>
-      API.post("/api/intervals", {
-        action: "sync",
-        events: list.filter((e) => e && !e.cancelled),
-        remove: list.filter((e) => e && e.cancelled).map((e) => e.external_id),
-      })
-    )
     .catch((e) => {
       if (e && e.code === "intervals-reconnect") toast(errorText(e));
       try {
@@ -1260,11 +1261,47 @@ function syncIntervals() {
     });
 }
 
+/* Which of one week's sessions go to the watch, and which come off it.
+
+   The same workout twice in a day (Sunday's pair, Wednesday's) goes once.
+   The same one on two days (Monday evening, Tuesday morning) stays on both
+   until the athlete checks in to one; then the other comes off. "The same" is
+   the line after the dash — "400m ×6 + 200m ×6" — which is how the coach
+   names a session's work. Called off goes, and so does the walk/run, which
+   is a club outing rather than a session to train by. */
+// ponytail: the walk/run is told apart by its title; give slots a "main" switch in /admin if more need leaving out.
+function watchPlan(days) {
+  const keep = [];
+  const drop = [];
+  const same = new Map();
+  for (const d of days) {
+    for (const it of d.items) {
+      if (it.cancelled || /walk/i.test(it.title_en)) {
+        drop.push([d.date, it]);
+        continue;
+      }
+      const k = String(it.desc_en || it.title_en).trim().toLowerCase();
+      same.set(k, (same.get(k) || []).concat([[d.date, it]]));
+    }
+  }
+  for (const list of same.values()) {
+    const done = list.find(([, it]) => it.checked_in);
+    const days = new Set();
+    for (const x of list) {
+      const ok = done ? x === done : !days.has(x[0]);
+      (ok ? keep : drop).push(x);
+      days.add(x[0]);
+    }
+  }
+  return { keep: keep, drop: drop };
+}
+
+const ivId = (date, it) => "werun-" + String(it.schedule_id || it.id).replace(/[^A-Za-z0-9_-]/g, "") + "-" + date;
+
 /* One day's session as an Intervals.icu event, with its steps as a .fit when it
    has any. Named in English: not every watch draws Arabic. */
 function ivEvent(date, it) {
-  const external_id = "werun-" + String(it.schedule_id || it.id).replace(/[^A-Za-z0-9_-]/g, "") + "-" + date;
-  if (it.cancelled) return Promise.resolve({ external_id: external_id, cancelled: true });
+  const external_id = ivId(date, it);
   const at = it.kind === "session" && it.starts_at ? new Date(it.starts_at) : null;
   const start = (at && !isNaN(at) ? localISO(at) + "T" + pad2(at.getHours()) + ":" + pad2(at.getMinutes()) : date + "T" + it.at) + ":00";
   const ev = {
@@ -2418,6 +2455,11 @@ SCREENS.c = function (args, user) {
   API.post("/api/checkin", { session: args[0], slot: Number(args[1]), sig: args[2] })
     .then((r) => {
       box.textContent = "";
+      // The same workout's other day comes off the watch on the next Home
+      // visit, not up to six hours later (watchPlan).
+      try {
+        localStorage.removeItem(IV_SYNC_KEY);
+      } catch (e) {}
       // The noise the share button makes: the one on this site that means
       // "that went through". Nothing was clicked, so it is played by hand.
       SFX.checkin();
