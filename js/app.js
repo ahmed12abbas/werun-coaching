@@ -346,6 +346,25 @@ function render() {
   body.append(screen(r.args, user));
   appendFoot(body, r.name);
   playSlide(app, slide);
+  if (user && (r.name === "home" || r.name === "week")) marathonGuide();
+}
+
+/* The marathon plan's launch week, Sun 18 – Sat 24 Oct 2026: once a day, a
+   sheet pointing at the half / full toggle. Dead after the 24th — delete this
+   function, its call in render() and the aGuide* strings. */
+function marathonGuide() {
+  const day = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10); // Riyadh, UTC+3
+  if (day < "2026-10-18" || day > "2026-10-24") return;
+  try {
+    if (localStorage.getItem("werun-mguide") === day) return;
+    localStorage.setItem("werun-mguide", day);
+  } catch (e) {
+    return; // no storage: once a day cannot be kept, so not at all
+  }
+  openSheet(t("aGuideTitle"), el("div", { class: "card pad stack" },
+    el("h2", {}, t("aGuideTitle")),
+    el("p", {}, t("aGuideBody")),
+    planToggle()));
 }
 
 /* The club's accounts, at the foot of every screen — the same row the share
