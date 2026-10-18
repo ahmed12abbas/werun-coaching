@@ -1006,7 +1006,7 @@ function weekForPlan(data) {
   const swap = (it) => {
     if (!it.title_fm_en) return it;
     const fm = Object.assign({}, it, { title_en: it.title_fm_en, title_ar: it.title_fm_ar });
-    if (it.desc_fm) fm.desc_en = fm.desc_ar = it.desc_fm;
+    if (it.desc_fm_en) Object.assign(fm, { desc_en: it.desc_fm_en, desc_ar: it.desc_fm_ar });
     return fm;
   };
   return Object.assign({}, data, { days: (data.days || []).map((d) => Object.assign({}, d, { items: (d.items || []).map(swap) })) });
@@ -2078,7 +2078,7 @@ SCREENS.session = function (args) {
       // The full-marathon group's workout, on a copy for the same reason as weekForPlan.
       const s = planFm() && data.session.payload_fm
         ? Object.assign({}, data.session, { name: data.session.name_fm || data.session.name, payload: data.session.payload_fm },
-          data.session.desc_fm ? { desc_en: data.session.desc_fm, desc_ar: data.session.desc_fm } : {})
+          data.session.desc_fm_en ? { desc_en: data.session.desc_fm_en, desc_ar: data.session.desc_fm_ar } : {})
         : data.session;
       box.textContent = "";
       box.append(checkinCard(s));

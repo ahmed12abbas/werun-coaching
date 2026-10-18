@@ -39,12 +39,25 @@ const KNOWN_TITLES_AR = {
    a dash, and this week's numbers. The week shows the first half as the title
    and the second as the line under it, in place of the slot's standing line —
    which is the same every week and so cannot say this week's 45 or 60. The
-   numbers read the same in both languages, so the detail is not translated. */
+   Arabic keeps the numbers and swaps the few units the sheet uses for the
+   club's own words. */
 export function splitName(name) {
   const s = String(name || "");
   const at = s.indexOf(" — ");
-  return at < 0 ? { title: s, detail: "" } : { title: s.slice(0, at), detail: s.slice(at + 3) };
+  const detail = at < 0 ? "" : s.slice(at + 3);
+  return { title: at < 0 ? s : s.slice(0, at), detail, detail_ar: detailAr(detail) };
 }
+
+// km before m, min before m: each only after a number, so "@FM" keeps its M.
+const DETAIL_AR = [
+  [/(\d)\s*km\b/g, "$1 كم"],
+  [/(\d)\s*min\b/g, "$1 دقيقة"],
+  [/(\d)\s*m\b/g, "$1 متر"],
+  [/\bstrides\b/gi, "فتحات"],
+  [/@HM\b/g, "@هاف"],
+  [/@FM\b/g, "@فل"],
+];
+const detailAr = (d) => DETAIL_AR.reduce((s, [re, to]) => s.replace(re, to), d);
 const titleAr = (name) => KNOWN_TITLES_AR[String(name || "").trim().toLowerCase()] || name;
 
 /* How far either side of the week on screen to look for a slot workout.
@@ -224,7 +237,7 @@ function publishedItem(s, slot, names, mins, change) {
     place_en: slotField(slot, "place_en"),
     place_ar: slotField(slot, "place_ar"),
     desc_en: hm.detail || slotField(slot, "desc_en"),
-    desc_ar: hm.detail || slotField(slot, "desc_ar"),
+    desc_ar: hm.detail_ar || slotField(slot, "desc_ar"),
     map_url: slotField(slot, "map_url"),
     // Who took it — what it was published under, or the slot's usual coach.
     coach: coachNameFor(names, s.coach_id, slot && slot.coach_id),
@@ -240,7 +253,8 @@ function publishedItem(s, slot, names, mins, change) {
     // The full-marathon group's version; blank when it is the same session.
     title_fm_en: s.payload_fm ? fm.title : "",
     title_fm_ar: s.payload_fm ? titleAr(fm.title) : "",
-    desc_fm: s.payload_fm ? fm.detail : "",
+    desc_fm_en: s.payload_fm ? fm.detail : "",
+    desc_fm_ar: s.payload_fm ? fm.detail_ar : "",
     ...checkinState(s),
   };
 }

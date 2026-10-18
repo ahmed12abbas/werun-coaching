@@ -104,9 +104,12 @@ const slotText = (row) => Object.fromEntries(SLOT_TEXT.map((k) => [k, row[k] || 
 /* This week's numbers off the session's own name, over the slot's standing
    line — the same split the week makes (splitName in lib/weekplan.js). */
 function detailText(row) {
-  const hm = splitName(row.name).detail;
-  const out = hm ? { desc_en: hm, desc_ar: hm } : {};
-  if (row.payload_fm) out.desc_fm = splitName(row.name_fm || row.name).detail;
+  const hm = splitName(row.name);
+  const out = hm.detail ? { desc_en: hm.detail, desc_ar: hm.detail_ar } : {};
+  if (row.payload_fm) {
+    const fm = splitName(row.name_fm || row.name);
+    Object.assign(out, { desc_fm_en: fm.detail, desc_fm_ar: fm.detail_ar });
+  }
   return out;
 }
 
