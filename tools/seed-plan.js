@@ -111,6 +111,9 @@ const SLOTS = {
   thu: [[4, "am", 3]],
   sat: [[6, "am", 5]],
 };
+// When a half-day has more than one slot, the one whose standing title fits —
+// a Saturday can carry a community run beside the long run.
+const LIKE = { mon: /speed/i, wed: /easy/i, thu: /speed/i, sat: /long/i };
 
 const encode = ([name, blocks]) =>
   encodeWorkout({ name, date: "", coach: "", note: "", units: "km", blocks });
@@ -134,8 +137,11 @@ async function call(p, payload) {
 
 (async () => {
   const slots = (await call("/api/admin/schedule", { action: "list" })).schedule || [];
-  const slotAt = (weekday, half) =>
-    slots.find((e) => e.weekday === weekday && (e.at < "12:00") === (half === "am"));
+  const slotAt = (weekday, half, like) => {
+    const here = slots.filter((e) => e.weekday === weekday && (e.at < "12:00") === (half === "am"));
+    return here.find((e) => like.test(e.title_en || "")) || here[0];
+  };
+  const placed = new Set(); // date|slot id this run published into
 
   for (const [w, week] of WEEKS.entries()) {
     const monday = addDays(FIRST_MONDAY, 7 * w);
@@ -143,7 +149,7 @@ async function call(p, payload) {
     for (const [key, where] of Object.entries(SLOTS)) {
       const [hm, fm] = week[key];
       for (const [weekday, half, offset] of where) {
-        const slot = slotAt(weekday, half);
+        const slot = slotAt(weekday, half, LIKE[key]);
         const date = addDays(monday, offset);
         if (!slot) {
           console.log("  ? no " + half + " slot on day " + weekday + " — skipped");
@@ -161,8 +167,24 @@ async function call(p, payload) {
           name_fm: fm ? fm[0] : "",
           payload_fm: fm ? encode(fm) : "",
         });
-        console.log("  " + date + " " + at + "  " + hm[0] + (fm ? "  |  FM: " + fm[0] : "  (same for FM)"));
+        placed.add(date + "|" + slot.id);
+        console.log("  " + date + " " + at + " [" + slot.title_en + "]  " + hm[0] + (fm ? "  |  FM: " + fm[0] : "  (same for FM)"));
       }
+    }
+  }
+
+  // A plan session sitting in a slot this run did not choose is one an earlier
+  // run put in the wrong place. Delete refuses a session anybody checked in to.
+  const ours = new Set(WEEKS.flatMap((wk) => Object.values(wk).map((pair) => pair[0][0])));
+  const last = addDays(FIRST_MONDAY, 7 * WEEKS.length);
+  const sessions = (await call("/api/admin/sessions", { action: "list" })).sessions || [];
+  for (const x of sessions) {
+    if (x.date < FIRST_MONDAY || x.date >= last || !ours.has(x.name) || placed.has(x.date + "|" + x.schedule_id)) continue;
+    try {
+      await call("/api/admin/sessions", { action: "delete", id: x.id });
+      console.log("  removed a misplaced copy: " + x.date + " " + x.name);
+    } catch (e) {
+      console.log("  ! could not remove " + x.date + " " + x.name + " (" + e.message + ")");
     }
   }
 })().catch((e) => {
