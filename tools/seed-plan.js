@@ -124,13 +124,20 @@ function addDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-async function call(p, payload) {
+async function call(p, payload, retried) {
   const res = await fetch(BASE + p, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(Object.assign({ password: ADMIN }, payload)),
   });
   const data = await res.json().catch(() => ({}));
+  // The club password is held to ten tries a minute (lib/crypto.js), and the
+  // whole plan is about thirty calls: wait the minute out rather than stop.
+  if (res.status === 429 && !retried) {
+    console.log("  … the server asked to slow down; waiting a minute");
+    await new Promise((r) => setTimeout(r, 61000));
+    return call(p, payload, true);
+  }
   if (!res.ok) throw new Error(p + " -> HTTP " + res.status + " " + JSON.stringify(data));
   return data;
 }
