@@ -102,12 +102,14 @@ const WEEKS = [
   },
 ];
 
-/* Which standing slots each line of the sheet goes into: [weekday, time, days after Monday]. */
+/* Which standing slots each line of the sheet goes into: [weekday, morning or
+   evening, days after Monday]. Matched on the half of the day, not the minute,
+   because the coach retimes slots in /admin and the sheet does not care. */
 const SLOTS = {
-  mon: [[1, "19:00", 0], [2, "04:55", 1]],
-  wed: [[3, "04:55", 2], [3, "19:30", 2]],
-  thu: [[4, "04:55", 3]],
-  sat: [[6, "04:55", 5]],
+  mon: [[1, "pm", 0], [2, "am", 1]],
+  wed: [[3, "am", 2], [3, "pm", 2]],
+  thu: [[4, "am", 3]],
+  sat: [[6, "am", 5]],
 };
 
 const encode = ([name, blocks]) =>
@@ -132,20 +134,22 @@ async function call(p, payload) {
 
 (async () => {
   const slots = (await call("/api/admin/schedule", { action: "list" })).schedule || [];
-  const slotAt = (weekday, at) => slots.find((e) => e.weekday === weekday && e.at === at);
+  const slotAt = (weekday, half) =>
+    slots.find((e) => e.weekday === weekday && (e.at < "12:00") === (half === "am"));
 
   for (const [w, week] of WEEKS.entries()) {
     const monday = addDays(FIRST_MONDAY, 7 * w);
     console.log("Week " + (w + 1) + " (from " + monday + ")");
     for (const [key, where] of Object.entries(SLOTS)) {
       const [hm, fm] = week[key];
-      for (const [weekday, at, offset] of where) {
-        const slot = slotAt(weekday, at);
+      for (const [weekday, half, offset] of where) {
+        const slot = slotAt(weekday, half);
         const date = addDays(monday, offset);
         if (!slot) {
-          console.log("  ? no " + at + " slot on day " + weekday + " — skipped");
+          console.log("  ? no " + half + " slot on day " + weekday + " — skipped");
           continue;
         }
+        const at = slot.at;
         await call("/api/admin/sessions", {
           action: "publish",
           schedule_id: slot.id,
