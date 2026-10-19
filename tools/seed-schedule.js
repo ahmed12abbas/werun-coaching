@@ -10,8 +10,7 @@
  * than duplicated — so moving a session's time moves the row that is there.
  *
  * The club's week starts on Sunday and Friday is the rest day. Two slots:
- * 04:55 before work and 19:30 after it — except Misk, which starts at 19:00
- * because the track is booked from seven.
+ * 04:55 before work and 19:30 after it.
  *
  * What is deliberately not here: the line under Where that says what each
  * session actually is ("Long run 80min"). That is the coach's, written in
@@ -29,7 +28,7 @@ const WEEK = [
   { weekday: 0, at: "04:55", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
   { weekday: 0, at: "19:30", title_en: "Easy run",        title_ar: "ركضة خفيفة",   place_en: "Alwaha Park",            place_ar: "حديقة الواحة" },
   { weekday: 1, at: "04:55", title_en: "Easy walk/run",   title_ar: "ركض/مشي خفيف", place_en: "Sports Boulevard",       place_ar: "المسار الرياضي - حطين" },
-  { weekday: 1, at: "19:00", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Misk City Track",        place_ar: "مضمار مدينة مسك" },
+  { weekday: 1, at: "19:30", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Misk City Track",        place_ar: "مضمار مدينة مسك" },
   { weekday: 2, at: "04:55", title_en: "Speed session",   title_ar: "تمرين سرعات",  place_en: "Wadi Mahdia Road",       place_ar: "خط التفتيش - بعد الدوار" },
   { weekday: 2, at: "19:30", title_en: "Strength session",title_ar: "تقويات عدائين",place_en: "Alfaisal University",    place_ar: "جامعة الفيصل" },
   { weekday: 3, at: "04:55", title_en: "Community run",   title_ar: "ركضة مجتمعية", place_en: "Wadi Hanifa Road-Trail", place_ar: "وادي حنيفة - تريل" },

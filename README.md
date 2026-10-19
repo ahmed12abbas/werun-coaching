@@ -604,8 +604,7 @@ Members and in the CSV export, with the age worked out.
 ### The standing week
 
 The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:55
-and 19:30 — Misk at 19:00, because the track is booked from seven. Friday is
-the rest day.
+and 19:30. Friday is the rest day.
 
 Every one of them opens. A slot with a workout published against it opens the
 workout in full; a standing one opens a summary — the whole place with its map

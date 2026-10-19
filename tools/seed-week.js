@@ -127,7 +127,7 @@ async function call(path, payload) {
   // Monday evening, Tuesday morning and Thursday morning are the same speed
   // session this week — all three published, so all three open the workout
   // itself rather than a line of plan.
-  await publish(1, "19:00", "Speed session | WeRUN", SPEED);
+  await publish(1, "19:30", "Speed session | WeRUN", SPEED);
   await publish(2, "04:55", "Speed session | WeRUN", SPEED);
   await publish(4, "04:55", "Speed session | WeRUN", SPEED);
 

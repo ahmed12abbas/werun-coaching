@@ -23,11 +23,12 @@ const idFor = (kind, key) =>
   crypto.createHash("sha256").update("werun:" + kind + ":" + key).digest("hex").slice(0, 32);
 
 /* The key a slot is identified by, which is not the same as the time it
-   starts at. The morning sessions moved from 04:45 to 04:55, and the rows on
-   the live database were minted under the old time — so a retiming has to
-   move the row that is already there rather than mint a second one beside it. */
-const KEYED_AT = { "04:55": "04:45" };
-const keyed = (at) => KEYED_AT[at] || at;
+   starts at. The mornings moved from 04:45 to 04:55 and Monday evening from
+   19:00 to 19:30, and the rows on the live database were minted under the old
+   times — so a retiming has to move the row that is already there rather than
+   mint a second one beside it. Keyed on day@time where the time alone is shared. */
+const KEYED_AT = { "04:55": "04:45", "1@19:30": "19:00" };
+const keyed = (d, at) => KEYED_AT[d + "@" + at] || KEYED_AT[at] || at;
 
 const q = (v) => (v === null || v === undefined ? "NULL" : "'" + String(v).replace(/'/g, "''") + "'");
 const now = new Date().toISOString();
@@ -40,7 +41,7 @@ const WEEK = [
   { d: 0, at: "04:55", en: "Community run — 45 min easy + strides", ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات",    pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 0, at: "19:30", en: "Easy run — 45 min + strides",           ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات",          pen: "Alwaha Park",            par: "حديقة الواحة" },
   { d: 1, at: "04:55", en: "Easy walk/run — 4 km",                  ar: "ركض/مشي خفيف — ٤ كم",                   pen: "Sports Boulevard",       par: "المسار الرياضي - حطين" },
-  { d: 1, at: "19:00", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
+  { d: 1, at: "19:30", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
   { d: 2, at: "04:55", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 2, at: "19:30", en: "Strength session",                      ar: "تقويات عدائين",                         pen: "Alfaisal University",    par: "جامعة الفيصل" },
   { d: 3, at: "04:55", en: "Trail run — 7 to 9 km",                 ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم",        pen: "Wadi Hanifa Road-Trail", par: "وادي حنيفة - تريل" },
@@ -70,7 +71,7 @@ const lines = [];
 
 /* ---- the standing week ---- */
 for (const s of WEEK) {
-  const id = idFor("slot", s.d + "@" + keyed(s.at));
+  const id = idFor("slot", s.d + "@" + keyed(s.d, s.at));
   lines.push(
     "INSERT OR IGNORE INTO schedule (id, weekday, at, title_en, title_ar, place_en, place_ar, map_url, points, active, created_at, updated_at) VALUES (" +
       [q(id), s.d, q(s.at), q(s.en), q(s.ar), q(s.pen), q(s.par), q(mapFor(s.pen)), 10, 1, q(now), q(now)].join(", ") +
@@ -99,8 +100,8 @@ const WINDOW_AFTER = 120 * 60000;
 
 function publish(weekday, at, name) {
   const date = nextDate(weekday);
-  const slotId = idFor("slot", weekday + "@" + keyed(at));
-  const id = idFor("session", date + "@" + keyed(at));
+  const slotId = idFor("slot", weekday + "@" + keyed(weekday, at));
+  const id = idFor("session", date + "@" + keyed(weekday, at));
   const starts = new Date(date + "T" + at + ":00" + CLUB_OFFSET);
   lines.push(
     "INSERT OR IGNORE INTO club_sessions (id, date, day, name, payload, starts_at, window_open_at, window_close_at, points, created_at, schedule_id) VALUES (" +
@@ -125,7 +126,7 @@ function publish(weekday, at, name) {
   return date;
 }
 
-const mon = publish(1, "19:00", "Speed session | WeRUN");
+const mon = publish(1, "19:30", "Speed session | WeRUN");
 const tue = publish(2, "04:55", "Speed session | WeRUN");
 const thu = publish(4, "04:55", "Speed session | WeRUN");
 
@@ -134,7 +135,7 @@ const sat = nextDate(6);
 lines.push(
   "INSERT OR IGNORE INTO schedule_changes (id, schedule_id, date, cancelled, at, place_en, place_ar, map_url, note_en, note_ar, created_at) VALUES (" +
     [
-      q(idFor("change", "sat:" + sat)), q(idFor("slot", "6@" + keyed("04:55"))), q(sat), 0,
+      q(idFor("change", "sat:" + sat)), q(idFor("slot", "6@" + keyed(6, "04:55"))), q(sat), 0,
       "NULL", "NULL", "NULL", "NULL", q("80 minutes"), q("٨٠ دقيقة"), q(now),
     ].join(", ") +
     ");"
@@ -144,6 +145,6 @@ require("fs").writeFileSync("werun-seed.sql", lines.join("\n") + "\n");
 console.log(
   "wrote werun-seed.sql — " + lines.length + " statements\n" +
     "  10 standing sessions\n" +
-    "  speed session published for " + mon + " 19:00, " + tue + " 04:55 and " + thu + " 04:55\n" +
+    "  speed session published for " + mon + " 19:30, " + tue + " 04:55 and " + thu + " 04:55\n" +
     "  long run on " + sat + " noted as 80 minutes"
 );
