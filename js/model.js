@@ -751,8 +751,9 @@ function stepLine(s, prefix, units) {
    Warm Up / Run / Rest / Cool Down steps. A .fit sent there came back
    flattened: every step a plain run with a heart-rate target, and each
    lap-button step a fixed ten minutes. English only, as the watch shows it. */
-// Garmin draws "interval" as Run ("active" as Other), and the club's jog
-// between reps as Rest, the way the .fit link has always had it.
+// Garmin gets warm up, rest and cool down as those; Intervals.icu hands every
+// other step over as "Other" whatever it is tagged (checked 19 Oct). The jog
+// between reps goes as Rest, the way the .fit link has always had it.
 const IV_INTENSITY = { warmup: "warmup", work: "interval", recovery: "rest", rest: "rest", cooldown: "cooldown", other: "other" };
 
 function intervalsText(w) {
