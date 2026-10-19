@@ -1,4 +1,4 @@
-/**
+﻿/**
  * intervalsText() in js/model.js: a club speed session written as
  * Intervals.icu's workout text, which is what reaches Garmin/COROS as steps.
  *
@@ -34,8 +34,8 @@ const w = {
 // Through a share link and back, as the app does.
 const got = intervalsText(decodeWorkout(encodeWorkout(w)));
 const want = [
-  "- 15 min Press lap 15m intensity=warmup",
-  "- ABC drills + strides Press lap 1m intensity=rest",
+  "- 15 min 15m Press lap intensity=warmup",
+  "- ABC drills + strides 1m Press lap intensity=rest",
   "",
   "6x",
   "- @10K 400mtr intensity=active",
@@ -45,7 +45,7 @@ const want = [
   "- @5K 200mtr intensity=active",
   "- jog 1m intensity=recovery",
   "",
-  "- 15 min Press lap 15m intensity=cooldown",
+  "- 15 min 15m Press lap intensity=cooldown",
   "- 5m 4:00/km-4:15/km Pace intensity=active",
 ].join("\n");
 assert.strictEqual(got, want, "\n--- got ---\n" + got + "\n--- want ---\n" + want);

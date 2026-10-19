@@ -776,8 +776,9 @@ function ivStep(s, units) {
   let len;
   if (s.durType === "distance") len = Math.round(s.meters) + "mtr";
   else if (s.durType === "time") len = ivClock(s.seconds);
-  // The lap button ends it; the time is only Intervals.icu's estimate.
-  else len = "Press lap " + ivClock(s.estSeconds || s.seconds);
+  // The lap button ends it; the time is only Intervals.icu's estimate. After
+  // the length, or "Press lap" becomes part of the note on the watch.
+  else len = ivClock(s.estSeconds || s.seconds) + " Press lap";
   const g = s.target || {};
   const target =
     g.kind === "pace" ? " " + fmtClock(g.fast) + unit + "-" + fmtClock(g.slow) + unit + " Pace" :
