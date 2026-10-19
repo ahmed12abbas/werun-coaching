@@ -38,15 +38,15 @@ const want = [
   "- ABC drills + strides 1m Press lap intensity=rest",
   "",
   "6x",
-  "- @10K 400mtr intensity=active",
-  "- jog 1m30s intensity=recovery",
+  "- @10K 400mtr intensity=interval",
+  "- jog 1m30s intensity=rest",
   "",
   "6x",
-  "- @5K 200mtr intensity=active",
-  "- jog 1m intensity=recovery",
+  "- @5K 200mtr intensity=interval",
+  "- jog 1m intensity=rest",
   "",
   "- 15 min 15m Press lap intensity=cooldown",
-  "- 5m 4:00/km-4:15/km Pace intensity=active",
+  "- 5m 4:00/km-4:15/km Pace intensity=interval",
 ].join("\n");
 assert.strictEqual(got, want, "\n--- got ---\n" + got + "\n--- want ---\n" + want);
 console.log("ok  intervalsText\n\n" + got);

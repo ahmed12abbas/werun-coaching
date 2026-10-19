@@ -1224,7 +1224,7 @@ function disconnectLink(path) {
    ponytail: so a change reaches the watch the next time the app is opened, not
    the moment the coach saves it; a server-side push would need the link
    decoder in the Worker. */
-const IV_SYNC_KEY = "werun-iv-sync-2"; // -2: resend everything once, as steps rather than a .fit
+const IV_SYNC_KEY = "werun-iv-sync-3"; // bump to resend everything once after a change to how sessions are written
 const IV_SYNC_MS = 6 * 3600 * 1000;
 const IV_WEEKS = 5; // this week and four more, so "today + 28 days" is always covered
 
