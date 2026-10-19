@@ -1106,7 +1106,7 @@ function loadMileage(box) {
       .filter(Boolean);
     const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
     if (iv && iv.status === "fulfilled" && iv.value.connected) syncIntervals();
-    else if (iv && iv.status === "fulfilled") maybeWatchGuide();
+    else if (iv && iv.status === "fulfilled" && !maybeWatchGuide()) ivNudge();
     if (linked.length) box.append(...linked);
     else if (rs.some((r) => r.status === "fulfilled")) box.append(noMileageCard());
   });
@@ -1383,14 +1383,34 @@ function watchGuide() {
 }
 
 function maybeWatchGuide() {
-  if (meSheet) return; // another sheet is up; try again next visit
+  if (meSheet) return true; // another sheet is up; try again next visit
   try {
-    if (localStorage.getItem(WATCH_GUIDE_KEY)) return;
+    if (localStorage.getItem(WATCH_GUIDE_KEY)) return false;
     localStorage.setItem(WATCH_GUIDE_KEY, "1");
   } catch (e) {
-    return;
+    return false;
   }
   watchGuide();
+  return true;
+}
+
+/* After that first guide, an athlete still without Intervals.icu gets a
+   bubble from the badge in the corner — the way to Settings — for ten
+   seconds, once each time the app is opened rather than on every Home. */
+let IV_NUDGED = false;
+function ivNudge() {
+  const badge = document.querySelector(".appbar .me-badge:not(.search-btn)");
+  if (IV_NUDGED || !badge) return;
+  IV_NUDGED = true;
+  const r = badge.getBoundingClientRect();
+  const rtl = document.documentElement.getAttribute("dir") === "rtl";
+  const tip = el("button", { type: "button", class: "nudge", onclick: () => { tip.remove(); openApps(); } }, t("aIvNudge"));
+  tip.style.top = r.bottom + 10 + "px";
+  // From the badge's own edge, so the arrow sits under it in either direction.
+  tip.style.insetInlineStart = (rtl ? innerWidth - r.right : r.left) + "px";
+  tip.style.setProperty("--arrow", r.width / 2 - 7 + "px");
+  document.body.append(tip);
+  setTimeout(() => tip.remove(), 10000);
 }
 
 /* "Good morning, Sara" — the greeting swaps with the clock, not with data
