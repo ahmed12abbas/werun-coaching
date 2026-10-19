@@ -746,6 +746,46 @@ function stepLine(s, prefix, units) {
   );
 }
 
+/* ---------- Intervals.icu's own workout text ------------------------------
+   What Intervals.icu turns into steps and hands to Garmin and COROS as real
+   Warm Up / Run / Rest / Cool Down steps. A .fit sent there came back
+   flattened: every step a plain run with a heart-rate target, and each
+   lap-button step a fixed ten minutes. English only, as the watch shows it. */
+const IV_INTENSITY = { warmup: "warmup", work: "active", recovery: "recovery", rest: "rest", cooldown: "cooldown", other: "other" };
+
+function intervalsText(w) {
+  const lines = [];
+  for (const b of w.blocks) {
+    // A repeat is "6x" on its own line with a blank line either side.
+    if (b.kind === "repeat") lines.push("", b.reps + "x", ...b.steps.map((s) => ivStep(s, w.units)), "");
+    else lines.push(ivStep(b, w.units));
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+const ivClock = (sec) => {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return (m ? m + "m" : "") + (s || !m ? s + "s" : "");
+};
+
+/* "- @10K 400mtr intensity=active". The text before the length is what the
+   watch shows on the step; "m" is minutes there, so metres are "mtr". */
+function ivStep(s, units) {
+  const unit = units === "mi" ? "/mi" : "/km";
+  let len;
+  if (s.durType === "distance") len = Math.round(s.meters) + "mtr";
+  else if (s.durType === "time") len = ivClock(s.seconds);
+  // The lap button ends it; the time is only Intervals.icu's estimate.
+  else len = "Press lap " + ivClock(s.estSeconds || s.seconds);
+  const g = s.target || {};
+  const target =
+    g.kind === "pace" ? " " + fmtClock(g.fast) + unit + "-" + fmtClock(g.slow) + unit + " Pace" :
+    g.kind === "hr" ? " " + g.low + "-" + g.high + "bpm HR" : "";
+  const cue = [s.label, s.note].filter(Boolean).join(" ");
+  return "- " + (cue ? cue + " " : "") + len + target + " intensity=" + (IV_INTENSITY[s.type] || "active");
+}
+
 /* ---------- misc UI helpers ----------------------------------------------- */
 
 let toastTimer = null;

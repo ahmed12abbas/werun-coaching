@@ -1224,7 +1224,7 @@ function disconnectLink(path) {
    ponytail: so a change reaches the watch the next time the app is opened, not
    the moment the coach saves it; a server-side push would need the link
    decoder in the Worker. */
-const IV_SYNC_KEY = "werun-iv-sync";
+const IV_SYNC_KEY = "werun-iv-sync-2"; // -2: resend everything once, as steps rather than a .fit
 const IV_SYNC_MS = 6 * 3600 * 1000;
 const IV_WEEKS = 5; // this week and four more, so "today + 28 days" is always covered
 
@@ -1298,8 +1298,10 @@ function watchPlan(days) {
 
 const ivId = (date, it) => "werun-" + String(it.schedule_id || it.id).replace(/[^A-Za-z0-9_-]/g, "") + "-" + date;
 
-/* One day's session as an Intervals.icu event, with its steps as a .fit when it
-   has any. Named in English: not every watch draws Arabic. */
+/* One day's session as an Intervals.icu event, with its steps written in
+   Intervals.icu's own workout text when it has any (intervalsText in
+   js/model.js says why not a .fit). Named in English: not every watch draws
+   Arabic. */
 function ivEvent(date, it) {
   const external_id = ivId(date, it);
   const at = it.kind === "session" && it.starts_at ? new Date(it.starts_at) : null;
@@ -1316,10 +1318,8 @@ function ivEvent(date, it) {
     .then((data) => {
       const s = data.session;
       const w = decodeWorkout(planFm() && s.payload_fm ? s.payload_fm : s.payload);
-      w.name = it.title_en;
-      w.date = date;
-      ev.fit = b64url.fromBytes(buildFitFile(w)).replace(/-/g, "+").replace(/_/g, "/");
-      ev.fit += "===".slice((ev.fit.length + 3) % 4);
+      // Steps first: the place's map link is only text after them.
+      ev.description = intervalsText(w) + (ev.description ? "\n\n" + ev.description : "");
       return ev;
     })
     .catch(() => ev); // no steps beats no session

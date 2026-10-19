@@ -90,9 +90,10 @@ async function home(env, user) {
 }
 
 /* What the phone may send: four weeks of the club's sessions and nothing
-   bigger. A .fit for a speed session is a couple of kilobytes. */
+   bigger. The steps travel in the description as Intervals.icu's own workout
+   text, which it turns into the watch's steps; a speed session is ~400 characters. */
 const SYNC_MAX = 80; // ten slots a week over four weeks is ~48, plus one-offs
-const FIT_MAX = 12000; // base64 characters
+const DESC_MAX = 3000;
 const EXT_ID = /^werun-[A-Za-z0-9_-]{1,64}-\d{4}-\d{2}-\d{2}$/;
 const LOCAL_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/;
 const cut = (v, n) => String(v == null ? "" : v).slice(0, n);
@@ -105,13 +106,8 @@ function cleanEvent(e) {
     external_id: e.external_id,
     start_date_local: e.start,
     name: cut(e.name, 120) || "WE RUN",
-    description: cut(e.description, 500),
+    description: cut(e.description, DESC_MAX),
   };
-  const fit = String(e.fit || "");
-  if (fit && fit.length <= FIT_MAX && /^[A-Za-z0-9+/]+=*$/.test(fit)) {
-    out.filename = "werun.fit";
-    out.file_contents_base64 = fit;
-  }
   return out;
 }
 
