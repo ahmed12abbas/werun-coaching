@@ -22,7 +22,6 @@ export const DEFAULTS = {
   club_name: "WE RUN",
   store_open: false, // off until the coach has put something in it
   currency: "usd", // Stripe's code for it: usd, egp, aed, gbp, eur…
-  whatsapp_url: "", // the group, linked from the app's feed
   announcement_en: "", // a line across the top of the app; empty means none
   announcement_ar: "",
   announcement_url: "", // where the announcement goes when tapped; empty means it is just text

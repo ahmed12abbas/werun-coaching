@@ -1155,7 +1155,7 @@ function loadMileage() {
 // Intervals.icu's own mark (their favicon.svg, editor metadata cut), drawn
 // here like the avatars rather than fetched from their site on every Home.
 const IV_LOGO =
-  '<svg viewBox="0 0 163.29 163.29" aria-hidden="true"><circle fill="#dd0447" r="81.64" cx="81.64" cy="81.55"/>' +
+  '<svg viewBox="0 0 163.29 163.29" aria-hidden="true"><circle style="fill:var(--brand)" r="81.64" cx="81.64" cy="81.55"/>' +
   '<g fill="#fff" transform="matrix(1.504571,0,0,1.504571,6.462733,5.414828)"><path d="M 98.569,57.02 77.278,54.093 69.022,17.449 69.01,17.389 C 68.621,15.678 67.296,14.25 65.473,13.817 62.921,13.212 60.361,14.79 59.756,17.342 L 48.048,66.696 37.007,32.288 36.992,32.24 c -0.437,-1.327 -1.514,-2.415 -2.965,-2.803 -2.286,-0.612 -4.636,0.746 -5.247,3.032 L 22.842,54.662 1.464,57.02 c -0.633,0.07 -1.156,0.57 -1.229,1.229 -0.084,0.763 0.466,1.449 1.229,1.534 l 24.618,2.715 c 1.702,0.189 3.342,-0.871 3.825,-2.573 l 0.123,-0.434 3.177,-11.179 11.488,35.134 c 0.433,1.292 1.5,2.371 2.918,2.735 2.224,0.571 4.491,-0.769 5.062,-2.993 l 0.007,-0.026 11.338,-44.156 4.502,20.453 0.132,0.603 c 0.465,2.084 2.459,3.497 4.611,3.201 l 25.302,-3.479 c 0.604,-0.083 1.104,-0.558 1.191,-1.191 0.108,-0.765 -0.426,-1.468 -1.189,-1.573 z"/></g></svg>';
 
 /* Settings, scrolled to the apps card. */
@@ -3046,8 +3046,7 @@ SCREENS.feed = function () {
     .then((d) => {
       list.textContent = "";
       FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
-      list.append(...feedCards(d.tips || [], d.posts));
-      if (d.whatsapp) list.append(whatsappButton(d.whatsapp));
+      list.append(telegramButton(), ...feedCards(d.tips || [], d.posts));
       markFeedSeen(d.tips, d.posts);
     })
     .catch((e) => {
@@ -3070,8 +3069,13 @@ function feedCards(tips, posts) {
   return cards.length ? cards : [el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aNoNews")))];
 }
 
-function whatsappButton(url) {
-  return el("a", { class: "btn block", href: url, target: "_blank", rel: "noopener noreferrer" }, t("aWhatsapp"));
+/* The club's official Telegram channel, at the top of the news it is the
+   other half of. The address is the one the footer's icon row already uses
+   (SOCIAL, js/brand.js), so there is one place to change it. */
+function telegramButton() {
+  const tg = SOCIAL.find((s) => s.id === "telegram");
+  return el("a", { class: "btn block tg-btn", href: tg.href, target: "_blank", rel: "noopener noreferrer" },
+    el("span", { class: "tg-icon", html: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + tg.svg + "</svg>" }), t("aTelegram"));
 }
 
 /** Whichever side the reader can read, theirs first. */
@@ -3275,43 +3279,63 @@ function tipCard(tip) {
 const REASON_KEY = { checkin: "rCheckin", streak: "rStreak", adjust: "rAdjust", void: "rVoid" };
 
 SCREENS.points = function () {
-  const mine = el("div", { class: "card pad stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  const mine = el("div", { class: "card pad stack pts-hero" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
   const board = el("div", { class: "card pad stack" }, el("h3", {}, t("aBoard")));
-  const wrap = el("div", { class: "stack" }, mine, board);
+  const wrap = el("div", { class: "stack rise" }, mine, board);
 
-  API.get("/api/points/me")
+  // Both answers draw the top card: /me has the total, the board has the
+  // place and who is just ahead. Each draws what it can as it lands.
+  const meP = API.get("/api/points/me");
+  const boardP = API.get("/api/points/board");
+
+  meP
     .then((d) => {
       mine.textContent = "";
-      mine.append(
-        el("h2", {}, t("aYourPoints")),
-        el(
-          "div",
-          { class: "tiles" },
-          tile(d.total, t("aPoints")),
-          tile(d.streak, t("aStreak")),
-          tile(d.sessions, t("aSessionsCount"))
-        )
-      );
-      if (!d.history.length) {
-        mine.append(el("p", { class: "muted small" }, t("aNoPoints")));
-        return;
+      const head = el("div", { class: "pts-head" },
+        el("div", {}, el("b", { class: "pts-big num", "data-to": d.total }, "0"), el("span", { class: "pts-unit" }, t("aPoints"))),
+        el("span", { class: "pts-place num" }, "#…"));
+      const chase = el("p", { class: "pts-chase" });
+      const chips = el("div", { class: "pts-chips" },
+        el("span", { class: "chip" + (d.streak > 0 ? " hot" : "") }, el("b", { class: "num" }, String(d.streak)), " ", t("aStreak")),
+        el("span", { class: "chip" }, el("b", { class: "num" }, String(d.sessions)), " ", t("aSessionsCount")));
+      mine.append(el("h2", {}, t("aYourPoints")), head, chase, chips);
+      countUp(head.querySelector(".pts-big"));
+
+      // This week, folded: the sum on the row, the lines under it.
+      const week = d.history.reduce((s, r) => s + r.delta, 0);
+      if (!d.history.length) mine.append(el("p", { class: "muted small" }, t("aNoPoints")));
+      else {
+        const rows = el("div", { class: "ledger" }, d.history.map(ledgerRow));
+        mine.append(el("details", { class: "more" },
+          el("summary", {}, el("span", {}, t("aHistory"), " ", el("span", { class: "delta num up", dir: "ltr" }, (week > 0 ? "+" : "") + week))),
+          rows));
       }
-      mine.append(el("h3", {}, t("aHistory")));
-      const rows = el("div", { class: "ledger" });
-      for (const row of d.history) rows.append(ledgerRow(row));
-      mine.append(rows);
+
+      boardP.then((b) => {
+        const place = b.mine && b.mine.place;
+        const ahead = place > 1 ? b.board[place - 2] : null;
+        head.querySelector(".pts-place").textContent = place ? "#" + place : "—";
+        // Off the board by choice is not a thing to be nudged about.
+        chase.textContent = b.hidden ? "" : !place ? t("aGetOnBoard")
+          : place === 1 ? t("aTopClub")
+          : t("aToPass", { n: ahead.points - d.total + 1, name: firstName(ahead.name) });
+      }).catch(() => {});
     })
     .catch((e) => {
       mine.textContent = "";
       mine.append(el("p", { class: "form-err" }, errorText(e)));
     });
 
-  API.get("/api/points/board")
+  boardP
     .then((d) => {
       board.textContent = "";
       board.append(el("h3", {}, t("aBoard")));
       if (!d.board.length) board.append(el("p", { class: "muted small" }, t("aBoardEmpty")));
-      else board.append(el("div", { class: "board" }, d.board.map((r) => boardRow(r))));
+      else {
+        board.append(podium(d.board.slice(0, 3)));
+        const rest = d.board.slice(3);
+        if (rest.length) board.append(el("div", { class: "board" }, rest.map((r) => boardRow(r))));
+      }
       board.append(boardToggle(d.hidden));
     })
     .catch((e) => {
@@ -3320,6 +3344,33 @@ SCREENS.points = function () {
 
   return wrap;
 };
+
+/* The top three on steps, first in the middle and tallest. Each opens the
+   runner's card, as a board row does. CSS puts them in 2-1-3 order, so the
+   list stays in place order for a screen reader. */
+function podium(top) {
+  return el("ol", { class: "podium" }, top.map((r) =>
+    el("li", { class: "pod p" + r.place + (r.me ? " me" : "") },
+      el("button", { type: "button", class: "pod-btn", onclick: () => openRunner(r), "aria-label": r.place + ". " + r.name + ", " + r.points },
+        avatarNode(r.avatar, r.name, r.place === 1 ? "lg" : null),
+        el("span", { class: "pod-name", dir: "auto" }, r.me ? t("aYouAre") : firstName(r.name)),
+        el("span", { class: "pod-pts num" }, String(r.points)),
+        el("span", { class: "pod-step num" }, String(r.place))))));
+}
+
+/* A number climbing to itself once, the way /about's do. Straight to the end
+   for a reader who asked for less motion. */
+function countUp(node) {
+  const to = Number(node.dataset.to) || 0;
+  if (!to || matchMedia("(prefers-reduced-motion: reduce)").matches) return (node.textContent = String(to));
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / 900);
+    node.textContent = String(Math.round(to * (1 - Math.pow(1 - k, 3))));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 
 const tile = (n, label) =>
   el("div", { class: "tile" }, el("div", { class: "n num" }, String(n)), el("div", { class: "l" }, label));

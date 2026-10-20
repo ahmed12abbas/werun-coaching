@@ -11,7 +11,6 @@ import { json, readBody, objectIn, savedId } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
 import { reactionsFor } from "./reactions.js";
-import { getSetting } from "../lib/settings.js";
 import { hasColumn } from "../lib/columns.js";
 import { storePhoto, servePhoto } from "../lib/photos.js";
 
@@ -124,7 +123,6 @@ export const feed = withMember(async (request, env, user) => {
     tips: tips,
     reactions: faces.counts,
     my_reactions: faces.mine,
-    whatsapp: await getSetting(env, "whatsapp_url"),
   });
 });
 
