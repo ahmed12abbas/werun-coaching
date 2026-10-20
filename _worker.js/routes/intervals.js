@@ -96,13 +96,14 @@ const SYNC_MAX = 80; // ten slots a week over four weeks is ~48, plus one-offs
 const DESC_MAX = 3000;
 const EXT_ID = /^werun-[A-Za-z0-9_-]{1,64}-\d{4}-\d{2}-\d{2}$/;
 const LOCAL_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/;
+const IV_TYPES = ["Run", "Workout"]; // the strength session is the one that is not a run
 const cut = (v, n) => String(v == null ? "" : v).slice(0, n);
 
 function cleanEvent(e) {
   if (!e || !EXT_ID.test(String(e.external_id)) || !LOCAL_START.test(String(e.start))) return null;
   const out = {
     category: "WORKOUT",
-    type: "Run",
+    type: IV_TYPES.includes(e.type) ? e.type : "Run",
     external_id: e.external_id,
     start_date_local: e.start,
     name: cut(e.name, 120) || "WE RUN",

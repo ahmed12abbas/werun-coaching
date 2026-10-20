@@ -1224,7 +1224,7 @@ function disconnectLink(path) {
    ponytail: so a change reaches the watch the next time the app is opened, not
    the moment the coach saves it; a server-side push would need the link
    decoder in the Worker. */
-const IV_SYNC_KEY = "werun-iv-sync-3"; // bump to resend everything once after a change to how sessions are written
+const IV_SYNC_KEY = "werun-iv-sync-4"; // bump to resend everything once after a change to how sessions are written
 const IV_SYNC_MS = 6 * 3600 * 1000;
 const IV_WEEKS = 5; // this week and four more, so "today + 28 days" is always covered
 
@@ -1312,6 +1312,17 @@ function ivEvent(date, it) {
     name: it.title_en + (it.desc_en ? " — " + it.desc_en : ""),
     description: [it.place_en, it.map_url].filter(Boolean).join("\n"),
   };
+  // A strength session is not a run: sent as one, the watch showed Tuesday's
+  // "45min" as a 45-minute run. It goes as a general workout with its length
+  // as a single step, so the watch has a time to count down.
+  // ponytail: told apart by its title, like the walk/run in watchPlan.
+  if (/strength/i.test(it.title_en)) {
+    const min = /(\d+)\s*min/i.exec(it.desc_en || "");
+    ev.type = "Workout";
+    ev.name = "Strength workout" + (min ? " " + min[1] + "min" : "");
+    if (min) ev.description = "- " + min[1] + "m" + (ev.description ? "\n\n" + ev.description : "");
+    return Promise.resolve(ev);
+  }
   const stepsId = it.kind === "session" ? (it.has_steps ? it.id : null) : it.steps_id;
   if (!stepsId) return Promise.resolve(ev);
   return API.get("/api/session?id=" + encodeURIComponent(stepsId))
