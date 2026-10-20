@@ -86,17 +86,44 @@ body>.appnav{flex:none;width:100%;max-width:660px;margin:0 auto;
 .week-head .btn.icon{width:38px;height:38px;padding:0;font-size:18px}
 [dir="rtl"] .week-head .btn.icon svg{transform:scaleX(-1)}
 .days{display:grid;gap:8px}
-.day{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);
+.day{display:grid;gap:6px;padding:12px 14px;border:1px solid var(--line);scroll-margin-top:110px;
   border-radius:13px;background:var(--card);text-align:start;width:100%;font:inherit;color:inherit}
 .day.today{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
 button.day{cursor:pointer;transition:background .15s ease}
 button.day:hover{background:var(--brand-soft)}
-.day-date{flex:none;width:58px;text-align:center}
-.day-date .wd{font-family:var(--display);font-size:21px;font-weight:600;text-transform:uppercase;line-height:1}
-.day-date .dm{font-size:12px;color:var(--muted);line-height:1.3;margin-top:2px}
-/* Arabic month names run longer than "Sep", so the column gets a little more. */
-[dir="rtl"] .day-date{width:70px}
+/* The day across the top of its card: name, date, and Today when it is. */
+.day-date{display:flex;align-items:baseline;gap:8px}
+.day-date .wd{font-family:var(--display);font-size:18px;font-weight:600;text-transform:uppercase;line-height:1.1}
+.day-date .dm{font-size:12.5px;color:var(--muted)}
+.day-date .tag{margin-inline-start:auto;align-self:center}
 [dir="rtl"] .day-date .wd{font-size:16px}
+/* A rest day is one line: its name at one end, "rest day" at the other. */
+.day.rest{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:10px}
+/* Gone already: still there to look back on, but not where the eye lands. */
+.day.past{opacity:.6}
+.day.past:hover,.day.past:focus-within{opacity:1}
+/* The day the strip above was tapped for, lit for a moment. */
+.day.flash{animation:dayFlash 1.2s ease-out}
+@keyframes dayFlash{0%,30%{box-shadow:0 0 0 3px var(--brand)}100%{box-shadow:0 0 0 0 transparent}}
+
+/* ---- the week at a glance ----
+   Seven buttons: a letter, the date, a dot a session (green once you came). */
+.daystrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.sday{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 6px;border:1px solid var(--line);
+  border-radius:12px;background:var(--card);font:inherit;color:inherit;cursor:pointer;transition:border-color .15s}
+.sday:hover{border-color:var(--brand)}
+.sday:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sday.today{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.sday.past{opacity:.55}
+.sd-wd{font-size:11px;font-weight:700;color:var(--muted)}
+.sday.today .sd-wd{color:inherit;opacity:.85}
+.sd-n.num{font-family:var(--display);font-size:19px;font-weight:600;line-height:1}
+.sd-dots{display:flex;gap:3px;height:5px}
+.sd-dots i{width:5px;height:5px;border-radius:50%;background:var(--brand)}
+.sd-dots.done i{background:var(--ok)}
+.sday.today .sd-dots i{background:var(--brand-ink)}
+.days.rise>:nth-child(n+4){animation-delay:.25s}
+@media (prefers-reduced-motion:reduce){.day.flash{animation:none}.sday{transition:none}}
 .day-body{flex:1;min-width:0}
 .day-title{font-weight:650;line-height:1.3}
 .day-meta{font-size:13px;color:var(--muted)}
@@ -238,7 +265,14 @@ a.announce.link{display:block;text-decoration:none}
 /* ---- the feed ---- */
 .post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .post h2{margin:0}
-.post-photo{width:100%;border-radius:12px;display:block;object-fit:cover;max-height:260px}
+.post-photo{width:100%;border-radius:12px;display:block;object-fit:cover;max-height:300px}
+/* On a card, the photo runs to the card's edges along the top. */
+.post.has-photo>.post-photo{width:calc(100% + 34px);max-width:none;margin:-17px -17px 0;
+  border-radius:var(--radius) var(--radius) 0 0}
+/* A long post folds to its first few lines, fading out, until Read more. */
+.post-body.folded{max-height:7.4em;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.read-more{margin-top:6px}
 .post .tag{padding:2px 9px 0}
 .post-body{font-size:14.5px;line-height:1.6}
 .post-body p{margin:0 0 10px}
@@ -279,7 +313,10 @@ button.slot:hover{background:var(--brand-soft)}
    per line: a clock, a title and CHECK-IN OPEN do not fit across 375px, and
    the title is the part worth reading. */
 .slot .grow{flex:1 1 150px}
-.slot-at{flex:none; width:66px; font-size:13.5px; color:var(--muted); padding-top:2px}
+/* The time as a small chip, so the column of them reads as a timetable. */
+.slot-at{flex:none; width:66px; font-size:12.5px; font-weight:650; color:var(--brand-deep); background:var(--brand-soft);
+  border-radius:8px; padding:4px 0 3px; text-align:center; white-space:nowrap}
+[dir="rtl"] .slot-at{width:76px}
 .slot-title{font-weight:650; line-height:1.3}
 /* Two lines in the list, however long the coach's is: the week is for
    scanning, and the whole of it is on the session's own card a tap away.
@@ -300,7 +337,7 @@ button.slot.race:hover{background:#8851F4}
 /* The standing run's own line and coach are not the race's to claim. */
 .slot.race .slot-desc,.slot.race .who{display:none}
 .slot.race{flex-wrap:nowrap;gap:10px}
-.slot.race .slot-at{width:auto;padding-top:0;color:inherit;margin-bottom:2px}
+.slot.race .slot-at{width:auto;padding:0;background:none;text-align:start;color:inherit;margin-bottom:2px}
 .slot.race .tag{display:inline-block;margin-top:6px}
 .slot.race .tag{background:rgba(255,255,255,.2);color:inherit;border-color:transparent}
 /* The white mark, bare, on the purple row in both themes. */
@@ -365,23 +402,23 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 @media (prefers-reduced-motion:reduce){.code-btn.hot{animation:none;
   box-shadow:0 0 0 1px var(--brand) inset,0 0 16px -5px var(--brand)}}
 
-/* Faces on a post. The corner they sit in is the one the card's date leaves
-   empty; the picker a double tap opens sits over it. */
+/* Faces along the foot of a post, always there to tap; a double tap on the
+   card sends a heart, which pops where the finger landed. */
 .reactable{position:relative}
-.reacts{position:absolute;top:10px;inset-inline-end:12px;display:flex;gap:6px}
-.react{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;font-size:14px;
+.reacts{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.react{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;font-size:15px;
   line-height:1.4;border:1px solid var(--line);border-radius:999px;background:var(--bg);
-  color:var(--fg);cursor:pointer}
+  color:var(--fg);cursor:pointer;transition:transform .12s}
+.react:active{transform:scale(.9)}
 .react.mine{border-color:var(--brand);background:var(--brand-soft)}
 .react .num{font-size:12.5px;color:var(--muted)}
 .react.mine .num{color:var(--brand)}
-.react-pick{position:absolute;top:6px;inset-inline-end:10px;display:flex;gap:4px;padding:4px;
-  background:var(--card);border:1px solid var(--line);border-radius:999px;
-  box-shadow:0 6px 20px -8px rgba(0,0,0,.5);animation:sheetIn .12s ease both;z-index:2}
-.react-big{font-size:22px;line-height:1;padding:5px 7px;border:0;border-radius:999px;
-  background:transparent;cursor:pointer}
-.react-big:hover{background:var(--brand-soft)}
-@media (prefers-reduced-motion:reduce){.react-pick{animation:none}}
+.heart-pop{position:absolute;z-index:3;font-size:64px;line-height:1;pointer-events:none;
+  transform:translate(-50%,-50%);animation:heartPop .8s ease-out forwards}
+@keyframes heartPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  100%{opacity:0;transform:translate(-50%,-110%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.react{transition:none}.heart-pop{animation:none}}
 
 /* The code, in the sheet the coach opened it from. White behind the squares
    whatever the theme is: a camera reads black on white, and a dark card with

@@ -1939,15 +1939,18 @@ SCREENS.week = function (args) {
     el("h2", {}, start === thisWeek ? t("aThisWeek") : t("aWeekOf", { date: shortDate(start) })),
     el("button", { class: "btn icon", "aria-label": t("aNextWeek"), onclick: () => go("week/" + addDays(start, 7)) }, arrow(1))
   );
-  const list = el("div", { class: "days" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
-  const card = el("div", { class: "card pad stack" }, head, list);
+  const list = el("div", { class: "days rise" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  const strip = el("div", { class: "daystrip" });
+  const card = el("div", { class: "card pad stack" }, head, strip, list);
 
   API.get("/api/week?start=" + start)
     .then(weekForPlan)
     .then((data) => {
       list.textContent = "";
       const any = data.days.some((d) => d.items && d.items.length);
-      for (const d of data.days) list.append(dayCard(d, today));
+      const cards = data.days.map((d) => dayCard(d, today));
+      list.append(...cards);
+      strip.append(...data.days.map((d, i) => stripDay(d, today, cards[i])));
       if (!any) list.append(el("p", { class: "empty" }, t("aNothingWeek")));
       startCountdowns();
     })
@@ -1968,20 +1971,47 @@ function shortDate(iso) {
   return isNaN(d) ? iso : d.toLocaleDateString(locale(), { day: "numeric", month: "short" });
 }
 
+/* One day: its name across the top, so the sessions under it have the whole
+   width of a phone rather than what a date column leaves them. Days already
+   gone are dimmed, so the eye lands on what is still to run. */
 function dayCard(d, today) {
   const date = new Date(d.date + "T00:00:00");
   const when = el(
     "div",
     { class: "day-date" },
-    el("div", { class: "wd" }, date.toLocaleDateString(locale(), { weekday: "short" })),
-    el("div", { class: "dm" }, date.toLocaleDateString(locale(), { day: "numeric", month: "short" }))
+    el("span", { class: "wd" }, date.toLocaleDateString(locale(), { weekday: "long" })),
+    el("span", { class: "dm" }, date.toLocaleDateString(locale(), { day: "numeric", month: "short" })),
+    d.date === today ? el("span", { class: "tag open" }, t("aToday")) : null
   );
-  const cls = "day" + (d.date === today ? " today" : "");
+  const cls = "day" + (d.date === today ? " today" : d.date < today ? " past" : "");
   const items = d.items || [];
-  if (!items.length) {
-    return el("div", { class: cls }, when, el("div", { class: "day-body" }, el("div", { class: "day-rest" }, t("aRestDay"))));
-  }
+  if (!items.length) return el("div", { class: cls + " rest" }, when, el("div", { class: "day-rest" }, t("aRestDay")));
   return el("div", { class: cls }, when, el("div", { class: "day-body slots" }, items.map((it) => slotRow(it, d.date))));
+}
+
+/* The week at a glance above the list: a letter, the date, and a dot for each
+   session. Tapping one brings that day up and lights it for a moment. */
+function stripDay(d, today, card) {
+  const date = new Date(d.date + "T00:00:00");
+  const n = (d.items || []).filter((it) => !it.cancelled).length;
+  const done = (d.items || []).some((it) => it.checked_in);
+  return el(
+    "button",
+    {
+      type: "button",
+      class: "sday" + (d.date === today ? " today" : d.date < today ? " past" : ""),
+      "aria-label": longDate(d.date),
+      onclick: () => {
+        card.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        card.classList.remove("flash");
+        void card.offsetWidth;
+        card.classList.add("flash");
+      },
+    },
+    el("span", { class: "sd-wd" }, date.toLocaleDateString(locale(), { weekday: "narrow" })),
+    el("span", { class: "sd-n num" }, String(date.getDate())),
+    el("span", { class: "sd-dots" + (done ? " done" : "") }, Array.from({ length: Math.min(n, 3) }, () => el("i")))
+  );
 }
 
 /* One thing on one day, and always a way in: a published workout opens the
@@ -3047,6 +3077,7 @@ SCREENS.feed = function () {
       list.textContent = "";
       FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
       list.append(telegramButton(), ...feedCards(d.tips || [], d.posts));
+      list.classList.add("rise");
       markFeedSeen(d.tips, d.posts);
     })
     .catch((e) => {
@@ -3122,12 +3153,31 @@ function postTitle(p) {
   return el("h2", {}, ok ? el("a", { class: "post-link", href: p.link_url, target: "_blank", rel: "noopener noreferrer" }, title) : title);
 }
 
+/* A long post shows its first few lines and a "Read more"; a short one shows
+   all of itself and no button. Whether it is long is only known once it is on
+   the page, so the button decides after the first paint. */
+function foldBody(kids) {
+  const body = el("div", { class: "post-body folded" }, kids);
+  const more = el("button", { type: "button", class: "linkish read-more hidden" }, t("aReadMore"));
+  more.addEventListener("click", () => {
+    const open = body.classList.toggle("folded") === false;
+    more.textContent = t(open ? "aShowLess" : "aReadMore");
+  });
+  requestAnimationFrame(() => {
+    if (body.scrollHeight > body.clientHeight + 4) more.classList.remove("hidden");
+    else body.classList.remove("folded");
+  });
+  return el("div", {}, body, more);
+}
+
 function postCard(p) {
   return reactable(
     "post:" + p.id,
     el(
       "article",
-      { class: "card pad stack post", dir: "auto" },
+      { class: "card pad stack post" + (p.photo_url ? " has-photo" : ""), dir: "auto" },
+      // The photo first and edge to edge: it is what stops the thumb.
+      p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "", loading: "lazy" }) : null,
       el(
         "div",
         { class: "post-head" },
@@ -3135,90 +3185,77 @@ function postCard(p) {
         published(p.published_at)
       ),
       postTitle(p),
-      p.photo_url ? el("img", { class: "post-photo", src: p.photo_url, alt: "" }) : null,
-      el("div", { class: "post-body" }, written(side(p, "body")))
+      foldBody(written(side(p, "body")))
     )
   );
 }
 
 /* ---------- reactions ------------------------------------------------------
-
-   A double tap on a card opens three faces; one of them sticks, in the corner
-   of the card, with how many other people chose it. Tapping your own again
-   takes it back. Double tap rather than a button because the faces are not
-   what the news screen is for — they are what you do when something lands.
+   Three faces along the foot of every card, each with how many chose it, so
+   what a tap does is there to be seen. Tapping your own again takes it back.
+   A double tap anywhere on the card is the shortcut for 💜, with a heart that
+   pops where it landed.
    ------------------------------------------------------------------------- */
 
 const FACES = ["👍", "💜", "🔥"];
 let FEED_FACES = { counts: {}, mine: {} };
 
-/* One face in a card's corner, with how many chose it. */
+/* One face on a card's foot, with how many chose it. */
 function reactButton(target, face, n, mine, draw) {
   return el(
     "button",
     {
       class: "react" + (mine === face ? " mine" : ""),
       type: "button",
+      "aria-pressed": mine === face ? "true" : "false",
       onclick: (e) => {
         e.stopPropagation();
         react(target, face, draw);
       },
     },
     face,
-    el("span", { class: "num" }, String(n))
+    n ? el("span", { class: "num" }, String(n)) : null
   );
 }
 
-/** The card, with its own corner of faces and the gesture that opens them. */
+/** The card, with its row of faces and the double tap that sends a heart. */
 function reactable(target, card) {
-  const corner = el("div", { class: "reacts" });
+  const bar = el("div", { class: "reacts" });
   const draw = () => {
-    corner.textContent = "";
+    bar.textContent = "";
     const counts = FEED_FACES.counts[target] || {};
     const mine = FEED_FACES.mine[target] || null;
-    for (const face of FACES) {
-      if (counts[face]) corner.append(reactButton(target, face, counts[face], mine, draw));
-    }
+    for (const face of FACES) bar.append(reactButton(target, face, counts[face] || 0, mine, draw));
   };
   draw();
 
-  const pick = () => {
-    if (card.querySelector(".react-pick")) return; // already open
-    const box = el(
-      "div",
-      { class: "react-pick" },
-      FACES.map((face) =>
-        el(
-          "button",
-          {
-            class: "react-big",
-            type: "button",
-            onclick: (e) => {
-              e.stopPropagation();
-              box.remove();
-              react(target, face, draw);
-            },
-          },
-          face
-        )
-      )
-    );
-    card.append(box);
-    // It closes itself: a picker left open on every card an athlete
-    // double-tapped past would be the screen filling up with faces.
-    setTimeout(() => box.remove(), 4000);
+  const heart = (x, y) => {
+    const box = card.getBoundingClientRect();
+    const pop = el("span", { class: "heart-pop", "aria-hidden": "true", style: "left:" + (x - box.left) + "px;top:" + (y - box.top) + "px" }, "💜");
+    card.append(pop);
+    setTimeout(() => pop.remove(), 800);
+    // A heart already given stays given: a double tap is a yes, never a take-back.
+    if (FEED_FACES.mine[target] !== "💜") react(target, "💜", draw);
   };
 
   card.classList.add("reactable");
-  card.append(corner);
-  card.addEventListener("dblclick", pick);
-  // A phone sends no dblclick on some browsers, so two taps inside half a
-  // second count as one here too.
+  card.append(bar);
+  // Not on a link or a button: those taps are for what they are.
+  const onCard = (e) => !e.target.closest("a,button");
+  card.addEventListener("dblclick", (e) => {
+    if (onCard(e)) heart(e.clientX, e.clientY);
+  });
+  // A phone sends no dblclick on some browsers, so two taps inside a third of
+  // a second count as one here too.
   let last = 0;
-  card.addEventListener("touchend", () => {
+  card.addEventListener("touchend", (e) => {
     const now = Date.now();
-    if (now - last < 500) pick();
-    last = now;
+    const tch = e.changedTouches[0];
+    if (now - last < 350 && onCard(e) && tch) {
+      e.preventDefault(); // or the browser zooms, and then sends the dblclick too
+      heart(tch.clientX, tch.clientY);
+      last = 0;
+    } else last = now;
   });
   return card;
 }
@@ -3253,15 +3290,15 @@ function tipCard(tip) {
     "tip:" + tip.id,
     el(
     "article",
-    { class: "card pad stack post tip", dir: "auto" },
+    { class: "card pad stack post tip" + (tip.photo ? " has-photo" : ""), dir: "auto" },
     // The day it went up, not the day it was last touched: fixing a typo in
     // an article does not republish it.
+    tip.photo ? el("img", { class: "post-photo", src: tip.photo, alt: "", loading: "lazy" }) : null,
     el("div", { class: "post-head" },
       el("span", { class: "cloud-kicker" }, t("aCoachTip")),
       published(tip.created || tip.updated)),
     s.title ? el("h2", {}, s.title) : null,
-    tip.photo ? el("img", { class: "post-photo", src: tip.photo, alt: "" }) : null,
-    el("div", { class: "post-body" }, written(s.body)),
+    foldBody(written(s.body)),
     // The coach's name and nothing else. The byline icon that goes with it
     // elsewhere carries no size of its own, and there is no rule here to give
     // it one, so it drew the width of the card.
