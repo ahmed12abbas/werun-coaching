@@ -446,7 +446,9 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    remember to remove it. */
 .splash{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
   background:var(--bg);animation:splashOut .25s ease 1.75s forwards}
-.splash-row{display:flex;align-items:center;justify-content:center;gap:4vw}
+/* ltr whatever the language: the two marks are a lockup, not a sentence, so
+   Arabic must not swap them — WE RUN on the left, the swoosh on the right. */
+.splash-row{display:flex;align-items:center;justify-content:center;gap:4vw;direction:ltr}
 .splash .splash-row img{width:min(38vw,170px)}
 .splash-swoosh-dark,[data-theme="dark"] .splash-swoosh-light{display:none}
 [data-theme="dark"] .splash-swoosh-dark{display:block}
