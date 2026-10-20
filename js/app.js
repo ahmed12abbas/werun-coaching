@@ -1039,6 +1039,9 @@ SCREENS.home = function (args, user) {
     { class: "stack" },
     el("div", { class: "card pad" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })))
   );
+  // Asked for alongside the week rather than after it, and drawn into the
+  // goal card whenever it lands, so a slow watch service holds up nothing.
+  const miles = loadMileage();
 
   API.get("/api/week?start=" + start)
     .then(weekForPlan)
@@ -1046,7 +1049,7 @@ SCREENS.home = function (args, user) {
       const week = weekSoFar(data.days, today);
       box.textContent = "";
       box.append(
-        goalCard(week.done, user),
+        goalCard(week.done, user, miles),
         homeList("aMySessions", week.ahead.filter((x) => x.it.registered), "aNoneDown"),
         homeList("aOpenSessions", week.ahead.filter((x) => !x.it.registered), "aNoneOpen")
       );
@@ -1058,10 +1061,7 @@ SCREENS.home = function (args, user) {
       box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
     });
 
-  const mileage = el("div", { class: "stack" });
-  loadMileage(mileage);
-
-  return el("div", { class: "stack" }, planToggle(), greetingHeader(user), box, mileage);
+  return el("div", { class: "stack" }, planToggle(), greetingHeader(user), box);
 };
 
 /* The watch services an athlete can link. Connecting and disconnecting live
@@ -1095,32 +1095,31 @@ function connectButton(path, attrs, content) {
   return btn;
 }
 
-/* "My weekly mileage": the week from every linked service, or — when none is
-   linked — a card pointing at Settings. Loaded on its own so a Strava hiccup
-   cannot hold up the week above it; a service that errors (not configured, or
-   logged out) is left out, and if every one errors the card stays away. */
-function loadMileage(box) {
-  Promise.allSettled(SERVICES.map((s) => API.post(s.path, { action: "home" }))).then((rs) => {
-    const linked = rs
-      .map((r, i) => (r.status === "fulfilled" && r.value.connected && r.value.week ? weekCard(SERVICES[i].name, r.value.week) : null))
-      .filter(Boolean);
+/* The week's kilometres for the goal card: `km` is { source, week } from a
+   linked service or null, and `offerIv` says Intervals.icu is set up on the
+   Worker but this athlete has not linked it, so the card offers the button.
+   A service that errors (not configured, or logged out) is simply left out.
+   One service, not a sum — two linked apps usually log the same run — and
+   Intervals.icu wins, being last in SERVICES and the one still offered. */
+function loadMileage() {
+  return Promise.allSettled(SERVICES.map((s) => API.post(s.path, { action: "home" }))).then((rs) => {
     const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
-    if (iv && iv.status === "fulfilled" && iv.value.connected) syncIntervals();
-    else if (iv && iv.status === "fulfilled" && !maybeWatchGuide()) ivNudge();
-    if (linked.length) box.append(...linked);
-    else if (rs.some((r) => r.status === "fulfilled")) box.append(noMileageCard());
+    const ivUp = !!iv && iv.status === "fulfilled";
+    if (ivUp && iv.value.connected) syncIntervals();
+    else if (ivUp && !maybeWatchGuide()) ivNudge();
+    const km = rs
+      .map((r, i) => (r.status === "fulfilled" && r.value.connected && r.value.week ? { source: SERVICES[i].name, week: r.value.week } : null))
+      .filter(Boolean)
+      .pop();
+    return { km: km || null, offerIv: ivUp && !iv.value.connected };
   });
 }
 
-function noMileageCard() {
-  return el(
-    "div",
-    { class: "card pad stack" },
-    el("h3", {}, t("aMileage")),
-    el("p", { class: "muted small" }, t("aMileageEmpty")),
-    el("button", { type: "button", class: "btn primary block", onclick: openApps }, t("aMileageGo"))
-  );
-}
+// Intervals.icu's own mark (their favicon.svg, editor metadata cut), drawn
+// here like the avatars rather than fetched from their site on every Home.
+const IV_LOGO =
+  '<svg viewBox="0 0 163.29 163.29" aria-hidden="true"><circle fill="#dd0447" r="81.64" cx="81.64" cy="81.55"/>' +
+  '<g fill="#fff" transform="matrix(1.504571,0,0,1.504571,6.462733,5.414828)"><path d="M 98.569,57.02 77.278,54.093 69.022,17.449 69.01,17.389 C 68.621,15.678 67.296,14.25 65.473,13.817 62.921,13.212 60.361,14.79 59.756,17.342 L 48.048,66.696 37.007,32.288 36.992,32.24 c -0.437,-1.327 -1.514,-2.415 -2.965,-2.803 -2.286,-0.612 -4.636,0.746 -5.247,3.032 L 22.842,54.662 1.464,57.02 c -0.633,0.07 -1.156,0.57 -1.229,1.229 -0.084,0.763 0.466,1.449 1.229,1.534 l 24.618,2.715 c 1.702,0.189 3.342,-0.871 3.825,-2.573 l 0.123,-0.434 3.177,-11.179 11.488,35.134 c 0.433,1.292 1.5,2.371 2.918,2.735 2.224,0.571 4.491,-0.769 5.062,-2.993 l 0.007,-0.026 11.338,-44.156 4.502,20.453 0.132,0.603 c 0.465,2.084 2.459,3.497 4.611,3.201 l 25.302,-3.479 c 0.604,-0.083 1.104,-0.558 1.191,-1.191 0.108,-0.765 -0.426,-1.468 -1.189,-1.573 z"/></g></svg>';
 
 /* Settings, scrolled to the apps card. */
 function openApps() {
@@ -1152,9 +1151,9 @@ function appsCard() {
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
-// One card for every watch service: the week has the same shape from each (lib/week.js weekSummary).
-function weekCard(source, week) {
-  const dayRows = week.days
+// The week has the same shape from every service (lib/week.js weekSummary).
+function kmDays(week) {
+  const rows = week.days
     .map((distance_m, i) => ({ distance_m, i }))
     .filter((d) => d.distance_m > 0)
     .map((d) => {
@@ -1162,46 +1161,46 @@ function weekCard(source, week) {
       date.setUTCDate(date.getUTCDate() + d.i);
       return el(
         "div",
-        { class: "row" },
-        el("p", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short" })),
-        el("span", { class: "muted small", dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km")
+        { class: "loop-day" },
+        el("span", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short" })),
+        el("span", { dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km")
       );
     });
-  const body = dayRows.length
-    ? [el("div", { class: "row", style: "align-items:center;gap:16px" }, stravaRing(week), el("div", { class: "stack grow" }, ...dayRows))]
-    : [el("p", { class: "muted small" }, t("aStravaNone"))];
-  return el(
-    "div",
-    { class: "card pad stack" },
-    el("div", { class: "row", style: "align-items:baseline" }, el("h3", { class: "grow" }, t("aMileage")), el("span", { class: "muted small" }, source)),
-    ...body
-  );
+  return rows.length ? el("div", {}, rows) : el("p", { class: "muted small" }, t("aStravaNone"));
 }
 
-// A donut of the week's daily split, conic-gradient rather than drawn SVG —
-// CSS already does the arc math, and there is no need for animation here.
-function stravaRing(week) {
-  const total = week.total_m || 0;
-  let background = "var(--line)";
-  if (total > 0) {
-    let acc = 0;
-    const stops = week.days
-      .map((m, i) => ({ m, i }))
-      .filter((d) => d.m > 0)
-      .map((d) => {
-        const from = (acc / total) * 100;
-        acc += d.m;
-        const to = (acc / total) * 100;
-        const shade = Math.min(100, 35 + d.i * 11); // Sun..Sat, a touch stronger each day
-        return "color-mix(in srgb, var(--brand) " + shade + "%, var(--card)) " + from.toFixed(2) + "% " + to.toFixed(2) + "%";
-      });
-    background = "conic-gradient(" + stops.join(",") + ")";
+// The week's daily split as a ring, conic-gradient rather than drawn SVG —
+// CSS already does the arc math.
+function kmRing(week) {
+  const total = week.total_m;
+  if (!(total > 0)) return "var(--line)";
+  let acc = 0;
+  const stops = week.days
+    .map((m, i) => ({ m, i }))
+    .filter((d) => d.m > 0)
+    .map((d) => {
+      const from = (acc / total) * 100;
+      acc += d.m;
+      const to = (acc / total) * 100;
+      const shade = Math.min(100, 35 + d.i * 11); // Sun..Sat, a touch stronger each day
+      return "color-mix(in srgb, var(--brand) " + shade + "%, var(--card)) " + from.toFixed(2) + "% " + to.toFixed(2) + "%";
+    });
+  return "conic-gradient(" + stops.join(",") + ")";
+}
+
+// Sessions against the goal as one arc per session, a small gap between —
+// the pips this replaced, bent round. A week past the goal grows an arc.
+function sessionsRing(done, goal) {
+  const n = Math.max(goal, done);
+  const seg = 360 / n;
+  const gap = n > 1 ? 5 : 0;
+  const stops = [];
+  for (let i = 0; i < n; i++) {
+    const c = i < done ? "var(--brand)" : "var(--line)";
+    stops.push(c + " " + (i * seg).toFixed(2) + "deg " + ((i + 1) * seg - gap).toFixed(2) + "deg");
+    stops.push("transparent 0 " + ((i + 1) * seg).toFixed(2) + "deg");
   }
-  return el(
-    "div",
-    { class: "strava-ring", style: "background:" + background },
-    el("div", { class: "strava-ring-hole" }, el("strong", { dir: "ltr" }, (total / 1000).toFixed(1)), el("span", { class: "muted small" }, "km"))
-  );
+  return "conic-gradient(from " + gap / 2 + "deg," + stops.join(",") + ")";
 }
 
 // ponytail: a full reload after disconnect rather than re-rendering the card in place — swap if this needs to feel snappier.
@@ -1461,29 +1460,84 @@ function weekSoFar(days, today) {
   return { done: done, ahead: ahead };
 }
 
-/* Sessions run against sessions meant. The pips rather than a bar, because
-   three of five is a thing you count at a glance and 60% is not; a week that
-   went past the goal grows a pip rather than overflowing. */
-function goalCard(done, user) {
+/* Sessions run against sessions meant, and the kilometres they came to, as
+   two rings one inside the other: the outer is the goal, one arc a session
+   (three of five is a thing you count at a glance and 60% is not), the inner
+   the week's daily split. Tapping the rings swaps which one the centre reads
+   out. The kilometres land on their own (`miles`, see loadMileage) and are
+   drawn in when they do; until then, or without any, the rings are sessions. */
+function goalCard(done, user, miles) {
   const goal = Math.max(1, Number(user.week_goal) || 3);
-  const pips = el("div", { class: "pips" });
-  for (let i = 0; i < Math.max(goal, done); i++) pips.append(el("span", { class: "pip" + (i < done ? " on" : "") }));
+  const inner = el("span", { class: "loop-in" });
+  const n = el("span", { class: "loop-n num", dir: "ltr" });
+  const unit = el("span", { class: "loop-u" });
+  const ring = el(
+    "button",
+    { type: "button", class: "loop", disabled: true, "aria-label": t("aLoopSwap") },
+    el("span", { class: "loop-out", style: "background:" + sessionsRing(done, goal) }),
+    inner,
+    el("span", { class: "loop-hole" }, n, unit)
+  );
+  const source = el("span", { class: "loop-src muted small" });
+  const kmStat = el("div", { class: "loop-stat km" });
+  const detail = el("div", {});
+  const sStat = el(
+    "div",
+    { class: "loop-stat on" },
+    el("b", { class: "num", dir: "ltr" }, done + " / " + goal),
+    el("span", { class: "muted small" }, t("aLoopSessions"))
+  );
+  let week = null;
+  let km = false;
+
+  const draw = () => {
+    ring.classList.toggle("km", km);
+    // Two numbers and a slash read backwards in an Arabic line otherwise.
+    n.textContent = km ? (week.total_m / 1000).toFixed(1) : done + "/" + goal;
+    unit.textContent = km ? "km" : t("aLoopSessions");
+    sStat.classList.toggle("on", !km);
+    kmStat.classList.toggle("on", km);
+    detail.textContent = "";
+    detail.append(km ? kmDays(week) : el("p", { class: "muted small" }, done >= goal ? t("aGoalHit") : t("aGoalLeft", { n: goal - done })));
+  };
+  ring.addEventListener("click", () => {
+    km = !km;
+    draw();
+  });
+  draw();
+
+  miles.then((r) => {
+    const m = r.km;
+    // Not on Intervals.icu: the one-tap way on, in the corner the logo
+    // takes once they are.
+    if (r.offerIv) {
+      source.append(
+        connectButton("/api/intervals", { type: "button", class: "btn sm iv-connect", "aria-label": t("aIntervalsConnect") },
+          [el("span", { class: "iv-logo", html: IV_LOGO }), t("aConnectShort")])
+      );
+    }
+    if (m) {
+      week = Object.assign({}, m.week, { total_m: m.week.total_m || 0 });
+      if (m.source === "Intervals.icu") source.append(el("span", { class: "iv-logo", title: m.source, html: IV_LOGO }));
+      else source.prepend(m.source);
+      inner.style.background = kmRing(week);
+      kmStat.append(
+        el("b", { class: "num", dir: "ltr" }, (week.total_m / 1000).toFixed(1)),
+        el("span", { class: "muted small" }, "km")
+      );
+      ring.disabled = false;
+    }
+  });
+
   return el(
     "div",
     { class: "card pad stack" },
+    el("div", { class: "goal-head" }, el("h2", { class: "grow" }, t("aThisWeek")), source),
     el(
       "div",
-      { class: "goal-head" },
-      el("h2", { class: "grow" }, t("aThisWeek")),
-      // Two numbers and a slash read backwards in an Arabic line otherwise.
-      el("span", { class: "goal-n num", dir: "ltr" }, done + " / " + goal)
-    ),
-    pips,
-    el(
-      "div",
-      { class: "goal-foot" },
-      el("p", { class: "muted small grow" }, done >= goal ? t("aGoalHit") : t("aGoalLeft", { n: goal - done })),
-      coachCodeButton()
+      { class: "loop-wrap" },
+      ring,
+      el("div", { class: "loop-side" }, sStat, kmStat, detail, coachCodeButton())
     )
   );
 }
@@ -1699,6 +1753,9 @@ function homeRow(x) {
   // where, what it is worth, how long until it starts — and who is taking it
   // is the same name on nearly every row of the week; it is on the session's
   // own card a tap away, where it means something.
+  // Everything under the title on one wrapping line, so a row is two lines
+  // and the week reads straight down. A coach or leader also sees how many
+  // are down for it — nobody's name; an athlete gets no such field at all.
   const meta = el(
     "div",
     { class: "slot-meta" },
@@ -1706,21 +1763,17 @@ function homeRow(x) {
       ? el("a", { class: "place", href: it.map_url, target: "_blank", rel: "noopener noreferrer",
                   title: t("aOpenMap"), onclick: (e) => e.stopPropagation() }, place)
       : place ? el("span", { class: "place" }, place) : null,
-    el("span", {}, t("aPts", { n: it.points }))
+    what ? el("span", { dir: "auto" }, what) : null,
+    el("span", {}, t("aPts", { n: it.points })),
+    Auth.isCoach() && it.coming != null ? el("span", { class: "coming" }, t("aComing", { n: it.coming })) : null
   );
   const soon = countdownPill(it, x.date);
   if (soon) meta.append(soon);
 
-  // A coach or leader's own corner of the card: how many are down for it,
-  // nobody's name — an athlete gets no such field from the Worker at all.
-  const coming =
-    Auth.isCoach() && it.coming != null
-      ? el("span", { class: "coming-badge", title: t("aComing", { n: it.coming }) }, String(it.coming))
-      : null;
-
   return el(
     "div",
-    { class: "hrow" },
+    // Not down for it yet: one button, small, at the end of the row.
+    { class: "hrow" + (it.registered || it.checked_in ? "" : " open") },
     el(
       "div",
       { class: "hrow-when" },
@@ -1731,10 +1784,8 @@ function homeRow(x) {
       "div",
       { class: "grow" },
       el("button", { class: "hrow-title", type: "button", onclick: () => openItem(it, x.date) }, side(it, "title")),
-      what ? el("div", { class: "slot-desc", dir: "auto" }, what) : null,
       meta
     ),
-    coming,
     homeActions(x)
   );
 }

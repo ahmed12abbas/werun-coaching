@@ -135,9 +135,6 @@ button.day:hover{background:var(--brand-soft)}
 .chip.big{font-size:15px;padding:6px 14px 5px}
 
 /* ---- strava ---- */
-.strava-ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;flex:none}
-.strava-ring-hole{width:60px;height:60px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center;line-height:1.15}
-.strava-ring-hole strong{font-size:17px}
 
 /* ---- points ---- */
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -298,10 +295,7 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
    instruction to "that is not our code". */
 .scan-note{margin:0;font-size:13.5px;color:var(--muted);min-height:2.8em}
 
-/* The line under the pips, and the coach's button at the end of it. */
-.goal-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.goal-foot p{margin:0}
-.code-btn{flex:none;text-decoration:none;white-space:nowrap}
+.code-btn{flex:none;text-decoration:none;white-space:nowrap;align-self:flex-start}
 /* Lit on the same window, and by the same ticker, as the week's hot row. */
 .code-btn.hot{border-color:var(--brand);color:var(--brand);
   animation:slotGlow 2.4s ease-in-out infinite alternate}
@@ -566,12 +560,39 @@ html[data-event="nationalday"] .brand-logo{
 /* ---- home ----
    Sessions run against sessions meant, then the two lists: what you are down
    for, and what is left. */
-.goal-head{display:flex;align-items:baseline;gap:10px}
+.goal-head{display:flex;align-items:center;gap:10px}
 .goal-head h2{margin:0}
-.goal-n{font-family:var(--display);font-size:34px;font-weight:600;line-height:1;color:var(--brand)}
-.pips{display:flex;gap:6px;flex-wrap:wrap}
-.pip{flex:1 1 0;min-width:14px;height:10px;border-radius:5px;background:var(--line)}
-.pip.on{background:var(--brand)}
+/* The two rings: each a full disc masked down to a band, so either can fade
+   on its own when the centre is reading out the other. */
+.loop-wrap{display:flex;align-items:center;gap:16px}
+.loop{position:relative;flex:none;width:128px;height:128px;padding:0;border:0;border-radius:50%;
+  background:none;color:inherit;font:inherit;cursor:pointer;transition:transform .15s}
+.loop:disabled{cursor:default;opacity:1}
+.loop:not(:disabled):active{transform:scale(.96)}
+.loop-out,.loop-in{position:absolute;border-radius:50%;transition:opacity .25s;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px))}
+.loop-out{inset:0}
+.loop-in{inset:15px;background:var(--line)}
+.loop:not(.km) .loop-in,.loop.km .loop-out{opacity:.3}
+.loop-hole{position:absolute;inset:30px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;line-height:1.1}
+.loop-n{font-family:var(--display);font-size:26px;font-weight:600;color:var(--brand)}
+.loop-u{font-size:11.5px;color:var(--muted)}
+.loop-side{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.loop-side p{margin:0}
+.loop-stat{display:flex;align-items:baseline;gap:6px;opacity:.55;transition:opacity .25s}
+.loop-stat:empty{display:none}
+.loop-stat.on{opacity:1}
+.loop-stat b{font-family:var(--display);font-size:20px;font-weight:600}
+.loop-stat.on b{color:var(--brand)}
+.loop-day{display:flex;gap:8px;font-size:13px;color:var(--muted)}
+.loop-src{display:inline-flex;align-items:center;gap:8px}
+.iv-logo{display:inline-flex;width:24px;height:24px;flex:none}
+.iv-logo svg{width:100%;height:100%}
+.iv-connect{gap:6px;padding-inline-start:6px}
+.iv-connect .iv-logo{width:20px;height:20px}
+@media (prefers-reduced-motion:reduce){.loop,.loop-out,.loop-in,.loop-stat{transition:none}}
 
 .hrows{display:grid;gap:2px}
 .hrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:11px;padding:10px 0}
@@ -589,11 +610,12 @@ html[data-event="nationalday"] .brand-logo{
 .hrow-do{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap}
 .hrow-do .btn{flex:1 1 auto}
 .hrow .tag{flex:none;font-size:12px;padding:2px 9px 0}
-/* A coach's own corner of the card: how many are coming, as a number rather
-   than a sentence — .grow's flex:1 pushes it to the row's far edge. */
-.coming-badge{flex:none;align-self:flex-start;width:34px;height:34px;border-radius:10px;
-  background:var(--brand);color:var(--brand-ink);display:flex;align-items:center;
-  justify-content:center;font-family:var(--display);font-size:16px;font-weight:600}
+/* Not down for it yet: one row, the button small at its end rather than a
+   full-width bar under it. */
+.hrow.open{flex-wrap:nowrap;align-items:center}
+.hrow.open .hrow-when{align-self:flex-start}
+.hrow.open .hrow-do{flex:none}
+.hrow .slot-meta .coming{color:var(--brand);font-weight:650}
 
 /* The face and the line beside it. Top-aligned, because a two-line box next
    to a 78px circle centres into a wobble. */
