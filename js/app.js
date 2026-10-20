@@ -1084,12 +1084,20 @@ SCREENS.home = function (args, user) {
     .then(weekForPlan)
     .then((data) => {
       const week = weekSoFar(data.days, today);
+      const going = week.ahead.filter((x) => x.it.registered);
+      const open = week.ahead.filter((x) => !x.it.registered);
+      // Lifted out of its list rather than shown twice. A list it leaves empty
+      // goes too: "nothing down" under a card saying you are down is wrong.
+      const next = going[0] || open[0] || null;
+      const rest = (rows) => rows.filter((x) => x !== next);
       box.textContent = "";
-      box.append(
+      // The browser's own append, which would write "null" for a card left out.
+      box.append(...[
+        next ? nextCard(next) : null,
         goalCard(week.done, user, miles),
-        homeList("aMySessions", week.ahead.filter((x) => x.it.registered), "aNoneDown"),
-        homeList("aOpenSessions", week.ahead.filter((x) => !x.it.registered), "aNoneOpen")
-      );
+        going.length && !rest(going).length ? null : homeList("aMySessions", rest(going), "aNoneDown"),
+        open.length && !rest(open).length ? null : homeList("aOpenSessions", rest(open), "aNoneOpen"),
+      ].filter(Boolean));
       lightCoachCode(box, data.days);
       startCountdowns();
     })
@@ -1469,9 +1477,9 @@ function greetingHeader(user) {
   const key = hour < 12 ? "aGreetMorning" : hour < 18 ? "aGreetAfternoon" : "aGreetEvening";
   return el(
     "div",
-    { class: "goal-head" },
-    el("h2", { class: "grow" }, t(key, { name: firstName(user.name) }), " ", roleTag(roleOf(user))),
-    el("span", { class: "muted small" }, new Date().toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }))
+    { class: "greet" },
+    el("span", { class: "greet-date" }, new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" })),
+    el("h1", {}, t(key, { name: firstName(user.name) }), " ", roleTag(roleOf(user)))
   );
 }
 
@@ -1765,6 +1773,38 @@ function codeLoop(box, id, date) {
       });
   };
   tick();
+}
+
+/* The one session that matters most right now, big, at the top of Home: the
+   next one they are down for, or failing that the next one they could join.
+   Everything needed to act on it is on the card, so most mornings Home is
+   one tap. */
+function nextCard(x) {
+  const it = x.it;
+  const day = new Date(x.date + "T00:00:00");
+  const place = side(it, "place");
+  const what = side(it, "desc");
+  return el(
+    "div",
+    { class: "card pad stack next-card" },
+    el("div", { class: "next-kicker" }, el("span", {}, t("aNextUp")), countdownPill(it, x.date)),
+    el("button", { class: "next-title", type: "button", onclick: () => openItem(it, x.date) }, side(it, "title")),
+    el(
+      "div",
+      { class: "next-when" },
+      el("span", { class: "next-chip" }, day.toLocaleDateString(locale(), { weekday: "long" })),
+      el("span", { class: "next-chip num" }, prettyTime(it, x.date)),
+      el("span", { class: "next-chip" }, t("aPts", { n: it.points })),
+      Auth.isCoach() && it.coming != null ? el("span", { class: "next-chip coming" }, t("aComing", { n: it.coming })) : null
+    ),
+    what ? el("div", { class: "next-desc", dir: "auto" }, what) : null,
+    place
+      ? it.map_url
+        ? el("a", { class: "place next-place", href: it.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
+        : el("span", { class: "next-place" }, place)
+      : null,
+    homeActions(x)
+  );
 }
 
 function homeList(titleKey, rows, emptyKey) {

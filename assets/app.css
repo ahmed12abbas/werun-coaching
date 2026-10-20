@@ -724,6 +724,7 @@ html[data-event="nationalday"] .brand-logo{
 .rise>*{animation:rise .6s cubic-bezier(.2,.7,.2,1) backwards}
 .rise>:nth-child(2){animation-delay:.1s}
 .rise>:nth-child(3){animation-delay:.2s}
+.rise>:nth-child(4){animation-delay:.3s}
 @keyframes rise{from{opacity:0;transform:translateY(28px)}}
 @media (prefers-reduced-motion:reduce){.rise>*{animation:none}}
 
@@ -731,10 +732,36 @@ html[data-event="nationalday"] .brand-logo{
 .hrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:11px;padding:10px 0}
 .hrow+.hrow{border-top:1px solid var(--line)}
 .hrow .grow{flex:1 1 150px;min-width:0}
-.hrow-when{flex:none;width:66px;padding-top:2px}
-.hrow-when .wd{display:block;font-family:var(--display);font-size:17px;font-weight:600;
-  text-transform:uppercase;line-height:1.1;color:var(--muted)}
-.hrow-when .num{font-size:13.5px;color:var(--muted)}
+/* Day and time as one chip, the same look as the week's times. */
+.hrow-when{flex:none;width:66px;padding:5px 0 4px;border-radius:10px;background:var(--brand-soft);text-align:center}
+.hrow-when .wd{display:block;font-family:var(--display);font-size:16px;font-weight:600;
+  text-transform:uppercase;line-height:1.1;color:var(--brand-deep)}
+.hrow-when .num{font-size:12px;font-weight:650;color:var(--brand-deep);white-space:nowrap}
+[dir="rtl"] .hrow-when{width:76px}
+
+/* ---- home: the greeting, and the next session big ---- */
+.greet{display:grid;gap:2px}
+.greet-date{font-size:13px;color:var(--muted);font-weight:600}
+.greet h1{margin:0;font-size:26px;line-height:1.15;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.greet h1 .tag{font-size:12px;padding:2px 9px 0}
+.next-card{background:var(--brand-soft);border:1.5px solid var(--brand)}
+.next-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-deep)}
+[dir="rtl"] .next-kicker{letter-spacing:0}
+.next-kicker .countdown{text-transform:none;letter-spacing:0;font-size:13px}
+.next-title{padding:0;border:0;background:none;color:inherit;font-family:var(--display);font-size:28px;font-weight:600;
+  line-height:1.1;text-align:start;cursor:pointer;text-transform:uppercase}
+.next-title:hover{color:var(--brand)}
+.next-when{display:flex;flex-wrap:wrap;gap:6px}
+.next-chip{background:var(--card);border-radius:999px;padding:4px 11px 3px;font-size:13px;font-weight:650}
+.next-chip.coming{color:var(--brand)}
+.next-chip.num{font-family:inherit;font-size:13px}
+.next-desc{font-size:14px}
+.next-place{font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
+.next-place::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
+.next-card .hrow-do{display:flex;gap:8px;flex-wrap:wrap}
+.next-card .hrow-do .btn{flex:1 1 auto;padding-block:11px}
+.next-card>.tag{align-self:flex-start}
 /* The title is the way into the session, so it is a button — and looks like
    the line of text it replaced, not like a button. */
 .hrow-title{padding:0;border:0;background:none;font:inherit;font-weight:650;line-height:1.3;
