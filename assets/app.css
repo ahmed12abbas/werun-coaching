@@ -172,7 +172,7 @@ button.day:hover{background:var(--brand-soft)}
 
 /* ---- the coach's line across the top ---- */
 .announce{background:var(--brand-soft);color:var(--brand-deep);border:1px solid var(--brand);
-  border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:14px}
+  border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:14px;text-align:center}
 a.announce.link{display:block;text-decoration:none}
 
 /* ---- the feed ---- */
