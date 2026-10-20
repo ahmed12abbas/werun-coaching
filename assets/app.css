@@ -171,6 +171,18 @@ button.day:hover{background:var(--brand-soft)}
 .announce{background:var(--brand-soft);color:var(--brand-deep);border:1px solid var(--brand);
   border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:14px;text-align:center}
 a.announce.link{display:block;text-decoration:none}
+/* ...and runs across it like a news ticker: the line starts a full width off
+   the far edge and travels its own width plus that. Arabic runs the other way.
+   Held still on hover; in reduced motion it is simply there, wrapped. */
+.announce{overflow:hidden;white-space:nowrap}
+/* Edge to edge, like .apptop: out through .wrap's padding, sides and corners off. */
+.announce{margin-inline:-16px;border-inline:0;border-radius:0}
+.ticker{display:inline-block;padding-inline-start:100%;animation:ticker var(--dur,12s) linear infinite}
+.announce:dir(rtl) .ticker{animation-name:tickerRtl}
+.announce:hover .ticker{animation-play-state:paused}
+@keyframes ticker{to{transform:translateX(-100%)}}
+@keyframes tickerRtl{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.announce{white-space:normal}.ticker{animation:none;padding:0}}
 
 /* ---- the feed ---- */
 .post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -569,9 +581,17 @@ html[data-event="nationalday"] .brand-logo{
   background:none;color:inherit;font:inherit;cursor:pointer;transition:transform .15s}
 .loop:disabled{cursor:default;opacity:1}
 .loop:not(:disabled):active{transform:scale(.96)}
+/* They sweep round once as Home opens: a second mask layer, a wedge of
+   --sweep degrees, cut against the band. Without @property the wedge is
+   simply whole (the var fallback), so an old browser draws the ring still. */
+@property --sweep{syntax:"<angle>";inherits:true;initial-value:360deg}
 .loop-out,.loop-in{position:absolute;border-radius:50%;transition:opacity .25s;
-  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));
-  mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px))}
+  -webkit-mask:conic-gradient(#000 var(--sweep,360deg),transparent 0),radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));
+  -webkit-mask-composite:source-in;
+  mask:conic-gradient(#000 var(--sweep,360deg),transparent 0),radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));
+  mask-composite:intersect}
+.loop{animation:loopSweep 1.2s cubic-bezier(.3,.7,.2,1) .2s backwards}
+@keyframes loopSweep{from{--sweep:0deg}}
 .loop-out{inset:0}
 .loop-in{inset:15px;background:var(--line)}
 .loop:not(.km) .loop-in,.loop.km .loop-out{opacity:.3}
@@ -592,7 +612,15 @@ html[data-event="nationalday"] .brand-logo{
 .iv-logo svg{width:100%;height:100%}
 .iv-connect{gap:6px;padding-inline-start:6px}
 .iv-connect .iv-logo{width:20px;height:20px}
-@media (prefers-reduced-motion:reduce){.loop,.loop-out,.loop-in,.loop-stat{transition:none}}
+@media (prefers-reduced-motion:reduce){.loop,.loop-out,.loop-in,.loop-stat{transition:none}.loop{animation:none}}
+
+/* The cards rise into place a beat apart, as on /about. backwards, not both:
+   a fill left holding a transform would trap anything fixed inside a card. */
+.rise>*{animation:rise .6s cubic-bezier(.2,.7,.2,1) backwards}
+.rise>:nth-child(2){animation-delay:.1s}
+.rise>:nth-child(3){animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}}
+@media (prefers-reduced-motion:reduce){.rise>*{animation:none}}
 
 .hrows{display:grid;gap:2px}
 .hrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:11px;padding:10px 0}

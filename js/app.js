@@ -390,10 +390,13 @@ function announcement() {
   // Only a web address is ever made a link; the Worker checks it on the way in
   // and this checks again on the way out, since it lands in an href.
   const url = Auth.club.announcement_url || "";
+  // Runs across like a news ticker; the time grows with the line, so a long
+  // one crosses at the same reading speed as a short one.
+  const line = el("span", { class: "ticker", style: "--dur:" + Math.max(8, text.length * 0.22).toFixed(1) + "s" }, text);
   if (/^https?:\/\/\S+$/i.test(url)) {
-    return el("a", { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer", dir: "auto" }, text);
+    return el("a", { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer", dir: "auto" }, line);
   }
-  return el("div", { class: "announce", dir: "auto" }, text);
+  return el("div", { class: "announce", dir: "auto" }, line);
 }
 
 function appNav(current) {
@@ -1036,7 +1039,7 @@ SCREENS.home = function (args, user) {
   const today = localISO(new Date());
   const box = el(
     "div",
-    { class: "stack" },
+    { class: "stack rise" },
     el("div", { class: "card pad" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })))
   );
   // Asked for alongside the week rather than after it, and drawn into the
