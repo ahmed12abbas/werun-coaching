@@ -381,22 +381,32 @@ function appendFoot(app, route) {
     el("a", { href: "/about" }, t("aboutUs")), " · ", el("a", { href: "/privacy" }, t("privacy"))));
 }
 
+// Set once the line has run its two crossings and folded away, so the next
+// screen does not bring it back until the app is opened again.
+let announceDone = false;
+
 /** The coach's line across the top of the app, in the reader's language. */
 function announcement() {
   const text = I18N.lang === "ar"
     ? Auth.club.announcement_ar || Auth.club.announcement_en
     : Auth.club.announcement_en || Auth.club.announcement_ar;
-  if (!text) return null;
+  if (!text || announceDone) return null;
   // Only a web address is ever made a link; the Worker checks it on the way in
   // and this checks again on the way out, since it lands in an href.
   const url = Auth.club.announcement_url || "";
   // Runs across like a news ticker; the time grows with the line, so a long
   // one crosses at the same reading speed as a short one.
-  const line = el("span", { class: "ticker", style: "--dur:" + Math.max(8, text.length * 0.22).toFixed(1) + "s" }, text);
-  if (/^https?:\/\/\S+$/i.test(url)) {
-    return el("a", { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer", dir: "auto" }, line);
-  }
-  return el("div", { class: "announce", dir: "auto" }, line);
+  const line = el("span", { class: "ticker" }, text);
+  const attrs = { class: "announce", dir: "auto", style: "--dur:" + Math.max(8, text.length * 0.22).toFixed(1) + "s" };
+  const node = /^https?:\/\/\S+$/i.test(url)
+    ? el("a", Object.assign(attrs, { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer" }), line)
+    : el("div", attrs, line);
+  node.addEventListener("animationend", (e) => {
+    if (e.animationName !== "announceOut") return;
+    announceDone = true;
+    node.remove();
+  });
+  return node;
 }
 
 function appNav(current) {

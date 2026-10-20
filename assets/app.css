@@ -177,12 +177,15 @@ a.announce.link{display:block;text-decoration:none}
 .announce{overflow:hidden;white-space:nowrap}
 /* Edge to edge, like .apptop: out through .wrap's padding, sides and corners off. */
 .announce{margin-inline:-16px;border-inline:0;border-radius:0}
-.ticker{display:inline-block;padding-inline-start:100%;animation:ticker var(--dur,12s) linear infinite}
+.ticker{display:inline-block;padding-inline-start:100%;animation:ticker var(--dur,12s) linear 2}
 .announce:dir(rtl) .ticker{animation-name:tickerRtl}
-.announce:hover .ticker{animation-play-state:paused}
+.announce:hover,.announce:hover .ticker{animation-play-state:paused}
+/* Two crossings, then it folds away (js/app.js drops it from then on). */
+.announce{animation:announceOut .4s ease calc(var(--dur,12s) * 2) forwards}
+@keyframes announceOut{from{max-height:3em}to{max-height:0;padding-block:0;margin-bottom:0;border-width:0;opacity:0}}
 @keyframes ticker{to{transform:translateX(-100%)}}
 @keyframes tickerRtl{to{transform:translateX(100%)}}
-@media (prefers-reduced-motion:reduce){.announce{white-space:normal}.ticker{animation:none;padding:0}}
+@media (prefers-reduced-motion:reduce){.announce{white-space:normal;animation:none}.ticker{animation:none;padding:0}}
 
 /* ---- the feed ---- */
 .post-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -679,7 +682,7 @@ html[data-event="nationalday"] .brand-logo{
 
 /* A link the coach has put on the announcement or a news title breathes, so it
    reads as something to tap. Still in reduced-motion, but not moving. */
-a.announce.link{animation:linkGlowBox 2s ease-in-out infinite}
+a.announce.link{animation:linkGlowBox 2s ease-in-out infinite,announceOut .4s ease calc(var(--dur,12s) * 2) forwards}
 .post-link{animation:linkGlowText 2s ease-in-out infinite}
 @keyframes linkGlowBox{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 14px 2px var(--brand)}}
 @keyframes linkGlowText{0%,100%{text-shadow:0 0 0 transparent}50%{text-shadow:0 0 12px var(--brand)}}
