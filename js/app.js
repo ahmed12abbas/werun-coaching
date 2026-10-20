@@ -667,14 +667,14 @@ function openSheet(label, body) {
 
 /* The badge in the corner opens the same card a board row does — one card for
    a runner, whether the club tapped it or you did — with the account screen a
-   button away. The two numbers are not on the account, so the card goes up
-   with them blank and fills them in when the board answers: a tap that waits
-   on the network before anything moves reads as a tap that missed. */
+   button away. The numbers are not on the account, so the card goes up with
+   them blank and fills them in when the board answers: a tap that waits on
+   the network before anything moves reads as a tap that missed. */
 function openMe() {
   const user = Auth.user;
   if (!user) return go("login");
   if (meSheet) return closeMe(); // a second tap on the badge puts it away
-  const card = openRunner({
+  const mine = {
     me: true,
     name: user.name,
     avatar: user.avatar,
@@ -682,26 +682,34 @@ function openMe() {
     instagram: user.instagram,
     strava_athlete: user.strava_athlete,
     role: roleOf(user),
-    place: "—",
-    points: "—",
+    since: String(user.created_at || "").slice(0, 7),
+  };
+  const card = openRunner(mine);
+  // The board for the place, /me for the run they are on; either can fail
+  // and the card is still their card.
+  Promise.all([API.get("/api/points/board").catch(() => null), API.get("/api/points/me").catch(() => null)]).then(([d, me]) => {
+    if (!d && !me) return;
+    // Off the board by choice still has a total; the row is only the place.
+    const row = d ? (d.board || []).find((x) => x.me) || d.mine || {} : {};
+    card.lastChild.replaceWith(runnerBody(Object.assign(mine, {
+      place: row.place || null,
+      points: me ? me.total : row.points || 0,
+      sessions: me ? me.sessions : row.sessions,
+      streak: me ? me.streak : 0,
+    })));
   });
-  const tiles = card.querySelector(".tiles");
-  API.get("/api/points/board")
-    .then((d) => {
-      // Off the board by choice still has a place and a total; the row is only
-      // the shorter way to them.
-      const row = (d.board || []).find((x) => x.me) || d.mine || {};
-      tiles.replaceWith(el("div", { class: "tiles" }, tile(row.place || "—", t("aPlace")), tile(row.points || 0, t("aPoints"))));
-    })
-    .catch(() => {}); // the card is still their card without the numbers
 }
 
-/* Their Instagram, beside their name, when they have one and have left it
+/* Their Instagram, under their name, when they have one and have left it
    showing. The club's own icon set already carries the glyph, and the link is
    built here rather than stored, so what the database holds stays a handle. */
+const igSvg = () => '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SOCIAL.find((s) => s.id === "instagram").svg + "</svg>";
+const STRAVA_SVG =
+  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+  '<path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>';
+
 function igLink(handle) {
   if (!handle) return null;
-  const ig = SOCIAL.find((s) => s.id === "instagram");
   return el("a", {
     class: "social ig-btn",
     href: "https://instagram.com/" + encodeURIComponent(handle),
@@ -709,7 +717,7 @@ function igLink(handle) {
     rel: "noopener noreferrer",
     title: "@" + handle,
     "aria-label": "@" + handle,
-    html: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + ig.svg + "</svg>",
+    html: igSvg(),
   });
 }
 
@@ -723,48 +731,57 @@ function stravaLink(athlete) {
     rel: "noopener noreferrer",
     title: "Strava",
     "aria-label": "Strava",
-    html:
-      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
-      '<path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>',
+    html: STRAVA_SVG,
   });
 }
 
-/* One runner, as the club sees them: their face, their line, where they stand
-   and what they have. Their own card carries the way into the account screen;
-   somebody else's carries nothing to press, because a board row is a name and
-   a number and this is the whole of what the club may know. */
+/* One runner, as the club sees them: a bib more than a form — the face in the
+   middle, the name and their line under it, then where they stand in one row
+   of three. Their own card carries the way into the account screen;
+   somebody else's carries nothing to press, because this is the whole of
+   what the club may know. */
 const ROLE_KEY = { athlete: "aRoleAthlete", coach: "aRoleCoach", leader: "aRoleLeader" };
 /* A leader is a coach under another label (migration 0024). */
 const roleOf = (u) => (u.role !== "coach" ? "athlete" : u.is_leader ? "leader" : "coach");
 const roleTag = (role) => el("span", { class: "tag open" }, t(ROLE_KEY[role] || "aRoleAthlete"));
-function openRunner(r) {
-  return openSheet(
-    r.me ? t("navMe") : r.name,
+
+/* undefined is "still asking" and shows a dash; no place at all is somebody
+   new to the board, which is a thing to say rather than a blank. */
+const rstat = (v, label, isPlace) =>
+  el("div", { class: "rstat" },
+    el("b", { class: "num" }, v === undefined ? "—" : isPlace && (v === null || v === "—") ? t("aNewRunner") : String(v)),
+    el("span", {}, label));
+
+function runnerBody(r) {
+  const socials = [stravaLink(r.strava_athlete), igLink(r.instagram)].filter(Boolean);
+  const when = r.since ? new Date(r.since + "-01T00:00:00") : null;
+  const facts = [
+    r.streak > 0 ? el("li", { class: "streak" }, t("aStreakNow", { n: r.streak })) : null,
+    when && !isNaN(when)
+      ? el("li", { class: "since" }, t("aMemberSince", { when: when.toLocaleDateString(locale(), { month: "long", year: "numeric" }) }))
+      : null,
+  ].filter(Boolean);
+  return el(
+    "div",
+    { class: "card pad stack runner" },
     el(
       "div",
-      { class: "card pad stack runner" },
-      el(
-        "div",
-        { class: "runner-head" },
-        avatarNode(r.avatar, r.name, "lg"),
-        el(
-          "div",
-          { class: "grow" },
-          el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), stravaLink(r.strava_athlete), igLink(r.instagram),
-            roleTag(r.role)),
-          r.bio ? el("p", { class: "muted", dir: "auto" }, r.bio) : null
-        )
-      ),
-      el("div", { class: "tiles" }, tile(r.place, t("aPlace")), tile(r.points, t("aPoints"))),
-      r.me
-        ? el(
-            "button",
-            { class: "btn primary block", type: "button", onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)) },
-            t("aSettings")
-          )
-        : null
-    )
+      { class: "runner-hero" },
+      avatarNode(r.avatar, r.name, "xl"),
+      el("div", { class: "runner-name" }, el("h2", { dir: "auto" }, r.name), roleTag(r.role)),
+      r.bio ? el("p", { class: "runner-bio", dir: "auto" }, r.bio) : null,
+      socials.length ? el("div", { class: "runner-links" }, socials) : null
+    ),
+    el("div", { class: "rstats" }, rstat(r.place, t("aPlace"), true), rstat(r.points, t("aPoints")), rstat(r.sessions, t("aSessionsCount"))),
+    facts.length ? el("ul", { class: "runner-facts" }, facts) : null,
+    r.me
+      ? el("button", { class: "btn block", type: "button", onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)) }, t("aEditProfile"))
+      : null
   );
+}
+
+function openRunner(r) {
+  return openSheet(r.me ? t("navMe") : r.name, runnerBody(r));
 }
 
 /* ---------- small parts -------------------------------------------------- */
@@ -868,11 +885,11 @@ function avatarNode(id, name, size) {
  * them all costs one write and a stray tap costs none. Hands back the node
  * and a reader for what is selected.
  *
- * `beside` is what sits to the right of the chosen face — the bio. The twelve
- * tiles below say what an avatar is better than the sentence that used to be
- * there, so the space went to the one thing an athlete had no way to say.
+ * The twelve tiles wait behind "Change avatar": they took half the screen
+ * from somebody who came to change one word. `nameInput` keeps the name
+ * beside the face in step with the box below it.
  */
-function avatarPicker(user, beside) {
+function avatarPicker(user, nameInput) {
   let chosen = Avatars.has(user.avatar) ? user.avatar : "";
   const face = el("span", { class: "avatar lg" });
   const opts = [];
@@ -897,16 +914,23 @@ function avatarPicker(user, beside) {
     return btn;
   };
 
-  const node = el(
+  const grid = el(
     "div",
-    { class: "stack" },
-    el("div", { class: "row avrow-me" }, face, el("div", { class: "grow" }, beside)),
+    { class: "stack hidden", id: "avgrid" },
     el("div", { class: "avpick" }, Avatars.GROUPS.map((g) =>
       el("div", { class: "avgroup" },
         el("span", { class: "avlabel" }, t(g.label)),
         el("div", { class: "avrow" }, g.ids.map((id) => opt(id, "avopt", avatarNode(id, "", null))))))),
     opt("", "btn sm avnone", t("aAvNone"))
   );
+  const toggle = el("button", { type: "button", class: "linkish", "aria-expanded": "false", "aria-controls": "avgrid" }, t("aChangeAvatar"));
+  toggle.addEventListener("click", () => {
+    const open = grid.classList.toggle("hidden") === false;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  const shown = el("b", { class: "me-name", dir: "auto" }, user.name);
+  nameInput.addEventListener("input", () => (shown.textContent = nameInput.value));
+  const node = el("div", { class: "stack" }, el("div", { class: "me-head" }, face, el("div", { class: "grow" }, shown, toggle)), grid);
 
   paint();
   return { node: node, value: () => chosen };
@@ -3370,44 +3394,41 @@ function boardToggle(hidden) {
   return el("div", { class: "stack" }, el("label", { class: "sw", for: "on-board" }, box, el("span", {}, t("aOnBoard"))), note);
 }
 
-/* A line about themselves, beside the face they picked. One line: the Worker
-   squeezes whatever arrives onto one and cuts it at 160, and a box that looks
-   like an essay invites one. Whose line it is sits beside the box they write
-   it in, because that is when somebody decides who it is for — and it saves
-   with the rest of the form, unlike the board tick on the points screen,
-   which is its own errand. */
+/* Who may see a thing, as a switch under the box it is about: whether it is
+   for anybody else is decided while you are typing it, not on another screen. */
+function showSwitch(id, on, labelKey) {
+  const box = el("input", { type: "checkbox", id: id, role: "switch" });
+  if (on) box.setAttribute("checked", "");
+  return { box: box, node: el("label", { class: "sw switch", for: id }, el("span", {}, t(labelKey)), box) };
+}
+
+/* A box with the service's mark inside its start edge, so a row of links
+   reads at a glance without a label over each. */
+const iconField = (svg, input, cls) => el("div", { class: "icon-field" + (cls ? " " + cls : "") }, el("span", { class: "if-icon", html: svg }), input);
+
+/* A line about themselves. One line: the Worker squeezes whatever arrives
+   onto one and cuts it at 160, and a box that looks like an essay invites
+   one. It saves with the rest of the form, unlike the board tick on the
+   points screen, which is its own errand. */
 function bioBlock(user) {
   const input = el("textarea", { id: "f-bio", rows: "2", maxlength: "160", placeholder: t("aBioPh") });
   input.value = user.bio || "";
-  const show = el("input", { type: "checkbox", id: "f-bio-show" });
-  if (!user.bio_hidden) show.setAttribute("checked", "");
-  const node = el(
-    "div",
-    {},
-    el("label", { for: "f-bio" }, t("aBio")),
-    input,
-    el("label", { class: "sw", for: "f-bio-show" }, show, el("span", {}, t("aBioShow")))
-  );
-  return { input: input, show: show, node: node };
+  const count = el("span", { class: "count num", dir: "ltr" });
+  const tally = () => (count.textContent = input.value.length + "/160");
+  input.addEventListener("input", tally);
+  tally();
+  const show = showSwitch("f-bio-show", !user.bio_hidden, "aBioShow");
+  const node = el("div", { class: "stack tight" }, el("label", { class: "with-count", for: "f-bio" }, t("aBio"), count), input, show.node);
+  return { input: input, show: show.box, node: node };
 }
 
-/* Their Instagram, and whether the club may have it. The tick sits under the
-   box for the same reason the bio's does: whether it is for anybody else is
-   decided while you are typing it, not on another screen. The box takes a
-   pasted address as happily as a handle — the Worker keeps the handle out of
+/* Their Instagram, and whether the club may have it. The box takes a pasted
+   address as happily as a handle — the Worker keeps the handle out of
    whatever arrives. */
 function igBlock(user) {
-  const input = el("input", { type: "text", id: "f-ig", value: user.instagram || "", maxlength: "90", placeholder: t("aIgPh"), autocapitalize: "none", spellcheck: "false" });
-  const show = el("input", { type: "checkbox", id: "f-ig-show" });
-  if (!user.instagram_hidden) show.setAttribute("checked", "");
-  const node = el(
-    "div",
-    {},
-    el("label", { for: "f-ig" }, t("aIg")),
-    input,
-    el("label", { class: "sw", for: "f-ig-show" }, show, el("span", {}, t("aIgShow")))
-  );
-  return { input: input, show: show, node: node };
+  const input = el("input", { type: "text", id: "f-ig", value: user.instagram || "", maxlength: "90", placeholder: t("aIgPh"), autocapitalize: "none", spellcheck: "false", "aria-label": t("aIg") });
+  const show = showSwitch("f-ig-show", !user.instagram_hidden, "aIgShow");
+  return { input: input, show: show.box, node: el("div", { class: "stack tight" }, iconField(igSvg(), input, "ig"), show.node) };
 }
 
 /* The coach's way to the track screen. Here rather than in the tab row: it is
@@ -3433,21 +3454,26 @@ function coachToolsCard() {
   );
 }
 
+/* A row with an arrow that opens onto what is under it. The browser's own
+   <details>, so it opens by key and says so to a screen reader for nothing. */
+const moreRow = (labelKey, ...kids) => el("details", { class: "more" }, el("summary", {}, t(labelKey)), el("div", { class: "stack" }, kids));
+
 SCREENS.me = function (args, user) {
   /* name + language */
   const name = el("input", { type: "text", id: "f-name", value: user.name, maxlength: 40, autocomplete: "name" });
   const gender = genderSelect(user.gender);
   const age = ageInput(user.birth_year);
   const bio = bioBlock(user);
-  const avatar = avatarPicker(user, bio.node);
+  const avatar = avatarPicker(user, name);
   const ig = igBlock(user);
   const stravaId = el("input", {
     type: "text", id: "f-strava", inputmode: "numeric", value: user.strava_athlete || "",
     maxlength: "80", placeholder: t("aStravaIdPh"), autocapitalize: "none", spellcheck: "false", dir: "ltr",
+    "aria-label": t("aStravaId"),
   });
   // The same switch Instagram has, under the box for the same reason.
-  const stravaShow = el("input", { type: "checkbox", id: "f-strava-show" });
-  if (!user.strava_hidden) stravaShow.setAttribute("checked", "");
+  const strava = showSwitch("f-strava-show", !user.strava_hidden, "aStravaShow");
+  const stravaShow = strava.box;
 
   // What the home screen counts against. The club runs ten sessions a week
   // and nobody runs all ten, so the bounds are the ones the Worker keeps.
@@ -3507,20 +3533,14 @@ SCREENS.me = function (args, user) {
     },
     avatar.node,
     field("aName", name),
+    bio.node,
     el("div", { class: "row" }, el("div", {}, el("label", { for: "f-gender" }, t("aGender")), gender),
       el("div", {}, el("label", { for: "f-age" }, t("aAge")), age)),
-    ig.node,
-    el(
-      "div",
-      {},
-      el("label", { for: "f-strava" }, t("aStravaId")),
-      stravaId,
-      el("label", { class: "sw", for: "f-strava-show" }, stravaShow, el("span", {}, t("aStravaShow"))),
-      el("p", { class: "hint" }, t("aStravaIdHint"))
-    ),
-    field("aGoal", goal, t("aGoalHint")),
-    el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
-    el("div", {}, el("label", {}, t("aLang")), langSeg),
+    // Both links under one heading, each box marked with its own service.
+    el("div", { class: "stack" }, el("label", {}, t("aLinks")), ig.node,
+      el("div", { class: "stack tight" }, iconField(STRAVA_SVG, stravaId, "strava"), strava.node, el("p", { class: "hint" }, t("aStravaIdHint")))),
+    // What most people set once and never again, folded away under its name.
+    moreRow("aMoreGoalLang", field("aGoal", goal, t("aGoalHint")), el("div", {}, el("label", {}, t("aLang")), langSeg)),
     saveErr,
     saveOk,
     el("div", { class: "row" }, saveBtn)
@@ -3557,12 +3577,7 @@ SCREENS.me = function (args, user) {
   return el(
     "div",
     { class: "stack" },
-    el(
-      "div",
-      { class: "card pad stack" },
-      el("h2", {}, t("aHello", { name: user.name })),
-      profileForm
-    ),
+    el("div", { class: "card pad stack" }, profileForm),
     appsCard(),
     coachToolsCard(),
     remindCard(),
@@ -3570,7 +3585,9 @@ SCREENS.me = function (args, user) {
     // configured — so it asks once, here, where someone came to change
     // their own details anyway.
     Auth.club.email && !user.email_verified_at ? confirmCard() : null,
-    el("div", { class: "card pad stack" }, el("h3", {}, t("aChangePw")), pwForm),
+    el("div", { class: "card pad" }, moreRow("aMoreAccount",
+      el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
+      el("h3", {}, t("aChangePw")), pwForm)),
     el(
       "div",
       { class: "card pad stack" },

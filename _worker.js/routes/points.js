@@ -76,6 +76,9 @@ const boardRow = (r, place, userId) => ({
   role: r.role !== "coach" ? "athlete" : r.is_leader ? "leader" : "coach",
   points: r.points,
   sessions: r.sessions,
+  // The month they joined and no finer: "member since" is all the card says,
+  // and the day would be one more thing about a member than the club needs.
+  since: String(r.created_at || "").slice(0, 7),
   me: r.id === userId,
 });
 
@@ -84,7 +87,7 @@ const boardRow = (r, place, userId) => ({
    request travels in `binds`. */
 async function runnerRows(env, where, binds, having, limit) {
   const rows = await env.DB.prepare(
-    "SELECT u.id, u.name, u.role, u.is_leader, u.avatar," +
+    "SELECT u.id, u.name, u.role, u.is_leader, u.avatar, u.created_at," +
       privateColumn("bio", "bio_hidden") +
       privateColumn("instagram", "instagram_hidden") +
       privateColumn("strava_athlete", "strava_hidden") +

@@ -242,7 +242,6 @@ const STRINGS = {
     aUpcoming: "Upcoming",
 
     /* the app: me */
-    aHello: "Hello, {name}",
     aEmailFixed: "Your email is your login and can't be changed here.",
     aLang: "Language",
     aSave: "Save",
@@ -535,6 +534,13 @@ const STRINGS = {
     aBioPh: "Marathon in March. Slow on hills.",
     aBioShow: "Show it on the club board",
     aAvNone: "Just my initial",
+    aChangeAvatar: "Change avatar",
+    aNewRunner: "New",
+    aMemberSince: "Member since {when}",
+    aEditProfile: "Profile and settings",
+    aLinks: "Links",
+    aMoreGoalLang: "Weekly goal and language",
+    aMoreAccount: "Email and password",
     aAvMen: "Men",
     aAvWomen: "Women",
     aAvAnimals: "Animals",
@@ -832,7 +838,6 @@ const STRINGS = {
     aUpcoming: "قادمة",
 
     /* the app: me */
-    aHello: "أهلاً {name}",
     aEmailFixed: "بريدك هو اسم الدخول ولا يتغير من هنا.",
     aLang: "اللغة",
     aSave: "حفظ",
@@ -1121,6 +1126,13 @@ const STRINGS = {
     aBioPh: "ماراثون في مارس. بطيء في الصعود.",
     aBioShow: "أظهرها في لوحة النادي",
     aAvNone: "الحرف الأول فقط",
+    aChangeAvatar: "غيّر صورتك",
+    aNewRunner: "جديد",
+    aMemberSince: "معنا منذ {when}",
+    aEditProfile: "ملفك والإعدادات",
+    aLinks: "حساباتك",
+    aMoreGoalLang: "هدف الأسبوع واللغة",
+    aMoreAccount: "البريد وكلمة المرور",
     aAvMen: "رجال",
     aAvWomen: "نساء",
     aAvAnimals: "حيوانات",
