@@ -579,7 +579,7 @@ html[data-event="nationalday"] .brand-logo{
   justify-content:center;line-height:1.1}
 .loop-n{font-family:var(--display);font-size:26px;font-weight:600;color:var(--brand)}
 .loop-u{font-size:11.5px;color:var(--muted)}
-.loop-side{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.loop-side{flex:1 1 0;min-width:0;max-width:240px;display:flex;flex-direction:column;gap:6px}
 .loop-side p{margin:0}
 .loop-stat{display:flex;align-items:baseline;gap:6px;opacity:.55;transition:opacity .25s}
 .loop-stat:empty{display:none}
