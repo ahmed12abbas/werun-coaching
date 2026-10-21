@@ -475,3 +475,20 @@ body.coach .ring-d{font-size:11.5px;font-weight:700;color:var(--muted);white-spa
 body.coach .ring-detail h3{margin:6px 0 8px;font-size:15px}
 body.coach .ring-chips{display:flex;flex-wrap:wrap;gap:6px}
 @media (prefers-reduced-motion:reduce){body.coach .dbar-col i{animation:none}}
+
+/* ---- /admin: what is waiting, and the four tabs ----
+   Under body.admin so /coach keeps its own look. */
+body.admin [hidden]{display:none!important}
+body.admin .needs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+body.admin .need{display:inline-flex;align-items:baseline;gap:4px;padding:8px 14px;border-radius:999px;cursor:pointer;
+  border:1.5px solid var(--brand);background:var(--brand-soft);color:var(--brand);font:inherit;font-size:14px;font-weight:650}
+body.admin .need b{font-family:var(--display);font-size:20px;font-weight:600;line-height:1}
+body.admin .need:hover{background:var(--brand);color:var(--brand-ink)}
+body.admin .need-none{font-size:14px;color:var(--muted);padding:8px 0}
+body.admin .tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;
+  margin-top:14px;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+body.admin .tabs button{padding:10px 6px;border:0;border-radius:10px;background:none;color:var(--muted);cursor:pointer;
+  font-family:var(--display);font-size:20px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;line-height:1}
+body.admin .tabs button[aria-selected="true"]{background:var(--brand);color:var(--brand-ink)}
+body.admin .tabs button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+body.admin .card{scroll-margin-top:72px}

@@ -15,9 +15,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=2652f570">
+<link rel="stylesheet" href="assets/console.css?v=3856d9d2">
 </head>
-<body>
+<body class="admin">
 <div class="wrap">
   <h1>Coach console</h1>
   <p class="muted small" style="margin:0">
@@ -226,6 +226,11 @@ function feedbackCard(first) {
   function paint(data) {
     card.textContent = "";
     card.append(el("div", { class: "tiphead" }, el("h2", {}, "What athletes said")));
+    // "New" is anything written in the last week: there is no read/unread.
+    var weekAgo = Date.now() - 7 * 86400000;
+    needs("said", ((data && data.items) || []).filter(function (i) {
+      return i && i.comment && Date.parse(i.at) > weekAgo;
+    }).length, card);
 
     if (!data || !data.count) {
       card.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
@@ -281,25 +286,91 @@ function renderStats(data, tips) {
     return;
   }
 
+  NEEDS = {};
+  needsBar = el("div", { class: "needs" });
+  tabBar = el("div", { class: "tabs", role: "tablist" }, TABS.map(function (tab) {
+    return el("button", { type: "button", role: "tab", "data-for": tab[0], onclick: function () { showTab(tab[0]); } }, tab[1]);
+  }));
+  app.append(needsBar, tabBar);
+
+  // The head count first, on Today; attendanceCards() appends its own two.
   attendanceCards(app, data.weeks);
-  app.append(requestsCard());
-  app.append(feedbackCard(data.feedback));
-  app.append(tipsCard(tips));
-  app.append(schedulePlanCard());
-  app.append(sessionsCard());
-  app.append(feedCard());
-  app.append(aboutCard());
-  app.append(membersCard());
-  app.append(coachesCard());
-  app.append(shopCard());
-  app.append(ordersCard());
-  app.append(settingsCard());
-  app.append(themeCard());
-  app.append(exportCard());
+  app.querySelectorAll(".card").forEach(function (c) { c.dataset.tab = "today"; });
+  var put = function (tab, card) { card.dataset.tab = tab; app.append(card); };
+  put("today", requestsCard());
+  put("today", feedbackCard(data.feedback));
+  put("today", sessionsCard());
+  put("plan", schedulePlanCard());
+  put("plan", feedCard());
+  put("plan", tipsCard(tips));
+  put("plan", aboutCard());
+  put("people", membersCard());
+  put("people", coachesCard());
+  put("club", shopCard());
+  put("club", ordersCard());
+  put("club", settingsCard());
+  put("club", themeCard());
+  put("club", exportCard());
   app.append(controls());
   // Every card shut but the week's head count: thirteen open at once is a
   // page nobody reaches the bottom of.
   foldCards(app);
+  var saved = null;
+  try { saved = localStorage.getItem(TAB_KEY); } catch (e) {}
+  showTab(TABS.some(function (t) { return t[0] === saved; }) ? saved : "today");
+  paintNeeds();
+}
+
+/* ---- what is waiting on you, and the four tabs ----
+   Sixteen cards in one column was a page nobody reached the bottom of. They
+   are grouped into four tabs, and the strip above the tabs says what is
+   waiting -- each count comes from the card that already loads it, and
+   tapping one opens that card wherever it is. */
+var TABS = [["today", "Today"], ["plan", "Plan"], ["people", "People"], ["club", "Club"]];
+var TAB_KEY = "werun.admintab";
+var NEEDS = {};
+var needsBar = null;
+var tabBar = null;
+var NEED_LABEL = {
+  missed: ["missed check-in to decide", "missed check-ins to decide"],
+  resets: ["password reset asked for", "password resets asked for"],
+  orders: ["order to hand over", "orders to hand over"],
+  said: ["new comment this week", "new comments this week"]
+};
+
+function needs(key, n, card) {
+  NEEDS[key] = { n: n, card: card };
+  paintNeeds();
+}
+
+function paintNeeds() {
+  if (!needsBar) return;
+  needsBar.textContent = "";
+  var keys = ["missed", "resets", "orders", "said"].filter(function (k) { return NEEDS[k] && NEEDS[k].n > 0; });
+  if (!keys.length) {
+    needsBar.append(el("span", { class: "need-none" }, "Nothing waiting on you."));
+    return;
+  }
+  keys.forEach(function (k) {
+    var x = NEEDS[k];
+    needsBar.append(el("button", { type: "button", class: "need", onclick: function () { openCard(x.card); } },
+      el("b", {}, String(x.n)), " " + NEED_LABEL[k][x.n === 1 ? 0 : 1]));
+  });
+}
+
+function showTab(name) {
+  app.querySelectorAll("[data-tab]").forEach(function (c) { c.hidden = c.dataset.tab !== name; });
+  if (tabBar) tabBar.querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-selected", b.getAttribute("data-for") === name ? "true" : "false");
+  });
+  try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
+}
+
+function openCard(card) {
+  showTab(card.dataset.tab);
+  var btn = card.querySelector(".fold-btn");
+  if (btn && !card.classList.contains("open")) btn.click();
+  card.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 }
 
 /* ---- members ----
@@ -347,6 +418,7 @@ function membersCard() {
   function paint(data) {
     body.textContent = "";
     var members = data.members || [];
+    needs("resets", members.filter(function (m) { return m.pending_reset && m.status !== "blocked"; }).length, card);
     if (!members.length) {
       body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
         "Nobody has joined yet. The join form is at /app."));
@@ -1541,6 +1613,7 @@ function requestsCard() {
   function paint(d) {
     body.textContent = "";
     var pending = d.pending || [];
+    needs("missed", pending.length, card);
     if (!pending.length) body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, "Nothing waiting."));
     pending.forEach(function (r) {
       var yes = el("button", { class: "btn sm primary", onclick: function () { decide(r, "approve", yes); } }, "Approve");
@@ -1763,6 +1836,7 @@ function ordersCard() {
         "and every order will sit at pending. See the README."));
     }
     var orders = (d && d.orders) || [];
+    needs("orders", (d && d.to_hand_over) || 0, card);
     if (d && (d.to_hand_over || (d.taken || []).length)) {
       var tiles = el("div", { class: "tiles" },
         el("div", { class: "tile" },
