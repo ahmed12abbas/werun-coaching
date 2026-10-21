@@ -10,6 +10,13 @@
    child holds still against it. */
 html,body{height:100%;overflow:hidden}
 body{position:fixed;inset:0;overscroll-behavior:none}
+/* On the home-screen app an iPhone can size the page a strip short of the
+   screen, and the page behind showed through under the tabs (Abbas, 21 Oct).
+   Installed, there is no browser bar to make room for, so the page takes the
+   screen's full height; and whatever is still left below is painted the
+   tabs' own colour, so it reads as more of the bar rather than a gap. */
+@media (display-mode:standalone){body{bottom:auto;height:100vh;height:100lvh}}
+html{background:var(--card)}
 /* No -webkit-overflow-scrolling:touch: modern iOS already gives an
    overflow:auto element momentum scrolling without it, and that legacy
    property is what let the native rubber-band drag a position:sticky child
