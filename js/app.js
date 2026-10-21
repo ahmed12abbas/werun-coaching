@@ -409,9 +409,27 @@ function announcement() {
   return node;
 }
 
+/* One outline icon a tab, drawn here (24px grid, stroked in currentColor) so
+   the bar needs no icon font and no request. */
+const TAB_ICON = {
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  week: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  feed: '<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2M8 9h5M8 13h5M8 17h3"/>',
+  points: '<path d="M8 21h8M12 16v5M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  store: '<path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+};
+
 function appNav(current) {
   const link = (name, label) =>
-    el("a", { href: "#/" + name, "aria-current": current === name ? "page" : null }, label);
+    el(
+      "a",
+      { href: "#/" + name, "aria-current": current === name ? "page" : null },
+      el("span", {
+        class: "tab-ic",
+        html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TAB_ICON[name] + "</svg>",
+      }),
+      el("span", { class: "tab-l" }, label)
+    );
   // "Week" rather than "This week" here: with five tabs on a phone the long
   // label is what pushes the row onto two lines.
   //
@@ -662,7 +680,42 @@ function openSheet(label, body) {
   meSheet = el("div", { class: "sheet", onclick: (e) => { if (e.target === meSheet) closeMe(); } }, card);
   document.body.append(meSheet);
   document.addEventListener("keydown", meKey);
+  dragToClose(card);
   return card;
+}
+
+/* Pulled down from the top, the sheet follows the finger and goes away past a
+   short distance — the way every phone sheet closes. Only from the top of its
+   own scroll, so pulling down inside a long form still scrolls the form. */
+const SHEET_CLOSE_AT = 90;
+function dragToClose(card) {
+  let y0 = null;
+  let dy = 0;
+  card.addEventListener("touchstart", (e) => {
+    y0 = card.scrollTop <= 0 ? e.touches[0].clientY : null;
+    dy = 0;
+  }, { passive: true });
+  card.addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { // moving up is scrolling the sheet, not closing it
+      card.style.transform = "";
+      return;
+    }
+    e.preventDefault(); // or the page behind takes the pull as a refresh
+    card.style.transition = "none";
+    card.style.transform = "translateY(" + dy + "px)";
+  }, { passive: false });
+  card.addEventListener("touchend", () => {
+    if (y0 === null) return;
+    y0 = null;
+    card.style.transition = "transform .2s ease";
+    if (dy > SHEET_CLOSE_AT) {
+      card.style.transform = "translateY(100%)";
+      const sheet = card.parentElement;
+      setTimeout(() => { if (meSheet === sheet) closeMe(); }, 180); // not a sheet opened since
+    } else card.style.transform = "";
+  });
 }
 
 /* The badge in the corner opens the same card a board row does — one card for
@@ -3855,6 +3908,13 @@ function wirePullRefresh() {
   app.addEventListener("touchcancel", reset, { passive: true });
 }
 wirePullRefresh();
+
+/* The header gets its hairline only once something has scrolled under it; at
+   the top of a page it sits on the page with nothing to separate. */
+$("#app").addEventListener("scroll", (e) => {
+  const top = e.currentTarget.querySelector(".apptop");
+  if (top) top.classList.toggle("scrolled", e.currentTarget.scrollTop > 4);
+}, { passive: true });
 
 Theme.apply(Theme.saved());
 I18N.apply(I18N.initial());

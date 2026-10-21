@@ -24,41 +24,54 @@ body{position:fixed;inset:0;overscroll-behavior:none}
    The negative margins take it out to the edges of .wrap's padding, or the
    rows underneath would show through at the sides as they pass. */
 .apptop{position:sticky;top:0;z-index:20;background:var(--bg);
-  margin:0 -16px 16px;padding:14px 16px 12px}
-.apptop .brand{margin-bottom:13px}
+  margin:0 -16px 14px;padding:10px 16px;transition:box-shadow .2s ease}
+/* Frosted where the browser can: the page shows through, softly, as it
+   passes under. A solid --bg is the fallback above. */
+@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+  .apptop{background:color-mix(in srgb,var(--bg) 78%,transparent);
+    -webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}}
+.apptop.scrolled{box-shadow:0 1px 0 var(--line),0 8px 20px -14px rgba(0,0,0,.35)}
+.apptop .brand{margin-bottom:0}
 /* A size up from the 42px brand.js draws everywhere else: on the app it is the
    only thing in the middle of the bar. Important because logoNode() sets it inline. */
-.apptop .brand-logo{height:54px!important}
+.apptop .brand-logo{height:46px!important}
 /* The gap under the tabs is the block's padding, not the nav's margin: a
    margin sits outside the background and the rows would scroll through it. */
 .apptop .appnav{margin-bottom:0}
 
-/* ---- tabs under the brand bar ---- */
-.appnav{display:flex;gap:6px;margin:-8px 0 16px}
-.appnav a{flex:1;text-align:center;padding:9px 6px;border-radius:12px;border:1px solid var(--line);
-  background:var(--card);font-family:var(--display);font-size:19px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.04em;text-decoration:none;color:var(--muted);line-height:1.1}
-.appnav a[aria-current="page"]{background:var(--brand);color:var(--brand-ink);border-color:transparent;
-  flex-grow:1.35;padding-block:11px}
+/* ---- the tab bar ----
+   An icon and a small word a tab; the current one gets a pill behind its
+   icon and the brand colour, and nothing else moves. */
+.appnav{display:flex;gap:2px;margin:0}
+.appnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;
+  text-decoration:none;color:var(--muted);font-size:11.5px;font-weight:700;line-height:1.1;letter-spacing:.01em}
+.tab-ic{display:grid;place-items:center;width:56px;height:30px;border-radius:15px;
+  transition:background .2s ease,width .2s ease}
+.tab-ic svg{width:22px;height:22px}
+.appnav a[aria-current="page"]{color:var(--brand-deep)}
+.appnav a[aria-current="page"] .tab-ic{background:var(--brand-soft);color:var(--brand)}
+.appnav a[aria-current="page"] .tab-ic svg{stroke-width:2.3}
+.appnav a:hover{color:var(--fg)}
 /* A post they have not opened News to see yet: a small dot that breathes
    rather than a static badge, gone the moment they tap in (js/app.js,
    markFeedSeen). --brand rather than currentColor so it still stands out
    against the tab's own muted, unselected text. */
 .appnav a.glow{position:relative}
-.appnav a.glow::after{content:"";position:absolute;top:6px;inset-inline-end:10px;width:7px;height:7px;
+.appnav a.glow::after{content:"";position:absolute;top:4px;inset-inline-end:calc(50% - 22px);width:8px;height:8px;
   border-radius:50%;background:var(--brand);animation:navGlow 1.4s ease-in-out infinite}
 @keyframes navGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(1.4)}}
 @media (prefers-reduced-motion:reduce){.appnav a.glow::after{animation:none}}
 /* A tap answers on the way down instead of after the redraw: the 300ms grey
    box the phone draws is what "slow" was, not the render. */
 .appnav a,button.day,.btn,.tool,.card button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.appnav a{transition:transform .1s ease,background .15s ease,color .15s ease,flex-grow .18s ease,padding-block .18s ease}
+.appnav a{transition:transform .1s ease,color .15s ease}
 .appnav a:active,button.day:active,.tool:active{transform:scale(.97)}
 button.day:active{background:var(--brand-soft)}
 @media (prefers-reduced-motion:reduce){
   .appnav a:active,button.day:active,.tool:active{transform:none}
 }
-[dir="rtl"] .appnav a{font-size:15px;letter-spacing:0}
+[dir="rtl"] .appnav a{font-size:12px;letter-spacing:0}
+@media (prefers-reduced-motion:reduce){.tab-ic,.apptop{transition:none}}
 
 /* The tabs are the last child of <body>, under the scroller (js/app.js,
    mountNav): the body is a column, #app takes what is left and scrolls, and the
@@ -68,8 +81,8 @@ button.day:active{background:var(--brand-soft)}
 body{display:flex;flex-direction:column;padding-bottom:0}
 #app{flex:1 1 auto;min-height:0;height:auto;width:100%}
 body>.appnav{flex:none;width:100%;max-width:660px;margin:0 auto;
-  padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--bg);
-  border-top:1px solid var(--line)}
+  padding:6px 10px calc(6px + env(safe-area-inset-bottom));background:var(--card);
+  border-top:1px solid var(--line);box-shadow:0 -8px 24px -18px rgba(0,0,0,.35)}
 
 /* ---- forms ---- */
 .form-err{color:var(--err);font-weight:650;font-size:14px;margin:0}
@@ -617,6 +630,16 @@ html[data-event="nationalday"] .brand-logo{
 .appbar .brand-mark{cursor:pointer}
 .appbar .brand-mark:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:8px}
 .appbar .brand-tools{justify-self:end;margin-inline-start:0}
+.appbar .tool,.appbar .search-btn{width:38px;height:38px;border:0;border-radius:50%;background:var(--card);
+  box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--line);color:var(--fg)}
+.appbar .tool.text{width:auto;border-radius:19px;padding:0 12px}
+.appbar .search-btn{display:grid;place-items:center;line-height:0}
+.appbar .me-badge:not(.search-btn){border:0;box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--brand)}
+/* The footer under a screen, quieter than the screen: smaller icons, no fill. */
+#app footer .socials{gap:8px;margin-bottom:10px}
+#app footer .social{width:36px;height:36px;background:none}
+#app footer .social svg{width:17px;height:17px}
+.appbar .tool:hover,.appbar .search-btn:hover{box-shadow:0 0 0 1.5px var(--brand);color:var(--brand)}
 .me-badge{padding:0;border:1px solid var(--line);background:var(--card);border-radius:50%;
   cursor:pointer;line-height:0;display:block}
 .me-badge:hover{border-color:var(--brand)}
@@ -641,7 +664,10 @@ html[data-event="nationalday"] .brand-logo{
    them back to. */
 .sheet{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;
   background:rgba(0,0,0,.5);animation:sheetIn .18s ease both}
-.sheet-card{width:100%;max-width:660px;max-height:92vh;overflow-y:auto;
+/* Stops well short of the top, so Close is never under the phone's status bar
+   or notch, and the page behind still shows that this is a sheet over it. */
+.sheet-card{width:100%;max-width:660px;max-height:84vh;max-height:calc(100dvh - 96px - env(safe-area-inset-top));overflow-y:auto;
+  overscroll-behavior-y:contain;
   background:var(--bg);border:1px solid var(--line);border-bottom:0;
   border-radius:20px 20px 0 0;padding:10px 16px 26px;
   animation:sheetUp .24s cubic-bezier(.34,1.2,.64,1) both}
