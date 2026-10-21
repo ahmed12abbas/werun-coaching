@@ -10,13 +10,13 @@
    child holds still against it. */
 html,body{height:100%;overflow:hidden}
 body{position:fixed;inset:0;overscroll-behavior:none}
-/* On the home-screen app an iPhone can size the page a strip short of the
-   screen, and the page behind showed through under the tabs (Abbas, 21 Oct).
-   Installed, there is no browser bar to make room for, so the page takes the
-   screen's full height; and whatever is still left below is painted the
-   tabs' own colour, so it reads as more of the bar rather than a gap. */
-@media (display-mode:standalone){body{bottom:auto;height:100vh;height:100lvh}}
-html{background:var(--card)}
+/* On the home-screen app an iPhone sizes the page a strip short of the
+   screen and paints that strip itself, in the body's own colour (Abbas, 21
+   Oct). Stretching the page into it only cut the tab labels off, so instead
+   the body is the tabs' colour and the grey moves onto the scroller: the
+   strip iOS paints then reads as more of the tab bar. */
+@media (display-mode:standalone){html,body{background:var(--card)}}
+#app{background:var(--bg)}
 /* No -webkit-overflow-scrolling:touch: modern iOS already gives an
    overflow:auto element momentum scrolling without it, and that legacy
    property is what let the native rubber-band drag a position:sticky child
@@ -30,12 +30,12 @@ html{background:var(--card)}
    One sticky block rather than two, so the tabs cannot slide under the bar.
    The negative margins take it out to the edges of .wrap's padding, or the
    rows underneath would show through at the sides as they pass. */
-.apptop{position:sticky;top:0;z-index:20;background:var(--bg);
+.apptop{position:sticky;top:0;z-index:20;background:var(--card);
   margin:0 -16px 14px;padding:10px 16px;transition:box-shadow .2s ease}
 /* Frosted where the browser can: the page shows through, softly, as it
-   passes under. A solid --bg is the fallback above. */
+   passes under. A solid --card (the tabs' colour, and the strip above it) is the fallback above. */
 @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
-  .apptop{background:color-mix(in srgb,var(--bg) 78%,transparent);
+  .apptop{background:color-mix(in srgb,var(--card) 82%,transparent);
     -webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}}
 .apptop.scrolled{box-shadow:0 1px 0 var(--line),0 8px 20px -14px rgba(0,0,0,.35)}
 .apptop .brand{margin-bottom:0}
