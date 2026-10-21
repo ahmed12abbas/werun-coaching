@@ -17,26 +17,14 @@ body{position:fixed;inset:0;overscroll-behavior:none}
    strip iOS paints then reads as more of the tab bar. */
 @media (display-mode:standalone){html,body{background:var(--card)}}
 #app{background:var(--bg)}
-/* No -webkit-overflow-scrolling:touch: modern iOS already gives an
-   overflow:auto element momentum scrolling without it, and that legacy
-   property is what let the native rubber-band drag a position:sticky child
-   (the header) along with it during an overscroll. */
-/* No top padding on the scroller: WebKit pins a sticky child below the
-   scroller's padding rather than at its edge, so rows scrolled through an
-   18px strip above the header on iPhone. .apptop's own padding is the gap. */
-#app{height:100%;overflow-y:auto;overscroll-behavior-y:contain;padding-top:0}
+#app{height:100%;overflow-y:auto;overscroll-behavior-y:contain;padding-top:14px}
 
-/* ---- the bar and the tabs stay put while the screen scrolls ----
-   One sticky block rather than two, so the tabs cannot slide under the bar.
-   The negative margins take it out to the edges of .wrap's padding, or the
-   rows underneath would show through at the sides as they pass. */
-.apptop{position:sticky;top:0;z-index:20;background:var(--card);
-  margin:0 -16px 14px;padding:10px 16px;transition:box-shadow .2s ease}
-/* Frosted where the browser can: the page shows through, softly, as it
-   passes under. A solid --card (the tabs' colour, and the strip above it) is the fallback above. */
-@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
-  .apptop{background:color-mix(in srgb,var(--card) 82%,transparent);
-    -webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}}
+/* ---- the bar stays put while the screen scrolls ----
+   The first child of <body>, above the scroller, as the tabs are the last
+   (js/app.js, ensureHeader). A sticky bar inside #app was carried down with
+   the bounce of a pull-to-refresh (Abbas, 21 Oct); outside it nothing can. */
+.apptop{flex:none;position:relative;z-index:20;width:100%;max-width:660px;margin:0 auto;
+  padding:10px 16px;background:var(--card);transition:box-shadow .2s ease}
 .apptop.scrolled{box-shadow:0 1px 0 var(--line),0 8px 20px -14px rgba(0,0,0,.35)}
 .apptop .brand{margin-bottom:0}
 /* A size up from the 42px brand.js draws everywhere else: on the app it is the
@@ -270,7 +258,7 @@ a.announce.link{display:block;text-decoration:none}
    the far edge and travels its own width plus that. Arabic runs the other way.
    Held still on hover; in reduced motion it is simply there, wrapped. */
 .announce{overflow:hidden;white-space:nowrap}
-/* Edge to edge, like .apptop: out through .wrap's padding, sides and corners off. */
+/* Edge to edge: out through .wrap's padding, sides and corners off. */
 .announce{margin-inline:-16px;border-inline:0;border-radius:0}
 .ticker{display:inline-block;padding-inline-start:100%;animation:ticker var(--dur,12s) linear 2}
 .announce:dir(rtl) .ticker{animation-name:tickerRtl}
@@ -699,10 +687,10 @@ html[data-event="nationalday"] .brand-logo{
    time render() rebuilds #app, so this is a slide-in rather than a real
    cross-fade. Direction is which way the next tab sits, not which way the
    finger moved, so it reads the same as tapping the nav link it replaces. */
-/* Everything but .apptop: the bar and tabs are the one thing that must not
-   move, and a transform on #app itself would carry them along. */
-#app.slide-fwd>:not(.apptop){animation:slideInFwd .2s ease both}
-#app.slide-back>:not(.apptop){animation:slideInBack .2s ease both}
+/* The children, not #app itself: a transform on the scroller would slide its
+   scrollbar and background along too. */
+#app.slide-fwd>*{animation:slideInFwd .2s ease both}
+#app.slide-back>*{animation:slideInBack .2s ease both}
 @keyframes slideInFwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes slideInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#app.slide-fwd>*,#app.slide-back>*{animation:none}}

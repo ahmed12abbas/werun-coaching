@@ -47,6 +47,7 @@ async function appBoot() {
   const app = $("#app");
   if (Auth.user === undefined) {
     app.textContent = "";
+    if (headerNode) headerNode.remove();
     app.append(brandBar(null, appBoot), el("p", { class: "muted small" }, t("aLoading")));
     await Auth.load();
   }
@@ -213,8 +214,7 @@ function wireHomeMark(bar) {
    prepended rather than passed as brandBar's trailing node so that the three
    of them (badge, mark, toggles) are the three columns `.appbar` lays out;
    the link page's own bar is untouched. Me is a sheet over whatever you were
-   reading rather than a tab you leave the club to visit. Bar and tabs ride
-   along at the top of the scroll, as one sticky block. */
+   reading rather than a tab you leave the club to visit. */
 function appTop(route, user) {
   const bar = brandBar(null, appBoot);
   if (user) {
@@ -262,9 +262,12 @@ function ensureHeader(app, route, user) {
   // stale #screenBody left behind — render() below finds no #screenBody and
   // makes a fresh one, same as on the very first load.
   app.textContent = "";
+  if (headerNode) headerNode.remove();
   headerNode = appTop(route, user);
   headerKey = key;
-  app.append(headerNode);
+  // Before the scroller, not in it, for the same reason the tabs are after it:
+  // a pull at the top bounces #app's contents, and anything inside goes too.
+  app.before(headerNode);
   mountNav(route, user);
   return headerNode;
 }
@@ -3888,6 +3891,8 @@ function wirePullRefresh() {
     if (!pulling) return;
     sy = e.touches[0].clientY;
     sx = e.touches[0].clientX;
+    // Just under the bar, which no longer moves out of its way.
+    badge.style.top = (headerNode ? headerNode.getBoundingClientRect().bottom : 0) + 10 + "px";
   }, { passive: true });
 
   app.addEventListener("touchmove", (e) => {
@@ -3912,8 +3917,7 @@ wirePullRefresh();
 /* The header gets its hairline only once something has scrolled under it; at
    the top of a page it sits on the page with nothing to separate. */
 $("#app").addEventListener("scroll", (e) => {
-  const top = e.currentTarget.querySelector(".apptop");
-  if (top) top.classList.toggle("scrolled", e.currentTarget.scrollTop > 4);
+  if (headerNode) headerNode.classList.toggle("scrolled", e.currentTarget.scrollTop > 4);
 }, { passive: true });
 
 Theme.apply(Theme.saved());
