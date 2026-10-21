@@ -76,12 +76,8 @@ a{color:var(--brand)}
 .head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .head .grow{flex:1 1 180px;min-width:0}
 .times{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media (max-width:760px){.pair{grid-template-columns:1fr}}
 .side+.side{margin-top:0}
 .side .f+.f{margin-top:12px}
-.flag{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);font-size:20px;
-  font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px}
 .ar textarea,.ar input{direction:rtl;text-align:right}
 
 /* "Show this one to athletes" — a radio, because exactly one article is live. */
@@ -127,14 +123,52 @@ a{color:var(--brand)}
 .bar .in{max-width:960px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .bar .msg{flex:1 1 140px;font-size:13.5px}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
+
+/* The header, as /coach has it: a way back, and the title. */
+.t-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.t-head h1{margin:0}
+.tool{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:50%;background:var(--card);
+  border:1px solid var(--line);color:var(--fg);text-decoration:none}
+.tool svg{width:18px;height:18px}
+/* The list: one line an article, tapped open for its editor. */
+.t-top{display:flex;align-items:center;gap:12px;margin-top:18px}
+.t-list{display:grid;gap:10px;margin-top:14px}
+.t-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.t-row.live{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand)}
+.t-row.open{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.t-what{flex:1 1 0;min-width:0;cursor:pointer}
+.t-what b{display:block;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-side{flex:none;display:flex;align-items:center;gap:10px}
+.t-editor{margin-top:0;border-top:0;border-top-left-radius:0;border-top-right-radius:0}
+.t-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.t-tabs button{padding:9px;border:0;border-radius:9px;background:none;color:var(--muted);font:inherit;font-weight:700;cursor:pointer}
+.t-tabs button[aria-selected="true"]{background:var(--brand);color:var(--brand-ink)}
+/* The In news switch. It is a <label>, so the caption look is undone. */
+.tgl{display:inline-flex;align-items:center;gap:7px;margin:0;font-size:12.5px;font-weight:700;color:var(--muted);
+  text-transform:none;letter-spacing:0;cursor:pointer}
+.tgl input{appearance:none;-webkit-appearance:none;position:relative;width:40px;height:24px;padding:0;margin:0;
+  border:0;border-radius:99px;background:var(--line);cursor:pointer;transition:background .2s}
+.tgl input::before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.tgl input:checked{background:var(--brand)}
+.tgl input:checked::before{transform:translateX(16px)}
+.tgl input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media (max-width:560px){
+  .t-row{flex-wrap:wrap}
+  .t-side{flex:1 1 100%;justify-content:space-between}
+}
+@media (prefers-reduced-motion:reduce){.tgl input,.tgl input::before{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Coach Tips</h1>
+  <div class="t-head">
+    <a class="tool back" href="/admin" title="Back to the console" aria-label="Back to the console"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+    <h1>Coach Tips</h1>
+  </div>
   <p class="muted small" style="margin:0">
-    What athletes read when they tap the logo beside the session. Keep as many
-    articles here as you like — the one marked <b>live</b> is the one they see.
+    What athletes read when they tap the logo beside the session. The one marked <b>Live</b> is the one they see;
+    any marked <b>News</b> also show on the News tab.
   </p>
   <div id="app"></div>
   <footer>WE RUN Coaching · <a href="/">back to the builder</a></footer>
@@ -347,7 +381,6 @@ function sideEditor(article, lang, onChange) {
   }
 
   var box = el("div", { class: "side" + (isAr ? " ar" : "") },
-    el("div", { class: "flag" }, isAr ? "العربية" : "English"),
     field(isAr ? "العنوان" : "Title", title),
     field(isAr ? "المقال" : "Article", body,
       isAr ? null : "Blank line = new paragraph. A line starting with - is a bullet. **Stars** make a phrase bold."),
@@ -386,56 +419,65 @@ function photoField(article) {
     el("p", { class: "hint" }, "Shown above the article, in both languages."));
 }
 
-function articleCard(article, index) {
+/* ---------- the list ------------------------------------------------------
+   One line an article -- its title, Live and In news, when it went up -- and
+   the editor only for the one that is open. Every article open at once, both
+   languages side by side, was a page of text boxes nobody could find their
+   way down. */
+
+var openId = null;     // the article whose editor is showing
+var openLang = "en";   // which language its editor is on
+
+function titleOf(a) {
+  return (a.en && a.en.title) || (a.ar && a.ar.title) || "Untitled article";
+}
+
+function articleLine(article, index) {
   var isLive = state.liveId === article.id;
+  var open = openId === article.id;
 
-  var radio = el("input", {
-    type: "radio",
-    name: "live",
-    checked: isLive,
-    onchange: function () { state.liveId = article.id; touch(); render(); }
-  });
-  var pick = el("label", { class: "livepick" + (isLive ? " on" : "") }, radio,
-    isLive ? "Live — athletes see this" : "Show this one");
+  /* The feed is a list, not a slot: any number of articles can be on it.
+     Separate from live, which is the one the logo beside the session opens. */
+  var inFeed = el("input", { type: "checkbox", role: "switch", checked: !!article.feed, "aria-label": "In the news feed",
+    onchange: function () { article.feed = inFeed.checked; touch(); render(); } });
 
-  /* The feed is a list, not a slot: any number of articles can be on it, and
-     the newest sits at the top. Separate from live, which is the one the
-     logo beside the session opens. */
-  var inFeed = el("input", {
-    type: "checkbox",
-    checked: !!article.feed,
-    onchange: function () { article.feed = inFeed.checked; touch(); render(); }
-  });
-  var feedPick = el("label", { class: "livepick" + (article.feed ? " on" : "") }, inFeed, "In the news feed");
+  var what = el("div", { class: "t-what", role: "button", tabindex: "0", "aria-expanded": open ? "true" : "false" },
+    el("b", { dir: "auto" }, titleOf(article)),
+    articleTimes(article));
+  var flip = function () { openId = open ? null : article.id; render(); };
+  what.addEventListener("click", flip);
+  what.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
 
-  var head = el("div", { class: "head" },
-    el("div", { class: "grow" },
-      el("h2", {}, "Article " + (index + 1)),
-      articleTimes(article)),
-    isLive ? el("span", { class: "badge" }, "Live") : null,
-    feedPick,
-    pick,
-    el("button", {
-      class: "btn sm danger", type: "button",
-      onclick: function () {
-        var name = (article.en && article.en.title) || (article.ar && article.ar.title) || "this article";
-        if (!confirm("Delete “" + name + "”? This cannot be undone once you save.")) return;
+  var line = el("div", { class: "t-row" + (isLive ? " live" : "") + (open ? " open" : "") },
+    what,
+    el("div", { class: "t-side" },
+      isLive ? el("span", { class: "badge" }, "Live")
+        : el("button", { class: "btn sm", type: "button", onclick: function () { state.liveId = article.id; touch(); render(); } }, "Make live"),
+      el("label", { class: "tgl", title: "In the news feed" }, el("span", {}, "News"), inFeed)));
+
+  if (!open) return line;
+
+  /* The open one: a photo, the two languages as tabs, and the preview under
+     whichever is showing. */
+  var tabs = el("div", { class: "t-tabs", role: "tablist" },
+    [["en", "English"], ["ar", "العربية"]].map(function (l) {
+      return el("button", { type: "button", role: "tab", "aria-selected": openLang === l[0] ? "true" : "false",
+        onclick: function () { openLang = l[0]; render(); } }, l[1]);
+    }));
+  var editor = el("div", { class: "card t-editor" },
+    photoField(article),
+    tabs,
+    sideEditor(article, openLang, touch),
+    el("div", { class: "head", style: "margin:14px 0 0" },
+      el("button", { class: "btn sm danger", type: "button", onclick: function () {
+        if (!confirm("Delete “" + titleOf(article) + "”? This cannot be undone once you save.")) return;
         state.articles.splice(index, 1);
         if (state.liveId === article.id) state.liveId = null;
+        openId = null;
         touch();
         render();
-      }
-    }, "Delete")
-  );
-
-  return el("div", { class: "card" + (isLive ? " live" : "") },
-    head,
-    photoField(article),
-    el("div", { class: "pair" },
-      sideEditor(article, "en", touch),
-      sideEditor(article, "ar", touch)
-    )
-  );
+      } }, "Delete this article")));
+  return el("div", {}, line, editor);
 }
 
 function touch() {
@@ -474,10 +516,12 @@ function render(warning) {
     return;
   }
 
-  state.articles.forEach(function (a, i) { app.append(articleCard(a, i)); });
-
-  app.append(el("div", { style: "margin-top:18px" },
-    el("button", { class: "btn", onclick: addOne }, "+ Add another article")));
+  app.append(el("div", { class: "t-top" },
+    el("button", { class: "btn primary", onclick: addOne }, "+ New article"),
+    el("span", { class: "muted small" }, state.articles.length + (state.articles.length === 1 ? " article" : " articles"))));
+  var list = el("div", { class: "t-list" });
+  state.articles.forEach(function (a, i) { list.append(articleLine(a, i)); });
+  app.append(list);
 
   if (!state.liveId) {
     app.append(el("p", { class: "err" },
@@ -492,10 +536,12 @@ function addOne() {
   var a = { id: newId(), feed: true, en: { title: "", body: "" }, ar: { title: "", body: "" } };
   state.articles.unshift(a);
   if (!state.liveId) state.liveId = a.id; // the first one written is the one they want live
+  openId = a.id;
+  openLang = "en";
   touch();
   render();
-  // Straight into the new card rather than making her hunt for it.
-  var card = app.querySelector(".card");
+  // Straight into the new one rather than making her hunt for it.
+  var card = app.querySelector(".t-editor");
   var first = card && card.querySelector("input[type=text]");
   if (first) { first.focus(); card.scrollIntoView({ block: "center", behavior: "smooth" }); }
 }
@@ -543,7 +589,14 @@ window.addEventListener("beforeunload", function (e) {
   e.returnValue = "";
 });
 
-renderLogin(null);
+/* A coach or admin who is logged in -- tapped through from /admin or the
+   app -- is let straight in by the Worker (isStaff in routes/tips.js), so try
+   that before asking for a password. */
+post({}).then(function (data) {
+  state = { liveId: data.liveId || null, articles: data.articles || [] };
+  dirty = false;
+  render(data.warning === "no-store" ? "warn-no-store" : null);
+})["catch"](function () { renderLogin(null); });
 </script>
 </body>
 </html>
