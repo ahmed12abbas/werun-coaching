@@ -391,30 +391,30 @@ body.coach .tool.text{width:38px;padding:0;font-size:16px}
 body.coach a.tool.back{text-decoration:none}
 [dir="rtl"] body.coach .tool.back svg{transform:scaleX(-1)}
 body.coach .card{margin-top:14px;padding:16px}
-body.coach .chip{display:inline-block;background:var(--brand-soft);color:var(--brand);border-radius:999px;
+:is(body.coach,body.admin) .chip{display:inline-block;background:var(--brand-soft);color:var(--brand);border-radius:999px;
   padding:4px 11px;font-size:12.5px;font-weight:700;white-space:nowrap}
 
 /* This week: the number, then a bar a day you can tap. */
-body.coach .ath-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
-body.coach .ath-n{font-family:var(--display);font-size:56px;font-weight:600;line-height:.9;color:var(--brand)}
-body.coach .ath-l{margin-inline-start:8px;font-size:13px;font-weight:700;color:var(--muted)}
-body.coach .ath-chips{display:flex;gap:6px;flex-wrap:wrap}
-body.coach .daybars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:16px}
-body.coach .dbar{display:grid;justify-items:center;gap:4px;padding:6px 0;border:0;border-radius:12px;background:none;
+:is(body.coach,body.admin) .ath-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+:is(body.coach,body.admin) .ath-n{font-family:var(--display);font-size:56px;font-weight:600;line-height:.9;color:var(--brand)}
+:is(body.coach,body.admin) .ath-l{margin-inline-start:8px;font-size:13px;font-weight:700;color:var(--muted)}
+:is(body.coach,body.admin) .ath-chips{display:flex;gap:6px;flex-wrap:wrap}
+:is(body.coach,body.admin) .daybars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:16px}
+:is(body.coach,body.admin) .dbar{display:grid;justify-items:center;gap:4px;padding:6px 0;border:0;border-radius:12px;background:none;
   color:inherit;font:inherit;cursor:pointer}
-body.coach .dbar[aria-pressed="true"]{background:var(--brand-soft)}
-body.coach .dbar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-body.coach .dbar-n{font-size:12px;font-weight:700;min-height:16px}
-body.coach .dbar-col{display:flex;align-items:flex-end;width:18px;height:70px;border-radius:9px;background:var(--line);overflow:hidden}
-body.coach .dbar-col i{display:block;width:100%;background:var(--brand);border-radius:9px;transform-origin:bottom;
+:is(body.coach,body.admin) .dbar[aria-pressed="true"]{background:var(--brand-soft)}
+:is(body.coach,body.admin) .dbar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+:is(body.coach,body.admin) .dbar-n{font-size:12px;font-weight:700;min-height:16px}
+:is(body.coach,body.admin) .dbar-col{display:flex;align-items:flex-end;width:18px;height:70px;border-radius:9px;background:var(--line);overflow:hidden}
+:is(body.coach,body.admin) .dbar-col i{display:block;width:100%;background:var(--brand);border-radius:9px;transform-origin:bottom;
   animation:barUp .6s cubic-bezier(.2,.7,.2,1) backwards}
-body.coach .dbar-d{font-size:11.5px;font-weight:700;color:var(--muted)}
-body.coach .dbar.today .dbar-d{color:var(--brand)}
+:is(body.coach,body.admin) .dbar-d{font-size:11.5px;font-weight:700;color:var(--muted)}
+:is(body.coach,body.admin) .dbar.today .dbar-d{color:var(--brand)}
 @keyframes barUp{from{transform:scaleY(0)}}
-body.coach .day-detail{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
-body.coach .day-detail h3{margin:0 0 6px;font-size:15px}
-body.coach .dd-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px}
-body.coach .dd-row b{color:var(--brand)}
+:is(body.coach,body.admin) .day-detail{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+:is(body.coach,body.admin) .day-detail h3{margin:0 0 6px;font-size:15px}
+:is(body.coach,body.admin) .dd-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px}
+:is(body.coach,body.admin) .dd-row b{color:var(--brand)}
 
 /* The session in front of the coach, big. */
 body.coach .now-card{background:var(--brand-soft);border:1.5px solid var(--brand);box-shadow:none}
@@ -461,20 +461,20 @@ body.coach .wk-extra .roster,body.coach .wk-extra .missed{margin:0}
 }
 
 /* Every week as a circle, filled to its share of the best week. */
-body.coach .rings{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
-body.coach .ring-btn{flex:none;display:grid;justify-items:center;gap:5px;padding:0;border:0;background:none;
+:is(body.coach,body.admin) .rings{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+:is(body.coach,body.admin) .ring-btn{flex:none;display:grid;justify-items:center;gap:5px;padding:0;border:0;background:none;
   color:inherit;font:inherit;cursor:pointer}
-body.coach .ring{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;
+:is(body.coach,body.admin) .ring{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;
   background:conic-gradient(var(--brand) calc(var(--p) * 1%),var(--line) 0);position:relative}
-body.coach .ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--card)}
-body.coach .ring b{position:relative;font-family:var(--display);font-size:22px;font-weight:600}
-body.coach .ring-btn[aria-pressed="true"] .ring::before{background:var(--brand-soft)}
-body.coach .ring-btn[aria-pressed="true"] .ring b{color:var(--brand)}
-body.coach .ring-btn:focus-visible .ring{outline:2px solid var(--brand);outline-offset:3px}
-body.coach .ring-d{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}
-body.coach .ring-detail h3{margin:6px 0 8px;font-size:15px}
-body.coach .ring-chips{display:flex;flex-wrap:wrap;gap:6px}
-@media (prefers-reduced-motion:reduce){body.coach .dbar-col i{animation:none}}
+:is(body.coach,body.admin) .ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--card)}
+:is(body.coach,body.admin) .ring b{position:relative;font-family:var(--display);font-size:22px;font-weight:600}
+:is(body.coach,body.admin) .ring-btn[aria-pressed="true"] .ring::before{background:var(--brand-soft)}
+:is(body.coach,body.admin) .ring-btn[aria-pressed="true"] .ring b{color:var(--brand)}
+:is(body.coach,body.admin) .ring-btn:focus-visible .ring{outline:2px solid var(--brand);outline-offset:3px}
+:is(body.coach,body.admin) .ring-d{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+:is(body.coach,body.admin) .ring-detail h3{margin:6px 0 8px;font-size:15px}
+:is(body.coach,body.admin) .ring-chips{display:flex;flex-wrap:wrap;gap:6px}
+@media (prefers-reduced-motion:reduce){:is(body.coach,body.admin) .dbar-col i{animation:none}}
 
 /* ---- /admin: what is waiting, and the four tabs ----
    Under body.admin so /coach keeps its own look. */
@@ -492,3 +492,48 @@ body.admin .tabs button{padding:10px 6px;border:0;border-radius:10px;background:
 body.admin .tabs button[aria-selected="true"]{background:var(--brand);color:var(--brand-ink)}
 body.admin .tabs button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 body.admin .card{scroll-margin-top:72px}
+
+/* ---- /admin's Today cards ---- */
+body.admin .s-more{margin-top:10px}
+body.admin .pub-toggle{margin-top:6px}
+body.admin .pub{margin-top:12px}
+/* Sessions & QR: one line a session, tapped open for who came and Remove. */
+body.admin .s-list{display:grid;gap:8px;margin-top:12px}
+body.admin .s-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--card)}
+body.admin .s-row.hot{border-color:var(--brand);background:var(--brand-soft)}
+body.admin .s-at{flex:none;display:grid;justify-items:center;min-width:76px;padding:4px 6px;border-radius:10px;
+  background:var(--brand-soft);color:var(--brand);line-height:1.2}
+body.admin .s-row.hot .s-at{background:var(--card)}
+body.admin .s-at b{font-size:12px}
+body.admin .s-at span{font-size:13px;font-weight:700}
+body.admin .s-what{flex:1 1 0;min-width:0;cursor:pointer}
+body.admin .s-what b{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:650}
+body.admin .s-what > span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.admin .s-extra{display:none;flex:1 1 100%;flex-direction:column;gap:8px}
+body.admin .s-row.open .s-extra{display:flex}
+body.admin .s-extra .acts{display:flex;gap:6px}
+body.admin .s-extra .acts .btn{flex:1 1 0}
+body.admin .s-extra .roster{margin:0}
+/* Missed check-ins: one card an ask. */
+body.admin .req{border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;display:grid;gap:8px}
+body.admin .req-head{display:flex;align-items:center;gap:10px}
+body.admin .req-head > div{display:grid;min-width:0}
+body.admin .req-ini{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;
+  background:var(--brand-soft);color:var(--brand);font-family:var(--display);font-size:20px;font-weight:600}
+body.admin .req-why{margin:0;padding:8px 12px;border-radius:12px;background:var(--bg);font-size:14.5px}
+body.admin .req-acts{display:flex;gap:8px}
+body.admin .req-acts .btn{flex:1 1 0}
+body.admin .req-past{display:grid;gap:4px;margin-top:6px}
+body.admin .req-line{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;
+  padding:6px 0;border-bottom:1px solid var(--line)}
+body.admin .badge.yes{color:#0f9d58;border-color:#0f9d58;background:transparent}
+body.admin .badge.no{color:var(--err);border-color:var(--err);background:transparent}
+/* What athletes said: the average big, the bars, then chips to filter. */
+body.admin .fb-sum{display:flex;align-items:center;gap:14px;margin-top:10px}
+body.admin .fb-avg{font-family:var(--display);font-size:56px;font-weight:600;line-height:.9;color:var(--brand)}
+body.admin .fb-sum > div{display:grid;gap:2px}
+body.admin .fb-chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+body.admin .fb-chip{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--fg);
+  font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+body.admin .fb-chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}

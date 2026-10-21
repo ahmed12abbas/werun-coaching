@@ -409,12 +409,8 @@ function consoleTools(rerender) {
 }
 
 /* ---- the dashboard ----
-   How many athletes came, per session and per week. Sessions are the unit a
-   coach thinks in — "Tuesday had nineteen" — so the tiles are sessions and
-   the number under the week is what they add up to. */
-
-/* How many sessions a week shows by name before it stops naming them. */
-var CHIPS = 8;
+   How many athletes came: this week as a bar a day, every week as a circle.
+   Both pages draw the same two cards. */
 
 /** "Sun 31 Aug", the way a coach reads a date rather than 2026-08-31. */
 function dayStamp(iso) {
@@ -430,72 +426,89 @@ function dayHeading(iso) {
   return d.toLocaleDateString(consoleLocale(), { weekday: "long", day: "numeric", month: "long" });
 }
 
-/**
- * The two cards: this week session by session, and every week as a table.
- * Appended to `into`, so a page that has more to show can carry on below.
- */
-function attendanceCards(into, weeks) {
-  weeks = weeks || [];
+/* This week's head count, big, and a bar a day under it. Tapping a day
+   lists its sessions and how many came to each; today is open to start.
+   Shared by /coach and /admin, which passes no `week`. */
+function athletesCard(stats, week) {
+  var dates = clubWeekDates();
+  var latest = (stats.weeks || [])[0];
+  var mine = latest && latest.start === dates[0] ? latest : { total: 0, sessions: [] };
+  var byDay = dates.map(function (d) {
+    return mine.sessions.filter(function (s) { return s.date === d; });
+  });
+  var sums = byDay.map(function (list) {
+    return list.reduce(function (n, s) { return n + (s.came || 0); }, 0);
+  });
+  var peak = Math.max.apply(null, sums.concat(1));
+  var today = isoDate(new Date());
+  var detail = el("div", { class: "day-detail" });
+  var bars = el("div", { class: "daybars" });
+  var buttons = [];
 
-  if (!weeks.length) {
-    into.append(el("div", { class: "card" },
-      el("h2", {}, t("cNoneYet")),
-      el("p", { class: "muted small", style: "margin:0" }, t("cNoneYetLead"))));
-    return;
+  function pick(i) {
+    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+    detail.textContent = "";
+    detail.append(el("h3", {}, dayHeading(dates[i])));
+    if (!byDay[i].length) return detail.append(el("p", { class: "muted small", style: "margin:0" }, t("cNoSessionsDay")));
+    byDay[i].forEach(function (s) {
+      detail.append(el("div", { class: "dd-row" }, el("span", { dir: "auto" }, s.name), el("b", {}, String(s.came || 0))));
+    });
   }
 
-  // The server hands weeks newest first, and each week's sessions newest
-  // first with them. On screen a week reads forwards: Sunday, then Monday.
-  var inOrder = function (w) {
-    return w.sessions.slice().sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; });
-  };
-
-  var latest = weeks[0];
-  var tiles = el("div", { class: "tiles" });
-  inOrder(latest).forEach(function (s) {
-    tiles.append(el("div", { class: "tile" },
-      el("div", { class: "n" }, String(s.came || 0)),
-      el("div", { class: "l" }, s.name, el("small", {}, dayStamp(s.date)))));
+  dates.forEach(function (d, i) {
+    var b = el("button", { type: "button", class: "dbar" + (d === today ? " today" : ""), "aria-label": dayHeading(d) + ": " + sums[i] },
+      el("span", { class: "dbar-n" }, sums[i] ? String(sums[i]) : ""),
+      el("span", { class: "dbar-col" }, el("i", { style: "height:" + Math.round((sums[i] / peak) * 100) + "%" })),
+      el("span", { class: "dbar-d" }, new Date(d + "T00:00:00").toLocaleDateString(consoleLocale(), { weekday: "short" })));
+    b.addEventListener("click", function () { pick(i); });
+    buttons.push(b);
+    bars.append(b);
   });
-  // The week's own total last, so it reads as the sum of the row before it.
-  tiles.append(el("div", { class: "tile" },
-    el("div", { class: "n" }, String(latest.total)),
-    el("div", { class: "l" }, t("cTheWeek"), el("small", {}, t("cCounted")))));
+  pick(Math.max(0, dates.indexOf(today)));
 
-  // The one card that never folds: the head count is what both pages are for.
-  into.append(el("div", { class: "card keep" },
-    el("h2", {}, t("cThisWeek", { date: dayStamp(latest.start) })),
-    tiles));
+  return el("div", { class: "card athletes" },
+    el("div", { class: "ath-head" },
+      el("div", {}, el("b", { class: "ath-n" }, String(mine.total)), el("span", { class: "ath-l" }, t("cSumCame"))),
+      // /coach knows today's sign-ups from its week; /admin has no week, so it
+      // says how many sessions have run.
+      el("div", { class: "ath-chips" },
+        week ? el("span", { class: "chip" }, t("cChipToday", { n: week.comingToday })) : null,
+        el("span", { class: "chip" }, t("cChipSessions", { n: week ? week.count : mine.sessions.length })))),
+    bars, detail);
+}
 
+/* Every week as a circle filled to its share of the best week, newest first.
+   Tapping one shows that week's sessions under the row. */
+function weeksCard(weeks) {
+  weeks = weeks.slice(0, 12);
   var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
-  var rows = el("tbody", {});
-  weeks.forEach(function (w) {
-    rows.append(el("tr", {},
-      el("td", { class: "wk" }, dayStamp(w.start),
-        el("small", {}, t(w.sessions.length === 1 ? "cNSession" : "cNSessions", { n: w.sessions.length }))),
-      // Enough sessions to see the shape of the week, not so many that a
-      // fortnight of them turns the table into a wall.
-      el("td", { class: "left", dir: "auto" },
-        inOrder(w).slice(0, CHIPS).map(function (s) {
-          return el("span", { class: "sess-chip" }, s.name + " " + (s.came || 0));
-        }),
-        w.sessions.length > CHIPS
-          ? el("span", { class: "muted small" }, t("cMore", { n: w.sessions.length - CHIPS }))
-          : null),
-      el("td", { class: "tot" }, String(w.total)),
-      el("td", { class: "barcell" },
-        el("div", { class: "barwrap" },
-          el("div", { class: "bar", style: "width:" + Math.round((w.total / peak) * 100) + "%" })))));
-  });
+  var row = el("div", { class: "rings" });
+  var detail = el("div", { class: "ring-detail" });
+  var buttons = [];
 
-  into.append(el("div", { class: "card" },
-    el("h2", {}, t("cEveryWeek")),
-    el("div", { class: "scroll" },
-      el("table", {},
-        el("thead", {}, el("tr", {},
-          el("th", {}, t("cWeek")), el("th", { class: "left" }, t("cSessions")),
-          el("th", {}, t("cAthletes")), el("th", { class: "barcell" }, ""))),
-        rows))));
+  function pick(i) {
+    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+    var w = weeks[i];
+    detail.textContent = "";
+    detail.append(el("h3", {}, t("cWeekOfN", { date: dayStamp(w.start), n: w.total })));
+    var chips = el("div", { class: "ring-chips" });
+    w.sessions.slice().sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; }).forEach(function (s) {
+      chips.append(el("span", { class: "sess-chip", dir: "auto" }, s.name + " · " + (s.came || 0)));
+    });
+    detail.append(chips);
+  }
+
+  weeks.forEach(function (w, i) {
+    var b = el("button", { type: "button", class: "ring-btn", style: "--p:" + Math.round((w.total / peak) * 100),
+      "aria-label": dayStamp(w.start) + ": " + w.total },
+      el("span", { class: "ring" }, el("b", {}, String(w.total))),
+      el("span", { class: "ring-d" }, dayStamp(w.start)));
+    b.addEventListener("click", function () { pick(i); });
+    buttons.push(b);
+    row.append(b);
+  });
+  pick(0);
+  return el("div", { class: "card" }, el("h2", {}, t("cEveryWeek")), row, detail);
 }
 
 /* ---- folding the page up ----

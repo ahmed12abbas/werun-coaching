@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=3856d9d2">
+<link rel="stylesheet" href="assets/console.css?v=ff45dd8d">
 </head>
 <body class="admin">
 <div class="wrap">
@@ -28,11 +28,11 @@
   <footer>WE RUN Coaching · <a href="/app.html">back to the app</a></footer>
 </div>
 
-<script src="js/i18n.js?v=2c4ce925"></script>
+<script src="js/i18n.js?v=f818b73f"></script>
 <script src="js/model.js?v=97a5cd01"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
-<script src="js/console.js?v=a71590e4"></script>
+<script src="js/console.js?v=064735bf"></script>
 <script src="js/tipfmt.js?v=6b754eff"></script>
 <script src="js/shrink.js?v=6a2c4ccc"></script>
 <script src="js/about.js?v=9d632875"></script>
@@ -239,18 +239,14 @@ function feedbackCard(first) {
       return;
     }
 
-    var items = data.items || [];
-    var withWords = items.filter(function (i) { return i && i.comment; }).length;
-    card.append(el("div", { class: "tiles" },
-      el("div", { class: "tile" },
-        el("div", { class: "n" }, data.average.toFixed(1)),
-        el("div", { class: "l" }, "Average")),
-      el("div", { class: "tile" },
-        el("div", { class: "n" }, String(data.count)),
-        el("div", { class: "l" }, data.count === 1 ? "Rating" : "Ratings")),
-      el("div", { class: "tile" },
-        el("div", { class: "n" }, String(withWords)),
-        el("div", { class: "l" }, "With a comment"))));
+    var items = (data.items || []).filter(Boolean);
+    var withWords = items.filter(function (i) { return i.comment; }).length;
+    // The average big with its stars, and the two counts in one line under it.
+    card.append(el("div", { class: "fb-sum" },
+      el("b", { class: "fb-avg" }, data.average.toFixed(1)),
+      el("div", {}, starRow(Math.round(data.average)),
+        el("span", { class: "muted small" }, data.count + (data.count === 1 ? " rating" : " ratings") +
+          " · " + withWords + " with a comment"))));
 
     // Five bars beat one average: two people at one star and two at five are
     // not the same club as four people at three, and the mean cannot say so.
@@ -266,7 +262,39 @@ function feedbackCard(first) {
     }
     card.append(bars);
 
-    items.forEach(function (i) { if (i) card.append(note(i)); });
+    /* The notes, filtered by a row of chips and shown a few at a time: the
+       newest is what a coach comes for, and a hundred notes open at once is
+       a wall. */
+    var FILTERS = [
+      ["all", "All", function () { return true; }],
+      ["words", "With a comment", function (i) { return !!i.comment; }],
+      ["low", "Low (1–2★)", function (i) { return i.rating <= 2; }]
+    ];
+    var STEP = 5;
+    var shown = STEP;
+    var pickFilter = FILTERS[0];
+    var chips = el("div", { class: "fb-chips" });
+    var notes = el("div", {});
+    var more = el("button", { class: "btn sm s-more", type: "button", onclick: function () { shown += STEP; draw(); } });
+    function draw() {
+      chips.querySelectorAll("button").forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-f") === pickFilter[0] ? "true" : "false");
+      });
+      var list = items.filter(pickFilter[2]);
+      notes.textContent = "";
+      if (!list.length) notes.append(el("p", { class: "muted small", style: "margin:8px 0 0" }, "None here."));
+      list.slice(0, shown).forEach(function (i) { notes.append(note(i)); });
+      more.hidden = list.length <= shown;
+      more.textContent = "Show more · " + (list.length - shown);
+    }
+    FILTERS.forEach(function (f) {
+      var n = items.filter(f[2]).length;
+      chips.append(el("button", { type: "button", class: "fb-chip", "data-f": f[0], onclick: function () {
+        pickFilter = f; shown = STEP; draw();
+      } }, f[1] + " · " + n));
+    });
+    card.append(chips, notes, more);
+    draw();
   }
 
   paint(first);
@@ -293,10 +321,12 @@ function renderStats(data, tips) {
   }));
   app.append(needsBar, tabBar);
 
-  // The head count first, on Today; attendanceCards() appends its own two.
-  attendanceCards(app, data.weeks);
-  app.querySelectorAll(".card").forEach(function (c) { c.dataset.tab = "today"; });
+  // The head count first, on Today: the same bars and circles /coach shows.
   var put = function (tab, card) { card.dataset.tab = tab; app.append(card); };
+  var head = athletesCard(data, null);
+  head.classList.add("keep");
+  put("today", head);
+  if ((data.weeks || []).length) { var weeks = weeksCard(data.weeks); weeks.classList.add("keep"); put("today", weeks); }
   put("today", requestsCard());
   put("today", feedbackCard(data.feedback));
   put("today", sessionsCard());
@@ -797,6 +827,14 @@ function sessionsCard() {
     }).then(function () { speedGo.disabled = false; });
   });
 
+  /* The form is shut until asked for: most visits to this card are for a
+     code or a head count, and the form was most of its height. */
+  pub.hidden = true;
+  var pubToggle = el("button", { class: "btn primary pub-toggle", type: "button", onclick: function () {
+    pub.hidden = !pub.hidden;
+    pubToggle.textContent = pub.hidden ? "Publish a session" : "Close the form";
+  } }, "Publish a session");
+  card.insertBefore(pubToggle, pub);
   pub.append(
     el("div", {}, el("label", {}, "Share link"), link,
       // Where that link is made. A new tab, because the half-filled form
@@ -816,9 +854,14 @@ function sessionsCard() {
     pubErr,
     el("div", { class: "row" }, el("div", { style: "flex:0 0 auto" }, go)));
 
-  /* ---- the list ---- */
+  /* ---- the list ----
+     One line a session: when, what, and the code. Tapping the line opens who
+     came and Remove under it. What has been and gone folds under "Earlier",
+     because the list is for the week in front of the coach. */
+  var ROWS = {};
   function paint(data) {
     body.textContent = "";
+    ROWS = {};
     if (data && data.coaches) COACHES.tell(data.coaches);
     var sessions = (data && data.sessions) || [];
     if (data && data.qr === false) {
@@ -827,45 +870,70 @@ function sessionsCard() {
     }
     if (!sessions.length) {
       body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
-        "Nothing published yet. Build a session, copy its link, and paste it above."));
+        "Nothing published yet. Build a session, copy its link, and publish it above."));
       return;
     }
-    var head = el("tr", {}, el("th", {}, "Session"), el("th", {}, "When"), el("th", {}, "Coach"),
-      el("th", {}, "Points"), el("th", {}, "Came"), el("th", {}, ""));
-    var rows = el("tbody", {});
     var now = new Date();
-    sessions.forEach(function (s) {
-      var starts = new Date(s.starts_at);
-      var open = now >= new Date(s.window_open_at) && now <= new Date(s.window_close_at);
-      var showBtn = el("button", { class: "btn sm primary", onclick: function () { qrScreen(s); } }, "Show the code");
-      var whoBtn = el("button", { class: "btn sm", onclick: function () { roster(s, whoBtn); } }, "Who came");
-      var delBtn = el("button", { class: "btn sm", onclick: function () {
-        if (!window.confirm("Remove " + s.name + " from the club calendar?")) return;
-        delBtn.disabled = true;
-        post({ action: "delete", id: s.id }).then(paint)["catch"](function (e) {
-          delBtn.disabled = false; body.append(el("p", { class: "err" }, e.message));
-        });
-      } }, "Remove");
-      rows.append(el("tr", { class: starts < now && !open ? "past" : "" },
-        el("td", { class: "name", dir: "auto" }, s.name,
-          open ? el("span", { class: "badge" }, "Open now") : null),
-        el("td", { class: "when" }, stamp(s.starts_at) || s.date),
-        el("td", { dir: "auto" }, COACHES.name(s.coach_id) || "\u2014"),
-        el("td", {}, String(s.points)),
-        el("td", {}, String(s.came || 0)),
-        el("td", { class: "acts" }, showBtn, whoBtn, delBtn)));
-    });
-    body.append(el("div", { class: "scroll" }, el("table", { class: "sess" }, el("thead", {}, head), rows)));
+    var isOpen = function (s) { return now >= new Date(s.window_open_at) && now <= new Date(s.window_close_at); };
+    var ahead = sessions.filter(function (s) { return isOpen(s) || new Date(s.starts_at) >= now; })
+      .sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; });
+    var gone = sessions.filter(function (s) { return ahead.indexOf(s) < 0; })
+      .sort(function (a, b) { return a.starts_at < b.starts_at ? 1 : -1; });
+
+    var list = el("div", { class: "s-list" });
+    if (!ahead.length) list.append(el("p", { class: "muted small", style: "margin:0" }, "Nothing coming up."));
+    ahead.forEach(function (s) { list.append(srow(s, isOpen(s))); });
+    body.append(list);
+
+    if (gone.length) {
+      var earlier = el("div", { class: "s-list" });
+      earlier.hidden = true;
+      gone.forEach(function (s) { earlier.append(srow(s, false)); });
+      var more = el("button", { class: "btn sm s-more", type: "button", onclick: function () {
+        earlier.hidden = !earlier.hidden;
+        more.textContent = (earlier.hidden ? "Earlier · " : "Hide earlier · ") + gone.length;
+      } }, "Earlier · " + gone.length);
+      body.append(more, earlier);
+    }
+  }
+
+  function srow(s, open) {
+    var d = new Date(s.starts_at);
+    var extra = el("div", { class: "s-extra" });
+    var showBtn = el("button", { class: "btn sm primary", onclick: function () { qrScreen(s); } }, "Code");
+    var whoBtn = el("button", { class: "btn sm", onclick: function () { roster(s, whoBtn, extra); } }, "Who came");
+    var delBtn = el("button", { class: "btn sm", onclick: function () {
+      if (!window.confirm("Remove " + s.name + " from the club calendar?")) return;
+      delBtn.disabled = true;
+      post({ action: "delete", id: s.id }).then(paint)["catch"](function (e) {
+        delBtn.disabled = false; extra.append(el("p", { class: "err" }, e.message));
+      });
+    } }, "Remove");
+    extra.append(el("div", { class: "acts" }, whoBtn, delBtn));
+    var what = el("div", { class: "s-what", role: "button", tabindex: "0" },
+      el("b", { dir: "auto" }, s.name, open ? el("span", { class: "badge" }, "Open now") : null),
+      el("span", { dir: "auto" }, [COACHES.name(s.coach_id), s.points + " pts", (s.came || 0) + " came"].filter(Boolean).join(" · ")));
+    var line = el("div", { class: "s-row" + (open ? " hot" : "") },
+      el("span", { class: "s-at" },
+        el("b", {}, isNaN(d) ? s.date : d.toLocaleDateString("en", { weekday: "short", day: "numeric", month: "short" })),
+        el("span", {}, isNaN(d) ? "" : d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", hour12: false }))),
+      what, showBtn, extra);
+    var flip = function () { line.classList.toggle("open"); };
+    what.addEventListener("click", flip);
+    what.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+    line.openWho = function () { line.classList.add("open"); whoBtn.click(); };
+    ROWS[s.id] = line;
+    return line;
   }
 
   /* ---- who came ---- */
-  function roster(s, btn) {
+  function roster(s, btn, into) {
     // Tapped again, shut it again: the list is already on screen and a second
     // copy of it under the first is not a second answer.
     if (btn._box) { btn._box.remove(); btn._box = null; return; }
     btn.disabled = true;
     post({ action: "roster", id: s.id }).then(function (d) {
-      var box = el("div", { class: "roster" }, el("h3", {}, "Who came \u00b7 " + s.name));
+      var box = el("div", { class: "roster" }, el("h3", {}, "Who came · " + s.name));
       var list = (d.roster || []);
       if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, "Nobody yet."));
       else {
@@ -873,41 +941,42 @@ function sessionsCard() {
         list.forEach(function (r) {
           var drop = el("button", { class: "drop", title: "Void this check-in",
             "aria-label": "Void this check-in", onclick: function () {
-              if (!window.confirm("Void " + r.name + "'s check-in? The points go back too.")) return;
+              if (!window.confirm("Void " + r.name + "’s check-in? The points go back too.")) return;
               drop.disabled = true;
               post({ action: "void", id: r.id }).then(function (d2) {
-                box.replaceWith(el("div", {}));
-                btn._box = null;
-                paint(d2); roster(s, btn);
+                // The list redraws with the new count; this session's row
+                // opens its roster again so the voided name is still in view.
+                paint(d2);
+                if (ROWS[s.id]) ROWS[s.id].openWho();
               })["catch"](function (e) { drop.disabled = false; box.append(el("p", { class: "err" }, e.message)); });
-            } }, "\u2715");
+            } }, "✕");
           /* This athlete's next scan ends in the feedback box, once
              (routes/checkin.js spends it). Tapped again before then, the
              ask is taken back. */
           var ask = el("button", { class: "btn sm ask", type: "button",
             title: "Their next check-in ends with the feedback box, once" },
-            r.ask_feedback ? "Asked \u2713" : "Ask for feedback");
+            r.ask_feedback ? "Asked ✓" : "Ask for feedback");
           ask.addEventListener("click", function () {
             ask.disabled = true;
             api("/api/admin/members", { action: "ask-feedback", id: r.user_id, ask: !r.ask_feedback })
               .then(function (d) {
                 r.ask_feedback = d.ask_feedback;
-                ask.textContent = r.ask_feedback ? "Asked \u2713" : "Ask for feedback";
+                ask.textContent = r.ask_feedback ? "Asked ✓" : "Ask for feedback";
               })
               ["catch"](function (e) { box.append(el("p", { class: "err" }, e.message)); })
               .then(function () { ask.disabled = false; });
           });
           ol.append(el("li", { class: r.voided_at ? "void" : "", dir: "auto" },
-            r.name, el("span", { class: "muted small" }, " \u00b7 " + (stamp(r.at) || "")),
+            r.name, el("span", { class: "muted small" }, " · " + (stamp(r.at) || "")),
             r.voided_at ? null : ask,
             r.voided_at ? null : drop));
         });
         box.append(ol);
       }
       btn._box = box;
-      body.append(box);
+      into.append(box);
       box.scrollIntoView({ block: "nearest" });
-    })["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); })
+    })["catch"](function (e) { into.append(el("p", { class: "err" }, e.message)); })
       .then(function () { btn.disabled = false; });
   }
 
@@ -1594,13 +1663,17 @@ function requestsCard() {
   var body = el("div", {});
   card.append(body);
 
+  /* One ask as a small card: who, where, who asked, and why in their words,
+     with the two answers big enough to tap at a glance. */
   function line(r, buttons) {
-    return el("div", { class: "note" },
-      el("div", { class: "notehead" },
-        el("b", { dir: "auto" }, r.athlete),
-        el("span", { class: "muted small" }, r.session_name + " · " + r.session_date +
-          " · asked by " + (r.asked_by_name || "a coach"))),
-      said(r.reason),
+    return el("div", { class: "req" },
+      el("div", { class: "req-head" },
+        el("span", { class: "req-ini", "aria-hidden": "true" }, (String(r.athlete || "?").trim()[0] || "?").toUpperCase()),
+        el("div", {},
+          el("b", { dir: "auto" }, r.athlete),
+          el("span", { class: "muted small", dir: "auto" }, r.session_name + " · " + r.session_date +
+            " · asked by " + (r.asked_by_name || "a coach")))),
+      el("p", { class: "req-why", dir: "auto" }, r.reason),
       buttons);
   }
 
@@ -1616,16 +1689,26 @@ function requestsCard() {
     needs("missed", pending.length, card);
     if (!pending.length) body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, "Nothing waiting."));
     pending.forEach(function (r) {
-      var yes = el("button", { class: "btn sm primary", onclick: function () { decide(r, "approve", yes); } }, "Approve");
-      var no = el("button", { class: "btn sm", onclick: function () { decide(r, "reject", no); } }, "Reject");
-      body.append(line(r, el("div", { class: "row", style: "margin-top:8px" }, yes, no)));
+      var yes = el("button", { class: "btn primary", onclick: function () { decide(r, "approve", yes); } }, "✓ Approve");
+      var no = el("button", { class: "btn", onclick: function () { decide(r, "reject", no); } }, "✕ Reject");
+      body.append(line(r, el("div", { class: "req-acts" }, yes, no)));
     });
+    // What was already decided, one line each and folded away: it is a
+    // record to look back at, not something waiting on anybody.
     var done = d.decided || [];
     if (done.length) {
-      body.append(el("h3", { style: "margin:16px 0 4px" }, "Lately decided"));
+      var past = el("div", { class: "req-past" });
+      past.hidden = true;
       done.forEach(function (r) {
-        body.append(line(r, el("span", { class: "badge" }, r.status === "approved" ? "Approved" : "Rejected")));
+        past.append(el("div", { class: "req-line" },
+          el("span", { dir: "auto" }, r.athlete + " · " + r.session_name),
+          el("span", { class: "badge" + (r.status === "approved" ? " yes" : " no") }, r.status === "approved" ? "Approved" : "Rejected")));
       });
+      var toggle = el("button", { class: "btn sm s-more", type: "button", onclick: function () {
+        past.hidden = !past.hidden;
+        toggle.textContent = (past.hidden ? "Lately decided · " : "Hide decided · ") + done.length;
+      } }, "Lately decided · " + done.length);
+      body.append(toggle, past);
     }
   }
 

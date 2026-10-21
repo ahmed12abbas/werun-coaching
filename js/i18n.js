@@ -301,18 +301,7 @@ const STRINGS = {
     cErrServer: "The server answered {status} ({code}).",
 
     /* the head count */
-    cNoneYet: "Nobody has checked in yet",
-    cNoneYetLead: "This fills in the first time an athlete scans the code at the track.",
-    cThisWeek: "Athletes this week · from {date}",
-    cTheWeek: "The week",
-    cCounted: "athletes counted",
     cEveryWeek: "Every week",
-    cWeek: "Week",
-    cSessions: "Sessions",
-    cAthletes: "Athletes",
-    cNSession: "{n} session",
-    cNSessions: "{n} sessions",
-    cMore: "+{n} more",
 
     /* the week, and the code at the track */
     cCodesWeek: "Codes for this week",
@@ -912,19 +901,8 @@ const STRINGS = {
     cErrNotConfigured: "لم تُضبَط كلمة مرور النادي بعد. اضبط ADMIN_PASSWORD في مشروع Pages — انظر README.",
     cErrServer: "أجاب الخادم بـ {status} ({code}).",
 
-    cNoneYet: "لا أحد سجّل حضوره بعد",
-    cNoneYetLead: "يمتلئ هذا أول ما يمسح رياضي الرمز في المضمار.",
-    cThisWeek: "هذا الأسبوع · من {date}",
-    cTheWeek: "الأسبوع",
-    cCounted: "إجمالي الحضور",
     cEveryWeek: "كل أسبوع",
-    cWeek: "الأسبوع",
-    cSessions: "الحصص",
-    cAthletes: "الرياضيون",
     // العربية لا تفرّق هنا كما تفعل الإنجليزية، فالمفتاحان بنص واحد.
-    cNSession: "{n} حصة",
-    cNSessions: "{n} حصة",
-    cMore: "+{n} غيرها",
 
     cCodesWeek: "رموز هذا الأسبوع",
     cShowCode: "اعرض الرمز",

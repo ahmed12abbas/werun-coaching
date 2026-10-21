@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=3856d9d2">
+<link rel="stylesheet" href="assets/console.css?v=ff45dd8d">
 </head>
 <body class="coach">
 <div class="wrap">
@@ -26,9 +26,9 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=2c4ce925"></script>
+<script src="js/i18n.js?v=f818b73f"></script>
 <script src="js/qr.js?v=814df91c"></script>
-<script src="js/console.js?v=a71590e4"></script>
+<script src="js/console.js?v=064735bf"></script>
 <script>
 "use strict";
 
@@ -112,88 +112,6 @@ function render(stats, plan, sess, rota) {
   app.append(week);
   foldCard(week);
   hotClock(app);
-}
-
-/* This week's head count, big, and a bar a day under it. Tapping a day
-   lists its sessions and how many came to each; today is open to start. */
-function athletesCard(stats, week) {
-  var dates = clubWeekDates();
-  var latest = (stats.weeks || [])[0];
-  var mine = latest && latest.start === dates[0] ? latest : { total: 0, sessions: [] };
-  var byDay = dates.map(function (d) {
-    return mine.sessions.filter(function (s) { return s.date === d; });
-  });
-  var sums = byDay.map(function (list) {
-    return list.reduce(function (n, s) { return n + (s.came || 0); }, 0);
-  });
-  var peak = Math.max.apply(null, sums.concat(1));
-  var today = isoDate(new Date());
-  var detail = el("div", { class: "day-detail" });
-  var bars = el("div", { class: "daybars" });
-  var buttons = [];
-
-  function pick(i) {
-    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
-    detail.textContent = "";
-    detail.append(el("h3", {}, dayHeading(dates[i])));
-    if (!byDay[i].length) return detail.append(el("p", { class: "muted small", style: "margin:0" }, t("cNoSessionsDay")));
-    byDay[i].forEach(function (s) {
-      detail.append(el("div", { class: "dd-row" }, el("span", { dir: "auto" }, s.name), el("b", {}, String(s.came || 0))));
-    });
-  }
-
-  dates.forEach(function (d, i) {
-    var b = el("button", { type: "button", class: "dbar" + (d === today ? " today" : ""), "aria-label": dayHeading(d) + ": " + sums[i] },
-      el("span", { class: "dbar-n" }, sums[i] ? String(sums[i]) : ""),
-      el("span", { class: "dbar-col" }, el("i", { style: "height:" + Math.round((sums[i] / peak) * 100) + "%" })),
-      el("span", { class: "dbar-d" }, new Date(d + "T00:00:00").toLocaleDateString(consoleLocale(), { weekday: "short" })));
-    b.addEventListener("click", function () { pick(i); });
-    buttons.push(b);
-    bars.append(b);
-  });
-  pick(Math.max(0, dates.indexOf(today)));
-
-  return el("div", { class: "card athletes" },
-    el("div", { class: "ath-head" },
-      el("div", {}, el("b", { class: "ath-n" }, String(mine.total)), el("span", { class: "ath-l" }, t("cSumCame"))),
-      el("div", { class: "ath-chips" },
-        el("span", { class: "chip" }, t("cChipToday", { n: week.comingToday })),
-        el("span", { class: "chip" }, t("cChipSessions", { n: week.count })))),
-    bars, detail);
-}
-
-/* Every week as a circle filled to its share of the best week, newest first.
-   Tapping one shows that week's sessions under the row. */
-function weeksCard(weeks) {
-  weeks = weeks.slice(0, 12);
-  var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
-  var row = el("div", { class: "rings" });
-  var detail = el("div", { class: "ring-detail" });
-  var buttons = [];
-
-  function pick(i) {
-    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
-    var w = weeks[i];
-    detail.textContent = "";
-    detail.append(el("h3", {}, t("cWeekOfN", { date: dayStamp(w.start), n: w.total })));
-    var chips = el("div", { class: "ring-chips" });
-    w.sessions.slice().sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; }).forEach(function (s) {
-      chips.append(el("span", { class: "sess-chip", dir: "auto" }, s.name + " · " + (s.came || 0)));
-    });
-    detail.append(chips);
-  }
-
-  weeks.forEach(function (w, i) {
-    var b = el("button", { type: "button", class: "ring-btn", style: "--p:" + Math.round((w.total / peak) * 100),
-      "aria-label": dayStamp(w.start) + ": " + w.total },
-      el("span", { class: "ring" }, el("b", {}, String(w.total))),
-      el("span", { class: "ring-d" }, dayStamp(w.start)));
-    b.addEventListener("click", function () { pick(i); });
-    buttons.push(b);
-    row.append(b);
-  });
-  pick(0);
-  return el("div", { class: "card" }, el("h2", {}, t("cEveryWeek")), row, detail);
 }
 
 /* One athlete's reset, as a QR they scan with their own phone. It lives
