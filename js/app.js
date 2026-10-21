@@ -1018,8 +1018,9 @@ SCREENS.login = function () {
     el("h2", {}, t("aLogin")),
     form,
     el("p", { class: "switch-link" }, t("aNoAccount") + " ", el("a", { href: "#/signup" }, t("aSignup"))),
-    // Only offered when the club can actually send it.
-    Auth.club.email === false ? null : el("p", { class: "switch-link" }, el("a", { href: "#/reset" }, t("aForgot")))
+    // Always offered: with mail off the request goes to the coaches, who send
+    // the link themselves (routes/resets.js).
+    el("p", { class: "switch-link" }, el("a", { href: "#/reset" }, t("aForgot")))
   );
 };
 
@@ -2799,8 +2800,8 @@ function resetRequestForm() {
       e.preventDefault();
       ok.classList.add("hidden");
       submitting(btn, err, () =>
-        API.post("/api/auth/reset/request", { email: email.value.trim() }).then(() => {
-          ok.textContent = t("aResetSent");
+        API.post("/api/auth/reset/request", { email: email.value.trim() }).then((d) => {
+          ok.textContent = t(d && d.via === "coach" ? "aResetCoach" : "aResetSent");
           ok.classList.remove("hidden");
         })
       );
@@ -2809,7 +2810,7 @@ function resetRequestForm() {
 
   return el("div", { class: "card pad stack" },
     el("h2", {}, t("aResetTitle")),
-    el("p", { class: "muted small" }, t("aResetLead")),
+    el("p", { class: "muted small" }, t(Auth.club.email === false ? "aResetLeadCoach" : "aResetLead")),
     form,
     el("p", { class: "switch-link" }, el("a", { href: "#/login" }, t("aBackToLogin"))));
 }

@@ -69,6 +69,8 @@
                                   coaches' own rota, which no athlete sees
      POST /api/coach/point-requests — ask an admin to count an athlete who
                                   could not scan (routes/requests.js)
+     POST /api/coach/resets     — athletes asking for a way back in; a coach
+                                  sends the one-time link (routes/resets.js)
      POST /api/tips-admin       — the article editor; its own TIPS_PASSWORD as
                                   well, and its own audience. Writing the
                                   club's articles is not running the club.
@@ -138,6 +140,7 @@ import { intervals, intervalsCallback } from "./routes/intervals.js";
 import { calendarLink, calendarFeed } from "./routes/calendar.js";
 import { about, aboutImg, adminAbout } from "./routes/about.js";
 import { coachRequests, adminRequests } from "./routes/requests.js";
+import { coachResets } from "./routes/resets.js";
 import { themedAsset } from "./lib/theme.js";
 
 const POST = {
@@ -180,6 +183,7 @@ const POST = {
   "/api/calendar": calendarLink,
   "/api/admin/about": adminAbout,
   "/api/coach/point-requests": coachRequests,
+  "/api/coach/resets": coachResets,
   "/api/admin/point-requests": adminRequests,
 };
 const GET = {

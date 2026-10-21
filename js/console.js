@@ -94,7 +94,9 @@ var SAYS = {
   "asked": "cErrAsked",
   "no-table": "cErrNoTable",
   "decided": "cErrDecided",
-  "bad-color": "cErrBadColor"
+  "bad-color": "cErrBadColor",
+  "no-request": "cErrNoRequest",
+  "handled": "cErrHandled"
 };
 
 /* Whether /admin has turned the meeting-point check on, learned from

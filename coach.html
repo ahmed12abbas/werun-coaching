@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=92fa272a">
+<link rel="stylesheet" href="assets/console.css?v=f74098f8">
 </head>
 <body class="coach">
 <div class="wrap">
@@ -26,9 +26,9 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=00d58078"></script>
+<script src="js/i18n.js?v=8b491671"></script>
 <script src="js/qr.js?v=814df91c"></script>
-<script src="js/console.js?v=a71590e4"></script>
+<script src="js/console.js?v=849fc29e"></script>
 <script>
 "use strict";
 
@@ -75,7 +75,7 @@ function chrome() {
 /* What both toggles call: the chrome, and whatever the page was showing. */
 function redraw() {
   chrome();
-  if (LAST) render(LAST[0], LAST[1], LAST[2], LAST[3]);
+  if (LAST) render(LAST[0], LAST[1], LAST[2], LAST[3], LAST[4]);
   else renderLogin(null);
 }
 
@@ -84,38 +84,270 @@ function redraw() {
 function load(pw) {
   var had = password;
   password = pw;
-  // Four reads at once: the numbers, the standing week, what has actually
-  // been published, and who is down for what. A coach at the gate waits once.
+  // Five reads at once: the numbers, the standing week, what has actually
+  // been published, who is down for what, and who has asked for a way back
+  // into their account. A coach at the gate waits once. The last one is
+  // allowed to fail on its own -- before migration 0035 there is no table --
+  // and the page simply draws without the reset tile.
   return Promise.all([
     api("/api/stats", {}),
     api("/api/admin/schedule", { action: "list" }),
     api("/api/admin/sessions", { action: "list" }),
-    api("/api/coach/rota", { action: "list" })
+    api("/api/coach/rota", { action: "list" }),
+    api("/api/coach/resets", { action: "list" })["catch"](function () { return null; })
   ]).then(function (r) {
     LAST = r;
-    render(r[0], r[1], r[2], r[3]);
+    render(r[0], r[1], r[2], r[3], r[4]);
   })["catch"](function (e) {
     password = had;
     throw e;
   });
 }
 
-/* Top to bottom in the order a coach at the track needs it: the session in
-   front of them with its code, three numbers, the week, and the head counts
-   folded away underneath. */
-function render(stats, plan, sess, rota) {
+/* Top to bottom: who has come this week, day by day; the session in front of
+   the coach with its code (and any password resets waiting, beside who is
+   taking it); three numbers; the week's codes; and every week as circles.
+   /admin keeps the table version of the head count (attendanceCards). */
+function render(stats, plan, sess, rota, resets) {
   app.textContent = "";
   var week = weekCard(plan, sess, rota);
-  if (week.hero) app.append(week.hero);
-  app.append(summaryTiles(stats, week), week);
-  attendanceCards(app, stats.weeks);
-  // On /admin the head count is the one card that stays open; here the week
-  // is, and the per-session tiles fold away with the history.
-  var tiles = app.querySelector(".card.keep:not(.now-card)");
-  if (tiles && tiles !== week) tiles.classList.remove("keep");
+  app.append(thisWeekCard(stats, week.specs));
+  if (week.hero) {
+    var parts = resetTile(resets);
+    if (parts) week.hero.querySelector(".wk-row").append(parts[0], parts[1]);
+    app.append(week.hero);
+  }
+  app.append(summaryTiles(stats, week), week, everyWeekCard(stats.weeks || []));
   week.classList.add("keep");
   foldCards(app);
   hotClock(app);
+}
+
+/* The latest week from /api/stats, if it is this one. */
+function thisWeekOf(stats) {
+  var latest = (stats.weeks || [])[0];
+  return latest && latest.start === clubWeekDates()[0] ? latest : null;
+}
+
+/* ---- athletes this week, one day at a time ----
+   Seven buttons, Sunday first, each with that day's check-ins; tap one and
+   the sessions under it show their own counts. A day still to come says so
+   rather than showing a zero that reads as nobody turning up. */
+function thisWeekCard(stats, specs) {
+  var dates = clubWeekDates();
+  var today = isoDate(new Date());
+  var latest = thisWeekOf(stats);
+  var held = (latest && latest.sessions) || [];
+  var picked = dates.indexOf(today);
+  if (picked < 0) picked = 0;
+
+  function onDay(date) {
+    return held.filter(function (s) { return s.date === date; })
+      .sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; });
+  }
+  function totalOn(date) {
+    return onDay(date).reduce(function (n, s) { return n + (s.came || 0); }, 0);
+  }
+
+  var strip = el("div", { class: "day-strip" });
+  var detail = el("div", { class: "day-detail" });
+  var card = el("div", { class: "card keep week-now" },
+    el("div", { class: "wn-head" },
+      el("h2", {}, t("cThisWeek", { date: dayStamp(dates[0]) })),
+      el("div", { class: "wn-total" }, el("b", {}, String(latest ? latest.total : 0)), el("span", {}, t("cWeekCheckins")))),
+    strip, detail);
+
+  function paint() {
+    strip.textContent = "";
+    dates.forEach(function (date, i) {
+      var ahead = date > today;
+      var n = totalOn(date);
+      var name = new Date(date + "T00:00:00").toLocaleDateString(consoleLocale(), { weekday: "short" });
+      var btn = el("button", {
+        type: "button",
+        class: "day-btn" + (i === picked ? " on" : "") + (date === today ? " today" : "") + (ahead ? " ahead" : ""),
+        "aria-pressed": i === picked ? "true" : "false",
+        "aria-label": ahead ? t("cDayAhead", { day: dayHeading(date) }) : t("cDayOn", { day: dayHeading(date), n: n }),
+        onclick: function () { picked = i; paint(); }
+      }, el("span", { class: "dn" }, name), el("b", {}, ahead ? "·" : String(n)));
+      strip.append(btn);
+    });
+
+    detail.textContent = "";
+    var date = dates[picked];
+    detail.append(el("h3", {}, dayHeading(date)));
+    var rows = onDay(date);
+    var peak = Math.max.apply(null, held.map(function (s) { return s.came || 0; }).concat(1));
+    rows.forEach(function (s) {
+      detail.append(el("div", { class: "day-sess" },
+        el("div", { class: "ds-line" }, el("span", { dir: "auto" }, s.name), el("b", {}, String(s.came || 0))),
+        el("div", { class: "barwrap" }, el("div", { class: "bar", style: "width:" + Math.round(((s.came || 0) / peak) * 100) + "%" }))));
+    });
+    // What is still to come that day, from the week's own rows, when no code
+    // has been shown for it yet.
+    if (date >= today) {
+      (specs || []).filter(function (sp) {
+        return sp.date === date && !sp.off && !(sp.session && rows.some(function (r) { return r.id === sp.session.id; }));
+      }).forEach(function (sp) {
+        detail.append(el("div", { class: "day-sess ahead" },
+          el("div", { class: "ds-line" }, el("span", { dir: "auto" }, sp.at + " · " + sp.title), el("span", { class: "muted small" }, t("cUpcoming")))));
+      });
+    }
+    if (detail.children.length === 1) detail.append(el("p", { class: "muted small", style: "margin:0" }, t("cDayRest")));
+  }
+  paint();
+  return card;
+}
+
+/* ---- every week, as circles ----
+   One circle per week, oldest on the left, its area the week's check-ins, so
+   a big week looks big without a scale to read. Tap one and the box under it
+   says the total, the change on the week before, and the sessions in it.
+   The newest eight: further back than two months is /admin's table. */
+var WEEK_CIRCLES = 8;
+
+function everyWeekCard(weeks) {
+  var card = el("div", { class: "card keep circles-card" }, el("h2", {}, t("cEveryWeek")));
+  if (!weeks.length) {
+    card.append(el("p", { class: "muted small", style: "margin:0" }, t("cNoneYetLead")));
+    return card;
+  }
+  var shown = weeks.slice(0, WEEK_CIRCLES).reverse(); // oldest first
+  var picked = shown.length - 1;
+  var peak = Math.max.apply(null, shown.map(function (w) { return w.total; }).concat(1));
+  var row = el("div", { class: "circles" });
+  var detail = el("div", { class: "circle-detail" });
+  card.append(el("p", { class: "muted small", style: "margin:0 0 10px" }, t("cTapWeek")), row, detail);
+
+  function paint() {
+    row.textContent = "";
+    shown.forEach(function (w, i) {
+      // Square root, so the circle's area and not its width follows the count.
+      var size = Math.round(34 + 40 * Math.sqrt(w.total / peak));
+      row.append(el("button", {
+        type: "button", class: "circle-btn" + (i === picked ? " on" : ""),
+        "aria-pressed": i === picked ? "true" : "false",
+        "aria-label": t("cWeekOn", { date: dayStamp(w.start), n: w.total }),
+        onclick: function () { picked = i; paint(); }
+      },
+        el("span", { class: "dot", style: "width:" + size + "px;height:" + size + "px" }, String(w.total)),
+        el("span", { class: "wl" }, new Date(w.start + "T00:00:00").toLocaleDateString(consoleLocale(), { day: "numeric", month: "short" }))));
+    });
+
+    var w = shown[picked];
+    var before = shown[picked - 1] || weeks[weeks.indexOf(w) + 1];
+    var change = before ? w.total - before.total : null;
+    detail.textContent = "";
+    detail.append(
+      el("div", { class: "cd-head" },
+        el("b", {}, t("cWeekOf", { date: dayStamp(w.start) })),
+        el("span", { class: "muted small" }, t(w.sessions.length === 1 ? "cNSession" : "cNSessions", { n: w.sessions.length }))),
+      el("div", { class: "cd-nums" },
+        el("div", {}, el("b", {}, String(w.total)), el("span", {}, t("cWeekCheckins"))),
+        change === null ? null : el("div", {}, el("b", { dir: "ltr" }, (change > 0 ? "+" : "") + change), el("span", {}, t("cVsBefore")))),
+      el("div", { class: "cd-chips", dir: "auto" },
+        w.sessions.slice().sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; }).map(function (s) {
+          return el("span", { class: "sess-chip" }, s.name + " " + (s.came || 0));
+        })));
+  }
+  paint();
+  return card;
+}
+
+/* ---- password reset requests, beside who is taking the session ----
+   An athlete who has lost their password asks from the app; any coach can
+   answer. The tile shows how many are waiting and opens the list. The link
+   is the one /admin's "Reset link" makes -- one use, 24 hours, the athlete
+   picks the password -- copied for the coach to send on WhatsApp. Null when
+   the route is not there yet (before migration 0035). */
+function resetTile(data) {
+  if (!data || !data.open) return null;
+  var wrap = el("div", { class: "reset-wrap" });
+  var tile = el("button", { type: "button", class: "reset-tile", "aria-expanded": "false" });
+  var panel = el("div", { class: "reset-panel", hidden: "" });
+  wrap.append(tile);
+
+  function paintTile() {
+    var n = data.open.length;
+    tile.classList.toggle("waiting", n > 0);
+    tile.textContent = "";
+    tile.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2"/>' +
+      '<path d="m16 7 3 3"/><path d="m19 4 2 2"/></svg>';
+    tile.append(el("b", {}, String(n)),
+      el("span", {}, n === 0 ? t("cResets0") : n === 1 ? t("cResets1") : t("cResetsN", { n: n })));
+  }
+
+  function paintPanel() {
+    panel.textContent = "";
+    panel.append(el("h3", {}, t("cResetsTitle")), el("p", { class: "muted small" }, t("cResetsLead")));
+    var err = el("p", { class: "err", style: "display:none" });
+    if (!data.open.length) panel.append(el("p", { class: "muted small", style: "margin:0" }, t("cResetsNone")));
+    data.open.forEach(function (r) {
+      var send = el("button", { type: "button", class: "btn sm primary" }, t("cResetSend"));
+      var nope = el("button", { type: "button", class: "btn sm" }, t("cResetDismiss"));
+      send.addEventListener("click", function () {
+        send.disabled = nope.disabled = true;
+        var call = api("/api/coach/resets", { action: "link", id: r.id });
+        var link = call.then(function (d) { return d.link; });
+        /* Started inside the tap, with the link still on its way: Safari only
+           lets a page copy during the gesture itself. The same trick /admin's
+           Reset link button uses. */
+        var copied = window.ClipboardItem && navigator.clipboard && navigator.clipboard.write
+          ? navigator.clipboard.write([new ClipboardItem({ "text/plain": link.then(function (l) {
+              return new Blob([l], { type: "text/plain" });
+            }) })])
+          : Promise.reject(new Error("no clipboard"));
+        copied["catch"](function () {});
+        call.then(function (d) {
+          return copied.then(function () {
+            window.alert(t("cResetCopied", { name: r.name }));
+          }, function () {
+            window.prompt(t("cResetCopyThis", { name: r.name }), d.link);
+          }).then(function () { refresh(d); });
+        })["catch"](function (e) {
+          err.textContent = e.message;
+          err.style.display = "";
+          send.disabled = nope.disabled = false;
+        });
+      });
+      nope.addEventListener("click", function () {
+        send.disabled = nope.disabled = true;
+        api("/api/coach/resets", { action: "dismiss", id: r.id }).then(refresh)["catch"](function (e) {
+          err.textContent = e.message;
+          err.style.display = "";
+          send.disabled = nope.disabled = false;
+        });
+      });
+      panel.append(el("div", { class: "reset-row" },
+        el("div", { class: "rr-who" }, el("b", { dir: "auto" }, r.name),
+          el("span", { class: "muted small" }, t("cResetAsked", { when: stamp(r.at) || "" }))),
+        el("div", { class: "acts" }, send, nope)));
+    });
+    (data.done || []).forEach(function (r) {
+      panel.append(el("p", { class: "small muted reset-done", dir: "auto" }, r.name + " · " +
+        t(r.outcome === "sent" ? "cResetSentBy" : "cResetDismissedBy", { who: r.handled_by_name || t("cSomeCoach") })));
+    });
+    panel.append(err);
+  }
+
+  function refresh(d) {
+    data = { open: d.open || [], done: d.done || [] };
+    if (LAST) LAST[4] = data;
+    paintTile();
+    paintPanel();
+  }
+
+  tile.addEventListener("click", function () {
+    var open = panel.hasAttribute("hidden");
+    if (open) panel.removeAttribute("hidden"); else panel.setAttribute("hidden", "");
+    tile.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  paintTile();
+  paintPanel();
+  // The panel spans the card under the row, the tile sits in the marked space.
+  return [wrap, panel];
 }
 
 /* Three numbers: who has come this week, how many sessions it has, and how
@@ -431,6 +663,7 @@ function weekCard(plan, sess, rota) {
       el("div", { class: "now-kicker" }, el("span", {}, t(open ? "cNow" : "cNext")), el("span", {}, dayStamp(first.date))),
       row(first, true));
   }
+  card.specs = specs;
   card.count = specs.filter(function (s) { return !s.off; }).length;
   card.comingToday = specs.reduce(function (n, s) { return n + (s.date === today && !s.off ? s.coming || 0 : 0); }, 0);
 

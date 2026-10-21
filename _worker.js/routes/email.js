@@ -17,6 +17,7 @@ import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
 import { nowISO, hashPassword, withUser, publicUser, currentUser } from "../lib/auth.js";
 import { emailOn, send, verifyMail, resetMail } from "../lib/mail.js";
+import { recordResetRequest } from "./resets.js";
 
 const LIFETIME = { verify: 7 * 24 * 3600 * 1000, reset: 3600 * 1000 };
 const MIN_PASSWORD = 8;
@@ -121,7 +122,6 @@ export async function verify(request, env) {
  */
 function resetRefusal(env) {
   if (!env.DB) return json({ error: "no-db" }, 503);
-  if (!emailOn(env) && !echoing(env)) return json({ error: "email-off" }, 503);
   return null;
 }
 
@@ -142,15 +142,26 @@ export async function resetRequest(request, env) {
   const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
   if (await tooManyResets(env, request, email)) return json({ error: "too-often" }, 429);
 
+  // Which way the link will come is the club's setting, not the account's:
+  // the same answer for an address nobody has.
+  const mailing = emailOn(env) || echoing(env);
+  const quiet = json({ ok: true, via: mailing ? "mail" : "coach" });
+
   const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
-  if (!user || user.status === "blocked") return json({ ok: true });
+  if (!user || user.status === "blocked") return quiet;
+
+  // On the coaches' list either way (routes/resets.js): with mail off it is
+  // the only way back in, and with mail on it is the way when the letter
+  // never comes.
+  await recordResetRequest(env, user);
+  if (!mailing) return quiet;
 
   const out = await deliver(env, request, user, "reset");
   // A provider failure is worth saying — the athlete is waiting for a message
   // that is not coming — but nothing above it reveals whether the account
   // exists, because that path is only reached once it does.
   if (out.status !== 200) return out;
-  return echoing(env) ? out : json({ ok: true });
+  return echoing(env) ? out : quiet;
 }
 
 /* ---------- POST /api/auth/reset ------------------------------------------ */
