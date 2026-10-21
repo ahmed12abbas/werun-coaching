@@ -669,9 +669,9 @@ html[data-event="nationalday"] .brand-logo{
 .sheet-card{width:100%;max-width:660px;max-height:84vh;max-height:calc(100dvh - 96px - env(safe-area-inset-top));overflow-y:auto;
   overscroll-behavior-y:contain;
   background:var(--bg);border:1px solid var(--line);border-bottom:0;
-  border-radius:20px 20px 0 0;padding:10px 16px 26px;
+  border-radius:20px 20px 0 0;padding:0 16px 26px;
   animation:sheetUp .24s cubic-bezier(.34,1.2,.64,1) both}
-.sheet-head{display:flex;align-items:center;gap:10px;padding:2px 0 10px;
+.sheet-head{display:flex;align-items:center;gap:10px;padding:12px 0 10px;
   position:sticky;top:0;background:var(--bg);z-index:1}
 .sheet-grip{flex:1;height:4px;border-radius:2px;background:var(--line);max-width:52px;margin-inline:auto}
 @keyframes sheetIn{from{opacity:0}to{opacity:1}}
