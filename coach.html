@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=e0b3bc5b">
+<link rel="stylesheet" href="assets/console.css?v=2652f570">
 </head>
 <body class="coach">
 <div class="wrap">
@@ -26,7 +26,7 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=00d58078"></script>
+<script src="js/i18n.js?v=2c4ce925"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/console.js?v=a71590e4"></script>
 <script>
@@ -100,34 +100,114 @@ function load(pw) {
   });
 }
 
-/* Top to bottom in the order a coach at the track needs it: the session in
-   front of them with its code, three numbers, the week, and the head counts
-   folded away underneath. */
+/* Top to bottom in the order a coach needs it: how many came this week, the
+   session in front of them with its code, the week's codes, and every week
+   before as circles. */
 function render(stats, plan, sess, rota) {
   app.textContent = "";
   var week = weekCard(plan, sess, rota);
+  app.append(athletesCard(stats, week));
   if (week.hero) app.append(week.hero);
-  app.append(summaryTiles(stats, week), week);
-  attendanceCards(app, stats.weeks);
-  // On /admin the head count is the one card that stays open; here the week
-  // is, and the per-session tiles fold away with the history.
-  var tiles = app.querySelector(".card.keep:not(.now-card)");
-  if (tiles && tiles !== week) tiles.classList.remove("keep");
-  week.classList.add("keep");
-  foldCards(app);
+  app.append(week);
+  if ((stats.weeks || []).length) app.append(weeksCard(stats.weeks));
   hotClock(app);
 }
 
-/* Three numbers: who has come this week, how many sessions it has, and how
-   many said they are coming today. */
-function summaryTiles(stats, week) {
+/* This week's head count, big, and a bar a day under it. Tapping a day
+   lists its sessions and how many came to each; today is open to start. */
+function athletesCard(stats, week) {
+  var dates = clubWeekDates();
   var latest = (stats.weeks || [])[0];
-  var came = latest && latest.start === clubWeekDates()[0] ? latest.total : 0;
-  var tile = function (n, label) {
-    return el("div", { class: "sum" }, el("b", {}, String(n)), el("span", {}, label));
-  };
-  return el("div", { class: "sums" },
-    tile(came, t("cSumCame")), tile(week.count, t("cSumSessions")), tile(week.comingToday, t("cSumToday")));
+  var mine = latest && latest.start === dates[0] ? latest : { total: 0, sessions: [] };
+  var byDay = dates.map(function (d) {
+    return mine.sessions.filter(function (s) { return s.date === d; });
+  });
+  var sums = byDay.map(function (list) {
+    return list.reduce(function (n, s) { return n + (s.came || 0); }, 0);
+  });
+  var peak = Math.max.apply(null, sums.concat(1));
+  var today = isoDate(new Date());
+  var detail = el("div", { class: "day-detail" });
+  var bars = el("div", { class: "daybars" });
+  var buttons = [];
+
+  function pick(i) {
+    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+    detail.textContent = "";
+    detail.append(el("h3", {}, dayHeading(dates[i])));
+    if (!byDay[i].length) return detail.append(el("p", { class: "muted small", style: "margin:0" }, t("cNoSessionsDay")));
+    byDay[i].forEach(function (s) {
+      detail.append(el("div", { class: "dd-row" }, el("span", { dir: "auto" }, s.name), el("b", {}, String(s.came || 0))));
+    });
+  }
+
+  dates.forEach(function (d, i) {
+    var b = el("button", { type: "button", class: "dbar" + (d === today ? " today" : ""), "aria-label": dayHeading(d) + ": " + sums[i] },
+      el("span", { class: "dbar-n" }, sums[i] ? String(sums[i]) : ""),
+      el("span", { class: "dbar-col" }, el("i", { style: "height:" + Math.round((sums[i] / peak) * 100) + "%" })),
+      el("span", { class: "dbar-d" }, new Date(d + "T00:00:00").toLocaleDateString(consoleLocale(), { weekday: "short" })));
+    b.addEventListener("click", function () { pick(i); });
+    buttons.push(b);
+    bars.append(b);
+  });
+  pick(Math.max(0, dates.indexOf(today)));
+
+  return el("div", { class: "card athletes" },
+    el("div", { class: "ath-head" },
+      el("div", {}, el("b", { class: "ath-n" }, String(mine.total)), el("span", { class: "ath-l" }, t("cSumCame"))),
+      el("div", { class: "ath-chips" },
+        el("span", { class: "chip" }, t("cChipToday", { n: week.comingToday })),
+        el("span", { class: "chip" }, t("cChipSessions", { n: week.count })))),
+    bars, detail);
+}
+
+/* Every week as a circle filled to its share of the best week, newest first.
+   Tapping one shows that week's sessions under the row. */
+function weeksCard(weeks) {
+  weeks = weeks.slice(0, 12);
+  var peak = Math.max.apply(null, weeks.map(function (w) { return w.total; }).concat(1));
+  var row = el("div", { class: "rings" });
+  var detail = el("div", { class: "ring-detail" });
+  var buttons = [];
+
+  function pick(i) {
+    buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+    var w = weeks[i];
+    detail.textContent = "";
+    detail.append(el("h3", {}, t("cWeekOfN", { date: dayStamp(w.start), n: w.total })));
+    var chips = el("div", { class: "ring-chips" });
+    w.sessions.slice().sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; }).forEach(function (s) {
+      chips.append(el("span", { class: "sess-chip", dir: "auto" }, s.name + " · " + (s.came || 0)));
+    });
+    detail.append(chips);
+  }
+
+  weeks.forEach(function (w, i) {
+    var b = el("button", { type: "button", class: "ring-btn", style: "--p:" + Math.round((w.total / peak) * 100),
+      "aria-label": dayStamp(w.start) + ": " + w.total },
+      el("span", { class: "ring" }, el("b", {}, String(w.total))),
+      el("span", { class: "ring-d" }, dayStamp(w.start)));
+    b.addEventListener("click", function () { pick(i); });
+    buttons.push(b);
+    row.append(b);
+  });
+  pick(0);
+  return el("div", { class: "card" }, el("h2", {}, t("cEveryWeek")), row, detail);
+}
+
+/* One athlete's reset, as a QR they scan with their own phone. It lives
+   fifteen minutes; Done or Escape puts it away. */
+function resetQr(slot, who) {
+  var img = el("div", { class: "code" });
+  var screen = el("div", { class: "qr-screen" },
+    el("button", { class: "qr-close", onclick: function () { screen.remove(); } }, t("cDone")),
+    el("h2", { class: "qr-name", dir: "auto" }, who.name),
+    img,
+    el("p", { class: "qr-sub" }, t("cResetScan")));
+  document.body.append(screen);
+  api("/api/coach/resets", { action: "qr", schedule_id: slot.schedule_id, date: slot.date, user_id: who.id })
+    .then(function (d) { img.innerHTML = qrSvg(d.link, "M"); })
+    ["catch"](function (e) { img.append(el("p", { class: "err" }, e.message)); });
 }
 
 /* ---- the week, with a code on every row ---- */
@@ -152,6 +232,7 @@ function weekCard(plan, sess, rota) {
      down this function but earlier than that point in the source, and a var
      is hoisted without its value. */
   var ROTA_BOXES = [];
+  var RESET_BOXES = [];
 
   /* How long after the start check-in stays open, in minutes: the club's own
      number, worked out from the start rather than read back off a row — the
@@ -317,6 +398,35 @@ function weekCard(plan, sess, rota) {
 
   function repaintRota() {
     ROTA_BOXES.forEach(function (b) { b.paint(); });
+    // Being on the rota is what lets a coach hand out resets, so a tick on
+    // or off asks again.
+    RESET_BOXES.forEach(function (b) { b.load(); });
+  }
+
+  /* ---- password resets, at the session ----
+     Athletes who asked for a reset, for a coach on this session's rota to
+     hand over in person: tap a name and they scan the QR with their own
+     phone. The Worker decides who may (routes/resets.js); a refusal here just
+     means this coach is not on the rota, and the button stays away. */
+  function resetsBox(slot) {
+    var box = el("div", { class: "resets" });
+    box.load = function () {
+      api("/api/coach/resets", { action: "list", schedule_id: slot.schedule_id, date: slot.date }).then(function (d) {
+        box.textContent = "";
+        var list = d.waiting || [];
+        if (!list.length) return;
+        var names = el("div", { class: "reset-names" });
+        names.hidden = true;
+        list.forEach(function (u) {
+          names.append(el("button", { class: "btn sm", type: "button", dir: "auto", onclick: function () { resetQr(slot, u); } }, u.name));
+        });
+        box.append(el("button", { class: "btn sm reset-btn", type: "button", onclick: function () { names.hidden = !names.hidden; } },
+          t("cResets", { n: list.length })), names);
+      })["catch"](function () { box.textContent = ""; });
+    };
+    box.load();
+    RESET_BOXES.push(box);
+    return box;
   }
 
   /* One line of the week: when, what, how many have scanned, and the two
@@ -334,20 +444,38 @@ function weekCard(plan, sess, rota) {
     var count = el("span", { dir: "auto" });
     function say() {
       count.textContent = spec.note + (spec.off ? " · " + t("cCalledOff") : "") +
-        (spec.session ? " · " + t("cCame", { n: spec.session.came || 0 }) : "");
+        (spec.session ? " · " + t("cCame", { n: spec.session.came || 0 }) : "") +
+        // On a one-line row the coming count rides in this line, not a badge.
+        (!again && spec.coming !== undefined ? " · " + t("cComing", { n: spec.coming }) : "");
     }
     say();
-    var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") },
+    /* One line: when, what, how many, and the code. Everything else about
+       the session -- who is taking it, who came, resets -- is under it, and
+       opens when the line is tapped; the card at the top has it open. */
+    var what = el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count);
+    var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") + (again ? " open" : "") },
       el("span", { class: "at" }, spec.at),
-      el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count),
-      spec.coming !== undefined
+      what,
+      again && spec.coming !== undefined
         ? el("span", { class: "badge coming" }, t("cComing", { n: spec.coming }))
         : null);
+    var extra = el("div", { class: "wk-extra" });
+    if (!again) {
+      what.setAttribute("role", "button");
+      what.setAttribute("tabindex", "0");
+      var flip = function () { line.classList.toggle("open"); };
+      what.addEventListener("click", flip);
+      what.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+    }
 
     // Who is taking it. Only on a standing slot: the rota is the standing
     // week's, and a one-off the coach published already names its own coach.
     // Nothing on a session called off, which nobody is taking.
-    if (spec.rota && !spec.off) line.append(rotaColumn(spec.slot));
+    if (spec.rota && !spec.off) {
+      extra.append(again
+        ? el("div", { class: "rota-line" }, rotaColumn(spec.slot), resetsBox(spec.slot))
+        : rotaColumn(spec.slot));
+    }
 
     if (spec.off) return line;
 
@@ -373,9 +501,9 @@ function weekCard(plan, sess, rota) {
           spec.session = d.session;
           say();
           qrScreen(d.session);
-        })["catch"](function (er) { line.append(el("p", { class: "err" }, er.message)); })
+        })["catch"](function (er) { extra.append(el("p", { class: "err" }, er.message)); line.classList.add("open"); })
         .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
-    } }, t("cShowCode"));
+    } }, again ? t("cShowCode") : t("cCode"));
 
     /* Who came. It never opens a session to answer: a slot nobody has shown
        a code for has nobody in it, and making a row to say so would leave
@@ -387,7 +515,7 @@ function weekCard(plan, sess, rota) {
       if (whoBox) { whoBox.remove(); whoBox = null; return; }
       if (!spec.session) {
         whoBox = el("p", { class: "muted small" }, t("cNoCodeYet"));
-        line.append(whoBox);
+        extra.append(whoBox);
         return;
       }
       whoBtn.disabled = true;
@@ -406,13 +534,19 @@ function weekCard(plan, sess, rota) {
         }
         box.append(missedForm(spec.session));
         whoBox = box;
-        line.append(box);
+        extra.append(box);
         box.scrollIntoView({ block: "nearest" });
-      })["catch"](function (e) { line.append(el("p", { class: "err" }, e.message)); })
+      })["catch"](function (e) { extra.append(el("p", { class: "err" }, e.message)); })
         .then(function () { whoBtn.disabled = false; });
     } }, t("cWhoCame"));
 
-    line.append(el("div", { class: "acts" }, codeBtn, whoBtn));
+    if (again) {
+      // The card at the top: both buttons side by side, big.
+      line.append(extra, el("div", { class: "acts" }, codeBtn, whoBtn));
+    } else {
+      line.append(el("div", { class: "acts" }, codeBtn), extra);
+      extra.append(el("div", { class: "acts" }, whoBtn));
+    }
     return line;
   }
 

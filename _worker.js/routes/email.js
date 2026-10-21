@@ -58,8 +58,8 @@ const linkTo = (request, route, token) => new URL(request.url).origin + "/app#/"
 /* The same reset link, for an admin to hand over themselves — with no email
    switched on it is the only way back in. A day rather than an hour, because
    it travels by WhatsApp and waits to be read. */
-export async function resetLinkFor(env, request, userId) {
-  return linkTo(request, "reset", await mintToken(env, userId, "reset", 24 * 3600 * 1000));
+export async function resetLinkFor(env, request, userId, life) {
+  return linkTo(request, "reset", await mintToken(env, userId, "reset", life || 24 * 3600 * 1000));
 }
 
 /*

@@ -67,6 +67,8 @@
      POST /api/admin/schedule   — list                (the rest is the club's)
      POST /api/coach/rota       — who is taking which session this week; the
                                   coaches' own rota, which no athlete sees
+     POST /api/coach/resets     — athletes waiting on a password reset, and a
+                                  15-minute QR for one (rota coaches, at the session)
      POST /api/coach/point-requests — ask an admin to count an athlete who
                                   could not scan (routes/requests.js)
      POST /api/tips-admin       — the article editor; its own TIPS_PASSWORD as
@@ -129,6 +131,7 @@ import { stripeWebhook } from "./routes/stripe.js";
 import { adminProducts, adminOrders } from "./routes/shop.js";
 import { adminSchedule, adminScheduleChange } from "./routes/plan.js";
 import { coachRota } from "./routes/rota.js";
+import { coachResets } from "./routes/resets.js";
 import { signups } from "./routes/signups.js";
 import { push, pushNext } from "./routes/push.js";
 import { reactions } from "./routes/reactions.js";
@@ -171,6 +174,7 @@ const POST = {
   "/api/admin/schedule": adminSchedule,
   "/api/admin/schedule-change": adminScheduleChange,
   "/api/coach/rota": coachRota,
+  "/api/coach/resets": coachResets,
   "/api/signups": signups,
   "/api/push": push,
   "/api/reactions": reactions,
