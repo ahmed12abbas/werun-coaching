@@ -537,3 +537,46 @@ body.admin .fb-chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
 body.admin .fb-chip{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--fg);
   font:inherit;font-size:13px;font-weight:650;cursor:pointer}
 body.admin .fb-chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+
+/* ---- /admin's Plan, People and Club cards ---- */
+/* Members and coaches: a search box, chips, one line a person. */
+body.admin .m-search{margin-top:10px}
+body.admin .m-list{display:grid;gap:8px;margin-top:10px}
+body.admin .m-row.blocked{opacity:.6}
+body.admin .m-num{flex:none;display:grid;justify-items:center;line-height:1.1;min-width:52px}
+body.admin .m-num b{font-family:var(--display);font-size:22px;font-weight:600;color:var(--brand)}
+body.admin .m-num span{font-size:11px;font-weight:700;color:var(--muted)}
+body.admin .m-acts{display:flex;flex-wrap:wrap;gap:6px}
+body.admin .m-facts{margin:0}
+body.admin .badge.reset{color:var(--brand);border-color:var(--brand);background:var(--brand-soft)}
+/* The standing week and the news: the same one-line rows. */
+body.admin .wk-day .s-row{margin-bottom:8px}
+body.admin .s-row.off{opacity:.6}
+body.admin .s-at span:only-child{font-size:14px}
+body.admin .n-state{flex:none;min-width:80px;text-align:center;padding:5px 8px;border-radius:10px;font-size:12px;font-weight:700}
+body.admin .n-state.live{background:var(--brand);color:var(--brand-ink)}
+body.admin .n-state.soon{background:var(--brand-soft);color:var(--brand)}
+body.admin .n-state.draft{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+/* Settings: small headings, and the four switches as real switches. */
+body.admin .set-h{margin:14px 0 0;font-family:var(--display);font-size:18px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--muted)}
+body.admin .set-h:first-child{margin-top:4px}
+body.admin .set-switches{display:grid;gap:8px}
+body.admin .tgl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;margin:0;
+  border:1px solid var(--line);border-radius:12px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg)}
+body.admin .tgl > span{display:grid;gap:2px}
+body.admin .tgl b{font-weight:650}
+body.admin .tgl input{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:44px;height:26px;margin:0;
+  border-radius:99px;background:var(--line);cursor:pointer;transition:background .2s}
+body.admin .tgl input::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+body.admin .tgl input:checked{background:var(--brand)}
+body.admin .tgl input:checked::before{transform:translateX(18px)}
+body.admin .tgl input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+/* Theme: swatches, the picker for anything else, and a button in the colour. */
+body.admin .th-swatches{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+body.admin .th-sw{width:34px;height:34px;border-radius:50%;border:2px solid var(--card);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+body.admin .th-sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--fg)}
+body.admin .th-pick{width:40px;height:34px;padding:0;border:0;background:none;cursor:pointer}
+body.admin .th-preview{display:inline-block;padding:9px 18px;border-radius:12px;color:#fff;font-weight:700;font-size:14px;margin-inline-end:10px}
+@media (prefers-reduced-motion:reduce){body.admin .tgl input,body.admin .tgl input::before{transition:none}}
