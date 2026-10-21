@@ -100,16 +100,17 @@ function load(pw) {
   });
 }
 
-/* Top to bottom in the order a coach needs it: how many came this week, the
-   session in front of them with its code, the week's codes, and every week
-   before as circles. */
+/* Top to bottom: how many came this week, every week before as circles, the
+   session in front of the coach with its code, and the whole week's codes
+   last, shut behind their heading until tapped open. */
 function render(stats, plan, sess, rota) {
   app.textContent = "";
   var week = weekCard(plan, sess, rota);
   app.append(athletesCard(stats, week));
+  if ((stats.weeks || []).length) app.append(weeksCard(stats.weeks));
   if (week.hero) app.append(week.hero);
   app.append(week);
-  if ((stats.weeks || []).length) app.append(weeksCard(stats.weeks));
+  foldCard(week);
   hotClock(app);
 }
 
