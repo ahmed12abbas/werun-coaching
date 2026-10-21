@@ -403,7 +403,7 @@ function consoleTools(rerender) {
     title: t("langLabel"),
     "aria-label": t("langLabel"),
     onclick: function () { I18N.toggle(); rerender(); }
-  }, t("langLabel"));
+  }, t("langShort"));
 
   return el("div", { class: "brand-tools" }, light, lang);
 }

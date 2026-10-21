@@ -201,7 +201,8 @@ function toolButtons(rerender) {
           rerender();
         },
       },
-      t("langLabel")
+      // Two letters on the button; the full name stays the label it is read by.
+      t("langShort")
     )
   );
 }

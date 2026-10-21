@@ -16,6 +16,7 @@ const STRINGS = {
     /* chrome */
     coaching: "Coaching",
     langLabel: "العربية",
+    langShort: "ع",
     themeLight: "Light mode",
     themeDark: "Dark mode",
 
@@ -628,6 +629,7 @@ const STRINGS = {
     // The wordmark reads the same in both languages — it is part of the logo lockup.
     coaching: "Coaching",
     langLabel: "English",
+    langShort: "EN",
     themeLight: "الوضع الفاتح",
     themeDark: "الوضع الداكن",
 
