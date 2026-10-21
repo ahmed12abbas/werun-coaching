@@ -375,3 +375,51 @@ a{color:var(--brand)}
 .wk-row.hot{animation:slotGlow 2.4s ease-in-out infinite alternate}
 @media (prefers-reduced-motion:reduce){
   .wk-row.hot{animation:none;box-shadow:0 0 0 1px var(--brand) inset}}
+
+/* ---- /coach: the track screen ----
+   Everything below is under body.coach, so /admin keeps its own look. Top to
+   bottom: a slim header, the session in front of the coach with its code, three
+   numbers, then the week as cards with the same time chips the app uses. */
+body.coach .wrap{padding:14px 14px 48px}
+body.coach .conhead{flex-wrap:nowrap;gap:10px;position:sticky;top:0;z-index:5;margin:0 -14px;padding:8px 14px;
+  background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+body.coach .conhead h1{font-size:30px;text-align:center}
+body.coach .tool{width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--fg)}
+body.coach .tool.text{width:38px;padding:0;font-size:16px}
+body.coach a.tool.back{text-decoration:none}
+[dir="rtl"] body.coach .tool.back svg{transform:scaleX(-1)}
+body.coach .card{margin-top:14px;padding:16px}
+
+/* The session in front of the coach, big. */
+body.coach .now-card{background:var(--brand-soft);border:1.5px solid var(--brand);box-shadow:none}
+body.coach .now-kicker{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}
+[dir="rtl"] body.coach .now-kicker{letter-spacing:0}
+body.coach .now-card .wk-row{border:0;padding:0;margin:0;background:none;animation:none;box-shadow:none}
+body.coach .now-card .what b{font-family:var(--display);font-size:28px;font-weight:600;line-height:1.05;text-transform:uppercase}
+[dir="rtl"] body.coach .now-card .what b{font-size:22px}
+body.coach .now-card .acts .btn{padding:13px 14px;font-size:15px}
+
+/* Three numbers in a row. */
+body.coach .sums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+body.coach .sum{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 8px;
+  display:grid;justify-items:center;text-align:center;gap:2px}
+body.coach .sum b{font-family:var(--display);font-size:30px;font-weight:600;line-height:1;color:var(--brand)}
+body.coach .sum span{font-size:11.5px;font-weight:700;color:var(--muted);line-height:1.2}
+
+/* The week: a day name with Today on it, past days dimmed, each session a
+   card with its time as a chip and the two buttons sharing the width. */
+body.coach .wk-day > h3{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--fg)}
+body.coach .wk-day.today > h3{color:var(--brand)}
+body.coach .wk-day > h3 .badge{background:var(--brand);color:var(--brand-ink);border:0}
+body.coach .wk-day.past{opacity:.55}
+body.coach .wk-row{flex-wrap:wrap;gap:8px 12px;background:var(--card);padding:12px}
+body.coach .wk-row .at{width:64px;padding:4px 0 3px;border-radius:8px;text-align:center;font-size:13px;
+  background:var(--brand-soft);color:var(--brand)}
+body.coach .wk-row .what{flex:1 1 calc(100% - 90px)}
+body.coach .wk-row .badge.coming{flex-basis:auto;order:2;align-self:flex-start;margin-inline-start:76px}
+body.coach .wk-row .rota{flex:1 1 100%;order:3;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+body.coach .wk-row .acts{flex:1 1 100%;order:4}
+body.coach .wk-row .acts .btn{flex:1 1 0}
+body.coach .wk-row .roster,body.coach .wk-row .missed,body.coach .wk-row > .err,body.coach .wk-row > p{flex:1 1 100%;order:5}
+body.coach .now-card .wk-row .at{background:var(--card)}

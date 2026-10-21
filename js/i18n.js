@@ -262,7 +262,12 @@ const STRINGS = {
 
     /* the coach console at /coach — English only on /admin, both here */
     cTitle: "Coach",
-    cLead: "How many came, the code for every session this week, and who is taking it. Put yourself down for a session and the other coaches will see it.",
+    cNow: "Now",
+    cNext: "Next",
+    cToday: "Today",
+    cSumCame: "Came this week",
+    cSumSessions: "Sessions",
+    cSumToday: "Coming today",
     cBackToApp: "back to the app",
 
     /* the way in */
@@ -866,7 +871,12 @@ const STRINGS = {
 
     /* لوحة المدرب */
     cTitle: "المدرب",
-    cLead: "كم عدد من حضر، ورمز كل حصة هذا الأسبوع، ومن يأخذها. سجّل نفسك على حصة وسيراها بقية المدربين.",
+    cNow: "الآن",
+    cNext: "التالية",
+    cToday: "اليوم",
+    cSumCame: "حضروا هذا الأسبوع",
+    cSumSessions: "الحصص",
+    cSumToday: "قادمون اليوم",
     cBackToApp: "العودة إلى التطبيق",
 
     cSignIn: "تسجيل الدخول",

@@ -15,9 +15,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/console.css?v=e35b75a7">
+<link rel="stylesheet" href="assets/console.css?v=92fa272a">
 </head>
-<body>
+<body class="coach">
 <div class="wrap">
   <!-- The heading, the line under it and the footer are drawn by the script,
        because all three change language with the toggle. -->
@@ -26,7 +26,7 @@
   <div id="foot"></div>
 </div>
 
-<script src="js/i18n.js?v=3a6642e9"></script>
+<script src="js/i18n.js?v=00d58078"></script>
 <script src="js/qr.js?v=814df91c"></script>
 <script src="js/console.js?v=a71590e4"></script>
 <script>
@@ -59,12 +59,12 @@ var LAST = null;
 function chrome() {
   var head = document.getElementById("head");
   head.textContent = "";
-  head.append(
-    el("div", { class: "conhead" },
-      el("h1", {}, t("cTitle")),
-      consoleTools(redraw)),
-    el("p", { class: "muted small", style: "margin:0" }, t("cLead"))
-  );
+  // The way back to the app as an arrow in the corner, where a phone's back
+  // button would be, rather than a line in the footer nobody scrolls to.
+  var back = el("a", { class: "tool back", href: "app.html", title: t("cBackToApp"), "aria-label": t("cBackToApp") });
+  back.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
+  head.append(el("div", { class: "conhead" }, back, el("h1", {}, t("cTitle")), consoleTools(redraw)));
   var foot = document.getElementById("foot");
   foot.textContent = "";
   foot.append(el("footer", {}, "WE RUN Coaching · ",
@@ -100,12 +100,34 @@ function load(pw) {
   });
 }
 
+/* Top to bottom in the order a coach at the track needs it: the session in
+   front of them with its code, three numbers, the week, and the head counts
+   folded away underneath. */
 function render(stats, plan, sess, rota) {
   app.textContent = "";
+  var week = weekCard(plan, sess, rota);
+  if (week.hero) app.append(week.hero);
+  app.append(summaryTiles(stats, week), week);
   attendanceCards(app, stats.weeks);
-  app.append(weekCard(plan, sess, rota));
+  // On /admin the head count is the one card that stays open; here the week
+  // is, and the per-session tiles fold away with the history.
+  var tiles = app.querySelector(".card.keep:not(.now-card)");
+  if (tiles && tiles !== week) tiles.classList.remove("keep");
+  week.classList.add("keep");
   foldCards(app);
   hotClock(app);
+}
+
+/* Three numbers: who has come this week, how many sessions it has, and how
+   many said they are coming today. */
+function summaryTiles(stats, week) {
+  var latest = (stats.weeks || [])[0];
+  var came = latest && latest.start === clubWeekDates()[0] ? latest.total : 0;
+  var tile = function (n, label) {
+    return el("div", { class: "sum" }, el("b", {}, String(n)), el("span", {}, label));
+  };
+  return el("div", { class: "sums" },
+    tile(came, t("cSumCame")), tile(week.count, t("cSumSessions")), tile(week.comingToday, t("cSumToday")));
 }
 
 /* ---- the week, with a code on every row ---- */
@@ -170,6 +192,8 @@ function weekCard(plan, sess, rota) {
   }
 
   var any = false;
+  var today = isoDate(new Date());
+  var specs = []; // every row drawn, for the card at the top and the numbers
   dates.forEach(function (date, weekday) {
     var mine = standing.filter(function (e) { return e.weekday === weekday; });
     // A one-off the coach published straight onto this date, filling no slot.
@@ -178,8 +202,10 @@ function weekCard(plan, sess, rota) {
     any = true;
 
     // The weekday name comes from the date rather than a list of seven
-    // strings: the browser already knows it in both languages.
-    var box = el("div", { class: "wk-day" }, el("h3", {}, dayHeading(date)));
+    // strings: the browser already knows it in both languages. Days gone are
+    // dimmed, so the eye lands on what is still to come.
+    var box = el("div", { class: "wk-day" + (date === today ? " today" : date < today ? " past" : "") },
+      el("h3", {}, dayHeading(date), date === today ? el("span", { class: "badge" }, t("cToday")) : null));
     mine.forEach(function (e) {
       var change = changeFor(e.id, date);
       box.append(row({
@@ -295,7 +321,16 @@ function weekCard(plan, sess, rota) {
 
   /* One line of the week: when, what, how many have scanned, and the two
      buttons that are the whole reason this page exists. */
-  function row(spec) {
+  /* When a row starts: a published session's own start, or the slot's
+     wall-clock time on this date. */
+  function startOf(spec) {
+    return spec.session && spec.session.starts_at
+      ? new Date(spec.session.starts_at)
+      : new Date(spec.date + "T" + spec.at + ":00");
+  }
+
+  function row(spec, again) {
+    if (!again) specs.push(spec);
     var count = el("span", { dir: "auto" });
     function say() {
       count.textContent = spec.note + (spec.off ? " · " + t("cCalledOff") : "") +
@@ -319,9 +354,7 @@ function weekCard(plan, sess, rota) {
     /* Lit while check-in is open, the same way the athlete's week lights the
        same session up: a published session's own start, or the slot's
        wall-clock time on this date, and the club's two numbers either side. */
-    var starts = spec.session && spec.session.starts_at
-      ? new Date(spec.session.starts_at)
-      : new Date(spec.date + "T" + spec.at + ":00");
+    var starts = startOf(spec);
     if (!isNaN(starts.getTime())) {
       line.dataset.hot = starts.getTime() + "," + (starts.getTime() + shutsAfter * 60000);
       markHot(line);
@@ -382,6 +415,24 @@ function weekCard(plan, sess, rota) {
     line.append(el("div", { class: "acts" }, codeBtn, whoBtn));
     return line;
   }
+
+  /* The session in front of the coach: the earliest one whose check-in has
+     not shut — the one open now if there is one, else the next — drawn again
+     at the top in a card of its own, so most mornings the page is one tap. */
+  var now = Date.now();
+  var live = specs.filter(function (s) {
+    var at = startOf(s).getTime();
+    return !s.off && !isNaN(at) && now <= at + shutsAfter * 60000;
+  }).sort(function (a, b) { return startOf(a) - startOf(b); });
+  if (live.length) {
+    var first = live[0];
+    var open = now >= startOf(first).getTime() - HOT_BEFORE;
+    card.hero = el("div", { class: "card keep now-card" },
+      el("div", { class: "now-kicker" }, el("span", {}, t(open ? "cNow" : "cNext")), el("span", {}, dayStamp(first.date))),
+      row(first, true));
+  }
+  card.count = specs.filter(function (s) { return !s.off; }).length;
+  card.comingToday = specs.reduce(function (n, s) { return n + (s.date === today && !s.off ? s.coming || 0 : 0); }, 0);
 
   return card;
 }
