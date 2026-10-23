@@ -23,7 +23,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- The saved theme, before anything paints: i18n.js sets it too, but only
      at the bottom of the page, after the splash has drawn in light. -->
-<script>try{var t=localStorage.getItem("werun.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<!-- A light/dark switch reloads the home-screen app (Theme.toggle); that reload
+     skips the intro, which the athlete has just seen. -->
+<script>try{var t=localStorage.getItem("werun.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
+try{if(sessionStorage.getItem("werun.themeReload")){sessionStorage.removeItem("werun.themeReload");document.documentElement.setAttribute("data-splash","off")}}catch(e){}</script>
 <!-- Saudi National Day, one week only: Sat 19 Sep – Thu 24 Sep 2026, Riyadh
      time (UTC+3, no DST). App page only — see assets/app.css for the theme
      and .splash-nd below for the swapped intro. ?nd=1 on localhost previews
@@ -36,7 +39,7 @@
 <script>window.ME_EARLY=fetch("/api/auth/me",{credentials:"same-origin",headers:{accept:"application/json"}}).catch(function(){return null})</script>
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="assets/site.css?v=0ecf332d">
-<link rel="stylesheet" href="assets/app.css?v=5e3bc1ac">
+<link rel="stylesheet" href="assets/app.css?v=fd2e0fda">
 </head>
 <body>
 <div class="splash" aria-hidden="true">
@@ -52,7 +55,7 @@
 
 <!-- The same scripts as the link page, in the same order, then the app's own.
      Everything shares one global scope; app.js is the entry point. -->
-<script src="js/i18n.js?v=35aea30f"></script>
+<script src="js/i18n.js?v=dc46f476"></script>
 <script src="js/fit.js?v=e92a4a4e"></script>
 <script src="js/brand.js?v=8065255a"></script>
 <script src="js/model.js?v=97a5cd01"></script>
