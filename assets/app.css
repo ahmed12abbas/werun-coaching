@@ -24,7 +24,7 @@ body{position:fixed;inset:0;overscroll-behavior:none}
    (js/app.js, ensureHeader). A sticky bar inside #app was carried down with
    the bounce of a pull-to-refresh (Abbas, 21 Oct); outside it nothing can. */
 .apptop{flex:none;position:relative;z-index:20;width:100%;max-width:660px;margin:0 auto;
-  padding:10px 16px;background:var(--card);transition:box-shadow .2s ease}
+  padding:10px 16px;background:var(--bg);transition:box-shadow .2s ease}
 .apptop.scrolled{box-shadow:0 1px 0 var(--line),0 8px 20px -14px rgba(0,0,0,.35)}
 .apptop .brand{margin-bottom:0}
 /* A size up from the 42px brand.js draws everywhere else: on the app it is the
