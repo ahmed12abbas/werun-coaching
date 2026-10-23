@@ -1321,18 +1321,14 @@ const Theme = {
       if (mode) localStorage.setItem(Theme.KEY, mode);
       else localStorage.removeItem(Theme.KEY);
     } catch (e) {}
-    // From the home screen, iOS paints the status-bar strip itself from the
-    // page's colour and kept the colour of the mode just left (Abbas, 23 Oct).
-    // Writing the new colour out literally, once it has painted, is a nudge
-    // for it to look again. ponytail: a guess; reload on switch if it fails.
-    if (!matchMedia("(display-mode:standalone)").matches) return;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const c = getComputedStyle(root).getPropertyValue("--card").trim();
-      root.style.backgroundColor = document.body.style.backgroundColor = c;
-    }));
   },
 
   toggle() {
     Theme.apply(Theme.current() === "dark" ? "light" : "dark");
+    // From the home screen, iOS paints the status-bar strip itself from the
+    // page's colour, reads it only when the page loads, and kept the colour of
+    // the mode just left -- rewriting the colour after the switch did not move
+    // it (Abbas, 23 Oct). So the home-screen app loads again.
+    if (matchMedia("(display-mode:standalone)").matches) location.reload();
   },
 };
