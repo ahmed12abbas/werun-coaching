@@ -9,6 +9,7 @@ import { json, readBody } from "../lib/http.js";
 import { refuseUnlessCoach } from "../lib/auth.js";
 import { readFeedback } from "../lib/kv.js";
 import { clubWeekStart, shiftDay } from "../lib/week.js";
+import { hasColumn } from "../lib/columns.js";
 import { FB_MAX, feedbackSummary } from "./feedback.js";
 
 /* Roughly two months at the club's ten sessions a week — far enough back to
@@ -148,5 +149,24 @@ export async function stats(request, env) {
     said = Object.assign(feedbackSummary(notes.items), { items: notes.items.slice(0, FB_MAX.show) });
   }
 
-  return json({ weeks: await attendance(env), feedback: said });
+  return json({ weeks: await attendance(env), feedback: said, intervals: await intervalsCount(env) });
+}
+
+/* Athletes linked to Intervals.icu, and how many of those the phone has
+   actually synced this past week — the phone sends every six hours from Home,
+   so a week without one is an athlete who stopped opening the app or whose
+   link cannot write the calendar. synced_at is 0035, so it is asked about. */
+async function intervalsCount(env) {
+  try {
+    const synced = await hasColumn(env, "intervals_links", "synced_at");
+    const row = await env.DB.prepare(
+      "SELECT COUNT(*) AS connected" + (synced ? ", SUM(synced_at >= ?) AS syncing" : "") + " FROM intervals_links"
+    )
+      .bind(...(synced ? [new Date(Date.now() - 7 * 86400000).toISOString()] : []))
+      .first();
+    return { connected: row.connected || 0, syncing: synced ? row.syncing || 0 : null };
+  } catch (e) {
+    console.error("stats: no intervals_links yet (" + (e && e.message) + ")");
+    return null;
+  }
 }

@@ -18,6 +18,7 @@ import { withMember, nowISO } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, putEvents, dropEvents } from "../lib/intervals.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
+import { hasColumn } from "../lib/columns.js";
 
 const STATE_TTL = 600;
 const REDIRECT_TO = "/app.html#/home";
@@ -133,6 +134,9 @@ async function sync(env, user, body) {
     // but not write the calendar, and only connecting again fixes that.
     if (err.status === 401 || err.status === 403) return json({ error: "intervals-reconnect" }, 409);
     throw err;
+  }
+  if (events.length && (await hasColumn(env, "intervals_links", "synced_at"))) {
+    await env.DB.prepare("UPDATE intervals_links SET synced_at = ? WHERE user_id = ?").bind(nowISO(), user.id).run();
   }
   return json({ ok: true, sent: events.length, removed: remove.length });
 }

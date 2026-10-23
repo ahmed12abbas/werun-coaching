@@ -473,7 +473,11 @@ function athletesCard(stats, week) {
       // says how many sessions have run.
       el("div", { class: "ath-chips" },
         week ? el("span", { class: "chip" }, t("cChipToday", { n: week.comingToday })) : null,
-        el("span", { class: "chip" }, t("cChipSessions", { n: week ? week.count : mine.sessions.length })))),
+        el("span", { class: "chip" }, t("cChipSessions", { n: week ? week.count : mine.sessions.length })),
+        // Syncing is null until migration 0035 is in; connected alone until then.
+        stats.intervals ? el("span", { class: "chip" }, stats.intervals.syncing == null
+          ? t("cChipIntervals", { n: stats.intervals.connected })
+          : t("cChipIntervalsSync", { n: stats.intervals.connected, s: stats.intervals.syncing })) : null)),
     bars, detail);
 }
 

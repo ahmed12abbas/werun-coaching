@@ -272,6 +272,8 @@ const STRINGS = {
     cNoSessionsDay: "No sessions this day.",
     cChipToday: "{n} coming today",
     cChipSessions: "{n} sessions",
+    cChipIntervals: "Intervals.icu · {n} linked",
+    cChipIntervalsSync: "Intervals.icu · {n} linked · {s} syncing",
     cWeekOfN: "Week of {date} · {n} athletes",
     cBackToApp: "back to the app",
 
@@ -875,6 +877,8 @@ const STRINGS = {
     cNoSessionsDay: "لا حصص في هذا اليوم.",
     cChipToday: "قادمون اليوم {n}",
     cChipSessions: "{n} حصص",
+    cChipIntervals: "Intervals.icu · {n} مرتبط",
+    cChipIntervalsSync: "Intervals.icu · {n} مرتبط · {s} يزامن",
     cWeekOfN: "أسبوع {date} · {n} رياضي",
     cBackToApp: "العودة إلى التطبيق",
 
