@@ -435,6 +435,10 @@ kbd{background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;bo
   background:var(--fg);color:var(--bg);padding:11px 19px;border-radius:999px;font-size:14px;
   font-weight:600;opacity:0;pointer-events:none;transition:all .22s ease;z-index:50;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.offline-bar{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 8px);transform:translateX(-50%);
+  background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:700;
+  z-index:60;max-width:90vw;text-align:center;display:none}
+.offline-bar.on{display:block}
 .hidden{display:none !important}
 footer{margin-top:34px;text-align:center;font-size:12.5px;color:var(--muted)}
 footer a{color:inherit}

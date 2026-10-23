@@ -1156,6 +1156,7 @@ SCREENS.home = function (args, user) {
       ].filter(Boolean));
       lightCoachCode(box, data.days);
       startCountdowns();
+      warmSteps(week.ahead.slice(0, 2));
     })
     .catch((e) => {
       box.textContent = "";
@@ -1164,6 +1165,21 @@ SCREENS.home = function (args, user) {
 
   return el("div", { class: "stack" }, planToggle(), greetingHeader(user), box);
 };
+
+/* The steps for the next two sessions, asked for now so sw.js has them on the
+   phone when the track has no signal. Only ones not already there: Home is
+   opened often, and each ask is a trip to the database. */
+function warmSteps(rows) {
+  if (!window.caches) return;
+  const ids = new Set(rows.map(({ it }) => (it.kind === "session" ? (it.has_steps ? it.id : null) : it.steps_id)).filter(Boolean));
+  for (const id of ids) {
+    const url = "/api/session?id=" + encodeURIComponent(id);
+    caches
+      .match(url)
+      .then((hit) => hit || API.get(url))
+      .catch(() => {});
+  }
+}
 
 /* The watch services an athlete can link. Connecting and disconnecting live
    in Settings ("Connect my apps"); Home only shows what they bring in.
@@ -1203,7 +1219,7 @@ function connectButton(path, attrs, content) {
    One service, not a sum — two linked apps usually log the same run — and
    Intervals.icu wins, being last in SERVICES and the one still offered. */
 function loadMileage() {
-  return Promise.allSettled(SERVICES.map((s) => API.post(s.path, { action: "home" }))).then((rs) => {
+  return Promise.allSettled(SERVICES.map((s) => (retired(s) ? Promise.reject(null) : askHome(s)))).then((rs) => {
     const iv = rs[SERVICES.findIndex((s) => s.path === "/api/intervals")];
     const ivUp = !!iv && iv.status === "fulfilled";
     if (ivUp && iv.value.connected) syncIntervals();
@@ -1213,6 +1229,27 @@ function loadMileage() {
       .filter(Boolean)
       .pop();
     return { km: km || null, offerIv: ivUp && !iv.value.connected };
+  });
+}
+
+/* Strava and COROS can no longer be linked, so once one says "not linked" for
+   this athlete it never will again — and asking cost every Home two more
+   trips to the database for nothing. Remembered per account, because a phone
+   at the club gets passed round. */
+const retiredKey = (s) => "werun.unlinked." + ((Auth.user && Auth.user.id) || "") + s.path;
+function retired(s) {
+  try {
+    return !s.button && localStorage.getItem(retiredKey(s)) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+function askHome(s) {
+  return API.post(s.path, { action: "home" }).then((d) => {
+    try {
+      if (!s.button && d && d.connected === false) localStorage.setItem(retiredKey(s), "1");
+    } catch (e) {}
+    return d;
   });
 }
 
@@ -1237,9 +1274,10 @@ function openApps() {
 function appsCard() {
   const rows = el("div", { class: "stack" });
   for (const s of SERVICES) {
+    if (retired(s)) continue;
     const row = el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" }, el("strong", { class: "grow" }, s.name));
     rows.append(row);
-    API.post(s.path, { action: "home" })
+    askHome(s)
       .then((d) => {
         if (d.connected) row.append(el("span", { class: "muted small" }, t("aConnected")), disconnectLink(s.path));
         else if (s.button) row.append(s.button());
@@ -3797,8 +3835,42 @@ const ICON_PATH = {
    next visit rather than this one, and a phone that refuses it (a private
    window, an old browser) simply carries on without. */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+  window.addEventListener("load", () =>
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(() => {
+        if (!navigator.serviceWorker.controller) shelveThisPage();
+      })
+      .catch(() => {})
+  );
 }
+
+/* The first visit loaded before sw.js was there to keep anything, so the page
+   and its scripts would only reach the shelf on the second. Put them there
+   now — out of the browser's own cache, the stamps being immutable — so one
+   online visit is enough. Same shelf name as sw.js's SHELL. */
+function shelveThisPage() {
+  if (!window.caches) return;
+  const same = (u) => u && new URL(u, location.href).origin === location.origin;
+  const files = [...document.querySelectorAll("script[src]")].map((s) => s.src)
+    .concat([...document.querySelectorAll('link[rel="stylesheet"][href]')].map((l) => l.href))
+    .filter(same);
+  // Asked for as a page, so lib/theme.js puts the club's colours in it.
+  const page = new Request(location.pathname, { headers: { accept: "text/html" } });
+  caches.open("werun-shell-v1").then((c) => c.addAll([page].concat(files))).catch(() => {});
+}
+
+/* Said once, at the top, while the phone has no signal — what is on screen is
+   then what was saved on it, and an athlete should know it may be old. */
+function offlineBanner() {
+  const bar = el("div", { class: "offline-bar", role: "status" }, t("aOffline"));
+  const show = () => bar.classList.toggle("on", !navigator.onLine);
+  window.addEventListener("online", show);
+  window.addEventListener("offline", show);
+  document.body.append(bar);
+  show();
+}
+offlineBanner();
 
 /* Left/right swipe moves along the same tabs appNav draws, in that order —
    one gesture instead of a reach to the bar. RTL flips which physical

@@ -41,28 +41,46 @@ export const DEFAULTS = {
   intro_swoosh: true, // the swoosh beside the logo on the intro
 };
 
+/* The whole table in one read, shared by every key and every request this
+   isolate serves for a minute. D1 is in Amsterdam: one query per key made a
+   cold page wait on four round trips before it sent a byte, and /admin's
+   settings card on seventeen in a row. */
 const TTL = 60 * 1000;
-const cache = new Map(); // key -> { value, at }
+let table = null; // { values: {key: value}, at }
+let loading = null; // the read in flight, so Promise.all of four keys is one query
 
-export async function getSetting(env, key) {
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return hit.value;
-  const value = await readSetting(env, key);
-  cache.set(key, { value: value, at: Date.now() });
-  return value;
+async function loadTable(env) {
+  if (table && Date.now() - table.at < TTL) return table.values;
+  if (!loading) {
+    loading = readTable(env).then((values) => {
+      table = { values: values, at: Date.now() };
+      loading = null;
+      return values;
+    });
+  }
+  return loading;
 }
 
-/* What the table says, or the default: with no database, no row, an empty
-   one, or a row that will not parse. */
-async function readSetting(env, key) {
-  if (!env.DB) return DEFAULTS[key];
+/* Every row that parses; anything missing or broken falls to its default. */
+async function readTable(env) {
+  const values = {};
+  if (!env.DB) return values;
   try {
-    const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
-    return row && row.value != null ? JSON.parse(row.value) : DEFAULTS[key];
+    const rows = await env.DB.prepare("SELECT key, value FROM settings").all();
+    for (const r of rows.results || []) {
+      try {
+        if (r.value != null) values[r.key] = JSON.parse(r.value);
+      } catch (e) {} // a broken row means the default, not a broken site
+    }
   } catch (e) {
-    // A broken row or a missing table means the default, not a broken site.
-    return DEFAULTS[key];
+    // A missing table means the defaults, not a broken site.
   }
+  return values;
+}
+
+export async function getSetting(env, key) {
+  const values = await loadTable(env);
+  return key in values ? values[key] : DEFAULTS[key];
 }
 
 export async function setSetting(env, key, value) {
@@ -72,12 +90,13 @@ export async function setSetting(env, key, value) {
   )
     .bind(key, JSON.stringify(value), new Date().toISOString())
     .run();
-  cache.set(key, { value: value, at: Date.now() });
+  if (table) table.values[key] = value;
 }
 
 /** Every known setting, defaults filled in — for the admin page. */
 export async function allSettings(env) {
+  const values = await loadTable(env);
   const out = {};
-  for (const key of Object.keys(DEFAULTS)) out[key] = await getSetting(env, key);
+  for (const key of Object.keys(DEFAULTS)) out[key] = key in values ? values[key] : DEFAULTS[key];
   return out;
 }

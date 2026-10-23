@@ -23,10 +23,11 @@
      network first too, so what is on screen is current whenever there is
      signal at all, and fall back to the last answer when there is not.
 
-   Nothing is precached: the first visit fills the shelf. That keeps this
-   file from having to know the stamped filenames, which change on every
-   deploy — the cost is that an app installed and never opened online has
-   nothing to fall back on, which is not a state anybody is in.
+   Nothing is precached here: this file would have to know the stamped
+   filenames, which change on every deploy. The page does it instead — on the
+   first visit, before this worker controlled anything, js/app.js puts its own
+   page, scripts and styles on the shelf (shelveThisPage), so one online visit
+   is enough to open offline afterwards.
 
    The data cache holds one athlete's own answers, so js/auth.js drops it on
    the way out — see logout() there.
@@ -38,7 +39,7 @@ const DATA = "werun-data-v1";
 /* The reads worth keeping. Anything not on this list is never cached: a
    check-in, a signup or a code must fail honestly rather than answer out of
    yesterday's cache. */
-const KEEP = /^\/api\/(week|feed|session|auth\/me|points\/(me|board))$/;
+const KEEP = /^\/api\/(week|feed|session|auth\/me|points\/(me|board)|brand\/img)$/;
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));

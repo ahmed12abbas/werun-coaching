@@ -38,9 +38,11 @@ async function themeOf(env) {
 /** The static file for `request`, with the club's theme written into it if it is a page. */
 export async function themedAsset(request, env) {
   const { pathname } = new URL(request.url);
-  const theme = STAFF.test(pathname) ? null : await themeOf(env);
-  const page = theme && (request.headers.get("accept") || "").includes("text/html");
-  if (!page) return env.ASSETS.fetch(request);
+  // Only a page is themed, so only a page asks: a script or an image must not
+  // wait on the database for a colour it will never carry.
+  const wantsPage = !STAFF.test(pathname) && (request.headers.get("accept") || "").includes("text/html");
+  const theme = wantsPage ? await themeOf(env) : null;
+  if (!theme) return env.ASSETS.fetch(request);
 
   // No validators either way: the file has not changed when the theme has,
   // so a 304 for its ETag would keep the old colour in the browser's cache.
