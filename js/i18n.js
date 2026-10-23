@@ -274,6 +274,10 @@ const STRINGS = {
     cChipSessions: "{n} sessions",
     cChipIntervals: "Intervals.icu · {n} linked",
     cChipIntervalsSync: "Intervals.icu · {n} linked · {s} syncing",
+    cIvLinked: "Linked",
+    cIvSyncing: "Synced this week",
+    cIvQuiet: "Not synced this week",
+    cIvNote: "The app sends the club's week to their watch when they open it. Not synced means they haven't opened it, or need to reconnect.",
     cWeekOfN: "Week of {date} · {n} athletes",
     cBackToApp: "back to the app",
 
@@ -879,6 +883,10 @@ const STRINGS = {
     cChipSessions: "{n} حصص",
     cChipIntervals: "Intervals.icu · {n} مرتبط",
     cChipIntervalsSync: "Intervals.icu · {n} مرتبط · {s} يزامن",
+    cIvLinked: "مرتبطون",
+    cIvSyncing: "زامنوا هذا الأسبوع",
+    cIvQuiet: "لم يزامنوا هذا الأسبوع",
+    cIvNote: "يرسل التطبيق حصص الأسبوع إلى ساعة الرياضي عند فتحه. من لم يزامن لم يفتح التطبيق، أو يحتاج لإعادة الربط.",
     cWeekOfN: "أسبوع {date} · {n} رياضي",
     cBackToApp: "العودة إلى التطبيق",
 

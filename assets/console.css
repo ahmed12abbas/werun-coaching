@@ -415,6 +415,20 @@ body.coach .card{margin-top:14px;padding:16px}
 :is(body.coach,body.admin) .day-detail h3{margin:0 0 6px;font-size:15px}
 :is(body.coach,body.admin) .dd-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px}
 :is(body.coach,body.admin) .dd-row b{color:var(--brand)}
+/* A chip you can tap: a hairline and a lift say so, pressed fills it in. */
+:is(body.coach,body.admin) .chip-btn{border:1px solid var(--brand);font-family:inherit;cursor:pointer;transition:transform .15s,background .15s}
+:is(body.coach,body.admin) .chip-btn:hover{transform:translateY(-1px)}
+:is(body.coach,body.admin) .chip-btn:active{transform:scale(.96)}
+:is(body.coach,body.admin) .chip-btn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+:is(body.coach,body.admin) .chip-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+:is(body.coach,body.admin) .iv-meter{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:4px 0 8px}
+:is(body.coach,body.admin) .iv-meter i{display:block;height:100%;min-width:3px;background:var(--brand);border-radius:99px;
+  transform-origin:left;animation:meterIn .6s cubic-bezier(.2,.7,.2,1) backwards}
+[dir="rtl"] :is(body.coach,body.admin) .iv-meter i{transform-origin:right}
+@keyframes meterIn{from{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){:is(body.coach,body.admin) .chip-btn{transition:none}
+  :is(body.coach,body.admin) .chip-btn:hover,:is(body.coach,body.admin) .chip-btn:active{transform:none}
+  :is(body.coach,body.admin) .iv-meter i{animation:none}}
 
 /* The session in front of the coach, big. */
 body.coach .now-card{background:var(--brand-soft);border:1.5px solid var(--brand);box-shadow:none}

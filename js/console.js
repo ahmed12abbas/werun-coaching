@@ -445,8 +445,14 @@ function athletesCard(stats, week) {
   var bars = el("div", { class: "daybars" });
   var buttons = [];
 
+  var iv = stats.intervals;
+  var ivChip = iv ? el("button", { type: "button", class: "chip chip-btn", "aria-pressed": "false" }, iv.syncing == null
+    ? t("cChipIntervals", { n: iv.connected })
+    : t("cChipIntervalsSync", { n: iv.connected, s: iv.syncing })) : null;
+
   function pick(i) {
     buttons.forEach(function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+    if (ivChip) ivChip.setAttribute("aria-pressed", "false");
     detail.textContent = "";
     detail.append(el("h3", {}, dayHeading(dates[i])));
     if (!byDay[i].length) return detail.append(el("p", { class: "muted small", style: "margin:0" }, t("cNoSessionsDay")));
@@ -466,6 +472,26 @@ function athletesCard(stats, week) {
   });
   pick(Math.max(0, dates.indexOf(today)));
 
+  // The chip opens in the same place a day does: a meter of linked athletes
+  // filled to the share that synced this week. Tapped again, back to today.
+  if (ivChip) ivChip.addEventListener("click", function () {
+    if (ivChip.getAttribute("aria-pressed") === "true") return pick(Math.max(0, dates.indexOf(today)));
+    buttons.forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+    ivChip.setAttribute("aria-pressed", "true");
+    detail.textContent = "";
+    detail.append(el("h3", {}, "Intervals.icu"));
+    if (iv.syncing != null) {
+      var share = iv.connected ? Math.round((iv.syncing / iv.connected) * 100) : 0;
+      detail.append(el("div", { class: "iv-meter" }, el("i", { style: "width:" + share + "%" })));
+    }
+    detail.append(el("div", { class: "dd-row" }, el("span", {}, t("cIvLinked")), el("b", {}, String(iv.connected))));
+    if (iv.syncing != null) {
+      detail.append(el("div", { class: "dd-row" }, el("span", {}, t("cIvSyncing")), el("b", {}, String(iv.syncing))),
+        el("div", { class: "dd-row" }, el("span", {}, t("cIvQuiet")), el("b", {}, String(iv.connected - iv.syncing))));
+    }
+    detail.append(el("p", { class: "muted small", style: "margin:6px 0 0" }, t("cIvNote")));
+  });
+
   return el("div", { class: "card athletes" },
     el("div", { class: "ath-head" },
       el("div", {}, el("b", { class: "ath-n" }, String(mine.total)), el("span", { class: "ath-l" }, t("cSumCame"))),
@@ -474,10 +500,7 @@ function athletesCard(stats, week) {
       el("div", { class: "ath-chips" },
         week ? el("span", { class: "chip" }, t("cChipToday", { n: week.comingToday })) : null,
         el("span", { class: "chip" }, t("cChipSessions", { n: week ? week.count : mine.sessions.length })),
-        // Syncing is null until migration 0035 is in; connected alone until then.
-        stats.intervals ? el("span", { class: "chip" }, stats.intervals.syncing == null
-          ? t("cChipIntervals", { n: stats.intervals.connected })
-          : t("cChipIntervalsSync", { n: stats.intervals.connected, s: stats.intervals.syncing })) : null)),
+        ivChip)),
     bars, detail);
 }
 
