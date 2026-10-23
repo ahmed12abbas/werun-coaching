@@ -1325,12 +1325,5 @@ const Theme = {
 
   toggle() {
     Theme.apply(Theme.current() === "dark" ? "light" : "dark");
-    // From the home screen, iOS paints the status-bar strip itself from the
-    // page's colour, reads it only when the page loads, and kept the colour of
-    // the mode just left -- rewriting the colour after the switch did not move
-    // it (Abbas, 23 Oct). So the home-screen app loads again.
-    if (!matchMedia("(display-mode:standalone)").matches) return;
-    try { sessionStorage.setItem("werun.themeReload", "1"); } catch (e) {}
-    location.reload();
   },
 };
