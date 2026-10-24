@@ -1,13 +1,14 @@
 /* Is everything plugged in? For the deploy check and for a coach wondering. */
 
 import { json } from "../lib/http.js";
+import { currentUser, isCoach, isAdmin } from "../lib/auth.js";
 
 /* ---------- GET /api/health ---------------------------------------------- */
 
 /*
  * Says which bindings the Worker can see and whether the database has its
- * tables, and nothing else — no counts, no names, no secrets' values. The
- * bindings workflow polls this after a redeploy; a person can open it too.
+ * tables, and nothing else — no counts, no secrets' values. The bindings
+ * workflow polls this after a redeploy; staff can open it for the detail.
  */
 function bindingsSeen(env) {
   return {
@@ -73,9 +74,24 @@ async function countTables(env, out) {
   }
 }
 
+/* Who may see the whole picture: staff who are logged in, and the local dev
+   server the smoke tests run against. Anybody else gets the four fields the
+   bindings workflow polls — whether it is up, and whether the store and the
+   database are there and migrated — and not which features are switched on,
+   which half-set secrets there are, or the names of the tables. */
+const LOCAL = /^(localhost|127.0.0.1)$/;
+async function seesAll(request, env) {
+  if (LOCAL.test(new URL(request.url).hostname)) return true;
+  const user = env.DB ? await currentUser(request, env).catch(() => null) : null;
+  return isCoach(user) || isAdmin(user);
+}
+
 export async function health(request, env) {
   const out = bindingsSeen(env);
   out.warnings = WARNINGS.filter(([, on]) => on(env)).map(([name]) => name);
   if (env.DB) await countTables(env, out);
-  return json(out, out.ok ? 200 : 503);
+  const shown = (await seesAll(request, env))
+    ? out
+    : { ok: out.ok, store: out.store, db: out.db, tables: out.tables };
+  return json(shown, out.ok ? 200 : 503);
 }
