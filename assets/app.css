@@ -743,7 +743,18 @@ html[data-event="nationalday"] .brand-logo{
 .loop-stat.on{opacity:1}
 .loop-stat b{font-family:var(--display);font-size:20px;font-weight:600}
 .loop-stat.on b{color:var(--brand)}
-.loop-day{display:flex;gap:8px;font-size:13px;color:var(--muted)}
+.loop-day{display:flex;gap:8px;font-size:13px;color:var(--muted);width:100%;align-items:center}
+button.loop-day{background:none;border:0;padding:4px 0;font:inherit;font-size:13px;cursor:pointer;text-align:start;border-radius:6px}
+button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
+.loop-go{color:var(--brand);font-weight:700}
+[dir=rtl] .loop-go{transform:scaleX(-1)}
+.run-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px}
+.run-stats>div{display:flex;flex-direction:column}
+.run-stats b{font-family:var(--display);font-size:20px;color:var(--brand)}
+.run-laps h4{margin:0}
+.run-lap{display:grid;grid-template-columns:1fr auto auto auto 3.5em;gap:10px;font-size:13px;color:var(--muted);padding:4px 0;border-top:1px solid var(--line)}
+.run-lap.work{color:inherit}
+.run-lap.work b{color:var(--brand)}
 .loop-src{display:inline-flex;align-items:center;gap:8px}
 .iv-logo{display:inline-flex;width:24px;height:24px;flex:none}
 .iv-logo svg{width:100%;height:100%}

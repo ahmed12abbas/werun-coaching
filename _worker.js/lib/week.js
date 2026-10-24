@@ -56,10 +56,12 @@ export function weekStartEpoch() {
    start_date_local is local wall-clock time written with a "Z", the way
    Strava sends it — parsing it as UTC and reading the UTC weekday back out
    gives the athlete's own day, not the server's. lib/coros.js puts COROS
-   runs into the same shape so both cards draw from one function. */
+   runs into the same shape so both cards draw from one function.
+   `runs` is each run on its own, so a day on the card can open into it. */
 export function weekSummary(activities, sunday) {
   const days = new Array(7).fill(0);
   let total_m = 0;
+  const runs = [];
   for (const a of activities) {
     if ((a.type || "") !== "Run") continue;
     const d = new Date(a.start_date_local || a.start_date);
@@ -67,8 +69,16 @@ export function weekSummary(activities, sunday) {
     const meters = Number(a.distance) || 0;
     days[d.getUTCDay()] += meters;
     total_m += meters;
+    runs.push({
+      id: a.id == null ? null : String(a.id),
+      day: d.getUTCDay(),
+      name: String(a.name || "").slice(0, 120),
+      distance_m: meters,
+      moving_s: Number(a.moving_time) || 0,
+      hr: Math.round(Number(a.average_heartrate)) || null,
+    });
   }
-  return { start: sunday, days: days, total_m: total_m };
+  return { start: sunday, days: days, total_m: total_m, runs: runs };
 }
 
 /** Which day a session name belongs to; "other" when it names no day at all. */

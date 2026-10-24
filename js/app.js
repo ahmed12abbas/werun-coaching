@@ -1299,14 +1299,89 @@ function kmDays(week) {
     .map((d) => {
       const date = new Date(week.start + "T00:00:00Z");
       date.setUTCDate(date.getUTCDate() + d.i);
+      const runs = (week.runs || []).filter((r) => r.day === d.i);
+      const label = date.toLocaleDateString(locale(), { weekday: "long", timeZone: "UTC" });
       return el(
-        "div",
-        { class: "loop-day" },
-        el("span", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short" })),
-        el("span", { dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km")
+        runs.length ? "button" : "div",
+        {
+          class: "loop-day",
+          type: runs.length ? "button" : null,
+          onclick: runs.length ? () => openRuns(label, runs, week.source) : null,
+        },
+        el("span", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short", timeZone: "UTC" })),
+        el("span", { dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km"),
+        runs.length ? el("span", { class: "loop-go", "aria-hidden": "true" }, "›") : null
       );
     });
   return rows.length ? el("div", {}, rows) : el("p", { class: "muted small" }, t("aStravaNone"));
+}
+
+// Seconds per km, as the watch says it: "4:35 /km".
+const paceOf = (m, s) => (m > 0 && s > 0 ? fmtClock((s / m) * 1000) + " /km" : "—");
+
+/* A day's runs, opened from the card: the totals first, then — for an
+   Intervals.icu run — its laps, asked for only now, so Home stays one call. */
+function openRuns(label, runs, source) {
+  const body = el("div", { class: "stack" }, el("h2", {}, label));
+  for (const r of runs) {
+    const laps = el("div", { class: "stack run-laps" });
+    body.append(
+      el(
+        "div",
+        { class: "card pad stack" },
+        r.name ? el("h3", {}, r.name) : null,
+        el(
+          "div",
+          { class: "run-stats" },
+          runStat((r.distance_m / 1000).toFixed(2) + " km", t("aRunDist")),
+          runStat(fmtClock(r.moving_s), t("aRunTime")),
+          runStat(paceOf(r.distance_m, r.moving_s), t("aRunPace")),
+          r.hr ? runStat(r.hr + " bpm", t("aRunHr")) : null
+        ),
+        laps
+      )
+    );
+    if (source === "Intervals.icu" && r.id) loadLaps(laps, r.id);
+  }
+  openSheet(label, body);
+}
+
+function runStat(value, label) {
+  return el("div", {}, el("b", { class: "num", dir: "ltr" }, value), el("span", { class: "muted small" }, label));
+}
+
+function loadLaps(box, id) {
+  box.append(el("span", { class: "spin" }));
+  API.post("/api/intervals", { action: "activity", id: id })
+    .then((d) => {
+      box.textContent = "";
+      const laps = d.laps || [];
+      // One interval is a steady run; there is nothing to split.
+      if (laps.length < 2) return box.append(el("p", { class: "muted small" }, t("aRunSteady")));
+      let rep = 0;
+      // Easy laps before the first rep are the warm-up, after the last the cool-down.
+      const first = laps.findIndex((l) => l.work);
+      const last = laps.map((l) => l.work).lastIndexOf(true);
+      const rest = (i) => (first < 0 ? t("aRunRest") : i < first ? t("aRunWarm") : i > last ? t("aRunCool") : t("aRunRest"));
+      box.append(el("h4", {}, t("aRunLaps")));
+      laps.forEach((l, i) => {
+        box.append(
+          el(
+            "div",
+            { class: "run-lap" + (l.work ? " work" : "") },
+            el("span", { class: "grow" }, l.work ? t("aRunRep", { n: ++rep }) : rest(i)),
+            el("span", { dir: "ltr" }, l.distance_m >= 1000 ? (l.distance_m / 1000).toFixed(2) + " km" : Math.round(l.distance_m) + " m"),
+            el("span", { dir: "ltr" }, fmtClock(l.moving_s)),
+            el("b", { dir: "ltr" }, paceOf(l.distance_m, l.moving_s)),
+            el("span", { class: "muted", dir: "ltr" }, l.hr ? l.hr + "♥" : "")
+          )
+        );
+      });
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("p", { class: "muted small" }, errorText(e)));
+    });
 }
 
 // The week's daily split as a ring, conic-gradient rather than drawn SVG —
@@ -1657,7 +1732,7 @@ function goalCard(done, user, miles) {
       );
     }
     if (m) {
-      week = Object.assign({}, m.week, { total_m: m.week.total_m || 0 });
+      week = Object.assign({}, m.week, { total_m: m.week.total_m || 0, source: m.source });
       if (m.source === "Intervals.icu") source.append(el("span", { class: "iv-logo", title: m.source, html: IV_LOGO }));
       else source.prepend(m.source);
       inner.style.background = kmRing(week);

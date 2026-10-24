@@ -16,7 +16,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
-import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, putEvents, dropEvents } from "../lib/intervals.js";
+import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, activityIntervals, putEvents, dropEvents } from "../lib/intervals.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
 import { hasColumn } from "../lib/columns.js";
 
@@ -41,6 +41,7 @@ export async function intervals(request, env) {
     if (action === "disconnect") return disconnect(e, user);
     if (action === "home") return home(e, user);
     if (action === "sync") return sync(e, user, body);
+    if (action === "activity") return activity(e, user, body);
     return json({ error: "bad-request" }, 400);
   })(request, env);
 }
@@ -87,6 +88,31 @@ async function home(env, user) {
       return json({ connected: false });
     }
     return json({ connected: true, week: null });
+  }
+}
+
+/* One run's reps, read when the athlete taps its day on Home — not with
+   the week, which would be one more call per run on every Home load. */
+const ACT_ID = /^i?\d{1,15}$/;
+async function activity(env, user, body) {
+  const id = String(body.id || "");
+  if (!ACT_ID.test(id)) return json({ error: "bad-request" }, 400);
+  let link;
+  try {
+    link = await env.DB.prepare("SELECT * FROM intervals_links WHERE user_id = ?").bind(user.id).first();
+  } catch (err) {
+    link = null;
+  }
+  if (!link) return json({ error: "intervals-not-linked" }, 409);
+  const fresh = await freshToken(env, link);
+  if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
+  try {
+    return json({ laps: await activityIntervals(fresh.access_token, id) });
+  } catch (err) {
+    // A 429 is the app-wide budget (Intervals.icu counts per app, per day),
+    // not this athlete: say so rather than show a run with no laps.
+    console.error("intervals: activity failed (" + (err && err.message) + ")");
+    return json({ error: err.status === 429 ? "too-often" : "intervals-busy" }, 502);
   }
 }
 
