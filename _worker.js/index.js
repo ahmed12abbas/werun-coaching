@@ -23,6 +23,7 @@
      GET  /api/auth/me          — who am I; null when nobody
      POST /api/auth/profile     — name, language         (logged in)
      POST /api/auth/password    — change password        (logged in)
+     POST /api/auth/delete      — delete my own account  (logged in, password again)
      POST /api/auth/verify/send — post me a confirmation link (logged in)
      POST /api/auth/verify      — spend that link
      POST /api/auth/reset/request — post me a new-password link
@@ -118,7 +119,7 @@ import { stats } from "./routes/stats.js";
 import { feedback, feedbackAdmin } from "./routes/feedback.js";
 import { tips, tipsAdmin, tipsImg } from "./routes/tips.js";
 import { health } from "./routes/health.js";
-import { signup, login, logout, logoutAll, me, profile, password } from "./routes/auth.js";
+import { signup, login, logout, logoutAll, me, profile, password, deleteAccount } from "./routes/auth.js";
 import { week, session } from "./routes/sessions.js";
 import { members, settings, coaches, brandImg } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
@@ -156,6 +157,7 @@ const POST = {
   "/api/auth/logout-all": logoutAll,
   "/api/auth/profile": profile,
   "/api/auth/password": password,
+  "/api/auth/delete": deleteAccount,
   "/api/auth/verify/send": verifySend,
   "/api/auth/verify": verify,
   "/api/auth/reset/request": resetRequest,

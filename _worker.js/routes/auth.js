@@ -5,6 +5,7 @@ import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
 import { emailOn } from "../lib/mail.js";
 import { storeOn } from "../lib/stripe.js";
+import { RESET_ASK } from "./email.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
   createSession, dropSession, dropOtherSessions, currentUser, publicUser,
@@ -299,4 +300,45 @@ export const password = withUser(async (request, env, user) => {
   await env.DB.prepare("UPDATE users SET pass_salt = ?, pass_hash = ? WHERE id = ?").bind(salt, hash, user.id).run();
   await dropOtherSessions(env, request, user.id);
   return json({ ok: true });
+});
+
+/* ---------- POST /api/auth/delete ---------------------------------------- */
+
+/*
+ * The member's whole account, gone, by their own hand. The password again, as
+ * for changing it, so a phone left unlocked cannot do this either.
+ *
+ * Everything that is theirs goes with the users row (ON DELETE CASCADE on
+ * every table that names them: sessions, check-ins and their points, signups,
+ * reactions, comments, push, watch links, orders). push_sent has no foreign
+ * key, so it is cleared by hand; the two staff columns that point at a user
+ * without a cascade (posts.author_id, club_sessions.published_by) are let go
+ * of rather than taking the club's posts and sessions with them.
+ *
+ * Refused for staff: a coach or an admin deleting themselves would take the
+ * club's own screens with them, and somebody else should take the role off
+ * first. Refused too while a paid order is still waiting to be handed over,
+ * or the club would lose the record of a shirt it owes.
+ */
+export const deleteAccount = withUser(async (request, env, user) => {
+  const body = await readBody(request);
+  if (await tooOften(env.DB, "pw", user.id, 5, 3600)) return json({ error: "too-often" }, 429);
+  if (!(await verifyPassword(String(body.password || ""), user.pass_salt, user.pass_hash))) {
+    return json({ error: "wrong-password" }, 401);
+  }
+  if (user.role === "coach" || user.is_admin) return json({ error: "staff-account" }, 409);
+  const owed = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status = 'paid'")
+    .bind(user.id)
+    .first();
+  if (owed && owed.n) return json({ error: "order-owed" }, 409);
+
+  await env.DB.batch([
+    env.DB.prepare("UPDATE posts SET author_id = NULL WHERE author_id = ?").bind(user.id),
+    env.DB.prepare("UPDATE club_sessions SET published_by = NULL WHERE published_by = ?").bind(user.id),
+    env.DB.prepare("DELETE FROM push_sent WHERE user_id = ?").bind(user.id),
+    env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
+  ]);
+  if (env.STATS) await env.STATS.delete(RESET_ASK + user.id);
+  console.log("account deleted: " + user.id);
+  return jsonWithCookie({ ok: true }, 200, "");
 });

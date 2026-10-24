@@ -3887,6 +3887,37 @@ SCREENS.me = function (args, user) {
 
   const out = (everywhere) => () => Auth.logout(everywhere).then(() => go("login"));
 
+  /* deleting the account: the password again, and a second tap that says
+     what it does, because there is no undo */
+  const delPw = el("input", { type: "password", id: "f-del", autocomplete: "current-password", required: true });
+  const delErr = el("p", { class: "form-err hidden" });
+  const delBtn = el("button", { class: "btn", type: "submit" }, t("aDeleteAccount"));
+  let delArmed = false;
+  const delForm = el(
+    "form",
+    {
+      class: "stack",
+      onsubmit: (e) => {
+        e.preventDefault();
+        if (!delArmed) {
+          delArmed = true;
+          delBtn.textContent = t("aDeleteSure");
+          return;
+        }
+        submitting(delBtn, delErr, () =>
+          API.post("/api/auth/delete", { password: delPw.value }).then(() => Auth.logout(false)).then(() => {
+            toast(t("aDeleted"));
+            go("login");
+          })
+        );
+      },
+    },
+    el("p", { class: "hint" }, t("aDeleteHint")),
+    field("aCurrentPw", delPw),
+    delErr,
+    el("div", { class: "row" }, delBtn)
+  );
+
   return el(
     "div",
     { class: "stack" },
@@ -3900,7 +3931,8 @@ SCREENS.me = function (args, user) {
     Auth.club.email && !user.email_verified_at ? confirmCard() : null,
     el("div", { class: "card pad" }, moreRow("aMoreAccount",
       el("div", {}, el("label", {}, t("aEmail")), el("input", { type: "email", value: user.email, disabled: true }), el("p", { class: "hint" }, t("aEmailFixed"))),
-      el("h3", {}, t("aChangePw")), pwForm)),
+      el("h3", {}, t("aChangePw")), pwForm,
+      el("h3", {}, t("aDeleteAccount")), delForm)),
     el(
       "div",
       { class: "card pad stack" },

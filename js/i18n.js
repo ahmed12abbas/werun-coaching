@@ -253,6 +253,10 @@ const STRINGS = {
     aPwChanged: "Password changed. Other devices were logged out.",
     aLogout: "Log out",
     aLogoutAll: "Log out everywhere",
+    aDeleteAccount: "Delete my account",
+    aDeleteHint: "Removes your account and everything that is yours here: check-ins, points, signups, comments and linked apps. There is no undo.",
+    aDeleteSure: "Tap again to delete for good",
+    aDeleted: "Your account has been deleted.",
 
     /* the coach's own row on Me: the screen she stands at the track with */
     aCoachTools: "Coaching",
@@ -366,6 +370,8 @@ const STRINGS = {
     "e_bad-name": "Tell us your name.",
     "e_bad-password": "The password needs at least 8 characters.",
     "e_wrong-password": "The current password is wrong.",
+    "e_staff-account": "Coach and admin accounts cannot be deleted here. Ask an admin to take the role off first.",
+    "e_order-owed": "You have a paid order still to collect. Collect it first, then delete the account.",
     "e_too-often": "Too many tries — wait a minute and try again.",
     "e_signups-closed": "Signups are closed for now — ask the coach.",
     e_blocked: "This account is blocked — talk to the coach.",
@@ -871,6 +877,10 @@ const STRINGS = {
     aPwChanged: "تم تغيير كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى.",
     aLogout: "تسجيل الخروج",
     aLogoutAll: "الخروج من كل الأجهزة",
+    aDeleteAccount: "حذف حسابي",
+    aDeleteHint: "يحذف حسابك وكل ما يخصك هنا: الحضور والنقاط والتسجيلات والتعليقات والتطبيقات المربوطة. لا يمكن التراجع.",
+    aDeleteSure: "اضغط مرة أخرى للحذف نهائياً",
+    aDeleted: "تم حذف حسابك.",
 
     /* المدرب: شاشة المضمار */
     aCoachTools: "التدريب",
@@ -980,6 +990,8 @@ const STRINGS = {
     "e_bad-name": "اكتب اسمك.",
     "e_bad-password": "كلمة المرور 8 أحرف على الأقل.",
     "e_wrong-password": "كلمة المرور الحالية غير صحيحة.",
+    "e_staff-account": "لا يمكن حذف حسابات المدربين والإداريين من هنا. اطلب من الإدارة إزالة الصلاحية أولاً.",
+    "e_order-owed": "لديك طلب مدفوع لم تستلمه بعد. استلمه أولاً ثم احذف الحساب.",
     "e_too-often": "محاولات كثيرة — انتظر دقيقة وحاول مرة أخرى.",
     "e_signups-closed": "التسجيل مغلق حالياً — كلّم الكوتش.",
     e_blocked: "هذا الحساب موقوف — كلّم الكوتش.",
