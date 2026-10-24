@@ -3,15 +3,21 @@
    watch shows what the phone's calendar has.
 
    A calendar app polls a URL and sends no cookie, so the link carries who it
-   is for and an HMAC over that under QR_SECRET. Nothing is stored and nothing
-   needs a migration; the price is that a link cannot be revoked short of
-   rotating the secret, which is fine for a feed of times and meeting points
-   that every member can already read. The user is still looked up, so a
-   blocked account's feed stops. */
+   is for and a full HMAC-SHA256 over that under CALENDAR_SECRET (QR_SECRET
+   when that is not set). Its own key, so the calendar links can be cut off
+   all at once by changing it without touching the check-in codes. Nothing is
+   stored and nothing needs a migration; a single link cannot be revoked,
+   which is fine for a feed of times and meeting points every member can
+   already read. The user is still looked up, so a blocked account's feed
+   stops.
+
+   Links handed out before 25 Oct carry the old 16-character signature under
+   QR_SECRET, and phones are subscribed to them; those keep working until
+   QR_SECRET is changed. */
 
 import { json } from "../lib/http.js";
 import { withMember } from "../lib/auth.js";
-import { safeEqual } from "../lib/crypto.js";
+import { safeEqual, hmacHex } from "../lib/crypto.js";
 import { tooOften } from "../lib/limit.js";
 import { signSlot } from "../lib/checkin.js";
 import { loadWeek, buildDays } from "../lib/weekplan.js";
@@ -21,12 +27,21 @@ const DAYS_BACK = 7; // last week stays, so a run just done does not vanish
 const DAYS_AHEAD = 28;
 const HOUR_MS = 3600 * 1000;
 
-const sigFor = (env, userId) => signSlot(env.QR_SECRET, "cal", userId);
+const calKey = (env) => env.CALENDAR_SECRET || env.QR_SECRET;
+const sigFor = (env, userId) => hmacHex(calKey(env), "calendar:" + userId);
+
+/* The signature on a link, checked the way it was made: 64 characters is
+   today's, 16 is the old check-in-key one (see the note at the top). */
+async function signedFor(env, userId, sig) {
+  if (sig.length === 64) return safeEqual(sig, await sigFor(env, userId));
+  if (sig.length === 16 && env.QR_SECRET) return safeEqual(sig, await signSlot(env.QR_SECRET, "cal", userId));
+  return false;
+}
 
 /* ---------- POST /api/calendar — this athlete's feed link ------------------ */
 
 export const calendarLink = withMember(async (request, env, user) => {
-  if (!env.QR_SECRET) return json({ error: "calendar-off" }, 503);
+  if (!calKey(env)) return json({ error: "calendar-off" }, 503);
   const q = new URLSearchParams({ u: user.id, s: await sigFor(env, user.id) });
   return json({ url: new URL(request.url).origin + "/api/calendar.ics?" + q.toString() });
 });
@@ -34,11 +49,11 @@ export const calendarLink = withMember(async (request, env, user) => {
 /* ---------- GET /api/calendar.ics?u=&s=&lang= ----------------------------- */
 
 export async function calendarFeed(request, env) {
-  if (!env.DB || !env.QR_SECRET) return new Response("calendar-off", { status: 503 });
+  if (!env.DB || !calKey(env)) return new Response("calendar-off", { status: 503 });
   const url = new URL(request.url);
   const userId = url.searchParams.get("u") || "";
   const sig = url.searchParams.get("s") || "";
-  if (!userId || !(await safeEqual(sig, await sigFor(env, userId)))) return new Response("Not found", { status: 404 });
+  if (!userId || !(await signedFor(env, userId, sig))) return new Response("Not found", { status: 404 });
   // Calendar apps poll every few minutes at most; this is somebody leaning on it.
   if (await tooOften(env.DB, "cal", userId, 20, 60)) return new Response("too-often", { status: 429 });
 

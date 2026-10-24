@@ -42,7 +42,7 @@ function check(name, ok, detail) {
   check("signup works", r.status === 200, r);
 
   r = await call("POST", "/api/calendar");
-  check("link: handed out", r.status === 200 && /\/api\/calendar\.ics\?u=.+&s=[0-9a-f]{16}$/.test(r.data.url), r);
+  check("link: handed out", r.status === 200 && /\/api\/calendar\.ics\?u=.+&s=[0-9a-f]{64}$/.test(r.data.url), r);
   const url = new URL(r.data.url);
 
   const feed = await fetch(BASE + url.pathname + url.search);
@@ -59,6 +59,20 @@ function check(name, ok, detail) {
   forged.set("s", "0".repeat(16));
   r = await fetch(BASE + "/api/calendar.ics?" + forged.toString());
   check("feed: a wrong signature is refused", r.status === 404, r.status);
+  forged.set("s", "0".repeat(64));
+  r = await fetch(BASE + "/api/calendar.ics?" + forged.toString());
+  check("feed: …a wrong full-length one too", r.status === 404, r.status);
+
+  /* A link handed out before the calendar had its own key: phones are still
+     subscribed to those, so the old signature must keep working. */
+  const qr = (require("fs").readFileSync(require("path").join(__dirname, "..", ".dev.vars"), "utf8").match(/^QR_SECRET=(.*)$/m) || [])[1];
+  if (qr) {
+    const { signSlot } = await import("../_worker.js/lib/checkin.js");
+    const old = new URLSearchParams(url.search);
+    old.set("s", await signSlot(qr.trim(), "cal", old.get("u")));
+    r = await fetch(BASE + "/api/calendar.ics?" + old.toString());
+    check("feed: a link from before still works", r.status === 200, r.status);
+  }
 
   r = await call("POST", "/api/intervals", { action: "sync", events: [] });
   check("intervals sync: answers without crashing", r.status === 503 || r.status === 409 || r.status === 200, r);
