@@ -154,9 +154,10 @@ function markFeedSeen(tips, posts) {
    code — which by the time they are back has expired anyway. */
 const PENDING = "werun.checkin";
 
-function stashCheckin(args) {
+// The whole route, so a shared news link (#/feed/tip:<id>) survives a login too.
+function stashCheckin(r) {
   try {
-    sessionStorage.setItem(PENDING, args.join("/"));
+    sessionStorage.setItem(PENDING, [r.name].concat(r.args).join("/"));
   } catch (e) {}
 }
 
@@ -173,7 +174,7 @@ function takeCheckin() {
 /** After a login, go where they were headed rather than to the home screen. */
 function afterLogin() {
   const pending = takeCheckin();
-  go(pending ? "c/" + pending : "home");
+  go(pending || "home");
 }
 
 function goHomeFresh() {
@@ -184,9 +185,9 @@ function goHomeFresh() {
 /* Where a route sends somebody instead of drawing, or null to draw it. */
 function redirectFor(r, user) {
   if (!user) {
-    // A code scanned by a stranger: keep it, then ask who they are.
-    if (r.name === "c") {
-      stashCheckin(r.args);
+    // A code scanned or a post shared to a stranger: keep it, then ask who they are.
+    if (r.name === "c" || (r.name === "feed" && r.args.length)) {
+      stashCheckin(r);
       return "login";
     }
     return PUBLIC_ROUTES.includes(r.name) ? null : "login";
@@ -3310,7 +3311,7 @@ function foldBody(kids) {
 function postCard(p) {
   return reactable(
     "post:" + p.id,
-    { title: side(p, "title"), body: side(p, "body") },
+    { title: side(p, "title") },
     el(
       "article",
       { class: "card pad stack post" + (p.photo_url ? " has-photo" : ""), dir: "auto" },
@@ -3479,21 +3480,21 @@ function openComments(target, title, redrawBar) {
 }
 
 /* The phone's own share sheet where there is one, the clipboard where there
-   is not. The words travel with the link, because whoever it reaches may not
-   be a member and the link opens on a login. */
+   is not. The link and nothing else: iOS glues any `text` onto the url, so
+   "Copy" handed over a paragraph that a browser's address bar searched for
+   rather than opened. Whoever is not logged in meets a login first and is
+   then taken to the card (redirectFor keeps the route). */
 async function sharePost(target, words) {
   const url = location.origin + location.pathname + "#/feed/" + target;
-  const plain = String(words.body || "").replace(/\*\*/g, "");
-  const text = [words.title, plain.length > 280 ? plain.slice(0, 280).trim() + "…" : plain].filter(Boolean).join("\n\n");
   if (navigator.share) {
     try {
-      await navigator.share({ title: words.title || "WE RUN", text: text, url: url });
+      await navigator.share({ title: words.title || "WE RUN", url: url });
       return;
     } catch (e) {
       if (e && e.name === "AbortError") return;
     }
   }
-  copyText(text + "\n\n" + url, t("linkCopied"));
+  copyText(url, t("linkCopied"));
 }
 
 /* The live article, shown here as well as beside the session — the same
@@ -3511,7 +3512,7 @@ function tipCard(tip) {
   if (!s.title && !s.body) return el("div");
   return reactable(
     "tip:" + tip.id,
-    { title: s.title, body: s.body },
+    { title: s.title },
     el(
     "article",
     { class: "card pad stack post tip" + (tip.photo ? " has-photo" : ""), dir: "auto" },
