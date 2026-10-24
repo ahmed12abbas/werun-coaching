@@ -11,6 +11,7 @@
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO } from "../lib/auth.js";
+import { targetExists } from "./comments.js";
 
 export const EMOJI = ["👍", "💜", "🔥"];
 const TARGET = /^(post|tip):[A-Za-z0-9_-]{1,64}$/;
@@ -65,6 +66,7 @@ export const reactions = withMember(async (request, env, user) => {
   if (!TARGET.test(target) || !EMOJI.includes(emoji)) return json({ error: "bad-request" }, 400);
 
   try {
+    if (!(await targetExists(env, target))) return json({ error: "not-found" }, 404);
     await toggleReaction(env, target, user.id, emoji);
   } catch (e) {
     console.error("reactions: could not write (" + (e && e.message) + ")");

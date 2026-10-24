@@ -10,6 +10,7 @@
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, isAdmin, nowISO, uid } from "../lib/auth.js";
+import { readTips } from "../lib/kv.js";
 
 const TARGET = /^(post|tip):[A-Za-z0-9_-]{1,64}$/;
 const MAX = { text: 500, perThread: 300 };
@@ -33,6 +34,25 @@ export async function commentCounts(env, targets) {
     console.error("comments: no table yet (" + (e && e.message) + ")");
     return {};
   }
+}
+
+/**
+ * Whether `target` is something on the news screen: a published post, or an
+ * article on the feed or live. The pattern alone would take any id, and the
+ * 300-a-thread cap means nothing when a member can open new threads on made-up
+ * ids for ever. Reactions ask the same question (routes/reactions.js).
+ */
+export async function targetExists(env, target) {
+  const [kind, id] = target.split(":");
+  if (kind === "post") {
+    const row = await env.DB.prepare("SELECT 1 FROM posts WHERE id = ? AND published_at IS NOT NULL AND published_at <= ?")
+      .bind(id, nowISO())
+      .first();
+    return !!row;
+  }
+  if (!env.STATS) return false;
+  const doc = await readTips(env.STATS);
+  return doc.articles.some((a) => a && a.id === id && (a.feed || a.id === doc.liveId));
 }
 
 // The author's id stays here: the page needs to know only whether it may
@@ -71,6 +91,7 @@ export const comments = withMember(async (request, env, user) => {
       const target = String(body.target || "");
       const text = String(body.text || "").replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, MAX.text);
       if (!TARGET.test(target) || !text) return json({ error: "bad-request" }, 400);
+      if (!(await targetExists(env, target))) return json({ error: "not-found" }, 404);
       const had = await env.DB.prepare("SELECT COUNT(*) AS n FROM comments WHERE target = ?").bind(target).first();
       if (had && had.n >= MAX.perThread) return json({ error: "too-many" }, 409);
       await env.DB.prepare("INSERT INTO comments (id, target, user_id, body, at) VALUES (?, ?, ?, ?, ?)")

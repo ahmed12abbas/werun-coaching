@@ -66,6 +66,10 @@ function check(name, ok, detail) {
   check("an empty comment is refused", r.status === 400, r.status);
   r = await a.call("POST", "/api/comments", { action: "add", target: "nope:1", text: "x" });
   check("an unknown target is refused", r.status === 400, r.status);
+  r = await a.call("POST", "/api/comments", { action: "add", target: "post:made-up-" + Date.now(), text: "x" });
+  check("a post that does not exist cannot grow a thread", r.status === 404, r.status);
+  r = await a.call("POST", "/api/reactions", { target: "tip:made-up", emoji: "🔥" });
+  check("…nor take a reaction", r.status === 404, r.status);
 
   r = await b.call("GET", "/api/feed");
   check("the feed counts it", r.data && r.data.comments && r.data.comments[target] === 1, r.data && r.data.comments);
