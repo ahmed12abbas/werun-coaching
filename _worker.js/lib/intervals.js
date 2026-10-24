@@ -69,27 +69,6 @@ export async function activitiesSince(athleteId, accessToken, sunday) {
   return res.json();
 }
 
-/** One activity's laps as Intervals.icu splits them — reps and recoveries
-    for a session, one long interval for an easy run. The token only reads
-    its own athlete's activities, so an id is all that needs checking. */
-export async function activityIntervals(accessToken, id) {
-  const res = await fetch("https://intervals.icu/api/v1/activity/" + encodeURIComponent(id) + "/intervals", {
-    headers: { authorization: "Bearer " + accessToken },
-  });
-  if (!res.ok) {
-    const err = new Error("intervals-activity-" + res.status);
-    err.status = res.status;
-    throw err;
-  }
-  const d = await res.json();
-  return (d.icu_intervals || []).slice(0, 80).map((i) => ({
-    work: i.type === "WORK",
-    distance_m: Number(i.distance) || 0,
-    moving_s: Number(i.moving_time || i.elapsed_time) || 0,
-    hr: Math.round(Number(i.average_heartrate)) || null,
-  }));
-}
-
 /* The club's sessions onto the athlete's Intervals.icu calendar, which hands
    them on to whatever watch they linked there (Garmin, COROS, Suunto…).
    external_id is the upsert key, so sending the same four weeks again updates
