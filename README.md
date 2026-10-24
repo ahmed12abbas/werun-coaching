@@ -358,8 +358,8 @@ There are two Cloudflare accounts, and it matters which one you are in:
 
 | Login | Account | Holds |
 |---|---|---|
-| `ahmedabbas_12@outlook.com` — *Continue with GitHub* | `86fef310…` | **`weruncoaching`** (this site), its `werun-stats` KV |
-| `ahmed12abbas93@gmail.com` | `769aedce…` | `werun`, `werun-5k-test`, an unrelated `werun-stats` KV |
+| The Outlook login — *Continue with GitHub* | the one `CLOUDFLARE_ACCOUNT_ID` names | **`weruncoaching`** (this site), its `werun-stats` KV |
+| The Gmail login | the other one | `werun`, `werun-5k-test`, an unrelated `werun-stats` KV |
 
 A KV namespace only works for the project if it lives in the **same account**.
 Binding one from the gmail account to `weruncoaching` looks fine at bind time

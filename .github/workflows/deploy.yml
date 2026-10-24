@@ -25,12 +25,12 @@ jobs:
       contents: read
       deployments: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5, pinned to the commit
 
       # The QR encoder is written from the standard rather than fetched, and the
       # two string tables are what an Arabic-speaking member actually reads: both
       # are checked here, because neither fails loudly at runtime.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5, pinned to the commit
         with:
           node-version: 22
           cache: npm
@@ -142,7 +142,7 @@ jobs:
 
       - name: Apply D1 migrations
         if: steps.d1.outputs.exists == 'true'
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4, pinned to the commit
         with:
           # Pinned: package.json carries wrangler for local development, and
           # the action would otherwise pick its own default. CI never has
@@ -182,7 +182,7 @@ jobs:
           fi
           echo "Created. Subdomain: $(jq -r '.result.subdomain' /tmp/new.json)"
 
-      - uses: cloudflare/wrangler-action@v4
+      - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4, pinned to the commit
         with:
           wranglerVersion: "4.129.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
