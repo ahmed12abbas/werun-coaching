@@ -164,7 +164,15 @@ export async function signup(request, env) {
       id, salt, hash, lang: cleanLang(body.lang), gender: cleanGender(body.gender),
     }));
   } catch (e) {
-    if (/UNIQUE/i.test(String(e && e.message))) return json({ error: "email-taken" }, 409);
+    if (/UNIQUE/i.test(String(e && e.message))) {
+      // Saying so is what sends a member who forgot they joined to the login
+      // form — but it also answers "is this person in the club?", which login
+      // and reset are careful never to. Without mail there is no private way
+      // to tell them, so the answer is rationed instead: a few a day from one
+      // address is somebody who forgot; more is somebody checking a list.
+      if (await tooOften(env.DB, "et", ipOf(request), 5, 86400)) return json({ error: "too-often" }, 429);
+      return json({ error: "email-taken" }, 409);
+    }
     throw e;
   }
 

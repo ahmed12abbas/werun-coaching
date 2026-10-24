@@ -45,14 +45,15 @@ async function mintToken(env, userId, purpose, life) {
 async function spend(env, token, purpose) {
   if (!/^[0-9a-f]{64}$/.test(String(token || ""))) return null;
   const hash = hex(await sha256(String(token)));
-  const row = await env.DB.prepare(
-    "SELECT * FROM email_tokens WHERE token_hash = ? AND purpose = ? AND used_at IS NULL AND expires_at > ?"
+  // Spent and read in one statement: two requests with the same link at the
+  // same moment cannot both find it unspent, so a link really works once.
+  const now = nowISO();
+  return env.DB.prepare(
+    "UPDATE email_tokens SET used_at = ? WHERE token_hash = ? AND purpose = ? AND used_at IS NULL AND expires_at > ?" +
+      " RETURNING *"
   )
-    .bind(hash, purpose, nowISO())
+    .bind(now, hash, purpose, now)
     .first();
-  if (!row) return null;
-  await env.DB.prepare("UPDATE email_tokens SET used_at = ? WHERE token_hash = ?").bind(nowISO(), hash).run();
-  return row;
 }
 
 const linkTo = (request, route, token) => new URL(request.url).origin + "/app#/" + route + "/" + token;
