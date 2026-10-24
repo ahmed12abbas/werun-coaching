@@ -1,0 +1,531 @@
+"use strict";
+
+/* =========================================================================
+   The screen a coach stands at the track with.
+
+   Everything on it is read-only on purpose: at ten to five in the morning,
+   holding a phone up in front of thirty people, the last thing anybody needs
+   is a Remove button one thumb away from the code. Publishing, editing,
+   voiding and the switches all stay in admin.html.
+
+   It is also where the boundary sits: everything here is on the coach tier
+   (refuseUnlessCoach in lib/auth.js), and a coach who is not an admin gets
+   all of it and none of /admin. The one thing on the page that writes is the
+   rota — a coach putting themselves down for a session, which is the one
+   thing on it that is theirs to change.
+   ========================================================================= */
+
+/* The heading, the line under it, the two toggles and the footer -- drawn
+   rather than written into the HTML, because all of it changes language.
+
+   The toggles do not refetch: LAST holds what the last load() answered, so
+   flipping to Arabic redraws the same week rather than asking for it again.
+   Before anything has loaded there is nothing to redraw and the login form
+   is drawn instead, which is the same call renderLogin() makes. */
+var LAST = null;
+
+function chrome() {
+  var head = document.getElementById("head");
+  head.textContent = "";
+  // The way back to the app as an arrow in the corner, where a phone's back
+  // button would be, rather than a line in the footer nobody scrolls to.
+  var back = el("a", { class: "tool back", href: "app.html", title: t("cBackToApp"), "aria-label": t("cBackToApp") });
+  back.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
+  head.append(el("div", { class: "conhead" }, back, el("h1", {}, t("cTitle")), consoleTools(redraw)));
+  var foot = document.getElementById("foot");
+  foot.textContent = "";
+  foot.append(el("footer", {}, "WE RUN Coaching · ",
+    el("a", { href: "app.html" }, t("cBackToApp"))));
+  document.title = t("cTitle") + " · WE RUN";
+}
+
+/* What both toggles call: the chrome, and whatever the page was showing. */
+function redraw() {
+  chrome();
+  if (LAST) render(LAST[0], LAST[1], LAST[2], LAST[3]);
+  else renderLogin(null);
+}
+
+/* renderLogin() calls this once the coach is through the door; the two
+   console pages differ only in what they do here. */
+function load(pw) {
+  var had = password;
+  password = pw;
+  // Four reads at once: the numbers, the standing week, what has actually
+  // been published, and who is down for what. A coach at the gate waits once.
+  return Promise.all([
+    api("/api/stats", {}),
+    api("/api/admin/schedule", { action: "list" }),
+    api("/api/admin/sessions", { action: "list" }),
+    api("/api/coach/rota", { action: "list" })
+  ]).then(function (r) {
+    LAST = r;
+    render(r[0], r[1], r[2], r[3]);
+  })["catch"](function (e) {
+    password = had;
+    throw e;
+  });
+}
+
+/* Top to bottom: how many came this week, every week before as circles, the
+   session in front of the coach with its code, and the whole week's codes
+   last, shut behind their heading until tapped open. */
+function render(stats, plan, sess, rota) {
+  app.textContent = "";
+  var week = weekCard(plan, sess, rota);
+  app.append(athletesCard(stats, week));
+  if ((stats.weeks || []).length) app.append(weeksCard(stats.weeks));
+  if (week.hero) app.append(week.hero);
+  app.append(week);
+  foldCard(week);
+  hotClock(app);
+}
+
+/* One athlete's reset, as a QR they scan with their own phone. It lives
+   fifteen minutes; Done or Escape puts it away. */
+function resetQr(slot, who) {
+  var img = el("div", { class: "code" });
+  var screen = el("div", { class: "qr-screen" },
+    el("button", { class: "qr-close", onclick: function () { screen.remove(); } }, t("cDone")),
+    el("h2", { class: "qr-name", dir: "auto" }, who.name),
+    img,
+    el("p", { class: "qr-sub" }, t("cResetScan")));
+  document.body.append(screen);
+  api("/api/coach/resets", { action: "qr", schedule_id: slot.schedule_id, date: slot.date, user_id: who.id })
+    .then(function (d) { img.innerHTML = qrSvg(d.link, "M"); })
+    ["catch"](function (e) { img.append(el("p", { class: "err" }, e.message)); });
+}
+
+/* ---- the week, with a code on every row ---- */
+function weekCard(plan, sess, rota) {
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, t("cCodesWeek"))));
+  var body = el("div", {});
+  card.append(body);
+
+  var dates = clubWeekDates();
+  var standing = (plan.schedule || []).filter(function (e) { return e.active; });
+  var changes = plan.changes || [];
+  var sessions = sess.sessions || [];
+  // id -> name for the ticks: the same roster the session pickers use, so
+  // nothing joins the members table to draw a week.
+  var names = {};
+  (plan.coaches || []).forEach(function (c) { names[c.id] = c.name; });
+  /* Every rota column on screen, so one answer redraws all of them: two
+     coaches signing up at the same moment each want to see the other.
+
+     Declared up here and not beside rotaColumn(): the week is drawn further
+     down this function but earlier than that point in the source, and a var
+     is hoisted without its value. */
+  var ROTA_BOXES = [];
+  var RESET_BOXES = [];
+
+  /* How long after the start check-in stays open, in minutes: the club's own
+     number, worked out from the start rather than read back off a row — the
+     same rule lib/checkin.js applies. */
+  var shutsAfter = Number.isFinite(Number(plan.window_after_min)) ? Number(plan.window_after_min) : 120;
+
+  if (sess.qr === false) {
+    body.append(el("p", { class: "err" },
+      t("cQrOff")));
+  }
+
+  /* What a slot became on one date, if anything: the row a code is signed
+     against, and the roster hangs off. A published session carries the slot
+     id too, so this finds those as well as the ones opened for a code. */
+  function sessionFor(slotId, date) {
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].schedule_id === slotId && sessions[i].date === date) return sessions[i];
+    }
+    return null;
+  }
+
+  function changeFor(slotId, date) {
+    for (var i = 0; i < changes.length; i++) {
+      if (changes[i].schedule_id === slotId && changes[i].date === date) return changes[i];
+    }
+    return null;
+  }
+
+  // How many athletes are down for a standing slot's date — session_signups,
+  // not the rota, which is the coaches' own. A one-off session has no
+  // schedule_id, so it has nothing to look up here.
+  function comingCount(slotId, date) {
+    var list = rota.signups || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].schedule_id === slotId && list[i].date === date) return list[i].n;
+    }
+    return 0;
+  }
+
+  var any = false;
+  var today = isoDate(new Date());
+  var specs = []; // every row drawn, for the card at the top and the numbers
+  dates.forEach(function (date, weekday) {
+    var mine = standing.filter(function (e) { return e.weekday === weekday; });
+    // A one-off the coach published straight onto this date, filling no slot.
+    var loose = sessions.filter(function (s) { return s.date === date && !s.schedule_id; });
+    if (!mine.length && !loose.length) return;
+    any = true;
+
+    // The weekday name comes from the date rather than a list of seven
+    // strings: the browser already knows it in both languages. Days gone are
+    // dimmed, so the eye lands on what is still to come.
+    var box = el("div", { class: "wk-day" + (date === today ? " today" : date < today ? " past" : "") },
+      el("h3", {}, dayHeading(date), date === today ? el("span", { class: "badge" }, t("cToday")) : null));
+    mine.forEach(function (e) {
+      var change = changeFor(e.id, date);
+      box.append(row({
+        off: !!(change && change.cancelled),
+        at: (change && change.at) || e.at,
+        date: date,
+        title: e.title_en || e.title_ar,
+        note: (e.desc_en || e.desc_ar ? (e.desc_en || e.desc_ar) + " · " : "") +
+          (e.place_en || e.place_ar || "—"),
+        session: sessionFor(e.id, date),
+        slot: { schedule_id: e.id, date: date },
+        coming: comingCount(e.id, date),
+        rota: true
+      }));
+    });
+    loose.forEach(function (s) {
+      box.append(row({
+        at: new Date(s.starts_at).toTimeString().slice(0, 5),
+        date: date,
+        title: s.name,
+        note: t("cPts", { n: s.points }),
+        session: s,
+        slot: null
+      }));
+    });
+    body.append(box);
+  });
+
+  if (!any) {
+    body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
+      t("cNothingStanding")));
+  }
+
+  /* ---- who is taking it ----
+     A coach puts themselves down and everybody else reads it. The tick is
+     only ever the reader's own -- the route refuses any other -- so there is
+     no checkbox beside another coach's name to promise something this page
+     cannot do. Taking a name off is offered on your own row, and on anybody's
+     to an admin. */
+  function rotaColumn(slot) {
+    var box = el("div", { class: "rota" });
+
+    function on() {
+      return (rota.rota || []).filter(function (r) {
+        return r.schedule_id === slot.schedule_id && r.date === slot.date;
+      });
+    }
+
+    function post(payload) {
+      return api("/api/coach/rota", Object.assign(
+        { schedule_id: slot.schedule_id, date: slot.date }, payload))
+        .then(function (d) {
+          // The answer carries the whole fortnight back, so every row on
+          // screen redraws from one call rather than each asking again.
+          rota = d;
+          if (LAST) LAST[3] = d;
+          repaintRota();
+        })["catch"](function (e) {
+          box.append(el("p", { class: "err" }, e.message));
+        });
+    }
+
+    box.paint = function () {
+      box.textContent = "";
+      var mine = on();
+      var iAmOn = mine.some(function (r) { return r.user_id === rota.me; });
+
+      if (rota.can_join) {
+        var tick = el("input", { type: "checkbox", id: "r-" + slot.schedule_id + "-" + slot.date });
+        if (iAmOn) tick.setAttribute("checked", "");
+        tick.addEventListener("change", function () {
+          tick.disabled = true;
+          post({ action: tick.checked ? "join" : "leave" });
+        });
+        box.append(el("label", { class: "sw", for: tick.id }, tick,
+          el("span", {}, t("cTakingThis"))));
+      }
+
+      if (!mine.length) {
+        box.append(el("p", { class: "muted small nobody" }, t("cNobodyDown")));
+        return;
+      }
+
+      // Everybody who is down for it, whoever is reading: that is the point.
+      var who = el("div", { class: "who" });
+      mine.forEach(function (r) {
+        var self = r.user_id === rota.me;
+        // A tick left by somebody who has since stopped coaching has no name
+        // in the roster. It is still a tick, and still says somebody is on it.
+        var chip = el("span", { class: "rota-chip" + (self ? " me" : "") },
+          names[r.user_id] || t("cSomeCoach"));
+        if (rota.can_remove || self) {
+          var drop = el("button", { class: "drop", title: t("cTakeOff"),
+            "aria-label": t("cTakeOff"), onclick: function () {
+              drop.disabled = true;
+              post({ action: "leave", user_id: r.user_id });
+            } }, "\u2715");
+          chip.append(drop);
+        }
+        who.append(chip);
+      });
+      box.append(who);
+    };
+
+    box.paint();
+    ROTA_BOXES.push(box);
+    return box;
+  }
+
+  function repaintRota() {
+    ROTA_BOXES.forEach(function (b) { b.paint(); });
+    // Being on the rota is what lets a coach hand out resets, so a tick on
+    // or off asks again.
+    RESET_BOXES.forEach(function (b) { b.load(); });
+  }
+
+  /* ---- password resets, at the session ----
+     Athletes who asked for a reset, for a coach on this session's rota to
+     hand over in person: tap a name and they scan the QR with their own
+     phone. The Worker decides who may (routes/resets.js); a refusal here just
+     means this coach is not on the rota, and the button stays away. */
+  function resetsBox(slot) {
+    var box = el("div", { class: "resets" });
+    box.load = function () {
+      api("/api/coach/resets", { action: "list", schedule_id: slot.schedule_id, date: slot.date }).then(function (d) {
+        box.textContent = "";
+        var list = d.waiting || [];
+        if (!list.length) return;
+        var names = el("div", { class: "reset-names" });
+        names.hidden = true;
+        list.forEach(function (u) {
+          names.append(el("button", { class: "btn sm", type: "button", dir: "auto", onclick: function () { resetQr(slot, u); } }, u.name));
+        });
+        box.append(el("button", { class: "btn sm reset-btn", type: "button", onclick: function () { names.hidden = !names.hidden; } },
+          t("cResets", { n: list.length })), names);
+      })["catch"](function () { box.textContent = ""; });
+    };
+    box.load();
+    RESET_BOXES.push(box);
+    return box;
+  }
+
+  /* One line of the week: when, what, how many have scanned, and the two
+     buttons that are the whole reason this page exists. */
+  /* When a row starts: a published session's own start, or the slot's
+     wall-clock time on this date. */
+  function startOf(spec) {
+    return spec.session && spec.session.starts_at
+      ? new Date(spec.session.starts_at)
+      : new Date(spec.date + "T" + spec.at + ":00");
+  }
+
+  function row(spec, again) {
+    if (!again) specs.push(spec);
+    var count = el("span", { dir: "auto" });
+    function say() {
+      count.textContent = spec.note + (spec.off ? " · " + t("cCalledOff") : "") +
+        (spec.session ? " · " + t("cCame", { n: spec.session.came || 0 }) : "") +
+        // On a one-line row the coming count rides in this line, not a badge.
+        (!again && spec.coming !== undefined ? " · " + t("cComing", { n: spec.coming }) : "");
+    }
+    say();
+    /* One line: when, what, how many, and the code. Everything else about
+       the session -- who is taking it, who came, resets -- is under it, and
+       opens when the line is tapped; the card at the top has it open. */
+    var what = el("div", { class: "what" }, el("b", { dir: "auto" }, spec.title), count);
+    var line = el("div", { class: "wk-row" + (spec.off ? " off" : "") + (again ? " open" : "") },
+      el("span", { class: "at" }, spec.at),
+      what,
+      again && spec.coming !== undefined
+        ? el("span", { class: "badge coming" }, t("cComing", { n: spec.coming }))
+        : null);
+    var extra = el("div", { class: "wk-extra" });
+    if (!again) {
+      what.setAttribute("role", "button");
+      what.setAttribute("tabindex", "0");
+      var flip = function () { line.classList.toggle("open"); };
+      what.addEventListener("click", flip);
+      what.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+    }
+
+    // Who is taking it. Only on a standing slot: the rota is the standing
+    // week's, and a one-off the coach published already names its own coach.
+    // Nothing on a session called off, which nobody is taking.
+    if (spec.rota && !spec.off) {
+      extra.append(again
+        ? el("div", { class: "rota-line" }, rotaColumn(spec.slot), resetsBox(spec.slot))
+        : rotaColumn(spec.slot));
+    }
+
+    if (spec.off) return line;
+
+    /* Lit while check-in is open, the same way the athlete's week lights the
+       same session up: a published session's own start, or the slot's
+       wall-clock time on this date, and the club's two numbers either side. */
+    var starts = startOf(spec);
+    if (!isNaN(starts.getTime())) {
+      line.dataset.hot = starts.getTime() + "," + (starts.getTime() + shutsAfter * 60000);
+      markHot(line);
+    }
+
+    /* The code. A standing slot has no session row until somebody asks for
+       one, so this opens it — find-or-create, the same call the console
+       makes, so tapping it twice cannot split one roster into two. */
+    var codeBtn = el("button", { class: "btn sm primary", onclick: function () {
+      if (spec.session) return qrScreen(spec.session);
+      var was = codeBtn.textContent;
+      codeBtn.disabled = true;
+      codeBtn.textContent = "...";
+      api("/api/admin/sessions", { action: "open", schedule_id: spec.slot.schedule_id, date: spec.slot.date })
+        .then(function (d) {
+          spec.session = d.session;
+          say();
+          qrScreen(d.session);
+        })["catch"](function (er) { extra.append(el("p", { class: "err" }, er.message)); line.classList.add("open"); })
+        .then(function () { codeBtn.disabled = false; codeBtn.textContent = was; });
+    } }, again ? t("cShowCode") : t("cCode"));
+
+    /* Who came. It never opens a session to answer: a slot nobody has shown
+       a code for has nobody in it, and making a row to say so would leave
+       empty sessions on days that have not happened yet. */
+    var whoBox = null;
+    var whoBtn = el("button", { class: "btn sm", onclick: function () {
+      // Tapped again, shut it again: the answer is already on screen and a
+      // second copy of it under the first is not a second answer.
+      if (whoBox) { whoBox.remove(); whoBox = null; return; }
+      if (!spec.session) {
+        whoBox = el("p", { class: "muted small" }, t("cNoCodeYet"));
+        extra.append(whoBox);
+        return;
+      }
+      whoBtn.disabled = true;
+      api("/api/admin/sessions", { action: "roster", id: spec.session.id }).then(function (d) {
+        var box = el("div", { class: "roster" },
+          el("h3", {}, t("cWhoCameOn", { name: spec.title })));
+        var list = d.roster || [];
+        if (!list.length) box.append(el("p", { class: "muted small", style: "margin:0" }, t("cNobodyCame")));
+        else {
+          var ol = el("ol", {});
+          list.forEach(function (r) {
+            ol.append(el("li", { class: r.voided_at ? "void" : "", dir: "auto" },
+              r.name, el("span", { class: "muted small" }, " · " + (stamp(r.at) || ""))));
+          });
+          box.append(ol);
+        }
+        box.append(missedForm(spec.session));
+        whoBox = box;
+        extra.append(box);
+        box.scrollIntoView({ block: "nearest" });
+      })["catch"](function (e) { extra.append(el("p", { class: "err" }, e.message)); })
+        .then(function () { whoBtn.disabled = false; });
+    } }, t("cWhoCame"));
+
+    if (again) {
+      // The card at the top: both buttons side by side, big.
+      line.append(extra, el("div", { class: "acts" }, codeBtn, whoBtn));
+    } else {
+      line.append(el("div", { class: "acts" }, codeBtn), extra);
+      extra.append(el("div", { class: "acts" }, whoBtn));
+    }
+    return line;
+  }
+
+  /* The session in front of the coach: the earliest one whose check-in has
+     not shut — the one open now if there is one, else the next — drawn again
+     at the top in a card of its own, so most mornings the page is one tap. */
+  var now = Date.now();
+  var live = specs.filter(function (s) {
+    var at = startOf(s).getTime();
+    return !s.off && !isNaN(at) && now <= at + shutsAfter * 60000;
+  }).sort(function (a, b) { return startOf(a) - startOf(b); });
+  if (live.length) {
+    var first = live[0];
+    var open = now >= startOf(first).getTime() - HOT_BEFORE;
+    card.hero = el("div", { class: "card keep now-card" },
+      el("div", { class: "now-kicker" }, el("span", {}, t(open ? "cNow" : "cNext")), el("span", {}, dayStamp(first.date))),
+      row(first, true));
+  }
+  card.count = specs.filter(function (s) { return !s.off; }).length;
+  card.comingToday = specs.reduce(function (n, s) { return n + (s.date === today && !s.off ? s.coming || 0 : 0); }, 0);
+
+  return card;
+}
+
+/* ---- somebody who was there and could not scan ----
+   The coach names them and says why; an admin decides on /admin, and only a
+   yes counts them (_worker.js/routes/requests.js). Under "Who came", because
+   that list is where a coach notices who is missing from it. */
+function missedForm(session) {
+  var box = el("div", { class: "missed" }, el("h3", {}, t("cMissedTitle")));
+  var list = el("div", {});
+  var err = el("p", { class: "err", style: "display:none" });
+  var picked = null;
+
+  function show(d) {
+    list.textContent = "";
+    (d.requests || []).forEach(function (r) {
+      list.append(el("p", { class: "small", dir: "auto", style: "margin:4px 0" },
+        r.athlete + " · ", el("b", {}, r.status === "approved" ? t("cMissed_approved")
+          : r.status === "rejected" ? t("cMissed_rejected") : t("cMissed_pending")),
+        el("span", { class: "muted" }, " · " + r.reason)));
+    });
+  }
+  function fail(e) { err.textContent = e.message; err.style.display = ""; }
+
+  var who = el("input", { type: "text", maxlength: 40, placeholder: t("cMissedWho"), dir: "auto" });
+  var hits = el("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin:6px 0" });
+  var reason = el("textarea", { maxlength: 300, placeholder: t("cMissedWhy"), dir: "auto" });
+  var timer = null;
+  who.addEventListener("input", function () {
+    picked = null;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      api("/api/coach/point-requests", { action: "find", q: who.value }).then(function (d) {
+        hits.textContent = "";
+        (d.results || []).forEach(function (u) {
+          hits.append(el("button", { class: "btn sm", type: "button", dir: "auto", onclick: function () {
+            picked = u;
+            who.value = u.name;
+            hits.textContent = "";
+          } }, u.name));
+        });
+      })["catch"](fail);
+    }, 300);
+  });
+
+  var send = el("button", { class: "btn sm primary", onclick: function () {
+    err.style.display = "none";
+    if (!picked) return fail(new Error(t("cMissedPick")));
+    if (!reason.value.trim()) return fail(new Error(t("cMissedNeedWhy")));
+    send.disabled = true;
+    api("/api/coach/point-requests", { action: "ask", session: session.id, user: picked.id, reason: reason.value })
+      .then(function (d) {
+        show(d);
+        picked = null;
+        who.value = "";
+        reason.value = "";
+      })["catch"](fail)
+      .then(function () { send.disabled = false; });
+  } }, t("cMissedSend"));
+
+  box.append(list, who, hits, reason, el("div", { style: "margin-top:6px" }, send), err);
+  api("/api/coach/point-requests", { action: "list", session: session.id }).then(show)["catch"](function () {});
+  return box;
+}
+
+Theme.apply(Theme.saved());
+I18N.apply(I18N.initial());
+// The device's own light/dark, when the reader has not chosen: the same
+// listener the app keeps, so the console follows the phone at dawn.
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+  if (!Theme.saved()) redraw();
+});
+chrome();
+consoleBoot();

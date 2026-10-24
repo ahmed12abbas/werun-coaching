@@ -8,21 +8,8 @@
 <!-- "only light" forbids Android auto-dark from repainting the page: it greyed out the check-in code on Sami's phone (14 Sep). The dark theme is our own CSS. -->
 <meta name="color-scheme" content="only light">
 <link rel="icon" href="assets/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&display=swap" rel="stylesheet">
-<script>
-/* Before first paint, so a dark-mode reader never sees a white flash. Same
-   two keys the app writes (js/i18n.js), so this opens the way the app does. */
-(function () {
-  var r = document.documentElement, th = null, lang = null;
-  try { th = localStorage.getItem("werun.theme"); lang = localStorage.getItem("werun.lang"); } catch (e) {}
-  if (th === "light" || th === "dark") r.setAttribute("data-theme", th);
-  if (lang !== "ar" && lang !== "en") lang = (navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en";
-  r.setAttribute("lang", lang);
-  r.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-})();
-</script>
+<link rel="stylesheet" href="assets/fonts.css?v=dfd2907d">
+<script src="js/early-page.js?v=c24d8d05"></script>
 <style>
 /* Standalone, like tips.html: a page anyone can be sent to — a partner's
    reviewer included — that needs no login, no script bundle and no API. */
@@ -204,39 +191,6 @@ footer{margin-top:34px}
 </div>
 
 <script src="js/brand.js?v=8065255a"></script>
-<script>
-"use strict";
-var root = document.documentElement;
-var btn = document.getElementById("lang");
-function show(lang) {
-  root.setAttribute("lang", lang);
-  root.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-  document.getElementById("en").hidden = lang !== "en";
-  document.getElementById("ar").hidden = lang !== "ar";
-  btn.textContent = lang === "ar" ? "English" : "العربية";
-  document.getElementById("back").textContent = lang === "ar" ? "→ WE RUN" : "← WE RUN";
-  document.getElementById("socials").setAttribute("aria-label", lang === "ar" ? "WE RUN على منصات التواصل" : "WE RUN on social");
-  document.title = (lang === "ar" ? "الخصوصية" : "Privacy") + " · WE RUN";
-}
-btn.addEventListener("click", function () {
-  var next = root.getAttribute("lang") === "ar" ? "en" : "ar";
-  try { localStorage.setItem("werun.lang", next); } catch (e) {}
-  show(next);
-});
-show(root.getAttribute("lang") === "ar" ? "ar" : "en");
-
-/* The app's own five links, drawn from its list (SOCIAL in js/brand.js)
-   rather than a second copy. */
-SOCIAL.forEach(function (s) {
-  var a = document.createElement("a");
-  a.href = s.href;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.title = s.label;
-  a.setAttribute("aria-label", s.label);
-  a.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + s.svg + "</svg>";
-  document.getElementById("socials").append(a);
-});
-</script>
+<script src="js/privacy-page.js?v=1f109427"></script>
 </body>
 </html>

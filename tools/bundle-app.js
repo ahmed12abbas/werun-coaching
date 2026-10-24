@@ -38,7 +38,11 @@ const appHtmlPath = path.join(site, "app.html");
 const html = fs.readFileSync(appHtmlPath, "utf8");
 
 const TAG = /<script src="(js\/[^"?]+\.js)(?:\?v=[^"]*)?"><\/script>\n?/g;
-const matches = [...html.matchAll(TAG)];
+// Only the body's run of scripts: the head carries its own small early
+// scripts (js/early.js, js/app-early.js), and splicing from one of those to
+// the last body tag would take the whole page with it.
+const bodyAt = html.indexOf("<body");
+const matches = [...html.matchAll(TAG)].filter((m) => m.index > bodyAt);
 if (!matches.length) {
   console.error("no <script src=\"js/….js\"> tags found in " + appHtmlPath);
   process.exit(1);
@@ -71,7 +75,7 @@ fs.writeFileSync(appHtmlPath, updated);
 // the check that the splice landed cleanly: exactly the one bundle tag, none
 // of the sixteen left behind.
 const after = fs.readFileSync(appHtmlPath, "utf8");
-const remaining = [...after.matchAll(TAG)].filter((m) => m[1] !== "js/app.bundle.js");
+const remaining = [...after.matchAll(TAG)].filter((m) => m.index > after.indexOf("<body") && m[1] !== "js/app.bundle.js");
 if (remaining.length || !after.includes('src="js/app.bundle.js?v=' + hash + '"')) {
   console.error("app.html was not rewritten cleanly — leaving it as-is would ship a broken page.");
   process.exit(1);

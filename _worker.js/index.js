@@ -219,18 +219,20 @@ const GET = {
    `_headers` is never applied to what it returns, so the one place certain to
    be on every response is here.
 
-   The policy allows inline script because admin.html and tips.html are
-   written that way and there is no build step to hash them. What it still
-   stops is the half that matters: a script, a fetch or a form reaching an
-   origin that is not this one, so an injected string has nowhere to send a
-   cookie or a roster. The camera is the check-in scanner (js/scan.js);
-   nothing else on the page is wanted. */
+   No inline script at all: every page's script is a file in js/ (the
+   console pages' too — js/admin-page.js and friends), so a string that ever
+   got injected into a page as markup still could not run. Inline style stays
+   allowed, because the theme (lib/theme.js) writes a <style> into each page
+   and the pages set style attributes; a style cannot read a cookie. Nothing
+   reaches another origin either — not a fetch, not a form, not a font: the
+   two typefaces are served from assets/fonts/. The camera is the check-in
+   scanner (js/scan.js); nothing else on the page is wanted. */
 const SECURITY = {
   "content-security-policy":
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline'; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
+    "script-src 'self'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self'; " +
     "img-src 'self' data:; connect-src 'self'; media-src 'self'; " +
     "frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'",
   "strict-transport-security": "max-age=31536000; includeSubDomains",
