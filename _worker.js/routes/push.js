@@ -89,16 +89,39 @@ export async function push(request, env) {
   })(request, env);
 }
 
-const goodEndpoint = (s) => /^https:\/\//.test(s) && s.length <= MAX_ENDPOINT;
+/* The push services browsers actually hand out: Chrome and everything built
+   on it, Firefox, Safari, Edge. Any other address is not a browser — it is
+   somebody making the Worker knock on a door of their choosing. */
+const PUSH_HOSTS =
+  /^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)$/;
+/* A phone, a laptop and a tablet, with room to spare. Without a ceiling one
+   member could fill the table, and every reminder run would knock on all of it. */
+const MAX_SUBS = 5;
+
+function goodEndpoint(s) {
+  if (!/^https:\/\//.test(s) || s.length > MAX_ENDPOINT) return false;
+  try {
+    return PUSH_HOSTS.test(new URL(s).hostname);
+  } catch (e) {
+    return false;
+  }
+}
 
 /* One row per browser: the endpoint is unique, so a phone that comes back
-   after a reinstall replaces its own row rather than collecting. */
+   after a reinstall replaces its own row rather than collecting. Past the
+   ceiling the oldest go, since the browser that just asked is the live one. */
 async function subscribe(env, user, endpoint) {
   await env.DB.prepare(
     "INSERT INTO push_subs (id, user_id, endpoint, at) VALUES (?, ?, ?, ?)" +
       " ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, at = excluded.at"
   )
     .bind(uid(), user.id, endpoint, nowISO())
+    .run();
+  await env.DB.prepare(
+    "DELETE FROM push_subs WHERE user_id = ? AND id NOT IN" +
+      " (SELECT id FROM push_subs WHERE user_id = ? ORDER BY at DESC LIMIT ?)"
+  )
+    .bind(user.id, user.id, MAX_SUBS)
     .run();
   return json({ on: true });
 }
@@ -200,6 +223,11 @@ async function markSent(env, row) {
 
 /* One browser: "sent", "dropped", or null for a knock that went nowhere. */
 async function knock(env, sub) {
+  // Rows from before the host list are cleared rather than knocked on.
+  if (!goodEndpoint(sub.endpoint)) {
+    await env.DB.prepare("DELETE FROM push_subs WHERE id = ?").bind(sub.id).run();
+    return "dropped";
+  }
   let status;
   try {
     status = await pushTo(env, sub.endpoint);

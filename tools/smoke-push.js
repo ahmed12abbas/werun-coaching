@@ -10,9 +10,9 @@
  * is theirs and comes from a signup, the sender cannot be poked by a
  * stranger, and nobody is told about the same session twice.
  *
- * The endpoint used here is a real https URL that resolves to nothing, so
- * the send fails at the network exactly the way a dead browser would. The
- * sender is expected to survive that, which is the other half of the test.
+ * The endpoint used here is on FCM's real host with a token FCM never issued,
+ * so a send is refused the way a dead browser's would be. The sender is
+ * expected to survive that, which is the other half of the test.
  */
 "use strict";
 
@@ -102,7 +102,7 @@ async function checkTheSignature() {
   }
   ok("the club hands out its public key", r.status === 200 && typeof r.json.key === "string");
 
-  const endpoint = "https://push.example.invalid/one/" + stamp;
+  const endpoint = "https://fcm.googleapis.com/fcm/send/werun-smoke-" + stamp;
   r = await me("POST", "/api/push", { action: "subscribe", endpoint: endpoint });
   ok("subscribing is remembered", r.status === 200 && r.json.on === true);
 
@@ -111,6 +111,10 @@ async function checkTheSignature() {
 
   r = await me("POST", "/api/push", { action: "subscribe", endpoint: "http://not-https/x" });
   ok("a plain-http endpoint is refused", r.status === 400);
+
+  r = await me("POST", "/api/push", { action: "subscribe", endpoint: "https://example.com/hook" });
+  ok("an address that is not a push service is refused", r.status === 400);
+
 
   const stranger = client();
   await stranger("POST", "/api/auth/signup", {
