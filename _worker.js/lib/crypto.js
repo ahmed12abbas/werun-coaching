@@ -19,6 +19,12 @@ export const b64url = (bytes) => {
 
 export const sha256 = (s) => crypto.subtle.digest("SHA-256", enc.encode(s));
 
+/** HMAC-SHA256 of `text` under `secret`, as hex. */
+export async function hmacHex(secret, text) {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", key, enc.encode(text)));
+}
+
 /**
  * Compare without leaking, through timing, how much of a guess was right.
  * Digesting both sides first makes the comparison fixed-length whatever the

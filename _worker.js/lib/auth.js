@@ -8,7 +8,7 @@
    WebCrypto — nothing here is home-made. */
 
 import { json } from "./http.js";
-import { hex, safeEqual, sha256, guessingTooOften } from "./crypto.js";
+import { hex, safeEqual, sha256, hmacHex, guessingTooOften } from "./crypto.js";
 import { getSetting } from "./settings.js";
 
 const COOKIE = "werun_s";
@@ -46,13 +46,46 @@ export const burnTime = (password) => verifyPassword(password, DUMMY.salt, DUMMY
 
 /* ---------- the cookie --------------------------------------------------- */
 
-function readCookie(request) {
+function readCookie(request, name) {
   const raw = request.headers.get("cookie") || "";
   for (const part of raw.split(";")) {
     const [k, v] = part.trim().split("=");
-    if (k === COOKIE && v) return v;
+    if (k === (name || COOKIE) && v) return v;
   }
   return null;
+}
+
+/* ---------- the device ----------------------------------------------------
+
+   A second cookie, set whenever somebody is known to be logged in and left
+   alone by logging out: "this browser has been this member's". It is what a
+   coach's reset at the track leans on (routes/resets.js) — a reset asked for
+   from a phone the athlete has used before, so a coach cannot ask for one on
+   somebody else's behalf and hand it to themselves. Signed, not stored; only
+   sent to /api/auth, the one place that reads it. "device:" keeps it apart
+   from the check-in ("<session>:<slot>") and calendar ("cal:<user>") signatures
+   made under the same key. */
+const DEVICE = "werun_d";
+const DEVICE_DAYS = 400; // the longest a browser keeps a cookie
+
+const deviceSig = (env, userId) => hmacHex(env.QR_SECRET, "device:" + userId);
+
+/** Whether this browser carries the device cookie for `userId`. */
+export async function deviceKnows(request, env, userId) {
+  const v = readCookie(request, DEVICE);
+  if (!env.QR_SECRET || !v) return false;
+  const [who, sig] = v.split(".");
+  return who === userId && (await safeEqual(sig || "", await deviceSig(env, userId)));
+}
+
+/** Adds the device cookie for `userId` to `res`, unless the browser already has it. */
+export async function withDevice(res, request, env, userId) {
+  if (env.QR_SECRET && !(await deviceKnows(request, env, userId))) {
+    res.headers.append("set-cookie",
+      DEVICE + "=" + userId + "." + (await deviceSig(env, userId)) +
+      "; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=" + DEVICE_DAYS * 86400);
+  }
+  return res;
 }
 
 export function cookieHeader(token, maxAge) {

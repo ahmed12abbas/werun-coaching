@@ -15,10 +15,12 @@ import { json, readBody } from "../lib/http.js";
 import { hex, sha256 } from "../lib/crypto.js";
 import { tooOften, ipOf } from "../lib/limit.js";
 import { getSetting } from "../lib/settings.js";
-import { nowISO, hashPassword, withUser, publicUser, currentUser } from "../lib/auth.js";
+import { nowISO, hashPassword, withUser, publicUser, currentUser, deviceKnows } from "../lib/auth.js";
 import { emailOn, send, verifyMail, resetMail } from "../lib/mail.js";
 
 const LIFETIME = { verify: 7 * 24 * 3600 * 1000, reset: 3600 * 1000 };
+/* KV prefix for a reset asked from the member's own phone; see resetRequest. */
+export const RESET_ASK = "reset-ask:";
 const MIN_PASSWORD = 8;
 const MAX_PASSWORD = 200;
 
@@ -144,6 +146,13 @@ export async function resetRequest(request, env) {
 
   const user = email ? await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first() : null;
   if (!user || user.status === "blocked") return json({ ok: true });
+
+  // Asked from a phone this member has logged in on: the one kind of request
+  // a coach may hand over at the track (routes/resets.js). Anyone can type an
+  // address into this form, so a request from anywhere else stays email-only.
+  if (env.STATS && (await deviceKnows(request, env, user.id))) {
+    await env.STATS.put(RESET_ASK + user.id, "1", { expirationTtl: LIFETIME.reset / 1000 });
+  }
 
   const out = await deliver(env, request, user, "reset");
   // A provider failure is worth saying — the athlete is waiting for a message

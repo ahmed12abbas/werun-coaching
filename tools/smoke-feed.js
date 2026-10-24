@@ -27,7 +27,8 @@ function who() {
     const set = res.headers.get("set-cookie");
     if (set) {
       const m = /werun_s=([^;]*)/.exec(set);
-      it.cookie = m && m[1] ? "werun_s=" + m[1] : "";
+      // A response that sets only the device cookie leaves the login alone.
+      if (m) it.cookie = m[1] ? "werun_s=" + m[1] : "";
     }
     let data = null;
     try {

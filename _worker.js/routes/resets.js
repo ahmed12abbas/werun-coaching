@@ -11,7 +11,11 @@
      admin — not the club password, which is nobody in particular;
    - only within a day of the session, so next month's rota tick is no key;
    - only athletes with a reset they asked for and have not used, never a
-     coach or an admin (those go through /admin);
+     coach or an admin (those go through /admin) — and asked for from a
+     phone they have logged in on before (routes/email.js). The forgot form
+     takes any address, so without that a coach could ask for somebody
+     else's reset and hand it to themselves. A new phone goes through an
+     admin's reset link instead;
    - the link works once, for fifteen minutes, and replaces the one they
      were mailed, so there are never two ways in. */
 
@@ -19,23 +23,29 @@ import { json, readBody } from "../lib/http.js";
 import { nowISO, currentUser, isCoach, isAdmin } from "../lib/auth.js";
 import { tooOften } from "../lib/limit.js";
 import { shiftDate } from "../lib/week.js";
-import { resetLinkFor } from "./email.js";
+import { resetLinkFor, RESET_ASK } from "./email.js";
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const QR_LIFE = 15 * 60 * 1000;
 const LIST = 50;
 
-/* Athletes waiting on a reset — `one` narrows it to a single id. */
+/* Athletes waiting on a reset they asked for from their own phone — `one`
+   narrows it to a single id. */
 async function waiting(env, one) {
+  if (!env.STATS) return [];
+  const asked = one
+    ? (await env.STATS.get(RESET_ASK + one)) ? [one] : []
+    : (await env.STATS.list({ prefix: RESET_ASK, limit: LIST })).keys.map((k) => k.name.slice(RESET_ASK.length));
+  if (!asked.length) return [];
   const rows = await env.DB.prepare(
     "SELECT DISTINCT u.id, u.name FROM users u JOIN email_tokens t ON t.user_id = u.id" +
       " WHERE t.purpose = 'reset' AND t.used_at IS NULL AND t.expires_at > ?" +
       " AND u.status = 'active' AND u.role <> 'coach' AND u.is_admin = 0" +
-      (one ? " AND u.id = ?" : "") +
+      " AND u.id IN (" + asked.map(() => "?").join(", ") + ")" +
       " ORDER BY u.name LIMIT ?"
   )
-    .bind(...(one ? [nowISO(), one, LIST] : [nowISO(), LIST]))
+    .bind(nowISO(), ...asked, LIST)
     .all();
   return rows.results || [];
 }
@@ -69,6 +79,7 @@ export async function coachResets(request, env) {
   if (await tooOften(env.DB, "cr", me.id, 10, 3600)) return json({ error: "too-often" }, 429);
   const [who] = await waiting(env, id);
   if (!who) return json({ error: "no-reset" }, 404);
+  await env.STATS.delete(RESET_ASK + who.id); // one hand-over per ask
   // Who handed whom a way in, for the Pages log: the one record of it.
   console.log("reset qr: coach " + me.id + " for athlete " + who.id + " at " + slot + " " + date);
   return json({ name: who.name, link: await resetLinkFor(env, request, who.id, QR_LIFE) });

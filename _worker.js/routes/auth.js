@@ -8,7 +8,7 @@ import { storeOn } from "../lib/stripe.js";
 import {
   nowISO, uid, hashPassword, verifyPassword, burnTime,
   createSession, dropSession, dropOtherSessions, currentUser, publicUser,
-  jsonWithCookie, withUser,
+  jsonWithCookie, withUser, withDevice,
 } from "../lib/auth.js";
 
 const MAX = { email: 120, name: 40, password: 200, bio: 160, instagram: 30 };
@@ -169,7 +169,7 @@ export async function signup(request, env) {
 
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first();
   const token = await createSession(env, id, request);
-  return jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token);
+  return withDevice(jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token), request, env, id);
 }
 
 /* ---------- POST /api/auth/login ----------------------------------------- */
@@ -209,7 +209,7 @@ export async function login(request, env) {
   if (user.status === "blocked") return json({ error: "blocked" }, 403);
 
   const token = await createSession(env, user.id, request);
-  return jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token);
+  return withDevice(jsonWithCookie({ user: publicUser(user), club: await clubFor(env) }, 200, token), request, env, user.id);
 }
 
 /* ---------- POST /api/auth/logout, /api/auth/logout-all ------------------ */
@@ -231,7 +231,9 @@ export const logoutAll = withUser(async (request, env, user) => {
 export async function me(request, env) {
   const user = await currentUser(request, env);
   if (!user || user.status === "blocked") return json({ user: null });
-  return json({ user: publicUser(user), club: await clubFor(env) });
+  // Every app load asks this, so a phone logged in before the device cookie
+  // existed picks it up here rather than at its next login.
+  return withDevice(json({ user: publicUser(user), club: await clubFor(env) }), request, env, user.id);
 }
 
 /* ---------- POST /api/auth/profile --------------------------------------- */
