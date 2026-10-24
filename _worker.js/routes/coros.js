@@ -19,7 +19,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
-import { withMember, nowISO } from "../lib/auth.js";
+import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { discoverIssuer, clientIdFor, pkcePair, authorizeUrl, exchangeCode, freshToken, runsSince } from "../lib/coros.js";
 import { weekStartEpoch, weekSummary, riyadhToday } from "../lib/week.js";
@@ -127,6 +127,10 @@ export async function corosCallback(request, env) {
 
   try {
     const s = JSON.parse(raw);
+    // Whose browser this is must be who asked — see the note at the top of
+    // routes/strava.js.
+    const me = await currentUser(request, env);
+    if (!me || me.id !== s.u) return bounce();
     const t = await exchangeCode(s.i, s.c, redirectUri(request), code, s.v);
     await env.DB.prepare(
       "INSERT INTO coros_links (user_id, issuer, client_id, access_token, refresh_token, expires_at, connected_at)" +

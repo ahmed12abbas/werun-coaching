@@ -6,18 +6,19 @@
    is what the Home screen reads afterwards — a live call to Strava, not a
    mirrored copy, so a run deleted there stops showing up here too.
 
-   The `state` round trip is the whole of the CSRF defence: connect() mints
-   one, keyed to this user, in STATS with a ten-minute TTL; the callback
-   spends it once and never trusts its own cookie, because Strava's redirect
-   is what proves which browser asked, not who happens to be logged in when
-   it lands. No state, or a state nobody minted, is a code worth nothing.
+   The `state` round trip is the CSRF defence: connect() mints one, keyed to
+   this user, in STATS with a ten-minute TTL; the callback spends it once,
+   and only for the browser logged in as that same user. The state alone is
+   not enough — anybody can mint one for their own account and send the link
+   to a member, whose approval would then land on the sender's account. No
+   state, a state nobody minted, or somebody else's, is a code worth nothing.
 
    The table arrives after the code that reads it, as everything here does,
    so every read is wrapped and answers "off" rather than 500. */
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
-import { withMember, nowISO } from "../lib/auth.js";
+import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { stravaReady, authorizeUrl, exchangeCode, freshToken, activitiesSince } from "../lib/strava.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
@@ -108,6 +109,8 @@ export async function stravaCallback(request, env) {
   const userId = await env.STATS.get(stateKey(state));
   await env.STATS.delete(stateKey(state)); // one-time, spent whether it matched or not
   if (!userId) return bounce();
+  const me = await currentUser(request, env);
+  if (!me || me.id !== userId) return bounce();
 
   try {
     const t = await exchangeCode(env, code);

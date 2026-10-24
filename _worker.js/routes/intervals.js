@@ -14,7 +14,7 @@
 
 import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
-import { withMember, nowISO } from "../lib/auth.js";
+import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, putEvents, dropEvents } from "../lib/intervals.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
@@ -162,6 +162,10 @@ export async function intervalsCallback(request, env) {
   const userId = await env.STATS.get(stateKey(state));
   await env.STATS.delete(stateKey(state)); // one-time, spent whether it matched or not
   if (!userId) return bounce();
+  // Whose browser this is must be who asked — see the note at the top of
+  // routes/strava.js.
+  const me = await currentUser(request, env);
+  if (!me || me.id !== userId) return bounce();
 
   try {
     const t = await exchangeCode(env, code, redirectUri(request));
