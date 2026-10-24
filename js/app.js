@@ -3203,16 +3203,19 @@ SCREENS.order = function (args) {
    written in two languages; an athlete reads whichever theirs is, falling
    back to the other rather than to nothing — a notice in Arabic only is
    still a notice, and hiding it from an English reader helps nobody. */
-SCREENS.feed = function () {
+SCREENS.feed = function (args) {
   const list = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
 
   API.get("/api/feed")
     .then((d) => {
       list.textContent = "";
-      FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {} };
+      FEED_FACES = { counts: d.reactions || {}, mine: d.my_reactions || {}, said: d.comments || {} };
       list.append(telegramButton(), ...feedCards(d.tips || [], d.posts));
       list.classList.add("rise");
       markFeedSeen(d.tips, d.posts);
+      // A shared link (#/feed/post:<id>) lands on the card it was shared from.
+      const shared = args && args[0] && list.querySelector('[data-target="' + CSS.escape(args[0]) + '"]');
+      if (shared) shared.scrollIntoView({ block: "start" });
     })
     .catch((e) => {
       list.textContent = "";
@@ -3307,6 +3310,7 @@ function foldBody(kids) {
 function postCard(p) {
   return reactable(
     "post:" + p.id,
+    { title: side(p, "title"), body: side(p, "body") },
     el(
       "article",
       { class: "card pad stack post" + (p.photo_url ? " has-photo" : ""), dir: "auto" },
@@ -3332,7 +3336,7 @@ function postCard(p) {
    ------------------------------------------------------------------------- */
 
 const FACES = ["👍", "💜", "🔥"];
-let FEED_FACES = { counts: {}, mine: {} };
+let FEED_FACES = { counts: {}, mine: {}, said: {} };
 
 /* One face on a card's foot, with how many chose it. */
 function reactButton(target, face, n, mine, draw) {
@@ -3352,15 +3356,24 @@ function reactButton(target, face, n, mine, draw) {
   );
 }
 
-/** The card, with its row of faces and the double tap that sends a heart. */
-function reactable(target, card) {
+/** The card, with its row of faces, its comments and a share, and the double
+    tap that sends a heart. */
+function reactable(target, words, card) {
   const bar = el("div", { class: "reacts" });
   const draw = () => {
     bar.textContent = "";
     const counts = FEED_FACES.counts[target] || {};
     const mine = FEED_FACES.mine[target] || null;
     for (const face of FACES) bar.append(reactButton(target, face, counts[face] || 0, mine, draw));
+    const n = FEED_FACES.said[target] || 0;
+    bar.append(
+      el("button", { class: "react talk", type: "button", "aria-label": t("aComments"), onclick: () => openComments(target, words.title, draw) },
+        el("span", { html: FEED_ICON.talk }), n ? el("span", { class: "num" }, String(n)) : null),
+      el("button", { class: "react share", type: "button", "aria-label": t("aShare"), onclick: () => sharePost(target, words) },
+        el("span", { html: FEED_ICON.share }))
+    );
   };
+  card.dataset.target = target;
   draw();
 
   const heart = (x, y) => {
@@ -3407,6 +3420,82 @@ function react(target, face, draw) {
     .catch((e) => toast(errorText(e)));
 }
 
+/* ---------- comments and sharing ------------------------------------------ */
+
+const FEED_ICON = {
+  talk: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  share: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+};
+
+/* The thread in a sheet, oldest first, with a box at the foot. What is drawn
+   is always the server's answer, so a comment that did not save is not shown. */
+function openComments(target, title, redrawBar) {
+  const list = el("div", { class: "stack cm-list" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  const box = el("textarea", { rows: "2", maxlength: "500", placeholder: t("aCommentPh"), dir: "auto" });
+  const send = el("button", { class: "btn primary", type: "submit" }, t("aCommentSend"));
+  const err = el("p", { class: "form-err hidden" });
+
+  const draw = (rows) => {
+    list.textContent = "";
+    FEED_FACES.said[target] = rows.length;
+    redrawBar();
+    if (!rows.length) list.append(el("p", { class: "empty" }, t("aNoComments")));
+    for (const c of rows) {
+      const when = new Date(c.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+      list.append(
+        el("div", { class: "cm" },
+          avatarNode(c.avatar, c.name, "sm"),
+          el("div", { class: "cm-main" },
+            el("div", { class: "cm-head" }, el("b", {}, c.name), el("span", { class: "muted small" }, when),
+              c.can_delete ? el("button", { class: "linkish small cm-del", type: "button", onclick: () => {
+                if (confirm(t("aCommentDelQ"))) API.post("/api/comments", { action: "delete", id: c.id }).then((d) => draw(d.comments)).catch((e) => toast(errorText(e)));
+              } }, t("aCommentDel")) : null),
+            el("p", { class: "cm-body", dir: "auto" }, c.body)))
+      );
+    }
+  };
+
+  const form = el("form", { class: "stack cm-form" }, box, err, send);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = box.value.trim();
+    if (!text) return;
+    submitting(send, err, () =>
+      API.post("/api/comments", { action: "add", target: target, text: text }).then((d) => {
+        box.value = "";
+        draw(d.comments);
+        list.lastChild && list.lastChild.scrollIntoView({ block: "nearest" });
+      })
+    );
+  });
+
+  openSheet(t("aComments"), el("div", { class: "stack" }, el("h3", {}, title || t("aComments")), list, form));
+  API.post("/api/comments", { action: "list", target: target })
+    .then((d) => draw(d.comments))
+    .catch((e) => {
+      list.textContent = "";
+      list.append(el("p", { class: "form-err" }, errorText(e)));
+    });
+}
+
+/* The phone's own share sheet where there is one, the clipboard where there
+   is not. The words travel with the link, because whoever it reaches may not
+   be a member and the link opens on a login. */
+async function sharePost(target, words) {
+  const url = location.origin + location.pathname + "#/feed/" + target;
+  const plain = String(words.body || "").replace(/\*\*/g, "");
+  const text = [words.title, plain.length > 280 ? plain.slice(0, 280).trim() + "…" : plain].filter(Boolean).join("\n\n");
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: words.title || "WE RUN", text: text, url: url });
+      return;
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+    }
+  }
+  copyText(text + "\n\n" + url, t("linkCopied"));
+}
+
 /* The live article, shown here as well as beside the session — the same
    words, and the same byline the cloud carries. */
 /* The reader's language when it has a title, English when that does, Arabic
@@ -3422,6 +3511,7 @@ function tipCard(tip) {
   if (!s.title && !s.body) return el("div");
   return reactable(
     "tip:" + tip.id,
+    { title: s.title, body: s.body },
     el(
     "article",
     { class: "card pad stack post tip" + (tip.photo ? " has-photo" : ""), dir: "auto" },

@@ -427,6 +427,17 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
   25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
   100%{opacity:0;transform:translate(-50%,-110%) scale(1)}}
 @media (prefers-reduced-motion:reduce){.react{transition:none}.heart-pop{animation:none}}
+/* Comments and share sit at the far end of the faces, so the row reads
+   "what you felt" then "what you can do with it". */
+.react.talk{margin-inline-start:auto}
+.react.talk span,.react.share span{display:inline-flex}
+.react.talk,.react.share{color:var(--muted)}
+.cm{display:flex;gap:10px;align-items:flex-start}
+.cm-main{flex:1;min-width:0}
+.cm-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.cm-del{margin-inline-start:auto;font-size:12.5px}
+.cm-body{margin:2px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-form textarea{width:100%;resize:vertical}
 
 /* The code, in the sheet the coach opened it from. White behind the squares
    whatever the theme is: a camera reads black on white, and a dark card with

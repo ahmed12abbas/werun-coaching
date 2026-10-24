@@ -39,6 +39,7 @@
      GET  /api/members/search   — a runner by name, as the board shows them (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
      GET  /api/feed/img?id=     — a photo uploaded for a post
+     POST /api/comments         — the thread under a post or article (logged in)
      GET  /api/store            — what is for sale, and my orders     (logged in)
      GET  /api/store/order?id=  — one of my orders                    (logged in)
      POST /api/store/checkout   — start a payment on Stripe's page    (logged in)
@@ -135,6 +136,7 @@ import { coachResets } from "./routes/resets.js";
 import { signups } from "./routes/signups.js";
 import { push, pushNext } from "./routes/push.js";
 import { reactions } from "./routes/reactions.js";
+import { comments } from "./routes/comments.js";
 import { strava, stravaCallback } from "./routes/strava.js";
 import { coros, corosCallback } from "./routes/coros.js";
 import { intervals, intervalsCallback } from "./routes/intervals.js";
@@ -178,6 +180,7 @@ const POST = {
   "/api/signups": signups,
   "/api/push": push,
   "/api/reactions": reactions,
+  "/api/comments": comments,
   "/api/strava": strava,
   "/api/coros": coros,
   "/api/intervals": intervals,

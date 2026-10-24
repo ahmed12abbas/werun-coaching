@@ -11,6 +11,7 @@ import { json, readBody, objectIn, savedId } from "../lib/http.js";
 import { uid, nowISO, refuseUnlessAdmin, withMember } from "../lib/auth.js";
 import { readTips } from "../lib/kv.js";
 import { reactionsFor } from "./reactions.js";
+import { commentCounts } from "./comments.js";
 import { hasColumn } from "../lib/columns.js";
 import { storePhoto, servePhoto } from "../lib/photos.js";
 
@@ -111,18 +112,17 @@ export const feed = withMember(async (request, env, user) => {
   }
 
   const posts = (rows.results || []).map((p) => publicPost(p, has));
-  // Every face on the screen in one read, keyed the way the page draws them.
-  const faces = await reactionsFor(
-    env,
-    user,
-    posts.map((p) => "post:" + p.id).concat(tips.map((a) => "tip:" + a.id))
-  );
+  // Every face and comment count on the screen in one read each, keyed the
+  // way the page draws them.
+  const targets = posts.map((p) => "post:" + p.id).concat(tips.map((a) => "tip:" + a.id));
+  const [faces, said] = await Promise.all([reactionsFor(env, user, targets), commentCounts(env, targets)]);
 
   return json({
     posts: posts,
     tips: tips,
     reactions: faces.counts,
     my_reactions: faces.mine,
+    comments: said,
   });
 });
 

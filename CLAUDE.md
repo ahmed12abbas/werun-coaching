@@ -103,6 +103,7 @@ node tools/smoke-push.js       # reminders: subscribing, the sender's guard, the
 node tools/smoke-about.js      # the Who Are We page editor: admin-only, cleaned saves, photos, reset
 node tools/smoke-requests.js   # a missed scan asked for and approved, and the theme
 node tools/smoke-calendar.js   # the watch calendar feed: a signed link, and nobody else's
+node tools/smoke-comments.js   # comments under the news: members only, the author's or an admin's to delete
 node tools/intervals-test.mjs  # Intervals.icu's real token answer: athlete.id, no refresh, no expiry
 node tools/intervals-text-test.js # a session as Intervals.icu workout text: warm up, reps, rest, cool down
 node tools/seed-schedule.js    # writes the club's ten standing sessions
