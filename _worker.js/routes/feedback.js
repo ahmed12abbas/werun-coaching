@@ -18,6 +18,7 @@ export const FB_MAX = { items: 400, show: 200, name: 40, comment: 700, session: 
    the failure that matters here is a real note refused, not a junk one let in.
    The item cap is what actually bounds a determined attacker. */
 const FB_PER_MINUTE = 6;
+const FB_PER_DAY = 300;
 
 /** A single line, with the whitespace collapsed out of it. */
 export const oneLine = (s, max) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, max);
@@ -84,6 +85,11 @@ export async function feedback(request, env) {
   const rating = Math.round(Number(body && body.rating));
   if (!isRating(rating)) return json({ error: "bad-rating" }, 400);
   if (await tooOften(env.DB, "fb", ipOf(request), FB_PER_MINUTE, 60)) return json({ error: "too-often" }, 429);
+  // Each note is a KV write, and KV's free tier is a thousand writes a day
+  // shared with the articles, the About page and every watch link. Spread
+  // over enough addresses the per-address brake never bites, so the whole
+  // site gets a day's ceiling too: far more notes than a club writes.
+  if (await tooOften(env.DB, "fbday", "all", FB_PER_DAY, 86400)) return json({ error: "too-often" }, 429);
 
   const doc = await readFeedback(env.STATS);
   doc.items.unshift(feedbackItem(body, rating));

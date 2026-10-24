@@ -42,11 +42,13 @@ export async function safeEqual(a, b) {
 /* Ten guesses a minute from one address at any of the password-gated routes.
    A coach types one password, wrongly, perhaps twice; a script trying the
    club password is after the members list — names, emails, and the power to
-   promote a coach — so it does not get to try at machine speed.
+   promote a coach — so it does not get to try at machine speed. And when
+   the count cannot be kept (D1 refusing, or out of writes for the day) the
+   answer is "try later", not "try as often as you like".
 
    Returns a 429 Response when they have had enough, else null. */
 export async function guessingTooOften(request, env) {
   if (!env.DB) return null; // nowhere to count: the password check still stands
-  if (await tooOften(env.DB, "pwd", ipOf(request), 10, 60)) return json({ error: "too-often" }, 429);
+  if (await tooOften(env.DB, "pwd", ipOf(request), 10, 60, true)) return json({ error: "too-often" }, 429);
   return null;
 }

@@ -24,27 +24,41 @@ export const ipOf = (request) => request.headers.get("cf-connecting-ip") || "";
  * "su" for signups — `max` is the ceiling and `windowSec` the bucket (60 if
  * not given). An empty `who` means there is nothing to count against, and
  * letting it through beats blocking everybody. So does a database that
- * refuses — or has no table yet, between a deploy and its migration.
+ * refuses — or has no table yet, between a deploy and its migration — unless
+ * `failClosed` says this brake guards a secret: a count that cannot be kept
+ * must not become unlimited guesses at the club password.
  */
-export async function tooOften(db, scope, who, max, windowSec) {
+export async function tooOften(db, scope, who, max, windowSec, failClosed) {
   if (!who || !db) return false;
   const win = windowSec || 60;
   const slot = Math.floor(Date.now() / (win * 1000));
   const digest = await sha256("werun-" + scope + ":" + who);
   const key = scope + "-rl:" + hex(new Uint8Array(digest).slice(0, 8)) + ":" + slot;
+  const end = (slot + 1) * win;
+  // Already over in this window: refused without another write, so a script
+  // leaning on one door stops costing the database a row per knock.
+  if (over.get(key) === end) return true;
 
   try {
     const row = await db
       .prepare("INSERT INTO rate_limits (key, n, expires) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET n = n + 1 RETURNING n")
-      .bind(key, (slot + 1) * win)
+      .bind(key, end)
       .first();
     // ponytail: pruned on ~1% of calls; a cron if the table ever grows big enough to notice
     if (Math.random() < 0.01) {
       await db.prepare("DELETE FROM rate_limits WHERE expires < ?").bind(Math.floor(Date.now() / 1000)).run();
     }
+    if (row.n > max) {
+      if (over.size > 5000) over.clear(); // bounded; forgetting only costs a write
+      over.set(key, end);
+    }
     return row.n > max;
   } catch (e) {
     console.error("limit: count failed (" + (e && e.message) + ")");
-    return false;
+    return !!failClosed;
   }
 }
+
+/* Keys already over their ceiling, and the end of the window they are over
+   in. Per isolate, so it only saves writes — the D1 row is still the count. */
+const over = new Map();

@@ -27,5 +27,14 @@ assert.equal(await tooOften(db, "su", "5.6.7.8", 3, 3600), false, "another addre
 assert.equal(await tooOften(db, "li", "1.2.3.4", 3, 3600), false, "another scope has its own count");
 assert.equal(await tooOften(db, "su", "", 3, 3600), false, "nobody to count");
 assert.equal(await tooOften(null, "su", "1.2.3.4", 3, 3600), false, "no database");
-assert.equal(await tooOften(d1(new DatabaseSync(":memory:")), "su", "1.2.3.4", 3, 3600), false, "no table yet");
+assert.equal(await tooOften(d1(new DatabaseSync(":memory:")), "su", "4.4.4.4", 3, 3600), false, "no table yet");
+assert.equal(await tooOften(d1(new DatabaseSync(":memory:")), "pwd", "4.4.4.4", 10, 60, true), true, "a password guard fails closed");
+
+// Once over, the next knock is refused without touching the database.
+let writes = 0;
+const counted = { prepare: (sql) => { writes++; return db.prepare(sql); } };
+for (let i = 0; i < 3; i++) await tooOften(counted, "ci", "9.9.9.9", 2, 3600);
+const before = writes;
+assert.equal(await tooOften(counted, "ci", "9.9.9.9", 2, 3600), true, "still refused");
+assert.equal(writes, before, "…and it cost no write");
 console.log("limit-test: ok");
