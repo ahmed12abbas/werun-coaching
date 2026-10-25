@@ -157,7 +157,13 @@ function said(text) {
 var PINK_AGES = { "u18": "Under 18", "18-29": "18–29", "30-39": "30–39", "40-49": "40–49", "50+": "50+" };
 
 function pinkCard() {
-  var card = el("div", { class: "card" });
+  // The heading stays put and only the body is redrawn: /admin turns a card's
+  // heading into its open/close button once the page has drawn, and this card
+  // fills in after that. Redrawing the heading took the button with it and
+  // left the card shut for good.
+  var body = el("div");
+  var card = el("div", { class: "card" },
+    el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk · 26 Oct")), body);
   var items = [];
 
   function csv() {
@@ -176,13 +182,13 @@ function pinkCard() {
   function save(set) {
     api("/api/admin/settings", { set: set })
       .then(function () { return api("/api/admin/pink", {}); })
-      .then(paint)["catch"](function (e) { card.append(el("p", { class: "err" }, e.message)); });
+      .then(paint)["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); });
   }
 
   function paint(data) {
     data = data || {};
     items = data.items || [];
-    card.textContent = "";
+    body.textContent = "";
     var people = items.reduce(function (t, i) { return t + (Number(i.c) || 0); }, 0);
     var firsts = items.reduce(function (t, i) { return t + (i.f ? 1 : 0); }, 0);
     var byAge = {};
@@ -199,8 +205,7 @@ function pinkCard() {
     var cap = el("input", { type: "number", min: "1", max: "5000", value: String(data.cap), style: "width:90px" });
     cap.addEventListener("change", function () { save({ pink_cap: Number(cap.value) }); });
 
-    card.append(
-      el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk \u00b7 26 Oct")),
+    body.append(
       el("label", { class: "tgl", style: "margin-top:10px" },
         el("span", {}, el("b", {}, "Registration open"),
           el("span", { class: "muted small" }, data.open
@@ -220,7 +225,7 @@ function pinkCard() {
         "Nobody yet. The form is at weruncoaching.pages.dev/pink"));
     if (!items.length) return;
     var b = el("button", { class: "btn", onclick: csv }, "Download (.csv)");
-    card.append(el("div", { class: "row", style: "margin-top:12px" }, el("div", { style: "flex:0 0 auto" }, b)));
+    body.append(el("div", { class: "row", style: "margin-top:12px" }, el("div", { style: "flex:0 0 auto" }, b)));
     items.forEach(function (i) {
       var drop = el("button", {
         class: "drop", title: "Delete", "aria-label": "Delete this registration",
@@ -229,11 +234,11 @@ function pinkCard() {
           drop.disabled = true;
           api("/api/admin/pink", { remove: i.p }).then(paint)["catch"](function (e) {
             drop.disabled = false;
-            card.append(el("p", { class: "err" }, e.message));
+            body.append(el("p", { class: "err" }, e.message));
           });
         }
       }, "\u2715");
-      card.append(el("div", { class: "note" },
+      body.append(el("div", { class: "note" },
         el("div", { class: "notehead" },
           el("span", { class: "who", dir: "auto" }, i.n + (i.c > 1 ? " +" + (i.c - 1) : "")),
           el("span", { class: "muted small" },
@@ -242,10 +247,9 @@ function pinkCard() {
     });
   }
 
-  card.append(el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk \u00b7 26 Oct")),
-    el("p", { class: "muted small" }, "Loading…"));
+  body.append(el("p", { class: "muted small" }, "Loading…"));
   api("/api/admin/pink", {}).then(paint)["catch"](function (e) {
-    card.append(el("p", { class: "err" }, e.message));
+    body.append(el("p", { class: "err" }, e.message));
   });
   return card;
 }
@@ -259,7 +263,7 @@ function feedbackCard(first) {
     api("/api/feedback-admin", { remove: item.id })
       .then(paint)["catch"](function (e) {
       btn.disabled = false;
-      card.append(el("p", { class: "err" }, e.message));
+      body.append(el("p", { class: "err" }, e.message));
     });
   }
 
