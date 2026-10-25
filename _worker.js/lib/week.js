@@ -69,16 +69,32 @@ export function weekSummary(activities, sunday) {
     const meters = Number(a.distance) || 0;
     days[d.getUTCDay()] += meters;
     total_m += meters;
-    runs.push({
-      id: a.id == null ? null : String(a.id),
-      day: d.getUTCDay(),
-      name: String(a.name || "").slice(0, 120),
-      distance_m: meters,
-      moving_s: Number(a.moving_time) || 0,
-      hr: Math.round(Number(a.average_heartrate)) || null,
-    });
+    runs.push(runOf(a, d));
   }
   return { start: sunday, days: days, total_m: total_m, runs: runs };
+}
+
+/* One run as the phone draws it, on the week card and the profile alike. */
+function runOf(a, d) {
+  return {
+    id: a.id == null ? null : String(a.id),
+    day: d.getUTCDay(),
+    date: d.toISOString().slice(0, 10),
+    name: String(a.name || "").slice(0, 120),
+    distance_m: Number(a.distance) || 0,
+    moving_s: Number(a.moving_time) || 0,
+    hr: Math.round(Number(a.average_heartrate)) || null,
+  };
+}
+
+/** The newest `n` runs in a list of activities, newest first. */
+export function latestRuns(activities, n) {
+  const when = (a) => String(a.start_date_local || a.start_date || "");
+  return activities
+    .filter((a) => (a.type || "") === "Run" && !isNaN(new Date(when(a))))
+    .sort((a, b) => when(b).localeCompare(when(a)))
+    .slice(0, n)
+    .map((a) => runOf(a, new Date(when(a))));
 }
 
 /** Which day a session name belongs to; "other" when it names no day at all. */

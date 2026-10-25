@@ -740,6 +740,8 @@ function openMe() {
     strava_athlete: user.strava_athlete,
     role: roleOf(user),
     since: String(user.created_at || "").slice(0, 7),
+    // Asked once here: the card is drawn twice (again when the points land).
+    recent: API.post("/api/intervals", { action: "recent" }).catch(() => null),
   };
   const card = openRunner(mine);
   // The board for the place, /me for the run they are on; either can fail
@@ -821,6 +823,16 @@ function runnerBody(r) {
   return el(
     "div",
     { class: "card pad stack runner" },
+    r.me
+      ? el("button", {
+          class: "runner-gear",
+          type: "button",
+          title: t("aEditProfile"),
+          "aria-label": t("aEditProfile"),
+          html: GEAR_SVG,
+          onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)),
+        })
+      : null,
     el(
       "div",
       { class: "runner-hero" },
@@ -831,10 +843,39 @@ function runnerBody(r) {
     ),
     el("div", { class: "rstats" }, rstat(r.place, t("aPlace"), true), rstat(r.points, t("aPoints")), rstat(r.sessions, t("aSessionsCount"))),
     facts.length ? el("ul", { class: "runner-facts" }, facts) : null,
-    r.me
-      ? el("button", { class: "btn block", type: "button", onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)) }, t("aEditProfile"))
-      : null
+    r.recent ? recentRuns(r.recent) : null
   );
+}
+
+const GEAR_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
+/* Their last three runs from Intervals.icu, each opening the same sheet a day
+   on the Home card does. Not linked, or nothing in sixty days: no section. */
+function recentRuns(asked) {
+  const box = el("div", { class: "recent-runs" });
+  asked.then((d) => {
+    const runs = (d && d.runs) || [];
+    if (!runs.length) return box.remove();
+    box.append(el("h3", {}, t("aRecentRuns")));
+    for (const run of runs) {
+      const date = new Date(run.date + "T00:00:00Z");
+      const label = date.toLocaleDateString(locale(), { weekday: "long", timeZone: "UTC" });
+      box.append(
+        el(
+          "button",
+          { type: "button", class: "loop-day recent-run", onclick: () => openRuns(label, [run], "Intervals.icu") },
+          el("span", { class: "recent-when" }, date.toLocaleDateString(locale(), { day: "numeric", month: "short", timeZone: "UTC" })),
+          el("span", { class: "grow", dir: "auto" }, run.name || label),
+          el("span", { dir: "ltr" }, (run.distance_m / 1000).toFixed(1) + " km"),
+          el("span", { class: "recent-pace", dir: "ltr" }, paceOf(run.distance_m, run.moving_s)),
+          el("span", { class: "loop-go", "aria-hidden": "true" }, "›")
+        )
+      );
+    }
+  });
+  return box;
 }
 
 function openRunner(r) {
@@ -1330,7 +1371,7 @@ function openRuns(label, runs, source) {
       el(
         "div",
         { class: "card pad stack" },
-        el("div", { class: "run-head" }, el("h3", { class: "grow" }, r.name || label), logoNode(30)),
+        el("div", { class: "run-head" }, el("h3", { class: "grow" }, r.name || label), runMarks()),
         el(
           "div",
           { class: "run-stats" },
@@ -1353,6 +1394,23 @@ function openRuns(label, runs, source) {
     } else drawRoute(map, r.points);
   }
   openSheet(label, body);
+}
+
+/* The intro's lockup in the corner: the club's logo with the swoosh beside
+   it, on the same switch (/admin's intro_swoosh, off on National Day). */
+const showSwoosh = () => {
+  const h = document.documentElement;
+  return h.getAttribute("data-swoosh") !== "off" && h.getAttribute("data-event") !== "nationalday";
+};
+function runMarks() {
+  const marks = el("div", { class: "run-marks" }, logoNode(30));
+  if (showSwoosh()) {
+    marks.append(
+      el("img", { class: "splash-swoosh-light", src: "assets/swoosh-black.webp", alt: "" }),
+      el("img", { class: "splash-swoosh-dark", src: "assets/swoosh-white.webp", alt: "" })
+    );
+  }
+  return marks;
 }
 
 function runStat(value, label) {
@@ -1425,13 +1483,27 @@ async function runImage(r, label) {
   // canvas stays exportable.
   const logo = new Image();
   logo.src = document.documentElement.getAttribute("data-logo") || "assets/logo.png";
+  let x = 80;
+  const lh = 150;
   try {
     await logo.decode();
-    const lh = 150;
-    g.drawImage(logo, 80, 80, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
+    x += (logo.naturalWidth / logo.naturalHeight) * lh;
+    g.drawImage(logo, 80, 80, x - 80, lh);
   } catch (e) {
     g.font = "600 110px " + font;
     g.fillText("WE RUN", 80, 190);
+    x += g.measureText("WE RUN").width;
+  }
+  // The swoosh beside it, white for the clear background, wherever the
+  // intro shows it.
+  if (showSwoosh()) {
+    const sw = new Image();
+    sw.src = "assets/swoosh-white.webp";
+    try {
+      await sw.decode();
+      const sh = lh * 0.8;
+      g.drawImage(sw, x + 40, 80 + (lh - sh) / 2, (sw.naturalWidth / sw.naturalHeight) * sh, sh);
+    } catch (e) {}
   }
 
   if (r.points && r.points.length > 1) {

@@ -462,6 +462,15 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 
 /* One runner, in the sheet, laid out like a bib: the face in the middle with
    the brand round it, the name and their line under, their links under that. */
+.runner{position:relative}
+.runner-gear{position:absolute;top:14px;inset-inline-start:14px;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.runner-gear svg{width:20px;height:20px}
+.runner-gear:hover,.runner-gear:focus-visible{color:var(--brand)}
+.recent-runs{display:grid;gap:2px}
+.recent-runs h3{margin:0 0 4px}
+.recent-run{padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.recent-when{min-width:4.2em;color:var(--muted)}
+.recent-pace{color:var(--brand);font-weight:650}
 .runner-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
 .runner-hero .avatar{box-shadow:0 0 0 3px var(--card),0 0 0 6px var(--brand)}
 .runner-name{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:6px}
@@ -753,7 +762,9 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .run-stats b{font-family:var(--display);font-size:20px;color:var(--brand)}
 .run-head{display:flex;align-items:center;gap:10px}
 .run-head h3{margin:0}
-.run-head .brand-logo{height:30px}
+.run-marks{display:flex;align-items:center;gap:8px;direction:ltr;flex:none}
+.run-marks .brand-logo{height:30px}
+.run-marks img.splash-swoosh-light,.run-marks img.splash-swoosh-dark{height:22px;width:auto}
 .run-map{grid-column:span 2;min-height:70px}
 .run-map:empty{display:none}
 .run-map svg{width:100%;height:100%;max-height:110px;display:block}

@@ -17,7 +17,7 @@ import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
 import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, activityRoute, putEvents, dropEvents } from "../lib/intervals.js";
-import { weekStartEpoch, weekSummary } from "../lib/week.js";
+import { weekStartEpoch, weekSummary, latestRuns, shiftDate } from "../lib/week.js";
 import { hasColumn } from "../lib/columns.js";
 
 const STATE_TTL = 600;
@@ -42,6 +42,7 @@ export async function intervals(request, env) {
     if (action === "home") return home(e, user);
     if (action === "sync") return sync(e, user, body);
     if (action === "route") return route(e, user, body);
+    if (action === "recent") return recent(e, user);
     return json({ error: "bad-request" }, 400);
   })(request, env);
 }
@@ -88,6 +89,28 @@ async function home(env, user) {
       return json({ connected: false });
     }
     return json({ connected: true, week: null });
+  }
+}
+
+/* The athlete's last three runs, for their own profile card. Sixty days
+   back, so somebody between blocks still has something to show. */
+const RECENT_DAYS = 60;
+async function recent(env, user) {
+  let link;
+  try {
+    link = await env.DB.prepare("SELECT * FROM intervals_links WHERE user_id = ?").bind(user.id).first();
+  } catch (err) {
+    link = null;
+  }
+  if (!link) return json({ connected: false, runs: [] });
+  const fresh = await freshToken(env, link);
+  if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
+  try {
+    const activities = await activitiesSince(link.athlete_id, fresh.access_token, shiftDate(-RECENT_DAYS));
+    return json({ connected: true, runs: latestRuns(activities, 3) });
+  } catch (err) {
+    console.error("intervals: recent failed (" + (err && err.message) + ")");
+    return json({ connected: true, runs: [] });
   }
 }
 
