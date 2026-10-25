@@ -1309,26 +1309,52 @@ function openApps() {
   if (apps) apps.scrollIntoView({ block: "start" });
 }
 
-/* Settings' "Connect my apps": each service's state is read on its own, so
-   the rows land in order even though their answers do not. A service that
-   errors takes its row away rather than showing a button that cannot work. */
+/* Settings' "Sessions on my watch". Athletes were handed two routes at once
+   (Intervals.icu and the calendar feed) and did not know which was theirs, so
+   the card asks which watch first and shows only that route; once Intervals.icu
+   is linked it is one line. If Intervals.icu errors (not set up on the Worker)
+   only the calendar is offered. Strava and COROS rows still appear for an
+   athlete linked to one, so they can disconnect it. */
 // ponytail: asks "home" (which also reads the week) to learn connected-or-not; add a cheap "status" action if that call gets slow.
 function appsCard() {
+  const iv = SERVICES.find((s) => s.button);
+  const body = el("div", { class: "stack" });
+  askHome(iv)
+    .then((d) =>
+      body.append(d.connected
+        ? el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" },
+            el("strong", { class: "grow" }, "✓ " + t("aWatchDone")), disconnectLink(iv.path))
+        : watchPicker()))
+    .catch(() => body.append(calendarRow()));
   const rows = el("div", { class: "stack" });
   for (const s of SERVICES) {
-    if (retired(s)) continue;
+    if (s === iv || retired(s)) continue;
     const row = el("div", { class: "row", style: "align-items:center;gap:12px;flex-wrap:wrap" }, el("strong", { class: "grow" }, s.name));
     rows.append(row);
     askHome(s)
       .then((d) => {
         if (d.connected) row.append(el("span", { class: "muted small" }, t("aConnected")), disconnectLink(s.path));
-        else if (s.button) row.append(s.button());
         else row.remove();
       })
       .catch(() => row.remove());
   }
-  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), el("p", { class: "muted small" }, t("aAppsHint")),
-    el("button", { type: "button", class: "btn sm", onclick: watchGuide }, t("aFlowOpen")), rows, calendarRow());
+  return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), body, rows);
+}
+
+/* "Which watch?" — Garmin and COROS take the same three steps, so they are
+   one button; anything else gets the calendar feed. */
+function watchPicker() {
+  const out = el("div", { class: "stack" });
+  const garmin = el("button", { type: "button", class: "btn sm" }, t("aWatchGarmin"));
+  const other = el("button", { type: "button", class: "btn sm" }, t("aWatchOther"));
+  const choose = (btn, draw) => () => {
+    for (const b of [garmin, other]) b.classList.toggle("primary", b === btn);
+    out.replaceChildren(draw());
+  };
+  garmin.addEventListener("click", choose(garmin, () => el("ol", { class: "flow" }, ...ivSteps())));
+  other.addEventListener("click", choose(other, calendarRow));
+  return el("div", { class: "stack" }, el("p", { class: "muted small" }, t("aAppsHint")),
+    el("div", { class: "row", style: "gap:12px;flex-wrap:wrap" }, garmin, other), out);
 }
 
 // Sunday-first, matching the club's own week (lib/week.js DAYS is Monday-first for schedule matching only).
@@ -1712,35 +1738,39 @@ function calendarRow() {
   return el(
     "div",
     { class: "stack" },
-    el("strong", {}, t("aCal")),
-    el("div", { class: "row", style: "gap:12px;flex-wrap:wrap" }, add, copy),
-    el("p", { class: "muted small" }, t("aCalHint"))
+    el("p", { class: "muted small" }, t("aCalHint")),
+    el("div", { class: "row", style: "gap:12px;flex-wrap:wrap" }, add, copy)
   );
 }
 
 /* How a session reaches the watch, as four boxes and three arrows: the steps
    happen on two different sites, and a list of sentences did not make that
    clear. Opens by itself once per phone for an athlete not yet linked (from
-   loadMileage, which already knows), and any time from Settings. */
+   loadMileage, which already knows); Settings shows the same steps inline. */
 const WATCH_GUIDE_KEY = "werun-watch-guide";
 
+const flowStep = (n, title, body, extra) =>
+  el("div", { class: "flow-step" }, el("span", { class: "flow-n", "aria-hidden": "true" }, n),
+    el("div", { class: "stack", style: "gap:4px" }, el("strong", {}, title), el("p", { class: "muted small" }, body), extra));
+const flowArrow = () => el("div", { class: "flow-arrow", "aria-hidden": "true" }, "↓");
+
+// The three Intervals.icu steps, shared by the guide and the Settings card.
+function ivSteps() {
+  return [
+    el("li", {}, flowStep("1", t("aFlow1"), t("aFlow1b"),
+      el("a", { class: "btn sm", href: "https://intervals.icu", target: "_blank", rel: "noopener noreferrer" }, "intervals.icu"))),
+    flowArrow(),
+    el("li", {}, flowStep("2", t("aFlow2"), t("aFlow2b"))),
+    flowArrow(),
+    el("li", {}, flowStep("3", t("aFlow3"), t("aFlow3b"),
+      connectButton("/api/intervals", { type: "button", class: "btn sm primary" }, t("aIntervalsConnect")))),
+  ];
+}
+
 function watchGuide() {
-  const step = (n, title, body, extra) =>
-    el("div", { class: "flow-step" }, el("span", { class: "flow-n", "aria-hidden": "true" }, n),
-      el("div", { class: "stack", style: "gap:4px" }, el("strong", {}, title), el("p", { class: "muted small" }, body), extra));
-  const arrow = () => el("div", { class: "flow-arrow", "aria-hidden": "true" }, "↓");
   openSheet(t("aFlowTitle"), el("div", { class: "card pad stack" },
     el("h2", {}, t("aFlowTitle")),
-    el("ol", { class: "flow" },
-      el("li", {}, step("1", t("aFlow1"), t("aFlow1b"),
-        el("a", { class: "btn sm", href: "https://intervals.icu", target: "_blank", rel: "noopener noreferrer" }, "intervals.icu"))),
-      arrow(),
-      el("li", {}, step("2", t("aFlow2"), t("aFlow2b"))),
-      arrow(),
-      el("li", {}, step("3", t("aFlow3"), t("aFlow3b"),
-        connectButton("/api/intervals", { type: "button", class: "btn sm primary" }, t("aIntervalsConnect")))),
-      arrow(),
-      el("li", {}, step("✓", t("aFlow4"), t("aFlow4b")))),
+    el("ol", { class: "flow" }, ...ivSteps(), flowArrow(), el("li", {}, flowStep("✓", t("aFlow4"), t("aFlow4b")))),
     el("p", { class: "muted small" }, t("aFlowApple"))));
 }
 
