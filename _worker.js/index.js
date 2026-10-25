@@ -9,6 +9,8 @@
 
    The routes, the public ones first:
      POST /api/feedback         — one athlete's stars, name and comment
+     POST /api/pink             — a place at the Pink Run/Walk, 26 Oct (no account)
+     GET  /api/pink/status      — open or not, and places taken of the cap
      GET  /api/tips             — the one article the coach has put live
      GET  /api/tips/img?id=     — a photo on one of those articles
      GET  /api/health           — which bindings are live; no data
@@ -91,6 +93,7 @@
      POST /api/admin/schedule-change — one occurrence moved or called off
      POST /api/admin/about      — the Who Are We page editor, and its photos
      POST /api/admin/point-requests — approve or reject those asks
+     POST /api/admin/pink       — who registered for the Pink Run/Walk
 
    Bindings, all set on the Pages project (see the README):
      STATS           KV namespace holding the feedback and articles
@@ -144,6 +147,7 @@ import { intervals, intervalsCallback } from "./routes/intervals.js";
 import { calendarLink, calendarFeed } from "./routes/calendar.js";
 import { about, aboutImg, adminAbout } from "./routes/about.js";
 import { coachRequests, adminRequests } from "./routes/requests.js";
+import { pinkStatus, pinkRegister, adminPink } from "./routes/pink.js";
 import { themedAsset } from "./lib/theme.js";
 
 const POST = {
@@ -190,6 +194,8 @@ const POST = {
   "/api/admin/about": adminAbout,
   "/api/coach/point-requests": coachRequests,
   "/api/admin/point-requests": adminRequests,
+  "/api/pink": pinkRegister,
+  "/api/admin/pink": adminPink,
 };
 const GET = {
   "/api/tips": tips,
@@ -213,6 +219,7 @@ const GET = {
   "/api/about": about,
   "/api/about/img": aboutImg,
   "/api/brand/img": brandImg,
+  "/api/pink/status": pinkStatus,
 };
 
 /* What every answer carries, static file and API alike.

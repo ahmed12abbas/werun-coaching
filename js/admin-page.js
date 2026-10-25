@@ -151,6 +151,105 @@ function said(text) {
   return p;
 }
 
+/* ---- the Pink Run/Walk, 26 Oct ----
+   Guests registering on /pink with no account. Each entry may bring friends,
+   so "people" is the number to plan for, not the count of entries. */
+var PINK_AGES = { "u18": "Under 18", "18-29": "18–29", "30-39": "30–39", "40-49": "40–49", "50+": "50+" };
+
+function pinkCard() {
+  var card = el("div", { class: "card" });
+  var items = [];
+
+  function csv() {
+    var q = function (v) { return "\"" + String(v == null ? "" : v).replace(/"/g, "\"\"") + "\""; };
+    var rows = [["Name", "Phone", "Email", "Age group", "People", "First time", "Registered"]].concat(items.map(function (i) {
+      return [i.n, "+" + i.p, i.e, PINK_AGES[i.a] || i.a, i.c, i.f ? "Yes" : "No", i.at];
+    }));
+    var url = URL.createObjectURL(new Blob(["\ufeff" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n")], { type: "text/csv" }));
+    var link = el("a", { href: url, download: "pink-run-walk.csv" });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function save(set) {
+    api("/api/admin/settings", { set: set })
+      .then(function () { return api("/api/admin/pink", {}); })
+      .then(paint)["catch"](function (e) { card.append(el("p", { class: "err" }, e.message)); });
+  }
+
+  function paint(data) {
+    data = data || {};
+    items = data.items || [];
+    card.textContent = "";
+    var people = items.reduce(function (t, i) { return t + (Number(i.c) || 0); }, 0);
+    var firsts = items.reduce(function (t, i) { return t + (i.f ? 1 : 0); }, 0);
+    var byAge = {};
+    items.forEach(function (i) { byAge[i.a] = (byAge[i.a] || 0) + (Number(i.c) || 0); });
+
+    // Shut until an admin has looked the page over; while shut, only an
+    // admin logged in on this browser sees the form (with a preview banner).
+    var open = el("input", { type: "checkbox", role: "switch" });
+    if (data.open) open.setAttribute("checked", "");
+    open.addEventListener("change", function () {
+      if (open.checked && !window.confirm("Open registration to everyone with the link?")) { open.checked = false; return; }
+      save({ pink_open: open.checked });
+    });
+    var cap = el("input", { type: "number", min: "1", max: "5000", value: String(data.cap), style: "width:90px" });
+    cap.addEventListener("change", function () { save({ pink_cap: Number(cap.value) }); });
+
+    card.append(
+      el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk \u00b7 26 Oct")),
+      el("label", { class: "tgl", style: "margin-top:10px" },
+        el("span", {}, el("b", {}, "Registration open"),
+          el("span", { class: "muted small" }, data.open
+            ? "Live: anyone with the link can register."
+            : "Shut: the page says it opens soon. You see the real form, marked preview.")),
+        open),
+      el("div", { class: "row", style: "margin-top:10px;align-items:center;gap:10px" },
+        el("label", { style: "margin:0" }, "Places (people, friends included)"), cap,
+        el("a", { href: "/pink", target: "_blank", rel: "noopener" }, "Preview the page \u2197")),
+      el("p", { style: "margin:12px 0 0;font-size:22px;font-weight:700" },
+        people + " of " + data.cap, el("span", { class: "muted small", style: "font-weight:400" },
+          " people from " + items.length + (items.length === 1 ? " registration" : " registrations") +
+          (items.length ? ", " + firsts + " of them new to the club" : ""))),
+      el("p", { class: "muted small", style: "margin:4px 0 0" },
+        Object.keys(PINK_AGES).filter(function (k) { return byAge[k]; })
+          .map(function (k) { return PINK_AGES[k] + ": " + byAge[k]; }).join(" \u00b7 ") ||
+        "Nobody yet. The form is at weruncoaching.pages.dev/pink"));
+    if (!items.length) return;
+    var b = el("button", { class: "btn", onclick: csv }, "Download (.csv)");
+    card.append(el("div", { class: "row", style: "margin-top:12px" }, el("div", { style: "flex:0 0 auto" }, b)));
+    items.forEach(function (i) {
+      var drop = el("button", {
+        class: "drop", title: "Delete", "aria-label": "Delete this registration",
+        onclick: function () {
+          if (!window.confirm("Remove " + i.n + "?")) return;
+          drop.disabled = true;
+          api("/api/admin/pink", { remove: i.p }).then(paint)["catch"](function (e) {
+            drop.disabled = false;
+            card.append(el("p", { class: "err" }, e.message));
+          });
+        }
+      }, "\u2715");
+      card.append(el("div", { class: "note" },
+        el("div", { class: "notehead" },
+          el("span", { class: "who", dir: "auto" }, i.n + (i.c > 1 ? " +" + (i.c - 1) : "")),
+          el("span", { class: "muted small" },
+            ["+" + i.p, i.e, PINK_AGES[i.a] || i.a, i.f ? "first time" : "", stamp(i.at)].filter(Boolean).join(" \u00b7 ")),
+          drop)));
+    });
+  }
+
+  card.append(el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk \u00b7 26 Oct")),
+    el("p", { class: "muted small" }, "Loading…"));
+  api("/api/admin/pink", {}).then(paint)["catch"](function (e) {
+    card.append(el("p", { class: "err" }, e.message));
+  });
+  return card;
+}
+
 function feedbackCard(first) {
   var card = el("div", { class: "card" });
 
@@ -288,6 +387,7 @@ function renderStats(data, tips) {
   head.classList.add("keep");
   put("today", head);
   if ((data.weeks || []).length) { var weeks = weeksCard(data.weeks); weeks.classList.add("keep"); put("today", weeks); }
+  put("today", pinkCard());
   put("today", requestsCard());
   put("today", feedbackCard(data.feedback));
   put("today", sessionsCard());

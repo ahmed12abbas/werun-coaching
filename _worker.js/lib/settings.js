@@ -39,6 +39,10 @@ export const DEFAULTS = {
   logo_url: "",
   intro_url: "",
   intro_swoosh: true, // the swoosh beside the logo on the intro
+  // The Pink Run/Walk page (routes/pink.js): shut until an admin has looked
+  // it over and opened it, and how many people it takes.
+  pink_open: false,
+  pink_cap: 60,
 };
 
 /* The whole table in one read, shared by every key and every request this

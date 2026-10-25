@@ -30,7 +30,7 @@ const IP = process.argv.includes("--lan") ? "0.0.0.0" : "127.0.0.1";
    service worker only controls what it is served alongside, so it has to be
    at the root here exactly as it is on Pages. */
 const PAGES = ["index.html", "admin.html", "coach.html", "tips.html", "app.html",
-  "privacy.html", "about.html", "sw.js", "manifest.webmanifest"];
+  "privacy.html", "about.html", "pink.html", "sw.js", "manifest.webmanifest"];
 const DIRS = ["js", "assets", "_worker.js"];
 const STATE = ".wrangler/state";
 

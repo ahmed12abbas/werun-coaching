@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pink Run/Walk · WE RUN</title>
+<meta name="theme-color" content="#F28AB8">
+<meta name="color-scheme" content="only light">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/fonts.css?v=dfd2907d">
+<script src="js/early-page.js?v=c24d8d05"></script>
+<style>
+/* Standalone, like privacy.html: a link in the Instagram bio for people who
+   may never have opened the app, so no login, no bundle. */
+:root{
+  --pink:#F28AB8; --pink-deep:#D9568F; --brand:#8851F4; --bg:#fdf3f8; --card:#fff; --fg:#1d1424;
+  --muted:#6f6380; --line:#f0d9e6; --radius:16px;
+  --display:"Teko",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:"Teko","Cairo",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+:root[data-theme="dark"]{
+  --pink:#F49BC4; --pink-deep:#F28AB8; --brand:#A47CF8; --bg:#160f18; --card:#22182a; --fg:#f3ecf5;
+  --muted:#b3a5bf; --line:#3a2a40;
+}
+*{box-sizing:border-box}
+/* Teko for English, Cairo for Arabic (Teko has no Arabic glyphs). Teko is
+   narrow and short, so it runs a size up to read like 16px of anything else. */
+[dir="rtl"]{--body:"Cairo",-apple-system,"Segoe UI",Tahoma,sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:20px;line-height:1.35;
+  -webkit-font-smoothing:antialiased}
+/* The poster's photo behind everything, faded so the form stays the thing you
+   read. A fixed layer rather than background-attachment:fixed, which iOS
+   Safari ignores. */
+body::before{content:"";position:fixed;inset:0 0 -20vh;z-index:-1;background:url(assets/pink-bg.webp) center top / cover no-repeat;
+  opacity:.28;transform:translate3d(0,calc(var(--shift,0) * -1px),0) scale(calc(1.04 + var(--shift,0) * .0003));
+  will-change:transform}
+.wrap{max-width:520px;margin:0 auto;padding:16px 16px 48px}
+footer{margin-top:28px}
+.socials{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:0}
+.socials a{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--card);
+  border:1px solid var(--line);color:var(--pink-deep)}
+.socials a:hover,.socials a:focus-visible{background:var(--pink-deep);color:#fff}
+.socials svg{width:20px;height:20px}
+.top{display:flex;justify-content:flex-end}
+.tool{font:inherit;font-size:.875em;padding:6px 14px;border:1px solid var(--line);border-radius:999px;
+  background:var(--card);color:var(--fg);cursor:pointer}
+.logo{display:block;width:150px;height:auto;margin:4px auto 0}
+h1{font-family:var(--display);font-size:52px;font-weight:600;text-transform:uppercase;margin:6px 0 0;
+  line-height:1;text-align:center;color:var(--pink-deep)}
+[dir="rtl"] h1{font-family:var(--body);font-weight:800;font-size:36px;text-transform:none}
+[dir="rtl"] body{font-size:16px;line-height:1.6}
+.sub{text-align:center;margin:8px 0 0;color:var(--muted)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+.fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.fact b{display:block;font-size:.8em;color:var(--muted);font-weight:600}
+.fact span{font-weight:700}
+.fact.wide{grid-column:1 / -1}
+.map{display:block;color:inherit;text-decoration:none}
+.map em{display:block;font-style:normal;font-weight:700;color:var(--pink-deep);margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+label{display:block;font-weight:600;font-size:.875em;margin:14px 0 6px}
+label:first-child{margin-top:0}
+.opt{font-weight:400;color:var(--muted)}
+input,select{width:100%;font:inherit;font-size:1em;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--fg)}
+.yn{border:0;padding:0;margin:14px 0 0;display:flex;flex-wrap:wrap;gap:10px}
+.yn legend{font-weight:600;font-size:.875em;margin-bottom:6px;padding:0;width:100%}
+.yn label{flex:1;display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--bg);font-size:1em;cursor:pointer}
+.yn input{width:auto;accent-color:var(--pink-deep)}
+.yn label:has(input:checked){border-color:var(--pink-deep);outline:1px solid var(--pink-deep)}
+input:focus,select:focus{outline:2px solid var(--pink);outline-offset:1px}
+button.go{width:100%;margin-top:18px;font:inherit;font-weight:700;font-size:1.15em;padding:13px;border:0;border-radius:12px;
+  background:var(--pink-deep);color:#fff;cursor:pointer}
+button.go:disabled{opacity:.6}
+.err{color:#c62828;margin:12px 0 0;font-weight:600}
+.done{text-align:center}
+.spots{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 12px}
+.spots p{margin:0 0 6px;font-weight:700}
+.spots b{color:var(--pink-deep)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--pink-deep);border-radius:inherit;transition:width .6s ease}
+@media (prefers-reduced-motion: reduce){.bar i{transition:none}}
+.preview{background:#fff3cd;color:#664d03;border:1px solid #ffe69c;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-weight:700}
+.done .big{display:block;width:84px;height:auto;margin:0 auto}
+.done h2{margin:8px 0 4px}
+.note{font-size:.8em;color:var(--muted);margin:12px 0 0}
+.with{text-align:center;color:var(--muted);margin:22px 0 0;font-size:.875em}
+/* Their logo is black line-work; on a white card it reads in dark mode too. */
+.partner{display:block;width:220px;max-width:70%;height:auto;margin:10px auto 0;background:#fff;
+  padding:10px 14px;border-radius:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><button class="tool" type="button" id="lang">العربية</button></div>
+  <img class="logo" src="assets/werun-pink.webp" alt="WE RUN">
+  <h1 data-t="title">Pink Run/Walk</h1>
+  <p class="sub" data-t="sub">3 km run or walk for Breast Cancer Awareness Month. Free, and everyone is welcome.</p>
+
+  <div class="facts">
+    <div class="fact"><b data-t="whenL">When</b><span data-t="when">Monday 26 October</span></div>
+    <div class="fact"><b data-t="warmL">Warm-up starts</b><span data-t="warm">5:20 AM</span></div>
+    <a class="fact wide map" href="https://maps.app.goo.gl/u6MqqhxKhD6Vhz5b6" target="_blank" rel="noopener noreferrer">
+      <b data-t="whereL">Meeting point</b><span data-t="where">Sports Boulevard – Hittin</span>
+      <em data-t="map">📍 Open in Maps</em></a>
+  </div>
+
+  <div class="spots" id="spots" hidden>
+    <p id="spotsText"></p>
+    <div class="bar"><i id="spotsBar"></i></div>
+  </div>
+  <p class="preview" id="preview" data-t="preview" hidden>Preview: only admins see this form until registration is opened.</p>
+  <div class="card done" id="state" hidden><img class="big" src="assets/werun-pink.webp" alt=""><h2 id="stateT"></h2><p id="stateP"></p></div>
+
+  <form class="card" id="form" novalidate hidden>
+    <label for="name" data-t="name">Full name</label>
+    <input id="name" name="name" autocomplete="name" maxlength="60" required>
+
+    <label for="phone" data-t="phone">Mobile number</label>
+    <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="05XXXXXXXX" dir="ltr" maxlength="20" required>
+
+    <label for="email"><span data-t="email">Email</span> <span class="opt" data-t="optional">(optional)</span></label>
+    <input id="email" name="email" type="email" autocomplete="email" dir="ltr" maxlength="100">
+
+    <label for="age" data-t="age">Age group</label>
+    <select id="age" name="age" required>
+      <option value="" data-t="choose">Choose…</option>
+      <option value="u18" data-t="u18">Under 18</option>
+      <option value="18-29">18–29</option>
+      <option value="30-39">30–39</option>
+      <option value="40-49">40–49</option>
+      <option value="50+">50+</option>
+    </select>
+
+    <fieldset class="yn">
+      <legend data-t="first">Is this your first time running with us?</legend>
+      <label><input type="radio" name="first" value="yes" required> <span data-t="yes">Yes</span></label>
+      <label><input type="radio" name="first" value="no"> <span data-t="no">No</span></label>
+    </fieldset>
+
+    <label for="people" data-t="people">How many people, including you?</label>
+    <select id="people" name="people"></select>
+
+    <button class="go" type="submit" data-t="send">Register</button>
+    <p class="err" id="err" role="alert" hidden></p>
+    <p class="note" data-t="privacy">We use your details only to organise this event.</p>
+  </form>
+
+  <div class="card done" id="done" hidden>
+    <img class="big" src="assets/werun-pink.webp" alt="">
+    <h2 data-t="doneT">You're in!</h2>
+    <p data-t="doneP">See you Monday at Sports Boulevard. Warm-up starts at 5:20 AM.</p>
+  </div>
+
+  <p class="with" data-t="with">In partnership with Sports Boulevard</p>
+  <img class="partner" src="assets/sports-boulevard.webp" alt="Sports Boulevard · المسار الرياضي" width="600" height="184">
+  <footer><nav class="socials" id="socials" aria-label="WE RUN on social"></nav></footer>
+</div>
+<script src="js/brand.js?v=8065255a"></script>
+<script src="js/pink-page.js?v=b9a1bf6c"></script>
+</body>
+</html>
