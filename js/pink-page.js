@@ -72,7 +72,7 @@ var form = document.getElementById("form");
 var err = document.getElementById("err");
 var go = form.querySelector(".go");
 var lang = root.getAttribute("lang") === "ar" ? "ar" : "en";
-var t = function (k) { return PINK[lang][k] || PINK.en[k] || k; };
+var tr = function (k) { return PINK[lang][k] || PINK.en[k] || k; };
 
 for (var i = 1; i <= 10; i++) form.people.append(new Option(String(i), String(i)));
 
@@ -80,17 +80,17 @@ function show(next) {
   lang = next;
   root.setAttribute("lang", lang);
   root.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-  document.querySelectorAll("[data-t]").forEach(function (n) { n.textContent = t(n.dataset.t); });
+  document.querySelectorAll("[data-t]").forEach(function (n) { n.textContent = tr(n.dataset.t); });
   document.getElementById("lang").textContent = lang === "ar" ? "English" : "العربية";
-  document.title = t("title") + " · WE RUN";
+  document.title = tr("title") + " · WE RUN";
   document.getElementById("socials").setAttribute("aria-label", lang === "ar" ? "WE RUN على منصات التواصل" : "WE RUN on social");
-  if (!err.hidden && err.dataset.code) err.textContent = t(err.dataset.code);
+  if (!err.hidden && err.dataset.code) err.textContent = tr(err.dataset.code);
   paint();
 }
 
 function fail(code) {
   err.dataset.code = PINK.en[code] ? code : "fail";
-  err.textContent = t(err.dataset.code);
+  err.textContent = tr(err.dataset.code);
   err.hidden = false;
 }
 
@@ -119,8 +119,8 @@ function paint() {
   document.getElementById("done").hidden = !registered;
   document.getElementById("state").hidden = !why;
   if (why) {
-    document.getElementById("stateT").textContent = t(why + "T");
-    document.getElementById("stateP").textContent = t(why + "P");
+    document.getElementById("stateT").textContent = tr(why + "T");
+    document.getElementById("stateP").textContent = tr(why + "P");
   }
   document.getElementById("preview").hidden = !(s && s.preview) || registered;
 
@@ -128,7 +128,7 @@ function paint() {
   spots.hidden = !s || !s.cap || why === "soon" || why === "closed";
   if (!spots.hidden) {
     var left = Math.max(0, s.cap - s.taken);
-    document.getElementById("spotsText").textContent = t("left").replace("{n}", left).replace("{cap}", s.cap);
+    document.getElementById("spotsText").textContent = tr("left").replace("{n}", left).replace("{cap}", s.cap);
     document.getElementById("spotsBar").style.width = Math.min(100, (s.taken / s.cap) * 100) + "%";
   }
 }
@@ -147,7 +147,7 @@ form.addEventListener("submit", function (e) {
   if (!form.age.value) return fail("bad-age");
   if (!form.first.value) return fail("bad-first");
   go.disabled = true;
-  go.textContent = t("sending");
+  go.textContent = tr("sending");
   fetch("/api/pink", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -170,7 +170,7 @@ form.addEventListener("submit", function (e) {
     paint();
   }).then(function () {
     go.disabled = false;
-    go.textContent = t("send");
+    go.textContent = tr("send");
   });
 });
 
