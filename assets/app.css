@@ -350,6 +350,17 @@ button.slot.race:hover{background:#8851F4}
 .slot.race .tag{background:rgba(255,255,255,.2);color:inherit;border-color:transparent}
 /* The white mark, bare, on the purple row in both themes. */
 .race-mark{flex:none;width:64px;height:64px;background:url(/assets/race-2026-white.webp) center/contain no-repeat}
+/* The Pink Run/Walk (theme "pink" on one change): the row in pink, fixed
+   colours like the race's so a recoloured brand cannot turn it purple. The
+   standing slot's own line ("4km") is not this event's, so it goes. */
+.slot.pink,button.slot.pink:hover,.slot.pink.hot{background:#FCE1EE;margin:0 -6px;padding:10px;border-radius:12px;
+  box-shadow:inset 0 0 0 1.5px #F28AB8}
+.slot.pink .slot-title{color:#B83A74}
+.slot.pink .slot-at{background:#F28AB8;color:#fff}
+.slot.pink .slot-desc{display:none}
+.slot.pink .slot-note{color:#B83A74}
+[data-theme="dark"] .slot.pink,[data-theme="dark"] button.slot.pink:hover,[data-theme="dark"] .slot.pink.hot{background:#3B1D2C}
+[data-theme="dark"] .slot.pink .slot-title,[data-theme="dark"] .slot.pink .slot-note{color:#F7A8CB}
 .race-cta{font-size:12.5px;font-weight:700;margin-top:3px;text-decoration:underline;text-underline-offset:2px}
 a.place{text-decoration:underline; text-underline-offset:2px}
 a.place:hover{color:var(--brand)}

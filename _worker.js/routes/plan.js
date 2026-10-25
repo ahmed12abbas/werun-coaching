@@ -143,7 +143,8 @@ const optionalPlace = (v) => (v === undefined ? null : clean(v, MAX.place));
 const optionalNote = (v) => clean(v, MAX.note) || null;
 
 /* The one look a change can give a session: the club's race. */
-const THEMES = new Set(["race"]);
+// "pink": the Pink Run/Walk, 26 Oct 2026 — the row dressed pink in the week.
+const THEMES = new Set(["race", "pink"]);
 
 /* One occurrence as the form describes it, or why it cannot be saved. */
 function readChange(body) {

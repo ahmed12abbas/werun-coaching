@@ -2390,6 +2390,7 @@ function slotRow(item, date) {
   if (soon) meta.append(soon);
 
   const node = item.theme === "race" ? raceNode(item, date, clock, body, tag) : slotNode(item, date, clock, body, tag);
+  if (item.theme === "pink") node.classList.add("pink");
   lightWhenLive(node, item, date);
   return node;
 }
