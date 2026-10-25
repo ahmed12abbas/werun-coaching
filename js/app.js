@@ -1483,27 +1483,15 @@ async function runImage(r, label) {
   // canvas stays exportable.
   const logo = new Image();
   logo.src = document.documentElement.getAttribute("data-logo") || "assets/logo.png";
-  let x = 80;
-  const lh = 150;
+  // No swoosh here, unlike the sheet: a shared image leaves the app, and
+  // that waits on Nike's approval.
   try {
     await logo.decode();
-    x += (logo.naturalWidth / logo.naturalHeight) * lh;
-    g.drawImage(logo, 80, 80, x - 80, lh);
+    const lh = 150;
+    g.drawImage(logo, 80, 80, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
   } catch (e) {
     g.font = "600 110px " + font;
     g.fillText("WE RUN", 80, 190);
-    x += g.measureText("WE RUN").width;
-  }
-  // The swoosh beside it, white for the clear background, wherever the
-  // intro shows it.
-  if (showSwoosh()) {
-    const sw = new Image();
-    sw.src = "assets/swoosh-white.webp";
-    try {
-      await sw.decode();
-      const sh = lh * 0.8;
-      g.drawImage(sw, x + 40, 80 + (lh - sh) / 2, (sw.naturalWidth / sw.naturalHeight) * sh, sh);
-    } catch (e) {}
   }
 
   if (r.points && r.points.length > 1) {
