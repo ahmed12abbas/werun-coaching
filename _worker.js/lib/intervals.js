@@ -69,6 +69,24 @@ export async function activitiesSince(athleteId, accessToken, sunday) {
   return res.json();
 }
 
+/** A run's GPS track as [lat, lng] pairs, thinned to at most `max` points —
+    enough to draw its shape on a phone, nowhere near a usable trace of the
+    athlete's door. The token only reads its own athlete's activities. */
+export async function activityRoute(accessToken, id, max) {
+  const res = await fetch("https://intervals.icu/api/v1/activity/" + encodeURIComponent(id) + "/map", {
+    headers: { authorization: "Bearer " + accessToken },
+  });
+  if (!res.ok) {
+    const err = new Error("intervals-map-" + res.status);
+    err.status = res.status;
+    throw err;
+  }
+  const d = await res.json();
+  const all = (d.latlngs || []).filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  const step = Math.max(1, Math.ceil(all.length / max));
+  return all.filter((p, i) => i % step === 0).map((p) => [+p[0].toFixed(5), +p[1].toFixed(5)]);
+}
+
 /* The club's sessions onto the athlete's Intervals.icu calendar, which hands
    them on to whatever watch they linked there (Garmin, COROS, Suunto…).
    external_id is the upsert key, so sending the same four weeks again updates

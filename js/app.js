@@ -1306,7 +1306,7 @@ function kmDays(week) {
         {
           class: "loop-day",
           type: runs.length ? "button" : null,
-          onclick: runs.length ? () => openRuns(label, runs) : null,
+          onclick: runs.length ? () => openRuns(label, runs, week.source) : null,
         },
         el("span", { class: "grow" }, date.toLocaleDateString(locale(), { weekday: "short", timeZone: "UTC" })),
         el("span", { dir: "ltr" }, (d.distance_m / 1000).toFixed(1) + " km"),
@@ -1319,32 +1319,146 @@ function kmDays(week) {
 // Seconds per km, as the watch says it: "4:35 /km".
 const paceOf = (m, s) => (m > 0 && s > 0 ? fmtClock((s / m) * 1000) + " /km" : "—");
 
-/* A day's runs, opened from the card: what the week already carried, so
-   opening one costs no call. */
-function openRuns(label, runs) {
+/* A day's runs, opened from the card. The totals came with the week; the
+   route is asked for now — one call, and only for Intervals.icu, the one
+   service with a map to read. */
+function openRuns(label, runs, source) {
   const body = el("div", { class: "stack" }, el("h2", {}, label));
   for (const r of runs) {
+    const map = el("div", { class: "run-map", "aria-hidden": "true" });
     body.append(
       el(
         "div",
         { class: "card pad stack" },
-        r.name ? el("h3", {}, r.name) : null,
+        el("div", { class: "run-head" }, el("h3", { class: "grow" }, r.name || label), logoNode(30)),
         el(
           "div",
           { class: "run-stats" },
           runStat((r.distance_m / 1000).toFixed(2) + " km", t("aRunDist")),
           runStat(fmtClock(r.moving_s), t("aRunTime")),
           runStat(paceOf(r.distance_m, r.moving_s), t("aRunPace")),
-          r.hr ? runStat(r.hr + " bpm", t("aRunHr")) : null
-        )
+          r.hr ? runStat(r.hr + " bpm", t("aRunHr")) : null,
+          map
+        ),
+        el("button", { type: "button", class: "btn sm run-share", onclick: () => shareRun(r, label) }, t("aShare"))
       )
     );
+    if (source === "Intervals.icu" && r.id && !r.points) {
+      API.post("/api/intervals", { action: "route", id: r.id })
+        .then((d) => {
+          r.points = d.points || [];
+          drawRoute(map, r.points);
+        })
+        .catch(() => {});
+    } else drawRoute(map, r.points);
   }
   openSheet(label, body);
 }
 
 function runStat(value, label) {
   return el("div", {}, el("b", { class: "num", dir: "ltr" }, value), el("span", { class: "muted small" }, label));
+}
+
+/* Lat/lng into a w×h box, north up, kept to scale: a degree of longitude is
+   cos(latitude) of a degree of latitude, which in Riyadh is 0.88 — skip it
+   and every loop comes out a tenth too wide. */
+function fitRoute(pts, w, h, pad) {
+  const k = Math.cos((pts[0][0] * Math.PI) / 180);
+  const xy = pts.map((p) => [p[1] * k, -p[0]]);
+  const xs = xy.map((p) => p[0]);
+  const ys = xy.map((p) => p[1]);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const dx = Math.max(...xs) - x0 || 1e-9;
+  const dy = Math.max(...ys) - y0 || 1e-9;
+  const s = Math.min((w - 2 * pad) / dx, (h - 2 * pad) / dy);
+  const ox = (w - dx * s) / 2;
+  const oy = (h - dy * s) / 2;
+  return xy.map((p) => [ox + (p[0] - x0) * s, oy + (p[1] - y0) * s]);
+}
+
+function drawRoute(box, pts) {
+  if (!pts || pts.length < 2) return box.remove();
+  const d = fitRoute(pts, 200, 100, 6).map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+  box.innerHTML =
+    '<svg viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet"><path d="' + d +
+    '" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+/* The run as a story-sized PNG with nothing behind it — white on clear, to
+   lay over a photo the way Strava's sticker does — handed to the phone's own
+   share sheet, or downloaded where there is none. */
+async function shareRun(r, label) {
+  const blob = await runImage(r, label);
+  const file = new File([blob], "werun-run.png", { type: "image/png" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: "werun-run.png" });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+async function runImage(r, label) {
+  const W = 1080;
+  const H = 1920;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d");
+  const font = getComputedStyle(document.documentElement).getPropertyValue("--display").trim() || "sans-serif";
+  await document.fonts.ready;
+  // A soft shadow so white still reads over a bright sky.
+  g.shadowColor = "rgba(0,0,0,.35)";
+  g.shadowBlur = 18;
+  g.fillStyle = g.strokeStyle = "#fff";
+
+  // The club's own logo, whatever an admin uploaded — same origin, so the
+  // canvas stays exportable.
+  const logo = new Image();
+  logo.src = document.documentElement.getAttribute("data-logo") || "assets/logo.png";
+  try {
+    await logo.decode();
+    const lh = 150;
+    g.drawImage(logo, 80, 80, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
+  } catch (e) {
+    g.font = "600 110px " + font;
+    g.fillText("WE RUN", 80, 190);
+  }
+
+  if (r.points && r.points.length > 1) {
+    g.lineWidth = 14;
+    g.lineCap = g.lineJoin = "round";
+    g.beginPath();
+    fitRoute(r.points, 840, 760, 20).forEach((p, i) => (i ? g.lineTo : g.moveTo).call(g, 120 + p[0], 380 + p[1]));
+    g.stroke();
+  }
+
+  g.font = "500 54px " + font;
+  g.fillText((r.name || label).toUpperCase(), 100, 1280);
+  const stats = [
+    [(r.distance_m / 1000).toFixed(2) + " km", t("aRunDist")],
+    [fmtClock(r.moving_s), t("aRunTime")],
+    [paceOf(r.distance_m, r.moving_s), t("aRunPace")],
+  ];
+  if (r.hr) stats.push([r.hr + " bpm", t("aRunHr")]);
+  stats.forEach(([value, name], i) => {
+    const x = 100 + (i % 2) * 480;
+    const y = 1440 + Math.floor(i / 2) * 230;
+    g.font = "600 120px " + font;
+    g.fillText(value, x, y);
+    g.font = "400 44px " + font;
+    g.fillText(name, x, y + 64);
+  });
+  return new Promise((ok) => c.toBlob(ok, "image/png"));
 }
 
 // The week's daily split as a ring, conic-gradient rather than drawn SVG —
@@ -1695,7 +1809,7 @@ function goalCard(done, user, miles) {
       );
     }
     if (m) {
-      week = Object.assign({}, m.week, { total_m: m.week.total_m || 0 });
+      week = Object.assign({}, m.week, { total_m: m.week.total_m || 0, source: m.source });
       if (m.source === "Intervals.icu") source.append(el("span", { class: "iv-logo", title: m.source, html: IV_LOGO }));
       else source.prepend(m.source);
       inner.style.background = kmRing(week);

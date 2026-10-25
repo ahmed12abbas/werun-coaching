@@ -16,7 +16,7 @@ import { json, readBody } from "../lib/http.js";
 import { tooOften } from "../lib/limit.js";
 import { withMember, nowISO, currentUser } from "../lib/auth.js";
 import { hex } from "../lib/crypto.js";
-import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, putEvents, dropEvents } from "../lib/intervals.js";
+import { intervalsReady, authorizeUrl, exchangeCode, freshToken, activitiesSince, activityRoute, putEvents, dropEvents } from "../lib/intervals.js";
 import { weekStartEpoch, weekSummary } from "../lib/week.js";
 import { hasColumn } from "../lib/columns.js";
 
@@ -41,6 +41,7 @@ export async function intervals(request, env) {
     if (action === "disconnect") return disconnect(e, user);
     if (action === "home") return home(e, user);
     if (action === "sync") return sync(e, user, body);
+    if (action === "route") return route(e, user, body);
     return json({ error: "bad-request" }, 400);
   })(request, env);
 }
@@ -87,6 +88,31 @@ async function home(env, user) {
       return json({ connected: false });
     }
     return json({ connected: true, week: null });
+  }
+}
+
+/* One run's route, read when the athlete taps its day on Home rather than
+   with the week, which would be a call per run on every Home load. */
+const ACT_ID = /^i?\d{1,15}$/;
+const ROUTE_MAX = 400;
+async function route(env, user, body) {
+  const id = String(body.id || "");
+  if (!ACT_ID.test(id)) return json({ error: "bad-request" }, 400);
+  let link;
+  try {
+    link = await env.DB.prepare("SELECT * FROM intervals_links WHERE user_id = ?").bind(user.id).first();
+  } catch (err) {
+    link = null;
+  }
+  if (!link) return json({ error: "intervals-not-linked" }, 409);
+  const fresh = await freshToken(env, link);
+  if (fresh.access_token !== link.access_token) await saveTokens(env, user.id, fresh);
+  try {
+    return json({ points: await activityRoute(fresh.access_token, id, ROUTE_MAX) });
+  } catch (err) {
+    // No GPS (a treadmill run) is a 404 or an empty track: no map, not an error.
+    console.error("intervals: route failed (" + (err && err.message) + ")");
+    return json({ points: [] });
   }
 }
 
