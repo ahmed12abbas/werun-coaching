@@ -73,6 +73,9 @@ input:focus,select:focus{outline:2px solid var(--pink);outline-offset:1px}
 button.go{width:100%;margin-top:18px;font:inherit;font-weight:700;font-size:1.15em;padding:13px;border:0;border-radius:12px;
   background:var(--pink-deep);color:#fff;cursor:pointer}
 button.go:disabled{opacity:.6}
+a.go{display:block;box-sizing:border-box;width:100%;margin-top:14px;font-weight:700;font-size:1.1em;padding:13px;border-radius:12px;
+  background:var(--pink-deep);color:#fff;text-decoration:none}
+.promo{border-top:1px solid var(--line);margin-top:18px;padding-top:14px}
 .err{color:#c62828;margin:12px 0 0;font-weight:600}
 .done{text-align:center}
 .spots{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 12px}
@@ -111,7 +114,8 @@ button.go:disabled{opacity:.6}
     <div class="bar"><i id="spotsBar"></i></div>
   </div>
   <p class="preview" id="preview" data-t="preview" hidden>Preview: only admins see this form until registration is opened.</p>
-  <div class="card done" id="state" hidden><img class="big" src="assets/werun-pink.webp" alt=""><h2 id="stateT"></h2><p id="stateP"></p></div>
+  <div class="card done" id="state" hidden><img class="big" src="assets/werun-pink.webp" alt=""><h2 id="stateT"></h2><p id="stateP"></p>
+    <div class="promo" id="promo" hidden><p data-t="promoP"></p><a class="go" href="/app#/signup" data-t="promoGo"></a></div></div>
 
   <form class="card" id="form" novalidate hidden>
     <label for="name" data-t="name">Full name</label>
@@ -158,6 +162,6 @@ button.go:disabled{opacity:.6}
   <footer><nav class="socials" id="socials" aria-label="WE RUN on social"></nav></footer>
 </div>
 <script src="js/brand.js?v=8065255a"></script>
-<script src="js/pink-page.js?v=a0a6330d"></script>
+<script src="js/pink-page.js?v=0597962f"></script>
 </body>
 </html>

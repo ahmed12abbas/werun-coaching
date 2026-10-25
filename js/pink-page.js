@@ -32,7 +32,9 @@ var PINK = {
     preview: "Preview: only admins see this form until registration is opened.",
     soonT: "Registration opens soon", soonP: "Check back shortly, or follow @werun.sa on Instagram to hear the moment it opens.",
     fullT: "We're full", fullP: "Every place is taken. Thank you for the love! See you on the next run.",
-    closedT: "Registration has closed", closedP: "Thank you to everyone who came out in pink."
+    closedT: "Registration has closed", closedP: "Thank you to everyone who came out in pink.",
+    promoP: "Getting ready for Riyadh Marathon 2027? Join our weekly sessions with the WE RUN app.",
+    promoGo: "Join WE RUN"
   },
   ar: {
     title: "الجري / المشي الوردي",
@@ -63,7 +65,9 @@ var PINK = {
     preview: "معاينة: هذا النموذج يظهر للمشرفين فقط حتى يُفتح التسجيل.",
     soonT: "التسجيل يفتح قريباً", soonP: "عد بعد قليل، أو تابع ‎@werun.sa على إنستغرام لتعرف لحظة فتحه.",
     fullT: "اكتمل العدد", fullP: "تم حجز جميع الأماكن. شكراً لحبكم! نراكم في الجرية القادمة.",
-    closedT: "انتهى التسجيل", closedP: "شكراً لكل من شاركنا باللون الوردي."
+    closedT: "انتهى التسجيل", closedP: "شكراً لكل من شاركنا باللون الوردي.",
+    promoP: "تستعد لماراثون الرياض ٢٠٢٧؟ انضم لتمارين الأسبوع معنا عبر تطبيق WE RUN.",
+    promoGo: "انضم إلى WE RUN"
   }
 };
 
@@ -122,6 +126,7 @@ function paint() {
     document.getElementById("stateT").textContent = tr(why + "T");
     document.getElementById("stateP").textContent = tr(why + "P");
   }
+  document.getElementById("promo").hidden = why !== "full" && why !== "closed";
   document.getElementById("preview").hidden = !(s && s.preview) || registered;
 
   var spots = document.getElementById("spots");
