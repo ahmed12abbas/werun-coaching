@@ -23,11 +23,11 @@ const idFor = (kind, key) =>
   crypto.createHash("sha256").update("werun:" + kind + ":" + key).digest("hex").slice(0, 32);
 
 /* The key a slot is identified by, which is not the same as the time it
-   starts at. The mornings moved from 04:45 to 04:55 and Monday evening from
-   19:00 to 19:30, and the rows on the live database were minted under the old
-   times — so a retiming has to move the row that is already there rather than
+   starts at. The mornings moved from 04:45 to 04:55 (Monday evening went to
+   19:30 and back to 19:00), and the rows on the live database were minted
+   under the old times — so a retiming has to move the row that is already there rather than
    mint a second one beside it. Keyed on day@time where the time alone is shared. */
-const KEYED_AT = { "04:55": "04:45", "1@19:30": "19:00" };
+const KEYED_AT = { "04:55": "04:45" };
 const keyed = (d, at) => KEYED_AT[d + "@" + at] || KEYED_AT[at] || at;
 
 const q = (v) => (v === null || v === undefined ? "NULL" : "'" + String(v).replace(/'/g, "''") + "'");
@@ -41,7 +41,7 @@ const WEEK = [
   { d: 0, at: "04:55", en: "Community run — 45 min easy + strides", ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات",    pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 0, at: "19:30", en: "Easy run — 45 min + strides",           ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات",          pen: "Alwaha Park",            par: "حديقة الواحة" },
   { d: 1, at: "04:55", en: "Easy walk/run — 4 km",                  ar: "ركض/مشي خفيف — ٤ كم",                   pen: "Sports Boulevard",       par: "المسار الرياضي - حطين" },
-  { d: 1, at: "19:30", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
+  { d: 1, at: "19:00", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
   { d: 2, at: "04:55", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 2, at: "19:30", en: "Strength session",                      ar: "تقويات عدائين",                         pen: "Alfaisal University",    par: "جامعة الفيصل" },
   { d: 3, at: "04:55", en: "Trail run — 7 to 9 km",                 ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم",        pen: "Wadi Hanifa Road-Trail", par: "وادي حنيفة - تريل" },
