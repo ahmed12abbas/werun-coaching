@@ -156,22 +156,37 @@ function said(text) {
    so "people" is the number to plan for, not the count of entries. */
 var PINK_AGES = { "u18": "Under 18", "18-29": "18–29", "30-39": "30–39", "40-49": "40–49", "50+": "50+" };
 
+/* "3 min ago", "2 h ago", or the date: registrations come in bursts after a
+   post, and how fresh the last one is says more than its timestamp. */
+function pinkAgo(iso) {
+  var s = (Date.now() - Date.parse(iso)) / 1000;
+  if (!(s >= 0)) return "";
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  return stamp(iso);
+}
+
 function pinkCard() {
   // The heading stays put and only the body is redrawn: /admin turns a card's
   // heading into its open/close button once the page has drawn, and this card
   // fills in after that. Redrawing the heading took the button with it and
   // left the card shut for good.
   var body = el("div");
-  var card = el("div", { class: "card" },
+  var card = el("div", { class: "card pink-card" },
     el("div", { class: "tiphead" }, el("h2", {}, "Pink Run/Walk · 26 Oct")), body);
   var items = [];
+  // What the list is narrowed to. Kept across redraws, so removing someone
+  // does not throw away the filter the coach was working in.
+  var filter = "all"; // "all" | "first" | an age key
+  var query = "";
 
   function csv() {
     var q = function (v) { return "\"" + String(v == null ? "" : v).replace(/"/g, "\"\"") + "\""; };
     var rows = [["Name", "Phone", "Email", "Age group", "People", "First time", "Registered"]].concat(items.map(function (i) {
       return [i.n, "+" + i.p, i.e, PINK_AGES[i.a] || i.a, i.c, i.f ? "Yes" : "No", i.at];
     }));
-    var url = URL.createObjectURL(new Blob(["\ufeff" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n")], { type: "text/csv" }));
+    var url = URL.createObjectURL(new Blob(["﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n")], { type: "text/csv" }));
     var link = el("a", { href: url, download: "pink-run-walk.csv" });
     document.body.append(link);
     link.click();
@@ -185,14 +200,60 @@ function pinkCard() {
       .then(paint)["catch"](function (e) { body.append(el("p", { class: "err" }, e.message)); });
   }
 
+  function remove(i, btn) {
+    if (!window.confirm("Remove " + i.n + "? Their places go back on the page.")) return;
+    btn.disabled = true;
+    api("/api/admin/pink", { remove: i.p }).then(paint)["catch"](function (e) {
+      btn.disabled = false;
+      body.append(el("p", { class: "err" }, e.message));
+    });
+  }
+
+  function tile(n, label) {
+    return el("div", { class: "tile" }, el("div", { class: "n" }, String(n)), el("div", { class: "l" }, label));
+  }
+
+  /* One person: a line that opens. Closed, it is what a coach scans for at
+     the gate — name, how many with them, age group, new or not. Open, it is
+     how to reach them. */
+  function row(i) {
+    var drop = el("button", { class: "btn", type: "button", onclick: function () { remove(i, drop); } }, "Remove");
+    var wa = "https://wa.me/" + i.p;
+    return el("details", { class: "pink-row" },
+      el("summary", {},
+        el("span", { class: "who", dir: "auto" }, i.n),
+        i.c > 1 ? el("span", { class: "pink-plus" }, "+" + (i.c - 1)) : null,
+        el("span", { class: "sess-chip" }, PINK_AGES[i.a] || i.a),
+        i.f ? el("span", { class: "pink-new" }, "New") : null,
+        el("span", { class: "muted small pink-when" }, pinkAgo(i.at))),
+      el("div", { class: "pink-more" },
+        el("a", { href: "tel:+" + i.p }, "+" + i.p),
+        el("a", { href: wa, target: "_blank", rel: "noopener noreferrer" }, "WhatsApp"),
+        i.e ? el("a", { href: "mailto:" + i.e, dir: "ltr" }, i.e) : null,
+        el("span", { class: "muted small" }, (i.c === 1 ? "1 person" : i.c + " people") + " · " + stamp(i.at)),
+        drop));
+  }
+
+  function shown() {
+    var q = query.trim().toLowerCase();
+    var digits = q.replace(/\D/g, "");
+    return items.filter(function (i) {
+      if (filter === "first" && !i.f) return false;
+      if (filter !== "all" && filter !== "first" && i.a !== filter) return false;
+      if (!q) return true;
+      return String(i.n).toLowerCase().indexOf(q) >= 0 || String(i.e).toLowerCase().indexOf(q) >= 0 ||
+        (digits.length >= 3 && String(i.p).indexOf(digits) >= 0);
+    });
+  }
+
   function paint(data) {
     data = data || {};
     items = data.items || [];
     body.textContent = "";
+    var cap = Number(data.cap) || 0;
     var people = items.reduce(function (t, i) { return t + (Number(i.c) || 0); }, 0);
-    var firsts = items.reduce(function (t, i) { return t + (i.f ? 1 : 0); }, 0);
-    var byAge = {};
-    items.forEach(function (i) { byAge[i.a] = (byAge[i.a] || 0) + (Number(i.c) || 0); });
+    var firsts = items.filter(function (i) { return i.f; });
+    var left = Math.max(0, cap - people);
 
     // Shut until an admin has looked the page over; while shut, only an
     // admin logged in on this browser sees the form (with a preview banner).
@@ -202,49 +263,69 @@ function pinkCard() {
       if (open.checked && !window.confirm("Open registration to everyone with the link?")) { open.checked = false; return; }
       save({ pink_open: open.checked });
     });
-    var cap = el("input", { type: "number", min: "1", max: "5000", value: String(data.cap), style: "width:90px" });
-    cap.addEventListener("change", function () { save({ pink_cap: Number(cap.value) }); });
+    var capIn = el("input", { type: "number", min: "1", max: "5000", value: String(cap), style: "width:90px" });
+    capIn.addEventListener("change", function () { save({ pink_cap: Number(capIn.value) }); });
 
+    var pct = cap ? Math.min(100, Math.round((people / cap) * 100)) : 0;
     body.append(
-      el("label", { class: "tgl", style: "margin-top:10px" },
+      el("div", { class: "pink-head" },
+        el("div", { class: "pink-count" }, el("b", {}, String(people)), " / " + cap + " places"),
+        el("div", { class: "muted small" }, left ? left + " left · " + pct + "% full" : "Full")),
+      el("div", { class: "barwrap", style: "margin-top:8px" }, el("div", { class: "bar pink-bar", style: "width:" + pct + "%" })),
+      el("div", { class: "tiles", style: "margin-top:14px" },
+        tile(items.length, items.length === 1 ? "registration" : "registrations"),
+        tile(firsts.length, "new to the club"),
+        tile(left, "places left")),
+      el("label", { class: "tgl", style: "margin-top:14px" },
         el("span", {}, el("b", {}, "Registration open"),
           el("span", { class: "muted small" }, data.open
             ? "Live: anyone with the link can register."
             : "Shut: the page says it opens soon. You see the real form, marked preview.")),
         open),
       el("div", { class: "row", style: "margin-top:10px;align-items:center;gap:10px" },
-        el("label", { style: "margin:0" }, "Places (people, friends included)"), cap,
-        el("a", { href: "/pink", target: "_blank", rel: "noopener" }, "Preview the page \u2197")),
-      el("p", { style: "margin:12px 0 0;font-size:22px;font-weight:700" },
-        people + " of " + data.cap, el("span", { class: "muted small", style: "font-weight:400" },
-          " people from " + items.length + (items.length === 1 ? " registration" : " registrations") +
-          (items.length ? ", " + firsts + " of them new to the club" : ""))),
-      el("p", { class: "muted small", style: "margin:4px 0 0" },
-        Object.keys(PINK_AGES).filter(function (k) { return byAge[k]; })
-          .map(function (k) { return PINK_AGES[k] + ": " + byAge[k]; }).join(" \u00b7 ") ||
+        el("label", { style: "margin:0" }, "Places (people, friends included)"), capIn,
+        el("a", { href: "/pink", target: "_blank", rel: "noopener" }, "Preview the page ↗")));
+
+    if (!items.length) {
+      body.append(el("p", { class: "muted small", style: "margin:14px 0 0" },
         "Nobody yet. The form is at weruncoaching.pages.dev/pink"));
-    if (!items.length) return;
-    var b = el("button", { class: "btn", onclick: csv }, "Download (.csv)");
-    body.append(el("div", { class: "row", style: "margin-top:12px" }, el("div", { style: "flex:0 0 auto" }, b)));
-    items.forEach(function (i) {
-      var drop = el("button", {
-        class: "drop", title: "Delete", "aria-label": "Delete this registration",
-        onclick: function () {
-          if (!window.confirm("Remove " + i.n + "?")) return;
-          drop.disabled = true;
-          api("/api/admin/pink", { remove: i.p }).then(paint)["catch"](function (e) {
-            drop.disabled = false;
-            body.append(el("p", { class: "err" }, e.message));
-          });
-        }
-      }, "\u2715");
-      body.append(el("div", { class: "note" },
-        el("div", { class: "notehead" },
-          el("span", { class: "who", dir: "auto" }, i.n + (i.c > 1 ? " +" + (i.c - 1) : "")),
-          el("span", { class: "muted small" },
-            ["+" + i.p, i.e, PINK_AGES[i.a] || i.a, i.f ? "first time" : "", stamp(i.at)].filter(Boolean).join(" \u00b7 ")),
-          drop)));
+      return;
+    }
+
+    // The filters, each with how many rows it will show — the same unit as
+    // the list under it. One at a time; tapping the one that is on goes back
+    // to everyone.
+    var list = el("div", { class: "pink-list" });
+    var counter = el("span", { class: "muted small" });
+    var chips = el("div", { class: "pink-chips" });
+    var rowsByAge = {};
+    items.forEach(function (i) { rowsByAge[i.a] = (rowsByAge[i.a] || 0) + 1; });
+    var opts = [["all", "Everyone", items.length], ["first", "New to the club", firsts.length]];
+    Object.keys(PINK_AGES).forEach(function (k) { if (rowsByAge[k]) opts.push([k, PINK_AGES[k], rowsByAge[k]]); });
+    opts.forEach(function (o) {
+      chips.append(el("button", {
+        type: "button", class: "pink-chip" + (filter === o[0] ? " on" : ""), "aria-pressed": filter === o[0] ? "true" : "false",
+        onclick: function () { filter = filter === o[0] && o[0] !== "all" ? "all" : o[0]; paint(data); }
+      }, o[1] + " ", el("b", {}, String(o[2]))));
     });
+
+    var search = el("input", { type: "search", placeholder: "Search a name, phone or email", value: query });
+    search.addEventListener("input", function () { query = search.value; fill(); });
+
+    function fill() {
+      var rows = shown();
+      list.textContent = "";
+      rows.forEach(function (i) { list.append(row(i)); });
+      if (!rows.length) list.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, "Nobody matches."));
+      counter.textContent = rows.length === items.length ? "" : "Showing " + rows.length + " of " + items.length;
+    }
+
+    body.append(chips,
+      el("div", { class: "row", style: "margin-top:10px;align-items:center;gap:10px" },
+        el("div", { style: "flex:1 1 220px" }, search),
+        el("div", { style: "flex:0 0 auto" }, el("button", { class: "btn", type: "button", onclick: csv }, "Download (.csv)"))),
+      counter, list);
+    fill();
   }
 
   body.append(el("p", { class: "muted small" }, "Loading…"));

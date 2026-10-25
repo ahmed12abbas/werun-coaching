@@ -594,3 +594,33 @@ body.admin .th-sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--fg)}
 body.admin .th-pick{width:40px;height:34px;padding:0;border:0;background:none;cursor:pointer}
 body.admin .th-preview{display:inline-block;padding:9px 18px;border-radius:12px;color:#fff;font-weight:700;font-size:14px;margin-inline-end:10px}
 @media (prefers-reduced-motion:reduce){body.admin .tgl input,body.admin .tgl input::before{transition:none}}
+
+/* ---- the Pink Run/Walk card (js/admin-page.js pinkCard) ----
+   Pink rather than --brand: it is this one event's colour, not the club's. */
+.pink-card{--pink:#D9568F;--pink-soft:#FCE1EE}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pink-card{--pink:#F28AB8;--pink-soft:#3B1D2C}}
+:root[data-theme="dark"] .pink-card{--pink:#F28AB8;--pink-soft:#3B1D2C}
+.pink-card .tile{background:var(--pink-soft)}
+.pink-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px}
+.pink-count{font-size:15px}
+.pink-count b{font-family:var(--display);font-size:44px;line-height:1;color:var(--pink)}
+.pink-bar{background:var(--pink);height:10px;transition:width .5s ease}
+.pink-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.pink-chip{font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);color:var(--fg);cursor:pointer}
+.pink-chip b{margin-inline-start:2px}
+.pink-chip.on{background:var(--pink);border-color:var(--pink);color:#fff}
+.pink-list{margin-top:8px}
+.pink-row{border:1px solid var(--line);border-radius:12px;margin-top:8px}
+.pink-row[open]{border-color:var(--pink)}
+.pink-row summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;cursor:pointer;list-style:none}
+.pink-row summary::-webkit-details-marker{display:none}
+.pink-row summary .who{font-weight:700}
+.pink-row .sess-chip{margin:0}
+.pink-plus{font-size:12px;font-weight:700;color:var(--pink)}
+.pink-new{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--pink);
+  border-radius:999px;padding:2px 8px}
+.pink-when{margin-inline-start:auto}
+.pink-more{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:0 14px 12px}
+.pink-more .btn{margin-inline-start:auto;padding:6px 12px;font-size:13px}
+@media (prefers-reduced-motion:reduce){.pink-bar{transition:none}}
