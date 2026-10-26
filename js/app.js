@@ -1488,7 +1488,7 @@ function drawRoute(box, pts) {
     '" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
-/* The run as a 4:5 PNG with nothing behind it — one ink on clear, to lay
+/* The run as a 16:9 PNG with nothing behind it — one ink on clear, to lay
    over a photo the way Strava's sticker does — handed to the phone's own
    share sheet, or downloaded where there is none. */
 const RUN_INKS = [
@@ -1517,8 +1517,8 @@ async function shareRun(r, label) {
 }
 
 async function runImage(r, label) {
-  const W = 1080;
-  const H = 1350;
+  const W = 1920;
+  const H = 1080;
   const ink = runInk;
   const c = document.createElement("canvas");
   c.width = W;
@@ -1538,7 +1538,7 @@ async function runImage(r, label) {
     g.lineWidth = 14;
     g.lineCap = g.lineJoin = "round";
     g.beginPath();
-    fitRoute(r.points, 840, 640, 20).forEach((p, i) => (i ? g.lineTo : g.moveTo).call(g, 120 + p[0], 60 + p[1]));
+    fitRoute(r.points, 840, 880, 20).forEach((p, i) => (i ? g.lineTo : g.moveTo).call(g, 1000 + p[0], 100 + p[1]));
     g.stroke();
   }
 
@@ -1550,15 +1550,15 @@ async function runImage(r, label) {
   // that waits on Nike's approval.
   try {
     await logo.decode();
-    const lh = 110;
-    g.drawImage(logo, 90, 760, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
+    const lh = 150;
+    g.drawImage(logo, 90, 200, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
   } catch (e) {
-    g.font = "600 90px " + font;
-    g.fillText("WE RUN", 100, 850);
+    g.font = "600 110px " + font;
+    g.fillText("WE RUN", 100, 330);
   }
 
-  g.font = "500 54px " + font;
-  g.fillText((r.name || label).toUpperCase(), 100, 940);
+  g.font = "500 60px " + font;
+  g.fillText((r.name || label).toUpperCase(), 100, 440);
   const stats = [
     [(r.distance_m / 1000).toFixed(2) + " km", t("aRunDist")],
     [fmtClock(r.moving_s), t("aRunTime")],
@@ -1566,12 +1566,12 @@ async function runImage(r, label) {
   ];
   if (r.hr) stats.push([r.hr + " bpm", t("aRunHr")]);
   stats.forEach(([value, name], i) => {
-    const x = 100 + (i % 2) * 480;
-    const y = 1060 + Math.floor(i / 2) * 180;
-    g.font = "600 104px " + font;
+    const x = 100 + (i % 2) * 440;
+    const y = 610 + Math.floor(i / 2) * 240;
+    g.font = "600 120px " + font;
     g.fillText(value, x, y);
-    g.font = "400 40px " + font;
-    g.fillText(name, x, y + 56);
+    g.font = "400 44px " + font;
+    g.fillText(name, x, y + 64);
   });
   return new Promise((ok) => c.toBlob(ok, "image/png"));
 }
