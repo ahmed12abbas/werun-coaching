@@ -793,7 +793,10 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .run-map{grid-column:span 2;min-height:70px}
 .run-map:empty{display:none}
 .run-map svg{width:100%;height:100%;max-height:110px;display:block}
-.run-share{align-self:flex-start;background:transparent}
+.run-share{background:transparent}
+.run-share-row{display:flex;align-items:center;gap:10px}
+.run-ink{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);padding:0;cursor:pointer}
+.run-ink[aria-pressed="true"]{outline:2px solid var(--brand);outline-offset:2px}
 .loop-src{display:inline-flex;align-items:center;gap:8px}
 .iv-logo{display:inline-flex;width:24px;height:24px;flex:none}
 .iv-logo svg{width:100%;height:100%}

@@ -1409,7 +1409,24 @@ function openRuns(label, runs, source) {
           r.hr ? runStat(r.hr + " bpm", t("aRunHr")) : null,
           map
         ),
-        el("button", { type: "button", class: "btn sm run-share", onclick: () => shareRun(r, label) }, t("aShare"))
+        el(
+          "div",
+          { class: "run-share-row" },
+          ...RUN_INKS.map(([ink, key]) =>
+            el("button", {
+              type: "button",
+              class: "run-ink",
+              style: "background:" + ink,
+              "aria-label": t(key),
+              "aria-pressed": String(ink === runInk),
+              onclick: (e) => {
+                runInk = ink;
+                for (const b of e.currentTarget.parentNode.querySelectorAll(".run-ink")) b.setAttribute("aria-pressed", String(b === e.currentTarget));
+              },
+            })
+          ),
+          el("button", { type: "button", class: "btn sm run-share", onclick: () => shareRun(r, label) }, t("aShare"))
+        )
       )
     );
     if (source === "Intervals.icu" && r.id && !r.points) {
@@ -1471,9 +1488,15 @@ function drawRoute(box, pts) {
     '" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
-/* The run as a story-sized PNG with nothing behind it — white on clear, to
-   lay over a photo the way Strava's sticker does — handed to the phone's own
+/* The run as a 4:5 PNG with nothing behind it — one ink on clear, to lay
+   over a photo the way Strava's sticker does — handed to the phone's own
    share sheet, or downloaded where there is none. */
+const RUN_INKS = [
+  ["#ffffff", "aInkWhite"],
+  ["#000000", "aInkBlack"],
+  ["#8851F4", "aInkPurple"],
+];
+let runInk = RUN_INKS[0][0];
 async function shareRun(r, label) {
   const blob = await runImage(r, label);
   const file = new File([blob], "werun-run.png", { type: "image/png" });
@@ -1495,43 +1518,47 @@ async function shareRun(r, label) {
 
 async function runImage(r, label) {
   const W = 1080;
-  const H = 1920;
+  const H = 1350;
+  const ink = runInk;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
   const g = c.getContext("2d");
   const font = getComputedStyle(document.documentElement).getPropertyValue("--display").trim() || "sans-serif";
   await document.fonts.ready;
-  // A soft shadow so white still reads over a bright sky.
-  g.shadowColor = "rgba(0,0,0,.35)";
-  g.shadowBlur = 18;
-  g.fillStyle = g.strokeStyle = "#fff";
+  // A soft shadow so white still reads over a bright sky; the darker inks
+  // need none.
+  if (ink === "#ffffff") {
+    g.shadowColor = "rgba(0,0,0,.35)";
+    g.shadowBlur = 18;
+  }
+  g.fillStyle = g.strokeStyle = ink;
+
+  if (r.points && r.points.length > 1) {
+    g.lineWidth = 14;
+    g.lineCap = g.lineJoin = "round";
+    g.beginPath();
+    fitRoute(r.points, 840, 640, 20).forEach((p, i) => (i ? g.lineTo : g.moveTo).call(g, 120 + p[0], 60 + p[1]));
+    g.stroke();
+  }
 
   // The club's own logo, whatever an admin uploaded — same origin, so the
-  // canvas stays exportable.
+  // canvas stays exportable. Drawn in its own colours whatever the ink.
   const logo = new Image();
   logo.src = document.documentElement.getAttribute("data-logo") || "assets/logo.png";
   // No swoosh here, unlike the sheet: a shared image leaves the app, and
   // that waits on Nike's approval.
   try {
     await logo.decode();
-    const lh = 150;
-    g.drawImage(logo, 80, 80, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
+    const lh = 110;
+    g.drawImage(logo, 90, 760, (logo.naturalWidth / logo.naturalHeight) * lh, lh);
   } catch (e) {
-    g.font = "600 110px " + font;
-    g.fillText("WE RUN", 80, 190);
-  }
-
-  if (r.points && r.points.length > 1) {
-    g.lineWidth = 14;
-    g.lineCap = g.lineJoin = "round";
-    g.beginPath();
-    fitRoute(r.points, 840, 760, 20).forEach((p, i) => (i ? g.lineTo : g.moveTo).call(g, 120 + p[0], 380 + p[1]));
-    g.stroke();
+    g.font = "600 90px " + font;
+    g.fillText("WE RUN", 100, 850);
   }
 
   g.font = "500 54px " + font;
-  g.fillText((r.name || label).toUpperCase(), 100, 1280);
+  g.fillText((r.name || label).toUpperCase(), 100, 940);
   const stats = [
     [(r.distance_m / 1000).toFixed(2) + " km", t("aRunDist")],
     [fmtClock(r.moving_s), t("aRunTime")],
@@ -1540,11 +1567,11 @@ async function runImage(r, label) {
   if (r.hr) stats.push([r.hr + " bpm", t("aRunHr")]);
   stats.forEach(([value, name], i) => {
     const x = 100 + (i % 2) * 480;
-    const y = 1440 + Math.floor(i / 2) * 230;
-    g.font = "600 120px " + font;
+    const y = 1060 + Math.floor(i / 2) * 180;
+    g.font = "600 104px " + font;
     g.fillText(value, x, y);
-    g.font = "400 44px " + font;
-    g.fillText(name, x, y + 64);
+    g.font = "400 40px " + font;
+    g.fillText(name, x, y + 56);
   });
   return new Promise((ok) => c.toBlob(ok, "image/png"));
 }
