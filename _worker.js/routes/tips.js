@@ -14,6 +14,8 @@ import { safeEqual, guessingTooOften } from "../lib/crypto.js";
 import { currentUser, isCoach, isAdmin } from "../lib/auth.js";
 import { TIPS_KEY, readTips } from "../lib/kv.js";
 import { storePhoto, servePhoto } from "../lib/photos.js";
+import { reactionsFor } from "./reactions.js";
+import { commentCounts } from "./comments.js";
 
 /* Bounds on what the editor may store. Generous for a coach writing a few
    paragraphs, small enough that one KV value cannot grow into the value size
@@ -98,19 +100,31 @@ export async function tips(request, env) {
   if (!env.STATS) return json({ article: null });
 
   const doc = await readTips(env.STATS);
-  const live = doc.articles.find((a) => a && a.id === doc.liveId) || null;
+  // ?id= is a shared news link opened by someone not logged in: that one
+  // article, if it is on the feed or live — the same rule targetExists() keeps
+  // — so a draft is still unreadable however its id was come by.
+  const id = new URL(request.url).searchParams.get("id");
+  const live = id
+    ? doc.articles.find((a) => a && a.id === id && (a.feed || a.id === doc.liveId))
+    : doc.articles.find((a) => a && a.id === doc.liveId);
   if (!live) return json({ article: null });
 
-  return json({
-    article: {
-      id: live.id,
-      created: live.created || live.updated,
-      updated: live.updated,
-      en: live.en,
-      ar: live.ar,
-      photo: live.photo || "",
-    },
-  });
+  const article = {
+    id: live.id,
+    created: live.created || live.updated,
+    updated: live.updated,
+    en: live.en,
+    ar: live.ar,
+    photo: live.photo || "",
+  };
+  if (!id) return json({ article: article });
+
+  // How many liked and said something, for the post's foot. Counts only:
+  // who reacted, and what they wrote, stay behind the login.
+  const target = "tip:" + live.id;
+  const [faces, said] = await Promise.all([reactionsFor(env, { id: "" }, [target]), commentCounts(env, [target])]);
+  const likes = Object.values(faces.counts[target] || {}).reduce((a, b) => a + b, 0);
+  return json({ article: article, likes: likes, comments: said[target] || 0 });
 }
 
 /* ---------- POST /api/tips-admin ----------------------------------------- */

@@ -185,6 +185,8 @@ function goHomeFresh() {
 /* Where a route sends somebody instead of drawing, or null to draw it. */
 function redirectFor(r, user) {
   if (!user) {
+    // A shared article is read as it is (sharedTip); the login is at its foot.
+    if (r.name === "feed" && /^tip:/.test(r.args[0] || "")) return null;
     // A code scanned or a post shared to a stranger: keep it, then ask who they are.
     if (r.name === "c" || (r.name === "feed" && r.args.length)) {
       stashCheckin(r);
@@ -3447,7 +3449,8 @@ SCREENS.order = function (args) {
    written in two languages; an athlete reads whichever theirs is, falling
    back to the other rather than to nothing — a notice in Arabic only is
    still a notice, and hiding it from an English reader helps nobody. */
-SCREENS.feed = function (args) {
+SCREENS.feed = function (args, user) {
+  if (!user) return sharedTip(args[0].slice(4));
   const list = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
 
   API.get("/api/feed")
@@ -3667,6 +3670,7 @@ function react(target, face, draw) {
 /* ---------- comments and sharing ------------------------------------------ */
 
 const FEED_ICON = {
+  heart: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.4-9.3C1.2 8.2 3.4 4.5 7 4.5c2.1 0 3.6 1.2 5 3 1.4-1.8 2.9-3 5-3 3.6 0 5.8 3.7 4.4 7.2C19.5 16.4 12 21 12 21z"/></svg>',
   talk: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
   share: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
 };
@@ -3777,6 +3781,64 @@ function tipCard(tip) {
     )
     )
   );
+}
+
+/* A tip shared to somebody not logged in. The article in full — it is what
+   they tapped for — laid out like the club's Instagram posts its followers
+   already know: the club up top, the photo, the counts, the words. Liking,
+   comments and the rest of the news are a login away, and the route is kept
+   so the login comes straight back to this card in the real feed. */
+function sharedTip(id) {
+  const box = el("div", { class: "stack rise" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
+  const target = "tip:" + id;
+  const toLogin = (to) => () => {
+    stashCheckin(parseRoute());
+    go(to || "login");
+  };
+
+  API.get("/api/tips?id=" + encodeURIComponent(id))
+    .then((d) => {
+      box.textContent = "";
+      const tip = d.article;
+      const s = tip ? tipInLang(tip) : {};
+      if (!s.title && !s.body) {
+        box.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aSharedGone"))), joinCard(toLogin));
+        return;
+      }
+      document.title = s.title || "WE RUN Club";
+      box.append(
+        el("article", { class: "card ig", dir: "auto" },
+          el("header", { class: "ig-head" },
+            el("img", { class: "ig-av", src: document.documentElement.getAttribute("data-logo") || "assets/logo.png", alt: "" }),
+            el("div", { class: "ig-who" }, el("b", {}, "WE RUN"), el("span", { class: "cloud-kicker" }, t("aCoachTip")))),
+          tip.photo ? el("img", { class: "ig-photo", src: tip.photo, alt: "" }) : null,
+          el("div", { class: "ig-acts" },
+            el("button", { class: "ig-act", type: "button", "aria-label": "💜", onclick: toLogin(), html: FEED_ICON.heart }),
+            el("button", { class: "ig-act", type: "button", "aria-label": t("aComments"), onclick: toLogin(), html: FEED_ICON.talk }),
+            el("button", { class: "ig-act", type: "button", "aria-label": t("aShare"), onclick: () => sharePost(target, { title: s.title }), html: FEED_ICON.share })),
+          el("div", { class: "ig-text stack" },
+            d.likes ? el("b", {}, t("aSharedLikes", { n: d.likes })) : null,
+            s.title ? el("h2", {}, s.title) : null,
+            el("div", { class: "post-body" }, written(s.body)),
+            el("div", {}, el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))),
+            d.comments ? el("button", { class: "linkish muted ig-more", type: "button", onclick: toLogin() }, t("aSharedComments", { n: d.comments })) : null,
+            el("div", {}, published(tip.created || tip.updated)))),
+        joinCard(toLogin)
+      );
+    })
+    .catch((e) => {
+      box.textContent = "";
+      box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
+    });
+  return box;
+}
+
+function joinCard(toLogin) {
+  return el("div", { class: "card pad stack" },
+    el("p", {}, t("aSharedJoin")),
+    el("div", { class: "row-wrap" },
+      el("button", { class: "btn primary grow", type: "button", onclick: toLogin("login") }, t("aLogin")),
+      el("button", { class: "btn grow", type: "button", onclick: toLogin("signup") }, t("aSignup"))));
 }
 
 /* ---------- points -------------------------------------------------------- */

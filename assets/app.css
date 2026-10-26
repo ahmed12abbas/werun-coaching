@@ -281,6 +281,20 @@ a.announce.link{display:block;text-decoration:none}
 .post-body.folded{max-height:7.4em;overflow:hidden;
   -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
 .read-more{margin-top:6px}
+/* A shared tip, opened logged out: an Instagram post's shape. */
+.ig{padding:0;overflow:hidden}
+.ig-head{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.ig-av{width:38px;height:38px;border-radius:50%;object-fit:contain;background:#fff;
+  box-shadow:0 0 0 2px var(--brand);flex:none}
+.ig-who{display:flex;flex-direction:column;line-height:1.25}
+.ig-photo{display:block;width:100%;height:auto;max-height:80vh;object-fit:cover}
+.ig-acts{display:flex;gap:4px;padding:8px 8px 0}
+.ig-act{border:0;background:transparent;color:var(--fg);padding:6px;border-radius:50%;cursor:pointer;display:inline-flex}
+.ig-act svg{width:24px;height:24px}
+.ig-act:hover{background:var(--bg)}
+.ig-text{padding:4px 14px 16px;gap:8px}
+.ig-text h2{margin:0}
+.ig-more{align-self:flex-start;padding:0}
 .post .tag{padding:2px 9px 0}
 .post-body{font-size:14.5px;line-height:1.6}
 .post-body p{margin:0 0 10px}
