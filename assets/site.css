@@ -63,6 +63,9 @@ h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppe
 
 /* ---- brand ---- */
 .brand{display:flex;align-items:center;gap:11px;margin-bottom:20px}
+/* The logo lockup does not turn round in Arabic: WE RUN, then COACHING, on the
+   left, as the club prints it. The logged-in bar mirrors on purpose (app.css). */
+.brand:not(.appbar){direction:ltr}
 .brand-logo{height:42px;width:auto;display:block;flex:none}
 .brand-fallback{
   font-family:"Teko",var(--display);font-weight:700;font-size:23px;line-height:.82;
