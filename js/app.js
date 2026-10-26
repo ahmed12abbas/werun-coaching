@@ -3834,7 +3834,9 @@ function sharedTip(id) {
       }
       document.title = s.title || "WE RUN Club";
       box.append(
-        el("article", { class: "card ig", dir: "auto" },
+        // dir only on the article's own words: on the whole card the Latin
+        // "WE RUN" in the header came first and turned Arabic text left to right.
+        el("article", { class: "card ig" },
           el("header", { class: "ig-head" },
             el("img", { class: "ig-av", src: document.documentElement.getAttribute("data-logo") || "assets/logo.png", alt: "" }),
             el("div", { class: "ig-who" }, el("b", {}, "WE RUN"), el("span", { class: "cloud-kicker" }, t("aCoachTip")))),
@@ -3845,8 +3847,8 @@ function sharedTip(id) {
             el("button", { class: "ig-act", type: "button", "aria-label": t("aShare"), onclick: () => sharePost(target, { title: s.title }), html: FEED_ICON.share })),
           el("div", { class: "ig-text stack" },
             d.likes ? el("b", {}, t("aSharedLikes", { n: d.likes })) : null,
-            s.title ? el("h2", {}, s.title) : null,
-            el("div", { class: "post-body" }, written(s.body)),
+            s.title ? el("h2", { dir: "auto" }, s.title) : null,
+            el("div", { class: "post-body", dir: "auto" }, written(s.body)),
             el("div", {}, el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))),
             d.comments ? el("button", { class: "linkish muted ig-more", type: "button", onclick: toLogin() }, t("aSharedComments", { n: d.comments })) : null,
             el("div", {}, published(tip.created || tip.updated)))),
