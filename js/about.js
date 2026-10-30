@@ -133,12 +133,14 @@ var ABOUT_DEFAULT = { sections: [
     ] },
 
   { type: "events", show: true,
-    title: aboutPair("Coming up", "فعاليات قادمة"),
+    title: aboutPair("Our events", "فعالياتنا"),
     items: [
-      { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, href: "https://www.kaminsports.sa/events/we-run-race-2026", glow_until: "2026-10-10", title: aboutPair("10K Race", "سباق ١٠ كم"),
-        text: aboutPair("Wadi Hanifah, Riyadh · 1,500 runners, kids' race included", "وادي حنيفة، الرياض · ١٥٠٠ عدّاء، ويشمل سباقاً للأطفال") },
-      { day: "24", month: aboutPair("Oct", "أكتوبر"), pink: true, title: aboutPair("She Runs", "She Runs"),
-        text: aboutPair("MISK City, Riyadh · 400 runners, women only", "مدينة مسك، الرياض · ٤٠٠ عدّاءة، للنساء فقط") }
+      { day: "20", month: aboutPair("Jun", "يونيو"), pink: false, image: "assets/about/event-j25k.webp", href: "https://www.kaminsports.sa/events/werun-j25k-2026", title: aboutPair("J25K 2026", "J25K 2026"),
+        text: aboutPair("Alfaisal University, Riyadh · 5K", "جامعة الفيصل، الرياض · ٥ كم") },
+      { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, image: "assets/about/event-race2026.webp", href: "https://www.kaminsports.sa/events/we-run-race-2026", title: aboutPair("WE RUN Race 2026", "سباق WE RUN 2026"),
+        text: aboutPair("Wadi Hanifah, Riyadh · 1,100 runners, kids' race included", "وادي حنيفة، الرياض · ١١٠٠ عدّاء، ويشمل سباقاً للأطفال") },
+      { day: "26", month: aboutPair("Oct", "أكتوبر"), pink: true, image: "assets/about/event-pink.webp", href: "https://www.instagram.com/werun.sa/p/DfCT4QnDYJp/", title: aboutPair("Pink Run/Walk", "Pink Run/Walk"),
+        text: aboutPair("In participation with Sports Boulevard. Riyadh", "بالتعاون مع المسار الرياضي، الرياض") }
     ] },
 
   // Cropped from the deck's partner slide on its own purple, which is why
@@ -338,14 +340,17 @@ var aboutRender = (function () {
           var base = ABOUT_DEFAULT.sections.filter(function (x) { return x.type === "events"; })[0].items
             .filter(function (d) { return d.day === it.day && tx(d.title, "en") === tx(it.title, "en"); })[0] || {};
           it = { day: it.day, month: it.month, pink: it.pink, title: it.title, text: it.text,
-            href: it.href || base.href, glow_until: it.glow_until || base.glow_until };
+            href: it.href || base.href, glow_until: it.glow_until || base.glow_until, image: it.image || base.image };
           var href = String(it.href || ""), linked = LINK.test(href);
           // glow_until is a Riyadh calendar day (UTC+3, no DST), lit through its last minute.
           var glow = /^\d{4}-\d\d-\d\d$/.test(it.glow_until || "") &&
             new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10) <= it.glow_until;
+          // A logo takes the date tile's place, and the date moves over the title.
+          var logo = img(it.image, false, tx(it.title, L));
           var box = h(linked ? "a" : "div", "event" + (it.pink ? " pink" : "") + (glow ? " glow" : ""),
-            h("div", "date", h("b", "", tx(it.day, L)), opt("span", "", tx(it.month, L))),
-            h("div", "", opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L))));
+            logo ? h("div", "evlogo", logo) : h("div", "date", h("b", "", tx(it.day, L)), opt("span", "", tx(it.month, L))),
+            h("div", "", logo ? opt("span", "when", tx(it.day, L) + " " + tx(it.month, L)) : null,
+              opt("h3", "", tx(it.title, L)), opt("p", "", tx(it.text, L))));
           if (linked) {
             box.href = href;
             if (href.indexOf("https:") === 0) { box.target = "_blank"; box.rel = "noopener noreferrer"; }

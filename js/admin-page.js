@@ -1402,7 +1402,7 @@ function feedCard() {
    here on its own. */
 var ABOUT_NAMES = {
   hero: "Top banner", about: "About us", stats: "Numbers", social: "Social media", goals: "Goals",
-  sessions: "Weekly sessions", gallery: "Photo gallery", events: "Coming up", partners: "Partner logos", text: "Text block", cta: "Closing banner"
+  sessions: "Weekly sessions", gallery: "Photo gallery", events: "Our events", partners: "Partner logos", text: "Text block", cta: "Closing banner"
 };
 var ABOUT_LABELS = {
   men_pct: "Men, % of followers (0 if not known)",
