@@ -603,7 +603,7 @@ Members and in the CSV export, with the age worked out.
 
 ### The standing week
 
-The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 04:55
+The club runs ten sessions a week, Sunday to Thursday plus Saturday, at 05:20
 and 19:30. Friday is the rest day.
 
 Every one of them opens. A slot with a workout published against it opens the

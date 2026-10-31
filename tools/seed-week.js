@@ -31,10 +31,10 @@ const SPEED =
    time so a re-run updates rather than duplicates. Anything not listed keeps
    whatever it already says. */
 const STANDING = [
-  { weekday: 0, at: "04:55", title_en: "Community run — 45 min easy + strides", title_ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات" },
+  { weekday: 0, at: "05:20", title_en: "Community run — 45 min easy + strides", title_ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات" },
   { weekday: 0, at: "19:30", title_en: "Easy run — 45 min + strides",           title_ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات" },
-  { weekday: 1, at: "04:55", title_en: "Easy walk/run — 4 km",                  title_ar: "ركض/مشي خفيف — ٤ كم" },
-  { weekday: 3, at: "04:55", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم" },
+  { weekday: 1, at: "05:20", title_en: "Easy walk/run — 4 km",                  title_ar: "ركض/مشي خفيف — ٤ كم" },
+  { weekday: 3, at: "05:20", title_en: "Trail run — 7 to 9 km",                 title_ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم" },
   { weekday: 3, at: "19:30", title_en: "Easy run — 50 min + strides",           title_ar: "ركضة خفيفة — ٥٠ دقيقة + فتحات" },
 ];
 
@@ -128,12 +128,12 @@ async function call(path, payload) {
   // session this week — all three published, so all three open the workout
   // itself rather than a line of plan.
   await publish(1, "19:30", "Speed session | WeRUN", SPEED);
-  await publish(2, "04:55", "Speed session | WeRUN", SPEED);
-  await publish(4, "04:55", "Speed session | WeRUN", SPEED);
+  await publish(2, "05:20", "Speed session | WeRUN", SPEED);
+  await publish(4, "05:20", "Speed session | WeRUN", SPEED);
 
   // Saturday's long run is 80 minutes this week; the weeks after it are the
   // coach's to say, so this is a note against the one date and not the pattern.
-  const sat = slotAt(6, "04:55");
+  const sat = slotAt(6, "05:20");
   if (sat) {
     const date = iso(next(6));
     await call("/api/admin/schedule-change", {
@@ -142,7 +142,7 @@ async function call(path, payload) {
       note_en: "80 minutes",
       note_ar: "٨٠ دقيقة",
     });
-    console.log("  " + date + " 04:55  Long run — 80 minutes (this week only)");
+    console.log("  " + date + " 05:20  Long run — 80 minutes (this week only)");
   }
 
   console.log("\nStill to come from the coach: the long runs after this Saturday.");

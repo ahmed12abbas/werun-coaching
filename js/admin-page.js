@@ -984,8 +984,8 @@ function sessionsCard() {
   // workout from landing *beside* the standing session instead of in it.
   var SPEED = [
     { weekday: 1, at: "19:30" },
-    { weekday: 2, at: "04:55" },
-    { weekday: 4, at: "04:55" }
+    { weekday: 2, at: "05:20" },
+    { weekday: 4, at: "05:20" }
   ];
   var speedGo = el("button", { class: "btn primary" }, "Publish the speed session");
   var speedBox = el("div", { class: "row" });
