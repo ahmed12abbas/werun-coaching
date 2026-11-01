@@ -230,6 +230,29 @@ function nextDates(weekday) {
     .find((i) => i.schedule_id === mine.id);
   check("but not from months away", far && !far.steps_id, far);
 
+  /* Saving the slot reaches the workout already out, or the time and points
+     change on the console and nowhere anybody looks. */
+  await plan({ action: "save", entry: Object.assign({}, mine, { at: "06:30", points: 30 }) });
+  r = await athlete.call("GET", "/api/week?start=" + first);
+  const retimed = (((r.data.days || []).find((d) => d.date === first) || {}).items || []).find((i) => i.schedule_id === mine.id);
+  check("a slot's new time reaches a published workout", retimed &&
+    retimed.starts_at === new Date(first + "T06:30:00+03:00").toISOString(), retimed);
+  check("…and its new points", retimed && retimed.points === 30, retimed);
+
+  /* A date moved on its own stays moved, and "Just this week" sent back with
+     the slot's own time is no move at all. */
+  await change({ schedule_id: mine.id, date: first, at: "07:15" });
+  await plan({ action: "save", entry: Object.assign({}, mine, { at: "06:45", points: 30 }) });
+  r = await athlete.call("GET", "/api/session?id=" + published);
+  check("a date moved on its own keeps its time", r.data && r.data.session &&
+    r.data.session.starts_at === new Date(first + "T06:30:00+03:00").toISOString(), r.data);
+  await change({ schedule_id: mine.id, date: first, at: "06:45", note_en: "Far gate" });
+  await plan({ action: "save", entry: Object.assign({}, mine, { at: "06:00", points: 10 }) });
+  r = await athlete.call("GET", "/api/session?id=" + published);
+  check("the slot's own time sent back does not pin the date", r.data && r.data.session &&
+    r.data.session.starts_at === new Date(first + "T06:00:00+03:00").toISOString(), r.data);
+  await change({ action: "clear", schedule_id: mine.id, date: first });
+
   await anon.call("POST", "/api/admin/sessions", { password: ADMIN, action: "delete", id: published });
 
   r = await athlete.call("GET", "/api/week?start=" + nextWeek);

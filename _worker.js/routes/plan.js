@@ -5,7 +5,7 @@ import { uid, nowISO, refuseUnlessCoach, refuseUnlessAdmin } from "../lib/auth.j
 import { validTime } from "../lib/weekplan.js";
 import { cleanCoachId, coachRoster } from "../lib/coaches.js";
 import { hasColumn } from "../lib/columns.js";
-import { windowMinutes } from "../lib/checkin.js";
+import { windowMinutes, windowFor } from "../lib/checkin.js";
 
 const MAX = { title: 80, place: 100, url: 300, note: 200, desc: 200 };
 const clean = (s, n) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, n);
@@ -63,8 +63,39 @@ async function descColumns(env, e) {
   };
 }
 
+/* A session already made for this slot — published, or opened for a code —
+   keeps its own start and points, and those are what the week and a check-in
+   read. So a save reaches every one still to come, or the slot changes and
+   nothing anybody sees does. Sessions already started stay as they ran, and a
+   date moved on its own keeps its time. Every save rather than only a changed
+   value: a row that missed an earlier save is put right by the next one. */
+async function carryToSessions(env, id, previousAt, at, points) {
+  const now = nowISO();
+  // "Just this week" has always sent the slot's time back unchanged. That is
+  // no move of its own, and left in place it would hold the old time.
+  await env.DB.prepare("UPDATE schedule_changes SET at = NULL WHERE schedule_id = ? AND at = ? AND date >= ?")
+    .bind(id, previousAt, now.slice(0, 10))
+    .run();
+  const rows = await env.DB.prepare(
+    "SELECT s.id, s.date, s.starts_at, c.at AS own_at FROM club_sessions s" +
+      " LEFT JOIN schedule_changes c ON c.schedule_id = s.schedule_id AND c.date = s.date" +
+      " WHERE s.schedule_id = ? AND s.starts_at > ?"
+  )
+    .bind(id, now)
+    .all();
+  const mins = await windowMinutes(env);
+  const writes = (rows.results || []).map((s) => {
+    const starts_at = s.own_at ? s.starts_at : new Date(s.date + "T" + at + ":00+03:00").toISOString();
+    const w = windowFor({ starts_at }, mins);
+    return env.DB.prepare(
+      "UPDATE club_sessions SET starts_at = ?, window_open_at = ?, window_close_at = ?, points = ? WHERE id = ?"
+    ).bind(starts_at, w.open, w.close, points, s.id);
+  });
+  if (writes.length) await env.DB.batch(writes);
+}
+
 async function updateEntry(env, id, fields, cols) {
-  const before = await env.DB.prepare("SELECT id FROM schedule WHERE id = ?").bind(id).first();
+  const before = await env.DB.prepare("SELECT id, at FROM schedule WHERE id = ?").bind(id).first();
   if (!before) return json({ error: "no-entry" }, 404);
   await env.DB.prepare(
     "UPDATE schedule SET weekday = ?, at = ?, title_en = ?, title_ar = ?, place_en = ?," +
@@ -73,6 +104,7 @@ async function updateEntry(env, id, fields, cols) {
   )
     .bind(...fields, ...cols.values, nowISO(), id)
     .run();
+  await carryToSessions(env, id, before.at, fields[1], fields[7]);
   return null;
 }
 
@@ -216,6 +248,8 @@ export async function adminScheduleChange(request, env) {
 
   const change = readChange(body);
   if (change.error) return json({ error: change.error }, 400);
+  // The form starts on the slot's own time: left alone, that is no move.
+  if (change.at === entry.at) change.at = null;
   await upsertChange(env, scheduleId, date, change);
   return json({ changes: await changesAround(env, date) });
 }
