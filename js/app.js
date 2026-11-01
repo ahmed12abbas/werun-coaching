@@ -2179,6 +2179,7 @@ function nextCard(x) {
       el("span", { class: "next-chip" }, day.toLocaleDateString(locale(), { weekday: "long" })),
       el("span", { class: "next-chip num" }, prettyTime(it, x.date)),
       el("span", { class: "next-chip" }, t("aPts", { n: it.points })),
+      it.coming != null ? el("span", { class: "next-chip coming" }, t("aComing", { n: it.coming })) : null,
       it.came != null ? el("span", { class: "next-chip coming" }, t("aCame", { n: it.came })) : null
     ),
     what ? el("div", { class: "next-desc", dir: "auto" }, what) : null,
@@ -2226,6 +2227,7 @@ function homeRow(x) {
       : place ? el("span", { class: "place" }, place) : null,
     what ? el("span", { dir: "auto" }, what) : null,
     el("span", {}, t("aPts", { n: it.points })),
+    it.coming != null ? el("span", { class: "coming" }, t("aComing", { n: it.coming })) : null,
     it.came != null ? el("span", { class: "coming" }, t("aCame", { n: it.came })) : null
   );
   const soon = countdownPill(it, x.date);
@@ -2509,6 +2511,8 @@ function slotMeta(item, place) {
   // every week, and a row that repeats the name four times down one day is
   // noise — so this is left off until somebody fills it in.
   if (item.coach) meta.append(el("span", { class: "who", dir: "auto" }, t("aWithCoach", { name: item.coach })));
+  if (item.coming != null) meta.append(el("span", { class: "coming" }, t("aComing", { n: item.coming })));
+  if (item.came != null) meta.append(el("span", { class: "coming" }, t("aCame", { n: item.came })));
   return meta;
 }
 

@@ -871,7 +871,7 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .hrow.open{flex-wrap:nowrap;align-items:center}
 .hrow.open .hrow-when{align-self:flex-start}
 .hrow.open .hrow-do{flex:none}
-.hrow .slot-meta .coming{color:var(--brand);font-weight:650}
+.slot-meta .coming{color:var(--brand);font-weight:650}
 
 /* ---- editing your profile ----
    The face, the name beside it, and the way into the twelve. */

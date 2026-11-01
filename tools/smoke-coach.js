@@ -220,9 +220,10 @@ function nextDate(weekday) {
   r = await coach.call("GET", "/api/week?start=" + today);
   const seen = itemsOf(r.data);
   check("a coach sees today's count", (seen.find((i) => i.id === counted.id) || {}).came === 1, seen);
-  check("…and no count on any other day", seen.every((i) => i.date === today || i.came === undefined), seen);
+  check("…and no check-in count on any other day", seen.every((i) => i.date === today || i.came === undefined), seen);
+  check("…but who is coming on every slot of the week", seen.filter((i) => i.schedule_id).every((i) => typeof i.coming === "number"), seen);
   r = await athlete.call("GET", "/api/week?start=" + today);
-  check("an athlete sees no count", itemsOf(r.data).every((i) => i.came === undefined), r.status);
+  check("an athlete sees no count", itemsOf(r.data).every((i) => i.came === undefined && i.coming === undefined), r.status);
 
   /* ---- publishing says who took it, and wins over the slot ---- */
   const other = who();

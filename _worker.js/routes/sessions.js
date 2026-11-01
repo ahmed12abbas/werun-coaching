@@ -17,7 +17,7 @@ const isoDay = (d) => d.toISOString().slice(0, 10);
  * athlete's own today; the Worker's clock is in whatever region it woke up
  * in. Each day carries the published session, if any, and whether this
  * athlete has checked in to it. Nothing about anyone else — except staff get
- * today's items' `came` count, never anyone's name.
+ * each item's `coming` count and today's `came`, never anyone's name.
  */
 export const week = withMember(async (request, env, user) => {
   const url = new URL(request.url);

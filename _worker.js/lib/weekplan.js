@@ -125,6 +125,25 @@ async function readSignups(env, userId, from, to) {
   }
 }
 
+/* How many athletes are down for each slot's date — staff's own read of
+   "coming", never an athlete's: buildDays only attaches it when asked. Same
+   query as rota.js's signupsBetween, kept separate rather than shared across
+   a route boundary for one three-line query. */
+async function readSignupCounts(env, from, to) {
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT schedule_id, date, COUNT(*) AS n FROM session_signups" +
+        " WHERE date BETWEEN ? AND ? GROUP BY schedule_id, date"
+    )
+      .bind(from, to)
+      .all();
+    return rows.results || [];
+  } catch (e) {
+    console.error("week: no session_signups yet (" + (e && e.message) + ")");
+    return [];
+  }
+}
+
 /* How many have checked in to each of today's sessions: staff only, and only
    on the day, so buildDays attaches it only when asked. A voided check-in stops
    counting. Today in Riyadh, whichever day the Worker's own clock says. */
@@ -143,14 +162,14 @@ async function readTodayCheckins(env, from, to) {
 /**
  * Everything standing, plus every change and published session in the range.
  * One read each rather than one per day. `withCounts` is staff asking how many
- * have checked in today — skipped for an athlete's own week, which carries
- * nothing about anyone else.
+ * are coming to each slot and have checked in today — skipped for an athlete's
+ * own week, which carries nothing about anyone else.
  */
 export async function loadWeek(env, from, to, userId, withCounts) {
   // All at once: every read is a round trip to the database's one region
   // (western Europe, for a club in Riyadh), and none of them waits on another.
   // The younger tables' reads each catch their own failure, as before.
-  const [published, standing, signups, came, coaches, mins] = await Promise.all([
+  const [published, standing, signups, counts, came, coaches, mins] = await Promise.all([
     env.DB.prepare(
       "SELECT s.*, c.at AS checked_in_at, c.voided_at FROM club_sessions s" +
         " LEFT JOIN checkins c ON c.session_id = s.id AND c.user_id = ?" +
@@ -160,6 +179,7 @@ export async function loadWeek(env, from, to, userId, withCounts) {
       .all(),
     readStandingWeek(env, from, to),
     readSignups(env, userId, from, to),
+    withCounts ? readSignupCounts(env, from, to) : null,
     withCounts ? readTodayCheckins(env, from, to) : null,
     // Outside the tries on purpose: `users` has always been there, and a
     // database still waiting for the standing-week migration should still put
@@ -174,6 +194,7 @@ export async function loadWeek(env, from, to, userId, withCounts) {
     published: published.results || [],
     nearby: standing.nearby,
     signups: signups,
+    counts: counts,
     came: came,
     coaches: coaches,
     // The club's check-in window, so buildDays can work each session's out
@@ -351,6 +372,7 @@ export function buildDays(dates, data) {
     slotById: slotById,
     publishedFor: groupBy(data.published, (s) => s.date),
     signed: new Set((data.signups || []).map((s) => s.schedule_id + "|" + s.date)),
+    coming: data.counts && new Map(data.counts.map((c) => [c.schedule_id + "|" + c.date, c.n])),
     came: data.came && new Map(data.came.n.map((c) => [c.session_id, c.n])),
     today: data.came && data.came.today,
     // Every workout published near this week, grouped by the slot it belongs
@@ -404,6 +426,7 @@ function dayPlan(date, week) {
   // down on Tuesday's slot is still down once the workout goes out.
   for (const item of items) {
     item.registered = !!(item.schedule_id && week.signed.has(item.schedule_id + "|" + date));
+    if (week.coming && item.schedule_id) item.coming = week.coming.get(item.schedule_id + "|" + date) || 0;
     if (week.came && date === week.today) item.came = week.came.get(item.id) || 0;
   }
   return { date: date, items: items };
