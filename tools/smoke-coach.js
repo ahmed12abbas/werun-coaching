@@ -204,6 +204,26 @@ function nextDate(weekday) {
   r = await admin("/api/admin/sessions", { action: "delete", id: opened.id });
   check("the opened session clears away", r.status === 200, r.status);
 
+  /* ---- today's check-in count is for staff, on the day ---- */
+  const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+  r = await admin("/api/admin/sessions", {
+    action: "publish", name: "Count test " + stamp, payload: "1.Coach test|1|300|0|0",
+    date: today, starts_at: new Date(Date.now() - 1800000).toISOString(), // behind smoke-checkin's own, or its streak breaks
+  });
+  const counted = (r.data.sessions || []).find((x) => x.name === "Count test " + stamp);
+  r = await admin("/api/admin/qr", { id: counted.id });
+  const [, codeSlot, codeSig] = String(r.data.url).split("#/c/")[1].split("/");
+  r = await athlete.call("POST", "/api/checkin", { session: counted.id, slot: Number(codeSlot), sig: codeSig });
+  check("an athlete checks in today", r.status === 200, r);
+
+  const itemsOf = (data) => (data.days || []).flatMap((d) => d.items.map((i) => Object.assign({ date: d.date }, i)));
+  r = await coach.call("GET", "/api/week?start=" + today);
+  const seen = itemsOf(r.data);
+  check("a coach sees today's count", (seen.find((i) => i.id === counted.id) || {}).came === 1, seen);
+  check("…and no count on any other day", seen.every((i) => i.date === today || i.came === undefined), seen);
+  r = await athlete.call("GET", "/api/week?start=" + today);
+  check("an athlete sees no count", itemsOf(r.data).every((i) => i.came === undefined), r.status);
+
   /* ---- publishing says who took it, and wins over the slot ---- */
   const other = who();
   r = await other.call("POST", "/api/auth/signup", {

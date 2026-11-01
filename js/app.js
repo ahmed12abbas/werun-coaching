@@ -2179,7 +2179,7 @@ function nextCard(x) {
       el("span", { class: "next-chip" }, day.toLocaleDateString(locale(), { weekday: "long" })),
       el("span", { class: "next-chip num" }, prettyTime(it, x.date)),
       el("span", { class: "next-chip" }, t("aPts", { n: it.points })),
-      Auth.isCoach() && it.coming != null ? el("span", { class: "next-chip coming" }, t("aComing", { n: it.coming })) : null
+      it.came != null ? el("span", { class: "next-chip coming" }, t("aCame", { n: it.came })) : null
     ),
     what ? el("div", { class: "next-desc", dir: "auto" }, what) : null,
     place
@@ -2226,7 +2226,7 @@ function homeRow(x) {
       : place ? el("span", { class: "place" }, place) : null,
     what ? el("span", { dir: "auto" }, what) : null,
     el("span", {}, t("aPts", { n: it.points })),
-    Auth.isCoach() && it.coming != null ? el("span", { class: "coming" }, t("aComing", { n: it.coming })) : null
+    it.came != null ? el("span", { class: "coming" }, t("aCame", { n: it.came })) : null
   );
   const soon = countdownPill(it, x.date);
   if (soon) meta.append(soon);
