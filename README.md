@@ -28,12 +28,18 @@ So every route below is the athlete putting the session on the watch themselves.
 The page’s job is to make that a minute of tapping with every number already
 worked out, instead of a coach reading splits down a phone.
 
-### What every athlete gets, with no account at all
+### What every athlete gets
 
-No account, no login, nothing to install:
+Anyone with the link sees the session and can copy it as text. Getting it on the
+watch goes through the app, and only the watch's own route is shown:
 
 | Route | Friction | Works for |
 |---|---|---|
+| **Intervals.icu** | three steps, once; sessions then arrive on their own | Garmin, COROS |
+| **Calendar feed** | one tap; times and places, no steps | Apple Watch, anything else |
+| **Plain text** | copy/paste | the group chat, notes |
+
+---|---|---|
 | **Typed into Garmin Connect** | ~1 min, every number pre-computed | everyone |
 | **`.fit` over USB** | download, drag onto the watch | anyone with a computer + cable |
 | **Apple Watch, guided** | taps in the Workout app, saved for reuse | watchOS 9+ |
@@ -882,7 +888,7 @@ to speed (the slower pace becomes the *low* speed bound); heart-rate targets use
 The output round-trips through an independent parser — header, both CRCs, declared
 data size, message walk, step count and every field value. **It has not been tested
 on a physical Garmin watch.** Try it on your own watch before pointing the whole club
-at that route; the typed and text routes don't depend on it.
+at that route. The site no longer offers the file itself: `js/fit.js` is kept but nothing calls it.
 
 ---
 

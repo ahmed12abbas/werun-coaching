@@ -814,6 +814,7 @@ const rstat = (v, label, isPlace) =>
     el("span", {}, label));
 
 function runnerBody(r) {
+  const pace = r.me ? paceCalculator("km") : null;
   const socials = [stravaLink(r.strava_athlete), igLink(r.instagram)].filter(Boolean);
   const when = r.since ? new Date(r.since + "-01T00:00:00") : null;
   const facts = [
@@ -835,6 +836,8 @@ function runnerBody(r) {
           onclick: () => openSheet(t("navMe"), SCREENS.me([], Auth.user)),
         })
       : null,
+    pace ? el("div", { class: "runner-pace" }, pace.button) : null,
+    pace ? pace.panel : null,
     el(
       "div",
       { class: "runner-hero" },
@@ -1341,6 +1344,21 @@ function appsCard() {
       .catch(() => row.remove());
   }
   return el("div", { class: "card pad stack", id: "apps" }, el("h3", {}, t("aApps")), body, rows);
+}
+
+/* A session's "Get it on your watch": the same routes as Settings. Apple has
+   only the calendar; Garmin and COROS the three steps, or one line once linked. */
+function watchRoute(device) {
+  const body = el("div", { class: "card pad stack" });
+  if (device === "apple") {
+    body.append(calendarRow());
+    return body;
+  }
+  const iv = SERVICES.find((s) => s.button);
+  askHome(iv)
+    .then((d) => body.append(d.connected ? el("strong", {}, "✓ " + t("aWatchDone")) : el("ol", { class: "flow" }, ...ivSteps())))
+    .catch(() => body.append(calendarRow()));
+  return body;
 }
 
 /* "Which watch?" — Garmin and COROS take the same three steps, so they are
@@ -2795,8 +2813,8 @@ function statusTag(s) {
   return el("span", { class: "tag soon" }, t("aUpcoming"));
 }
 
-/* One session, in full: the same timeline, typed Garmin steps, .fit file and
-   pace calculator the share link gives, drawn by the very same code — with a
+/* One session, in full: the same timeline and pace calculator the share link
+   gives, drawn by the very same code, with the app's own watch routes and a
    check-in button on top while the window is open. */
 SCREENS.session = function (args) {
   const box = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
@@ -2835,7 +2853,7 @@ SCREENS.session = function (args) {
       // who want the steps say so.
       const wrap = el("div", { id: "stepsWrap", class: "stack", hidden: true });
       box.append(wrap);
-      renderViewer(wrap, w, appBoot, { chrome: false });
+      renderViewer(wrap, w, appBoot, { chrome: false, watch: watchRoute });
     })
     .catch((e) => {
       box.textContent = "";
@@ -2999,6 +3017,25 @@ function fireworks() {
   })();
 }
 
+/* The steps of what was just checked in to, or null when there are none (an
+   easy run the coach never published steps for) or they will not load: the
+   check-in has already gone through and must not read as failed over this. */
+function stepsPreview(r) {
+  if (!r.steps_id) return Promise.resolve(null);
+  return API.get("/api/session?id=" + encodeURIComponent(r.steps_id))
+    .then(({ session: s }) => {
+      const fm = planFm() && s.payload_fm;
+      return el(
+        "div",
+        { class: "card pad stack" },
+        el("h2", { dir: "auto" }, (fm && s.name_fm) || s.name),
+        s.date !== r.date ? el("p", { class: "muted small" }, t("aStepsLead", { date: longDate(s.date) })) : null,
+        timeline(decodeWorkout(fm || s.payload))
+      );
+    })
+    .catch(() => null);
+}
+
 SCREENS.c = function (args, user) {
   const box = el(
     "div",
@@ -3020,6 +3057,9 @@ SCREENS.c = function (args, user) {
       // "that went through". Nothing was clicked, so it is played by hand.
       SFX.checkin();
       fireworks();
+      const actions = el("div", { class: "row-wrap" },
+        el("button", { class: "btn primary", onclick: () => go("points") }, t("aSeePoints")),
+        el("button", { class: "btn", onclick: () => go("week") }, t("aSeeWeek")));
       box.append(
         el("div", { class: "landed" }, "🎉"),
         el("h2", {}, t("aWelcomeBack")),
@@ -3031,10 +3071,16 @@ SCREENS.c = function (args, user) {
           r.bonus ? el("span", { class: "chip big" }, t("aStreakBonus", { n: r.bonus })) : null
         ),
         el("p", { class: "muted small" }, t("aStreakNow", { n: r.streak }) + " · " + t("aTotalNow", { n: r.total })),
-        el("div", { class: "row-wrap" },
-          el("button", { class: "btn primary", onclick: () => go("points") }, t("aSeePoints")),
-          el("button", { class: "btn", onclick: () => go("week") }, t("aSeeWeek")))
+        actions
       );
+      // The workout they just checked in for, after the points have landed.
+      // The button stays for when the feedback box below takes that moment.
+      stepsPreview(r).then((node) => {
+        if (!node) return;
+        const open = () => openSheet(t("aSteps"), node);
+        actions.prepend(el("button", { class: "btn", type: "button", onclick: open }, t("aSteps")));
+        if (!r.ask_feedback) setTimeout(() => { if (box.isConnected) open(); }, 1200);
+      });
       // An admin asked, off a session's "Who came" list, how it went. The
       // Worker has already spent the ask, so this shows once — after the
       // points have landed, not over them.

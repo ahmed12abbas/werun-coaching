@@ -5,6 +5,7 @@ import { tooOften } from "../lib/limit.js";
 import { withMember, uid, nowISO } from "../lib/auth.js";
 import { slotValid, windowMinutes, windowFor } from "../lib/checkin.js";
 import { award, totalFor, streakFor } from "../lib/points.js";
+import { stepsSessionId } from "../lib/weekplan.js";
 
 /* ---------- POST /api/checkin --------------------------------------------- */
 
@@ -26,7 +27,7 @@ const readCode = (body) => ({
 
 async function findSession(env, id) {
   return env.DB.prepare(
-    "SELECT id, name, date, points, starts_at, window_open_at, window_close_at FROM club_sessions WHERE id = ?"
+    "SELECT id, name, date, points, starts_at, window_open_at, window_close_at, schedule_id, payload FROM club_sessions WHERE id = ?"
   )
     .bind(id)
     .first();
@@ -119,5 +120,6 @@ export const checkin = withMember(async (request, env, user) => {
     streak: got.streak,
     total: await totalFor(env, user.id),
     ask_feedback: await spendAsk(env, user),
+    steps_id: await stepsSessionId(env, session),
   });
 });

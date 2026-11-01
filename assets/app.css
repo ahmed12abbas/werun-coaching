@@ -490,6 +490,8 @@ select#f-gender{width:100%;padding:11px 12px;font:inherit;color:var(--fg);backgr
 .runner{position:relative}
 .runner-gear{position:absolute;top:14px;inset-inline-start:14px;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
 .runner-gear svg{width:20px;height:20px}
+.runner-pace{position:absolute;top:14px;inset-inline-end:14px;max-width:calc(50% - 72px)}
+.runner-pace .pace-toggle{white-space:normal;max-width:100%}
 .runner-gear:hover,.runner-gear:focus-visible{color:var(--brand)}
 .recent-runs{display:grid;gap:2px}
 .recent-runs h3{margin:0 0 4px}

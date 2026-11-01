@@ -44,9 +44,8 @@ export const week = withMember(async (request, env, user) => {
 
 /*
  * One session in full, payload included — that is the part the app decodes
- * with js/model.js to draw the same timeline, the same typed Garmin steps
- * and the same .fit file the share link gives. Members only, because the
- * club's calendar is the club's.
+ * with js/model.js to draw the same timeline the share link gives. Members
+ * only, because the club's calendar is the club's.
  */
 /* The session, this athlete's check-in on it, and the slot it fills.
    The slot's place and its line about what the session is both ride along.

@@ -210,6 +210,21 @@ function nearestSteps(list, date) {
   return best;
 }
 
+/* The workout behind a session: its own, or for one opened only to hand out a
+   code, what nearestSteps would pick for its slot. One indexed read, for the
+   check-in that has no week to pick from. */
+export async function stepsSessionId(env, s) {
+  if (s.payload) return s.id;
+  if (!s.schedule_id) return null;
+  const row = await env.DB.prepare(
+    "SELECT id FROM club_sessions WHERE schedule_id = ? AND payload <> '' AND date BETWEEN ? AND ?" +
+      " ORDER BY ABS(julianday(date) - julianday(?)) ASC, date DESC, created_at DESC LIMIT 1"
+  )
+    .bind(s.schedule_id, shiftDay(s.date, -STEPS_DAYS), shiftDay(s.date, STEPS_DAYS), s.date)
+    .first();
+  return row ? row.id : null;
+}
+
 /* The second argument is the standing entry this session was published
    against, when there was one. Its place comes along with it: the session
    carrying the workout is the one an athlete most needs the address for,

@@ -106,6 +106,7 @@ const PAYLOAD =
   r = await call("POST", "/api/checkin", { session: sessionId, slot: Number(slot), sig });
   check("checkin: the real code works", r.status === 200 && r.data.ok && r.data.earned === 10, r);
   check("checkin: and ends with the feedback box it was asked for", r.data && r.data.ask_feedback === true, r.data);
+  check("checkin: says which workout to pop up", r.data && r.data.steps_id === sessionId, r.data);
   check("checkin: the streak counts this session", r.data && r.data.streak >= 1, r.data);
   check("checkin: the total went up", r.data && r.data.total >= 10, r.data);
 

@@ -69,67 +69,12 @@ function acc(iconHtml, title, subtitle, body, open) {
   );
 }
 
-/**
- * The step table an athlete copies into the watch's workout editor.
- * Garmin's own UI words stay in English alongside the translation, because
- * that's what the athlete has to find on screen.
- */
-function garminSteps(w) {
-  const list = el("ol", { class: "steps" });
-  const stepName = (type) =>
-    I18N.lang === "en" ? KINDS[type].gc : kindLabel(type) + " (" + KINDS[type].gc + ")";
-
-  const line = (s) => {
-    const target = stepTarget(s, w.units);
-    const bits = [
-      el("b", {}, stepName(s.type)),
-      " → ",
-      s.durType === "distance" ? t("gcDistance") : s.durType === "time" ? t("gcDuration") : "",
-      el("span", { class: "mono" }, stepAmount(s, w.units)),
-    ];
-    if (target) bits.push(t("gcTargetWord"), el("span", { class: "mono" }, target));
-    if (s.note) bits.push(t("gcNoteWord"), el("span", { class: "mono" }, "“" + s.note + "”"));
-    return bits;
-  };
-
-  for (const b of w.blocks) {
-    if (b.kind === "repeat") {
-      const sub = el("ol", { class: "steps", style: "margin-top:6px" });
-      for (const s of b.steps) sub.append(el("li", {}, line(s)));
-      list.append(
-        el("li", {}, [
-          el("b", {}, t("gcRepeat")),
-          " → ",
-          el("span", { class: "mono" }, b.reps + " " + t("gcTimes")),
-          t("gcContaining"),
-          sub,
-        ])
-      );
-    } else {
-      list.append(el("li", {}, line(b)));
-    }
-  }
-  return list;
-}
-
-function fitButton(w, label) {
-  const fitName = slug(w.name) + ".fit";
+function watchInApp() {
   return el(
-    "button",
-    {
-      class: "btn primary block",
-      onclick: () => {
-        try {
-          downloadBytes(buildFitFile(w), fitName, "application/vnd.ant.fit");
-          toast(t("downloaded") + fitName);
-        } catch (e) {
-          toast(t("fitFailed"));
-          console.error(e);
-        }
-      },
-    },
-    el("span", { html: ICON.down }),
-    (label || t("download")) + " " + fitName
+    "div",
+    { class: "card pad stack" },
+    el("p", { class: "muted small" }, t("rWatchApp")),
+    el("a", { class: "btn primary block", href: "app.html#/me" }, t("rWatchOpen"))
   );
 }
 
@@ -261,129 +206,11 @@ function renderViewer(app, w, rerender, opts) {
   drawPicker();
   app.append(picker, panel);
 
+  /* The route itself is the app's: only it knows who is reading. A share link
+     has nobody logged in, so it points at the app. */
   function drawPanel() {
     panel.textContent = "";
-    if (device === "garmin") drawGarmin();
-    else if (device === "coros") drawCoros();
-    else drawApple();
-    panel.append(textCard());
-  }
-
-  /* --- Garmin ------------------------------------------------------------ */
-  function drawGarmin() {
-    panel.append(
-      acc(
-        ICON.garmin,
-        t("rTypeIn"),
-        t("rTypeInSub"),
-        [
-          el("p", { class: "small muted" }, t("rTypeInLead")),
-          el(
-            "ol",
-            { class: "steps" },
-            el("li", {}, rich(t("gcStep1"))),
-            el("li", {}, rich(t("gcStep2"))),
-            el(
-              "li",
-              {},
-              t("gcStep3") + " ",
-              el("span", { class: "mono" }, "“" + w.name + "”"),
-              " ",
-              el("button", { class: "btn icon", onclick: () => copyText(w.name, t("nameCopied")) }, t("copy"))
-            ),
-            el("li", {}, t("gcStep4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
-          ),
-          el("p", { class: "small muted" }, rich(t("gcLap"))),
-          el("p", { class: "small muted" }, rich(t("gcSave"))),
-        ],
-        true // open by default: this is how a session reaches a Garmin
-      )
-    );
-
-    panel.append(
-      acc(ICON.cable, t("rUsb"), t("rUsbSub"), [
-        el("p", { class: "small muted" }, t("rUsbLead")),
-        fitButton(w),
-        el(
-          "ol",
-          { class: "steps" },
-          el("li", {}, rich(t("usb1"))),
-          el("li", {}, rich(t("usb2"))),
-          el("li", {}, rich(t("usb3"))),
-          el("li", {}, rich(t("usb4")))
-        ),
-      ])
-    );
-  }
-
-  /* --- COROS ------------------------------------------------------------- */
-  function drawCoros() {
-    panel.append(el("div", { class: "callout" }, t("rCorosWarn")));
-
-    panel.append(
-      acc(
-        ICON.coros,
-        t("rCoros"),
-        t("rCorosSub"),
-        [
-          el(
-            "ol",
-            { class: "steps" },
-            el("li", {}, rich(t("co1"))),
-            el(
-              "li",
-              {},
-              t("co2") + " ",
-              el("span", { class: "mono" }, "\u201C" + w.name + "\u201D"),
-              " ",
-              el("button", { class: "btn icon", onclick: () => copyText(w.name, t("nameCopied")) }, t("copy"))
-            ),
-            el("li", {}, rich(t("co3"))),
-            el("li", {}, t("co4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
-          ),
-          el("p", { class: "small muted" }, rich(t("coPace"))),
-        ],
-        true
-      )
-    );
-
-    panel.append(
-      acc(ICON.link, t("rCorosTp"), t("rCorosTpSub"), [
-        el("p", { class: "small muted" }, rich(t("coTpLead"))),
-      ])
-    );
-  }
-
-  /* --- Apple ------------------------------------------------------------- */
-  function drawApple() {
-    panel.append(el("div", { class: "callout" }, t("rAppleWarn")));
-
-    panel.append(
-      acc(
-        ICON.apple,
-        t("rApple"),
-        t("rAppleSub"),
-        [
-          el(
-            "ol",
-            { class: "steps" },
-            el("li", {}, rich(t("ap1"))),
-            el("li", {}, rich(t("ap2"))),
-            el("li", {}, rich(t("ap3"))),
-            el("li", {}, t("ap4"), el("div", { style: "margin-top:8px" }, garminSteps(w)))
-          ),
-          el("p", { class: "small muted" }, rich(t("apPace"))),
-        ],
-        true
-      )
-    );
-
-    panel.append(
-      acc(ICON.down, t("rAppleImport"), t("rAppleImportSub"), [
-        el("p", { class: "small muted" }, rich(t("apImportLead"))),
-        fitButton(w),
-      ])
-    );
+    panel.append(opts && opts.watch ? opts.watch(device) : watchInApp(), textCard());
   }
 
   /* --- always available -------------------------------------------------- */
