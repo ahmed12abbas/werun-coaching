@@ -101,7 +101,7 @@ var ABOUT_DEFAULT = { sections: [
         place: aboutPair("Alwaha Park", "حديقة الواحة"), map: "https://maps.app.goo.gl/k28P9vwuudk2CnXC9" },
       { day: aboutPair("Monday", "الاثنين"), time: aboutPair("5:20 am", "٥:٢٠ ص"), title: aboutPair("Easy walk/run", "ركض/مشي خفيف"),
         place: aboutPair("Sports Boulevard", "المسار الرياضي - حطين"), map: "https://maps.app.goo.gl/u6MqqhxKhD6Vhz5b6" },
-      { day: aboutPair("Monday", "الاثنين"), time: aboutPair("7:00 pm", "٧:٠٠ م"), title: aboutPair("Speed session", "تمرين سرعات"),
+      { day: aboutPair("Monday", "الاثنين"), time: aboutPair("8:00 pm", "٨:٠٠ م"), title: aboutPair("Speed session", "تمرين سرعات"),
         place: aboutPair("Misk City Track", "مضمار مدينة مسك"), map: "https://maps.app.goo.gl/MzdT2kukz4wjfysA6" },
       { day: aboutPair("Tuesday", "الثلاثاء"), time: aboutPair("5:20 am", "٥:٢٠ ص"), title: aboutPair("Speed session", "تمرين سرعات"),
         place: aboutPair("Wadi Mahdia Road", "خط التفتيش - بعد الدوار"), map: "https://maps.app.goo.gl/fwSWCrLb9cxV7JHB6" },

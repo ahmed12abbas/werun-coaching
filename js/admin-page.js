@@ -983,7 +983,7 @@ function sessionsCard() {
   // real ones come with their slot id, which is what stops a published
   // workout from landing *beside* the standing session instead of in it.
   var SPEED = [
-    { weekday: 1, at: "19:30" },
+    { weekday: 1, at: "20:00" },
     { weekday: 2, at: "05:20" },
     { weekday: 4, at: "05:20" }
   ];

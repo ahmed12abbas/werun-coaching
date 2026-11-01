@@ -23,11 +23,11 @@ const idFor = (kind, key) =>
   crypto.createHash("sha256").update("werun:" + kind + ":" + key).digest("hex").slice(0, 32);
 
 /* The key a slot is identified by, which is not the same as the time it
-   starts at. The mornings moved from 04:45 to 05:20 (Monday evening went to
-   19:30 and back to 19:00), and the rows on the live database were minted
+   starts at. The mornings moved from 04:45 to 05:20 (Monday evening went from
+   19:00 to 20:00), and the rows on the live database were minted
    under the old times — so a retiming has to move the row that is already there rather than
    mint a second one beside it. Keyed on day@time where the time alone is shared. */
-const KEYED_AT = { "05:20": "04:45" };
+const KEYED_AT = { "05:20": "04:45", "1@20:00": "19:00" };
 const keyed = (d, at) => KEYED_AT[d + "@" + at] || KEYED_AT[at] || at;
 
 const q = (v) => (v === null || v === undefined ? "NULL" : "'" + String(v).replace(/'/g, "''") + "'");
@@ -41,7 +41,7 @@ const WEEK = [
   { d: 0, at: "05:20", en: "Community run — 45 min easy + strides", ar: "ركضة مجتمعية — ٤٥ دقيقة هادئة + فتحات",    pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 0, at: "19:30", en: "Easy run — 45 min + strides",           ar: "ركضة خفيفة — ٤٥ دقيقة + فتحات",          pen: "Alwaha Park",            par: "حديقة الواحة" },
   { d: 1, at: "05:20", en: "Easy walk/run — 4 km",                  ar: "ركض/مشي خفيف — ٤ كم",                   pen: "Sports Boulevard",       par: "المسار الرياضي - حطين" },
-  { d: 1, at: "19:00", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
+  { d: 1, at: "20:00", en: "Speed session",                        ar: "تمرين سرعات",                           pen: "Misk City Track",        par: "مضمار مدينة مسك" },
   { d: 2, at: "05:20", en: "Speed session",                         ar: "تمرين سرعات",                           pen: "Wadi Mahdia Road",       par: "خط التفتيش - بعد الدوار" },
   { d: 2, at: "19:30", en: "Strength session",                      ar: "تقويات عدائين",                         pen: "Alfaisal University",    par: "جامعة الفيصل" },
   { d: 3, at: "05:20", en: "Trail run — 7 to 9 km",                 ar: "ركضة مجتمعية-تريل — ٧ إلى ٩ كم",        pen: "Wadi Hanifa Road-Trail", par: "وادي حنيفة - تريل" },
@@ -126,7 +126,7 @@ function publish(weekday, at, name) {
   return date;
 }
 
-const mon = publish(1, "19:30", "Speed session | WeRUN");
+const mon = publish(1, "20:00", "Speed session | WeRUN");
 const tue = publish(2, "05:20", "Speed session | WeRUN");
 const thu = publish(4, "05:20", "Speed session | WeRUN");
 
@@ -145,6 +145,6 @@ require("fs").writeFileSync("werun-seed.sql", lines.join("\n") + "\n");
 console.log(
   "wrote werun-seed.sql — " + lines.length + " statements\n" +
     "  10 standing sessions\n" +
-    "  speed session published for " + mon + " 19:30, " + tue + " 05:20 and " + thu + " 05:20\n" +
+    "  speed session published for " + mon + " 20:00, " + tue + " 05:20 and " + thu + " 05:20\n" +
     "  long run on " + sat + " noted as 80 minutes"
 );
