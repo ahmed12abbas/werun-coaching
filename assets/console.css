@@ -624,3 +624,21 @@ body.admin .th-preview{display:inline-block;padding:9px 18px;border-radius:12px;
 .pink-more{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:0 14px 12px}
 .pink-more .btn{margin-inline-start:auto;padding:6px 12px;font-size:13px}
 @media (prefers-reduced-motion:reduce){.pink-bar{transition:none}}
+
+/* the Coaches card: one short line each, the rest behind a tap */
+body.admin .m-list:has(.c-row,.c-cand){grid-template-columns:minmax(0,1fr)} /* a long name ellipsises, not the page */
+body.admin .c-row{display:block;padding:0}
+body.admin .c-head{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 12px;
+  border:0;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer}
+body.admin .c-head:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;border-radius:inherit}
+body.admin .c-head .badge{flex:none}
+body.admin .c-head .req-ini{width:30px;height:30px;font-size:13px}
+body.admin .c-head .m-num{min-width:30px}
+body.admin .c-head .m-num b{font-size:20px}
+body.admin .c-name{flex:1 1 0;min-width:0;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.admin .c-name small{display:block;font-size:13px;font-weight:400;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+body.admin .c-row .s-extra{padding:0 12px 12px}
+body.admin .c-role{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+body.admin .c-role .c-off{margin-inline-start:auto}
+body.admin .c-cand{flex-wrap:nowrap;gap:6px}
+body.admin .c-add{margin-top:4px}

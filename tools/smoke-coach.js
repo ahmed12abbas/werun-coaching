@@ -107,6 +107,19 @@ function nextDate(weekday) {
   row = (r.data.members || []).find((m) => m.id === coachId);
   check("…and puts it back", row.role === "coach" && row.is_leader === 1, row);
 
+  // The list is a page; search, counts and candidates must reach past it.
+  r = await admin("/api/admin/members", { limit: 1 });
+  check("the members list is a page, with the true total", r.data.members.length === 1 && r.data.matched === r.data.counts.all && r.data.counts.all >= 2, r.data.counts);
+  const firstId = r.data.members[0].id;
+  r = await admin("/api/admin/members", { limit: 1, offset: 1 });
+  check("…and the next page is the next member", r.data.members.length === 1 && r.data.members[0].id !== firstId, r.status);
+  r = await admin("/api/admin/members", { q: "coach+" + stamp, filter: "staff" });
+  check("search and filter find them", r.data.matched === 1 && r.data.members[0].id === coachId, r.data.matched);
+  r = await admin("/api/admin/members", { q: "%" + stamp });
+  check("a % in a search is only a %", r.data.matched === 0, r.data.matched);
+  r = await admin("/api/admin/coaches", { action: "list", q: "run+" + stamp });
+  check("a candidate is found by search", r.data.candidates.length === 1, r.data.candidates);
+
   r = await admin("/api/admin/coaches", { action: "add", id: "nobody-" + stamp });
   check("promoting a stranger is refused", r.status === 404 && r.data.error === "no-member", r);
   r = await admin("/api/admin/coaches", { action: "sack", id: coachId });

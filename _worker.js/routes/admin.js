@@ -13,21 +13,66 @@ import { storePhoto, servePhoto } from "../lib/photos.js";
 
 const BRAND_IMG = "brand-img:";
 
+/* One page of members, never the table: the club passed 500 and a fixed cap
+   quietly hid everyone older. Search, filters and counts all happen here so
+   they reach every member, not just the ones the page was sent. */
+const MEMBER_PAGE = 50;
 const MEMBER_CAP = 500;
+const CANDIDATE_CAP = 20;
 
-async function memberList(env) {
-  const rows = await env.DB.prepare(
-    "SELECT u.id, u.email, u.name, u.role, u.lang, u.status, u.created_at, u.last_seen_at, u.email_verified_at," +
-      " u.gender, u.birth_year, u.is_admin, u.is_leader," +
-      " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
-      " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins," +
-      " (SELECT COUNT(*) FROM email_tokens t WHERE t.user_id = u.id AND t.purpose = 'reset'" +
-      "   AND t.used_at IS NULL AND t.expires_at > ?) AS pending_reset" +
-      " FROM users u ORDER BY u.created_at DESC LIMIT ?"
-  )
-    .bind(nowISO(), MEMBER_CAP)
-    .all();
-  return rows.results || [];
+const RESET_ASKED =
+  "SELECT 1 FROM email_tokens t WHERE t.user_id = u.id AND t.purpose = 'reset' AND t.used_at IS NULL AND t.expires_at > ?";
+
+/* Each filter is its SQL and whatever it binds. */
+const MEMBER_FILTERS = {
+  all: () => ["1 = 1", []],
+  staff: () => ["u.role = 'coach'", []],
+  admin: () => ["u.is_admin = 1", []],
+  blocked: () => ["u.status = 'blocked'", []],
+  reset: (now) => ["u.status <> 'blocked' AND EXISTS (" + RESET_ASKED + ")", [now]],
+};
+
+/* A name or email search as a LIKE pattern, with the user's % and _ literal. */
+const likeOf = (q) => "%" + String(q || "").trim().slice(0, 100).replace(/[\\%_]/g, "\\$&") + "%";
+
+const clampInt = (v, lo, hi, fallback) => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+};
+
+/* The inner select picks the page first, so the three per-member counts run
+   for those rows only and not for the whole table on the way to sorting it. */
+async function memberList(env, body) {
+  const now = nowISO();
+  const [cond, binds] = (MEMBER_FILTERS[body.filter] || MEMBER_FILTERS.all)(now);
+  const where = " WHERE " + cond + " AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\')";
+  const like = likeOf(body.q);
+  const limit = clampInt(body.limit, 1, MEMBER_CAP, MEMBER_PAGE);
+  const offset = clampInt(body.offset, 0, Number.MAX_SAFE_INTEGER, 0);
+
+  const [page, matched, counts] = await env.DB.batch([
+    env.DB.prepare(
+      "SELECT u.id, u.email, u.name, u.role, u.lang, u.status, u.created_at, u.last_seen_at, u.email_verified_at," +
+        " u.gender, u.birth_year, u.is_admin, u.is_leader," +
+        " COALESCE((SELECT SUM(delta) FROM points_ledger p WHERE p.user_id = u.id), 0) AS points," +
+        " (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id AND c.voided_at IS NULL) AS checkins," +
+        " (SELECT COUNT(*) FROM email_tokens t WHERE t.user_id = u.id AND t.purpose = 'reset'" +
+        "   AND t.used_at IS NULL AND t.expires_at > ?) AS pending_reset" +
+        " FROM (SELECT u.* FROM users u" + where + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?) u" +
+        " ORDER BY u.created_at DESC"
+    ).bind(now, ...binds, like, like, limit, offset),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM users u" + where).bind(...binds, like, like),
+    env.DB.prepare(
+      "SELECT COUNT(*) AS \"all\", COALESCE(SUM(u.role = 'coach'), 0) AS staff, COALESCE(SUM(u.is_admin = 1), 0) AS admin," +
+        " COALESCE(SUM(u.status = 'blocked'), 0) AS blocked," +
+        " COALESCE(SUM(u.status <> 'blocked' AND EXISTS (" + RESET_ASKED + ")), 0) AS reset FROM users u"
+    ).bind(now),
+  ]);
+  return {
+    members: page.results || [],
+    matched: matched.results[0].n, // how many fit this search and filter
+    counts: counts.results[0], // the whole club, whatever is being searched
+  };
 }
 
 /* ---------- POST /api/admin/members -------------------------------------- */
@@ -130,7 +175,7 @@ export async function members(request, env) {
     if (refused) return refused;
   }
 
-  return json({ members: await memberList(env), at: nowISO() });
+  return json(Object.assign(await memberList(env, body), { at: nowISO() }));
 }
 
 /* ---------- POST /api/admin/coaches -------------------------------------- */
@@ -161,7 +206,7 @@ export async function coaches(request, env) {
     return json({ error: "bad-request" }, 400);
   }
 
-  return json(await coachesAndCandidates(env));
+  return json(await coachesAndCandidates(env, body.q));
 }
 
 /* One member onto the coaches list or off it. Null once done, or the refusal. */
@@ -184,15 +229,18 @@ async function changeCoach(request, env, action, id, leader) {
   return null;
 }
 
-/* The coaches, and everyone who could be one: active members, not already a
-   coach, newest first — the same order the members table uses, because the
-   coach being made is nearly always somebody the club took on recently. */
-async function coachesAndCandidates(env) {
+/* The coaches, and who could be one: active members, not already a coach,
+   newest first — the same order the members table uses, because the coach
+   being made is nearly always somebody the club took on recently. A search
+   reaches every member; with none, the newest few are the suggestions. */
+async function coachesAndCandidates(env, q) {
+  const like = likeOf(q);
   const rows = await env.DB.prepare(
     "SELECT id, name, email FROM users WHERE role <> 'coach' AND status = 'active'" +
+      " AND (name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')" +
       " ORDER BY created_at DESC LIMIT ?"
   )
-    .bind(MEMBER_CAP)
+    .bind(like, like, CANDIDATE_CAP)
     .all();
   return { coaches: await coachList(env), candidates: rows.results || [], at: nowISO() };
 }

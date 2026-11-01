@@ -585,64 +585,70 @@ function membersCard() {
         : "Closed -- the join form says to ask the coach.")));
   }
 
-  function act(m, action, extra, btn) {
-    btn.disabled = true;
-    post("/api/admin/members", Object.assign({ action: action, id: m.id }, extra || {}))
-      .then(paint)["catch"](function (e) { btn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+  /* A search box, filter chips, and one line a member, a page at a time.
+     The Worker does the searching and the counting, so all of them reach
+     every member rather than the ones already sent. A member's buttons are
+     under their line, opened by tapping it: five buttons on every one of a
+     few hundred rows was most of this page. */
+  var FILTERS = [["all", "All"], ["staff", "Coaches"], ["admin", "Admins"], ["reset", "Reset asked"], ["blocked", "Blocked"]];
+  var STEP = 50;
+  var filter = "all";
+  var loaded = [];
+  var asked = 0;
+  var q = searchBox("Search by name or email", function () {
+    load()["catch"](function (e) { list.textContent = e.message; });
+  });
+  var chips = el("div", { class: "fb-chips" });
+  var list = el("div", { class: "m-list" });
+  var more = el("button", { class: "btn sm s-more", type: "button", onclick: function () {
+    more.disabled = true;
+    load({ offset: loaded.length, limit: STEP })["catch"](function () { more.disabled = false; });
+  } });
+  var controls = el("div", {}, q, chips, list, more);
+  controls.hidden = true;
+  body.append(controls);
+
+  /* Only the newest answer draws: a slow search must not overwrite a later one. */
+  function load(extra) {
+    var mine = ++asked;
+    return post("/api/admin/members", Object.assign({ q: q.value, filter: filter }, extra || {})).then(function (d) {
+      if (mine === asked) paint(d, extra && extra.offset);
+    });
   }
 
-  function paint(data) {
-    body.textContent = "";
+  function act(m, action, extra, btn) {
+    btn.disabled = true;
+    // Asks for as many as are on screen, so a change does not shut the list.
+    load(Object.assign({ action: action, id: m.id, limit: Math.max(STEP, loaded.length) }, extra || {}))
+      ["catch"](function (e) { btn.disabled = false; body.append(el("p", { class: "err" }, e.message)); });
+  }
+
+  function paint(data, appending) {
+    var counts = data.counts || {};
     var members = data.members || [];
-    needs("resets", members.filter(function (m) { return m.pending_reset && m.status !== "blocked"; }).length, card);
-    if (!members.length) {
+    loaded = appending ? loaded.concat(members) : members;
+    needs("resets", counts.reset || 0, card);
+    controls.hidden = !counts.all;
+    if (!counts.all) {
       body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
         "Nobody has joined yet. The join form is at /app."));
       return;
     }
-    /* A search box, filter chips, and one line a member, twenty at a time.
-       A member's buttons are under their line, opened by tapping it: five
-       buttons on every one of a few hundred rows was most of this page. */
-    var FILTERS = [
-      ["all", "All", function () { return true; }],
-      ["staff", "Coaches", function (m) { return m.role === "coach"; }],
-      ["admin", "Admins", function (m) { return !!m.is_admin; }],
-      ["reset", "Reset asked", function (m) { return m.pending_reset && m.status !== "blocked"; }],
-      ["blocked", "Blocked", function (m) { return m.status === "blocked"; }]
-    ];
-    var STEP = 20;
-    var shown = STEP;
-    var filter = FILTERS[0];
-    var q = el("input", { type: "search", placeholder: "Search by name or email", class: "m-search" });
-    var chips = el("div", { class: "fb-chips" });
-    var list = el("div", { class: "m-list" });
-    var more = el("button", { class: "btn sm s-more", type: "button", onclick: function () { shown += STEP; draw(); } });
-
-    function draw() {
-      var words = q.value.trim().toLowerCase();
-      chips.querySelectorAll("button").forEach(function (b) {
-        b.setAttribute("aria-pressed", b.getAttribute("data-f") === filter[0] ? "true" : "false");
-      });
-      var hits = members.filter(filter[2]).filter(function (m) {
-        return !words || (m.name + " " + m.email).toLowerCase().indexOf(words) >= 0;
-      });
-      list.textContent = "";
-      if (!hits.length) list.append(el("p", { class: "muted small", style: "margin:4px 0 0" }, "Nobody matches."));
-      hits.slice(0, shown).forEach(function (m) { list.append(mline(m)); });
-      more.hidden = hits.length <= shown;
-      more.textContent = "Show more · " + (hits.length - shown);
-    }
-
+    chips.textContent = "";
     FILTERS.forEach(function (f) {
-      chips.append(el("button", { type: "button", class: "fb-chip", "data-f": f[0], onclick: function () {
-        filter = f; shown = STEP; draw();
-      } }, f[1] + " · " + members.filter(f[2]).length));
+      chips.append(el("button", { type: "button", class: "fb-chip", "aria-pressed": f[0] === filter ? "true" : "false", onclick: function () {
+        filter = f[0];
+        load();
+      } }, f[1] + " · " + (counts[f[0]] || 0)));
     });
-    q.addEventListener("input", function () { shown = STEP; draw(); });
-    body.append(q, chips, list, more);
-    draw();
+    list.textContent = "";
+    if (!loaded.length) list.append(el("p", { class: "muted small", style: "margin:4px 0 0" }, "Nobody matches."));
+    loaded.forEach(function (m) { list.append(mline(m)); });
+    var left = (data.matched || 0) - loaded.length;
+    more.hidden = left <= 0;
+    more.disabled = false;
+    more.textContent = "Show more · " + left;
   }
-
   function mline(m) {
     var blocked = m.status === "blocked";
     var now = (m.role !== "coach" ? "athlete" : m.is_leader ? "leader" : "coach");
@@ -726,22 +732,70 @@ function membersCard() {
 }
 
 
+/* A search box that waits for a pause in the typing before it asks the Worker. */
+function searchBox(placeholder, onSearch) {
+  var box = el("input", { type: "search", placeholder: placeholder, class: "m-search" });
+  var wait = null;
+  box.addEventListener("input", function () {
+    clearTimeout(wait);
+    wait = setTimeout(onSearch, 250);
+  });
+  return box;
+}
+
 /* ---- coaches ----
    The same `role` column the members table toggles, read the other way
-   round. A club with four coaches and four hundred members should not have to
-   find the four by scrolling -- and the pickers on the standing week and the
-   publish form need a list to offer, which is that same list. */
+   round. One short line a coach, busiest first, found by search or chip;
+   tap a line for the address and what can be changed. The pickers on the
+   standing week and the publish form draw from this same list. */
 function coachesCard() {
   var card = el("div", { class: "card" },
     el("div", { class: "tiphead" }, el("h2", {}, "Coaches")));
-  var body = el("div", {});
-  card.append(body);
+  var STEP = 8;
+  var FILTERS = [
+    ["all", "All", function () { return true; }],
+    ["leader", "Leaders", function (c) { return !!c.is_leader; }],
+    ["coach", "Coaches", function (c) { return !c.is_leader; }]
+  ];
+  var coaches = [];
+  var filter = FILTERS[0];
+  var shown = STEP;
+  var openId = null;
+  var asked = 0;
+
+  var q = el("input", { type: "search", placeholder: "Search coaches", class: "m-search" });
+  q.addEventListener("input", function () { shown = STEP; draw(); });
+  var chips = el("div", { class: "fb-chips" });
+  var list = el("div", { class: "m-list" });
+  var more = el("button", { class: "btn sm s-more", type: "button", onclick: function () { shown = coaches.length; draw(); } });
+  var hint = el("p", { class: "muted small", style: "margin:10px 0 0" }, "Busiest first. The number is sessions attended.");
+  var controls = el("div", {}, q, chips, hint, list, more);
+  var none = el("p", { class: "muted small", style: "margin:10px 0 0" },
+    "Nobody is a coach yet. You are in on the club password -- find a member below and " +
+    "they can run this console with their own login.");
+  none.hidden = true;
+
+  var findQ = searchBox("Search every member", function () {
+    var mine = ++asked;
+    post({ action: "list", q: findQ.value }).then(function (d) {
+      if (mine === asked) paintCandidates(d.candidates || []);
+    })["catch"](function (e) { cands.textContent = e.message; });
+  });
+  var cands = el("div", { class: "m-list" });
+  var adder = el("div", { class: "c-add" }, findQ, cands);
+  adder.hidden = true;
+  var openAdd = el("button", { class: "btn s-more", type: "button", onclick: function () {
+    adder.hidden = !adder.hidden;
+    openAdd.textContent = adder.hidden ? "+ Add a coach or leader" : "Close";
+    if (!adder.hidden) findQ.focus();
+  } }, "+ Add a coach or leader");
+  card.append(none, controls, openAdd, adder);
 
   function post(payload) { return api("/api/admin/coaches", payload); }
 
   function act(payload, btn) {
     btn.disabled = true;
-    post(payload).then(function (d) {
+    post(Object.assign({ q: findQ.value }, payload)).then(function (d) {
       paint(d);
       // The standing week and the publish form both draw pickers out of this
       // list. Telling them is what stops one naming somebody who has just
@@ -749,89 +803,91 @@ function coachesCard() {
       COACHES.tell(d.coaches || []);
     })["catch"](function (e) {
       btn.disabled = false;
-      body.append(el("p", { class: "err" }, e.message === "not-yourself"
+      btn.closest(".s-extra, .c-add").append(el("p", { class: "err" }, e.message === "not-yourself"
         ? "That is you. Ask another coach to do it, or unlock with the club password first."
         : e.message));
     });
   }
 
   function paint(d) {
-    body.textContent = "";
-    var coaches = (d && d.coaches) || [];
-    var candidates = (d && d.candidates) || [];
+    // Sorted for this list only -- the pickers built off COACHES.list stay
+    // alphabetical, which is what finding a name in a dropdown wants.
+    coaches = ((d && d.coaches) || []).slice().sort(function (a, b) { return (b.attended || 0) - (a.attended || 0); });
+    none.hidden = coaches.length > 0;
+    controls.hidden = !coaches.length;
+    draw();
+    paintCandidates((d && d.candidates) || []);
+  }
 
-    if (!coaches.length) {
-      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
-        "Nobody is a coach yet. You are in on the club password -- pick a member below and " +
-        "they can run this console with their own login."));
-    } else {
-      // One line a coach, busiest first; tap for the two buttons. Sorted for
-      // this list only -- the pickers built off COACHES.list stay
-      // alphabetical, which is what finding a name in a dropdown wants.
-      var list = el("div", { class: "m-list" });
-      coaches.slice().sort(function (a, b) { return (b.attended || 0) - (a.attended || 0); }).forEach(function (c) {
-        var off = el("button", { class: "btn sm", onclick: function () {
-          if (!window.confirm("Take " + c.name + " off the coaches? They keep their account, their " +
-            "check-ins and their points -- they just cannot run this console or be put on a session.")) return;
-          act({ action: "remove", id: c.id }, off);
-        } }, "Not a coach");
-        // Leader is a coach under another label -- same console, same sessions.
-        var flip = el("button", { class: "btn sm", onclick: function () {
-          act({ action: "add", id: c.id, leader: !c.is_leader }, flip);
-        } }, c.is_leader ? "Make coach" : "Make leader");
-        var what = el("div", { class: "s-what", role: "button", tabindex: "0" },
-          el("b", { dir: "auto" }, c.name, el("span", { class: "badge" }, c.is_leader ? "Leader" : "Coach")),
-          el("span", {}, c.email));
-        var line = el("div", { class: "s-row m-row" },
-          el("span", { class: "req-ini", "aria-hidden": "true" }, (String(c.name || "?").trim()[0] || "?").toUpperCase()),
-          what,
-          el("span", { class: "m-num", title: (c.attended || 0) + " sessions attended" }, el("b", {}, String(c.attended || 0)), el("span", {}, "attended")),
-          el("div", { class: "s-extra" }, el("div", { class: "m-acts" }, flip, off)));
-        var toggle = function () { line.classList.toggle("open"); };
-        what.addEventListener("click", toggle);
-        what.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
-        list.append(line);
-      });
-      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" },
-        coaches.length + (coaches.length === 1 ? " coach" : " coaches") +
-        ". Any of them can run /coach, and any of them can be put on a session."), list);
-    }
-
-    var pick = el("select", {});
-    pick.append(el("option", { value: "" },
-      candidates.length ? "Pick a member\u2026" : "Everybody is already a coach"));
-    candidates.forEach(function (m) {
-      pick.append(el("option", { value: m.id }, m.name + " \u00b7 " + m.email));
+  function draw() {
+    var words = q.value.trim().toLowerCase();
+    chips.textContent = "";
+    FILTERS.forEach(function (f) {
+      chips.append(el("button", { type: "button", class: "fb-chip", "aria-pressed": f === filter ? "true" : "false", onclick: function () {
+        filter = f; shown = STEP; draw();
+      } }, f[1] + " · " + coaches.filter(f[2]).length));
     });
-    var add = el("button", { class: "btn primary", onclick: function () {
-      if (!pick.value) return;
-      var who = pick.options[pick.selectedIndex].textContent;
-      if (!window.confirm("Make " + who + " a coach? They will be able to run this console.")) return;
-      act({ action: "add", id: pick.value }, add);
-    } }, "Make them a coach");
-    var addLeader = el("button", { class: "btn", onclick: function () {
-      if (!pick.value) return;
-      var who = pick.options[pick.selectedIndex].textContent;
-      if (!window.confirm("Make " + who + " a leader? They will be able to run this console.")) return;
-      act({ action: "add", id: pick.value, leader: true }, addLeader);
-    } }, "Make them a leader");
-    if (!candidates.length) add.disabled = addLeader.disabled = true;
+    var hits = coaches.filter(filter[2]).filter(function (c) {
+      return !words || (c.name + " " + c.email).toLowerCase().indexOf(words) >= 0;
+    });
+    list.textContent = "";
+    if (!hits.length) list.append(el("p", { class: "muted small", style: "margin:4px 0 0" }, "Nobody matches."));
+    hits.slice(0, shown).forEach(function (c) { list.append(cline(c)); });
+    more.hidden = hits.length <= shown;
+    more.textContent = "Show all · " + hits.length;
+  }
 
-    // Adding somebody is behind its own button: it is a few times a season.
-    var form = el("div", { class: "row", style: "margin-top:10px" },
-      el("div", {}, el("label", {}, "Add a coach or leader"), pick),
-      el("div", { style: "flex:0 0 auto;align-self:flex-end;display:flex;gap:8px" }, add, addLeader));
-    form.hidden = true;
-    var open = el("button", { class: "btn s-more", type: "button", onclick: function () {
-      form.hidden = !form.hidden;
-      open.textContent = form.hidden ? "+ Add a coach or leader" : "Close";
-    } }, "+ Add a coach or leader");
-    body.append(open, form);
+  function cline(c) {
+    var off = el("button", { class: "btn sm c-off", onclick: function () {
+      if (!window.confirm("Take " + c.name + " off the coaches? They keep their account, their " +
+        "check-ins and their points -- they just cannot run this console or be put on a session.")) return;
+      act({ action: "remove", id: c.id }, off);
+    } }, "Not a coach");
+    // Leader is a coach under another label -- same console, same sessions.
+    var label = function (name, leader) {
+      var on = !!c.is_leader === leader;
+      var b = el("button", { type: "button", class: "fb-chip", "aria-pressed": on ? "true" : "false", onclick: function () {
+        if (!on) act({ action: "add", id: c.id, leader: leader }, b);
+      } }, name);
+      return b;
+    };
+    var head = el("button", { type: "button", class: "c-head", "aria-expanded": c.id === openId ? "true" : "false", onclick: function () {
+      openId = c.id === openId ? null : c.id;
+      draw();
+    } },
+      el("span", { class: "req-ini", "aria-hidden": "true" }, (String(c.name || "?").trim()[0] || "?").toUpperCase()),
+      el("span", { class: "c-name" }, el("span", { dir: "auto" }, c.name)),
+      el("span", { class: "badge" }, c.is_leader ? "Leader" : "Coach"),
+      el("span", { class: "m-num", title: (c.attended || 0) + " sessions attended" }, el("b", {}, String(c.attended || 0))));
+    return el("div", { class: "s-row m-row c-row" + (c.id === openId ? " open" : "") }, head,
+      el("div", { class: "s-extra" },
+        el("p", { class: "muted small m-facts" }, c.email + " · " + (c.attended || 0) + " attended"),
+        el("div", { class: "c-role" }, label("Coach", false), label("Leader", true), off)));
+  }
+
+  function paintCandidates(candidates) {
+    cands.textContent = "";
+    if (!candidates.length) {
+      cands.append(el("p", { class: "muted small", style: "margin:4px 0 0" },
+        findQ.value.trim() ? "Nobody matches." : "Everybody is already a coach."));
+    }
+    candidates.forEach(function (m) {
+      var as = function (name, leader) {
+        var b = el("button", { type: "button", class: "btn sm", onclick: function () {
+          if (!window.confirm("Make " + m.name + " a " + name.toLowerCase() + "? They will be able to run /coach.")) return;
+          act({ action: "add", id: m.id, leader: leader }, b);
+        } }, name);
+        return b;
+      };
+      cands.append(el("div", { class: "s-row c-cand" },
+        el("div", { class: "c-name" }, el("span", { dir: "auto" }, m.name), el("small", {}, m.email)),
+        as("Coach", false), as("Leader", true)));
+    });
   }
 
   post({ action: "list" }).then(function (d) { paint(d); COACHES.tell(d.coaches || []); })
     ["catch"](function (e) {
-      body.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, e.message));
+      card.append(el("p", { class: "muted small", style: "margin:10px 0 0" }, e.message));
     });
   return card;
 }
