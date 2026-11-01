@@ -4114,7 +4114,7 @@ SCREENS.me = function (args, user) {
   const avatar = avatarPicker(user, name);
   const ig = igBlock(user);
   const stravaId = el("input", {
-    type: "text", id: "f-strava", inputmode: "numeric", value: user.strava_athlete || "",
+    type: "text", id: "f-strava", inputmode: "url", value: user.strava_athlete || "",
     maxlength: "80", placeholder: t("aStravaIdPh"), autocapitalize: "none", spellcheck: "false", dir: "ltr",
     "aria-label": t("aStravaId"),
   });

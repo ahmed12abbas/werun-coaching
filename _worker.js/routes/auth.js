@@ -39,8 +39,12 @@ const cleanHandle = (s) =>
 /* A Strava athlete number, typed or pasted as the profile link
    (strava.com/athletes/47583488). Only the digits are kept; anything else is "". */
 function cleanAthlete(s) {
-  const m = String(s || "").trim().match(/athletes\/(\d+)/) || String(s || "").trim().match(/^(\d+)$/);
-  return m ? m[1].slice(0, 12) : "";
+  const text = String(s || "").trim();
+  if (!text) return "";
+  const m = text.match(/athletes\/(\d+)/) || text.match(/^(\d+)$/);
+  // undefined is refused rather than saved as "": the Strava app's own share
+  // link (strava.app.link) has no number in it, and would wipe the one there.
+  return m ? m[1].slice(0, 12) : undefined;
 }
 
 /* Empty is a real answer: someone who would rather not say still runs with
@@ -273,6 +277,7 @@ function refusedField(p) {
   if (!p.name) return "bad-name";
   if (p.birth_year === undefined) return "bad-year";
   if (p.week_goal === undefined) return "bad-goal";
+  if (p.strava_athlete === undefined) return "bad-strava";
   return null;
 }
 

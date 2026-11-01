@@ -88,6 +88,15 @@ function check(name, ok, detail) {
   r = await call("POST", "/api/auth/profile", { name: "Smoke Renamed", lang: "en" });
   check("profile: rename", r.status === 200 && r.data.user.name === "Smoke Renamed" && r.data.user.lang === "en", r);
 
+  r = await call("POST", "/api/auth/profile", { strava_athlete: "https://www.strava.com/athletes/47583488?share=1" });
+  check("profile: a Strava link keeps its number", r.status === 200 && r.data.user.strava_athlete === "47583488", r);
+  r = await call("POST", "/api/auth/profile", { strava_athlete: "12345" });
+  check("profile: a bare Strava number", r.status === 200 && r.data.user.strava_athlete === "12345", r);
+  r = await call("POST", "/api/auth/profile", { strava_athlete: "https://strava.app.link/abc" });
+  check("profile: a link with no number is refused", r.status === 400 && r.data.error === "bad-strava", r);
+  r = await call("POST", "/api/auth/profile", { strava_athlete: "" });
+  check("profile: an empty box clears it", r.status === 200 && r.data.user.strava_athlete === "", r);
+
   // The club's week runs Sunday to Saturday: Friday is its rest day, and a
   // Monday-first week would split the weekend across two screens.
   r = await call("GET", "/api/week?start=2026-09-09");
