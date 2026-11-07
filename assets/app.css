@@ -933,6 +933,31 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .signup-on:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 /* The points tag and the control stack in the check-in strip, which is a row
    of two and would otherwise put them side by side and squeeze the title. */
+/* ---- the plan card on Home and Week: the coach's line, the countdown, and
+   a pill track whose highlight slides to the plan tapped ---- */
+.plan-card{background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 35%,transparent);
+  border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.plan-title{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:21px;line-height:1.1;
+  letter-spacing:.02em;text-transform:uppercase;color:var(--brand-deep);text-decoration:none}
+[dir="rtl"] .plan-title{font-size:17px;font-weight:700;text-transform:none}
+.plan-go{margin-inline-start:auto;font-size:24px}
+[dir="rtl"] .plan-go{transform:scaleX(-1)}
+.plan-count{margin:-6px 0 0;font-size:13px;font-weight:600;color:var(--muted)}
+.plan-track{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
+.plan-track button{position:relative;z-index:1;flex:1;border:0;background:none;border-radius:999px;padding:9px 6px;
+  font:inherit;font-size:14px;font-weight:650;color:var(--muted);cursor:pointer;transition:color .25s ease}
+/* The 5/10k group is the small one, so its pill is too. */
+.plan-track button[data-g="5k"]{flex:0 0 auto;padding-inline:14px}
+.plan-track button[aria-pressed="true"]{color:var(--brand-ink)}
+/* Until the thumb has been measured (or where it never can be), the pill
+   itself carries the colour, so the chosen plan is never white on white. */
+.plan-track:not(.placed) button[aria-pressed="true"]{background:var(--brand)}
+.plan-thumb{position:absolute;top:4px;bottom:4px;left:0;width:var(--w,0);transform:translateX(var(--x,0));
+  border-radius:999px;background:var(--brand);box-shadow:0 2px 8px color-mix(in srgb,var(--brand) 40%,transparent)}
+.plan-track:not(.placed) .plan-thumb{display:none}
+.plan-track.ready .plan-thumb{transition:transform .28s cubic-bezier(.3,.7,.2,1),width .28s cubic-bezier(.3,.7,.2,1)}
+@media (prefers-reduced-motion:reduce){.plan-track.ready .plan-thumb,.plan-track button{transition:none}}
+
 .ci-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 
 .post-link{color:inherit;text-decoration:underline;text-underline-offset:3px}

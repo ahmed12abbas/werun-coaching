@@ -117,7 +117,6 @@ textarea{resize:vertical;min-height:64px;font-family:var(--body)}
 .seg button{flex:1;border:0;background:transparent;padding:10px 6px;font-weight:650;font-size:14px;
   cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
-.seg button.seg-small{flex:0 0 auto;padding:10px 16px}
 
 /* ---- device picker ---- */
 .picker{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 4px}

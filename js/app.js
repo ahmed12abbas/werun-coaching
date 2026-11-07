@@ -337,7 +337,8 @@ function render() {
   }
   body.textContent = "";
 
-  const banner = announcement();
+  // Home and Week carry the line as the plan card's heading instead.
+  const banner = r.name === "home" || r.name === "week" ? null : announcement();
   if (banner) body.append(banner);
 
   if (siteDown(r.name)) {
@@ -391,20 +392,29 @@ function appendFoot(app, route) {
 // screen does not bring it back until the app is opened again.
 let announceDone = false;
 
-/** The coach's line across the top of the app, in the reader's language. */
-function announcement() {
-  const text = I18N.lang === "ar"
+/* The coach's line in the reader's language, and where it goes when tapped.
+   Only a web address is ever a link; the Worker checks it on the way in and
+   this checks again on the way out, since it lands in an href. */
+function announceText() {
+  return I18N.lang === "ar"
     ? Auth.club.announcement_ar || Auth.club.announcement_en
     : Auth.club.announcement_en || Auth.club.announcement_ar;
-  if (!text || announceDone) return null;
-  // Only a web address is ever made a link; the Worker checks it on the way in
-  // and this checks again on the way out, since it lands in an href.
+}
+function announceUrl() {
   const url = Auth.club.announcement_url || "";
+  return /^https?:\/\/\S+$/i.test(url) ? url : "";
+}
+
+/** The coach's line across the top of the app, in the reader's language. */
+function announcement() {
+  const text = announceText();
+  if (!text || announceDone) return null;
+  const url = announceUrl();
   // Runs across like a news ticker; the time grows with the line, so a long
   // one crosses at the same reading speed as a short one.
   const line = el("span", { class: "ticker" }, text);
   const attrs = { class: "announce", dir: "auto", style: "--dur:" + Math.max(8, text.length * 0.22).toFixed(1) + "s" };
-  const node = /^https?:\/\/\S+$/i.test(url)
+  const node = url
     ? el("a", Object.assign(attrs, { class: "announce link", href: url, target: "_blank", rel: "noopener noreferrer" }), line)
     : el("div", attrs, line);
   node.addEventListener("animationend", (e) => {
@@ -1165,8 +1175,23 @@ function sessionForPlan(s) {
     s["desc_" + g + "_en"] ? { desc_en: s["desc_" + g + "_en"], desc_ar: s["desc_" + g + "_ar"] } : {});
 }
 
+/* The plan card on Home and Week: the coach's line as its heading (or just
+   "Training plan" when there is none), and the three groups as a pill track
+   whose highlight slides to the one tapped before the screen redraws. */
 function planToggle() {
-  const now = planGroup();
+  let now = planGroup();
+  const thumb = el("span", { class: "plan-thumb", "aria-hidden": "true" });
+  // offsetLeft is physical in both directions, and so is the thumb's
+  // translate, so Arabic needs nothing of its own.
+  const place = () => {
+    const on = track.querySelector('[aria-pressed="true"]');
+    if (!on || !on.offsetWidth) return;
+    track.style.setProperty("--x", on.offsetLeft + "px");
+    track.style.setProperty("--w", on.offsetWidth + "px");
+    track.classList.add("placed");
+    // Slides from the second placing on, not in from nowhere on the first.
+    requestAnimationFrame(() => track.classList.add("ready"));
+  };
   const pick = (want) => () => {
     if (want === now) return;
     try {
@@ -1174,18 +1199,41 @@ function planToggle() {
     } catch (e) {
       return;
     }
-    render();
+    now = want;
+    for (const b of track.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.g === want ? "true" : "false");
+    place();
+    setTimeout(render, 280); // the length of the slide
   };
-  const btn = (g, key, cls) =>
-    el("button", { type: "button", class: cls, "aria-pressed": g === now ? "true" : "false", onclick: pick(g) }, t(key));
-  // The 5/10k group is the small one, so its button is too.
-  return el(
-    "div",
-    { class: "seg", role: "group", "aria-label": t("aPlanLabel") },
-    btn("5k", "aPlan5k", "seg-small"),
-    btn("hm", "aPlanHm"),
-    btn("fm", "aPlanFm")
-  );
+  const btn = (g, key) =>
+    el("button", { type: "button", "data-g": g, "aria-pressed": g === now ? "true" : "false", onclick: pick(g) }, t(key));
+  const track = el("div", { class: "plan-track", role: "group", "aria-label": t("aPlanLabel") },
+    thumb, btn("5k", "aPlan5k"), btn("hm", "aPlanHm"), btn("fm", "aPlanFm"));
+  if (window.ResizeObserver) new ResizeObserver(place).observe(track);
+
+  const text = announceText();
+  const url = text ? announceUrl() : "";
+  const head = el("span", { dir: "auto" }, text || t("aPlanLabel"));
+  const left = raceCountdown();
+  return el("div", { class: "plan-card" },
+    url
+      ? el("a", { class: "plan-title link", href: url, target: "_blank", rel: "noopener noreferrer" }, head, el("span", { class: "plan-go", "aria-hidden": "true" }, "›"))
+      : el("div", { class: "plan-title" }, head),
+    left ? el("p", { class: "plan-count" }, left) : null,
+    track);
+}
+
+/* The race the current block builds to. One at a time, written here: when it
+   has gone the line simply goes, and the next block's race replaces it. */
+const NEXT_RACE = { date: "2026-12-12", name: "aRaceSharqiyah" };
+
+function raceCountdown() {
+  const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10); // Riyadh, UTC+3
+  const days = Math.round((Date.parse(NEXT_RACE.date) - Date.parse(today)) / 864e5);
+  if (days < 0) return "";
+  const race = t(NEXT_RACE.name);
+  if (days === 0) return t("aRaceToday", { race });
+  if (days === 1) return t("aRaceTomorrow", { race });
+  return t("aRaceIn", { race, n: days });
 }
 
 SCREENS.home = function (args, user) {
