@@ -109,6 +109,10 @@ function detailText(row) {
     const fm = splitName(row.name_fm || row.name);
     Object.assign(out, { desc_fm_en: fm.detail, desc_fm_ar: fm.detail_ar });
   }
+  if (row.payload_5k) {
+    const k5 = splitName(row.name_5k || row.name);
+    Object.assign(out, { desc_5k_en: k5.detail, desc_5k_ar: k5.detail_ar });
+  }
   return out;
 }
 
@@ -131,6 +135,8 @@ export const session = withMember(async (request, env, user) => {
         payload: row.payload,
         name_fm: row.name_fm || "",
         payload_fm: row.payload_fm || "",
+        name_5k: row.name_5k || "",
+        payload_5k: row.payload_5k || "",
       },
       slotText(row),
       detailText(row),

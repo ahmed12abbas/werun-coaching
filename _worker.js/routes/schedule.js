@@ -94,6 +94,9 @@ function readPublishForm(body) {
     // The full-marathon group's version, when it differs; blank is "same as above".
     nameFm: String(body.name_fm || "").replace(/\s+/g, " ").trim().slice(0, MAX.name),
     payloadFm: String(body.payload_fm || "").slice(0, MAX.payload),
+    // And the 5/10k group's, the same way.
+    name5k: String(body.name_5k || "").replace(/\s+/g, " ").trim().slice(0, MAX.name),
+    payload5k: String(body.payload_5k || "").slice(0, MAX.payload),
   };
   if (!form.name) return { error: "bad-name" };
   if (!form.payload) return { error: "bad-payload" };
@@ -199,6 +202,11 @@ async function writeFm(env, id, form) {
   if (!(await hasColumn(env, "club_sessions", "payload_fm"))) return;
   await env.DB.prepare("UPDATE club_sessions SET name_fm = ?, payload_fm = ? WHERE id = ?")
     .bind(form.payloadFm ? form.nameFm : "", form.payloadFm, id)
+    .run();
+  // Likewise until migration 0038.
+  if (!(await hasColumn(env, "club_sessions", "payload_5k"))) return;
+  await env.DB.prepare("UPDATE club_sessions SET name_5k = ?, payload_5k = ? WHERE id = ?")
+    .bind(form.payload5k ? form.name5k : "", form.payload5k, id)
     .run();
 }
 

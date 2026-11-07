@@ -33,6 +33,7 @@ const KNOWN_TITLES_AR = {
   "speed session": "تمرين سرعات",
   "easy run": "ركضة خفيفة",
   "long run": "ركضة طويلة",
+  "race day": "يوم السباق",
 };
 
 /* "Easy run — 60 min + strides": the coach names a plan session as what it is,
@@ -57,6 +58,9 @@ const DETAIL_AR = [
   [/\bhills?\b/gi, "طلعة"],
   [/@HM\b/g, "@هاف"],
   [/@FM\b/g, "@فل"],
+  [/@mile\b/g, "@ميل"],
+  [/\bSharqiyah HM\b/g, "نصف ماراثون الشرقية"],
+  [/\bSharqiyah 5K\b/g, "سباق الشرقية 5 كم"],
 ];
 const detailAr = (d) => DETAIL_AR.reduce((s, [re, to]) => s.replace(re, to), d);
 const titleAr = (name) => KNOWN_TITLES_AR[String(name || "").trim().toLowerCase()] || name;
@@ -261,6 +265,7 @@ function publishedItem(s, slot, names, mins, change) {
   }
   const hm = splitName(s.name);
   const fm = splitName(s.name_fm || s.name);
+  const k5 = splitName(s.name_5k || s.name);
   return {
     kind: "session",
     id: s.id,
@@ -288,6 +293,11 @@ function publishedItem(s, slot, names, mins, change) {
     title_fm_ar: s.payload_fm ? titleAr(fm.title) : "",
     desc_fm_en: s.payload_fm ? fm.detail : "",
     desc_fm_ar: s.payload_fm ? fm.detail_ar : "",
+    // And the 5/10k group's (migration 0038; undefined before it, so blank).
+    title_5k_en: s.payload_5k ? k5.title : "",
+    title_5k_ar: s.payload_5k ? titleAr(k5.title) : "",
+    desc_5k_en: s.payload_5k ? k5.detail : "",
+    desc_5k_ar: s.payload_5k ? k5.detail_ar : "",
     ...checkinState(s),
   };
 }

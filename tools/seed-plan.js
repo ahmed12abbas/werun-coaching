@@ -1,18 +1,24 @@
 /**
- * The four-week half / full marathon block, published against its dates.
+ * The eight-week half / full marathon block, and the four-week 5/10k block
+ * beside its second month, published against their dates.
  *
  *   node tools/seed-plan.js                              (local dev)
  *   SMOKE_ADMIN_PASSWORD=… node tools/seed-plan.js https://weruncoaching.pages.dev
  *
- * From the coach's sheet (HM_FM_schedule_1.pdf). Each session goes out once,
- * with the half plan as the session and the full plan beside it (payload_fm),
+ * From the coach's sheets (HM_FM_schedule_1.pdf, HM_FM_month2.docx,
+ * 5k_month1.docx). Each session goes out once, with the half plan as the
+ * session and the full and 5/10k plans beside it (payload_fm, payload_5k),
  * so both groups meet at one place under one code and the app's Home toggle
  * picks which workout a phone shows. The sheet's "Monday" runs twice — Monday
  * evening and Tuesday morning — and Wednesday's easy run both ends of the day.
  * Monday morning, Tuesday evening and Sunday are left to the standing week.
  *
+ * Both blocks end on Saturday 12 December, the Sharqiyah half marathon and 5K.
+ *
  * Safe to re-run: publishing a slot and date that already has a session
- * rewrites that session rather than adding one.
+ * rewrites that session rather than adding one. Days already gone are left
+ * alone, today included — rewriting one would move its start to the slot's time
+ * today, under anybody who already checked in.
  */
 const fs = require("fs");
 const vm = require("vm");
@@ -47,12 +53,18 @@ const speed = (...main) => [
   step("cooldown", { durType: "open", estSeconds: 900, note: "15 min" }),
 ];
 const easy = (min, withStrides) => [time(min, "easy"), ...(withStrides ? [strides()] : [])];
+const easyKm = (km, withStrides) => [dist(km * 1000, "easy"), ...(withStrides ? [strides()] : [])];
 const long = (min, km) => [time(min, "easy, or " + km + " km")];
+// A long run the sheet writes out in kilometres: [km, "easy" | "@HM" | "@FM"]…
+const longKm = (...parts) => parts.map(([km, how]) => dist(km * 1000, how));
+const race = (m) => [dist(m, "race")];
+const HM_M = 21097;
 const hills = () =>
   speed(rep(6, dist(100, "hill @best"), lap("recovery", "jog down")), rep(6, dist(200, "hill @best"), lap("recovery", "jog down")));
 const ladder = () => [time(4, "@HM"), rec(120), time(6, "@HM"), rec(180), time(8, "@HM"), rec(180)];
 
-/* ---- the sheet, week by week: [name, blocks] for HM then FM ---- */
+/* ---- the sheet, week by week: [name, blocks, note?] for HM, FM, then 5/10k.
+   null is "same as the half plan"; month one has no 5/10k column. ---- */
 const WEEKS = [
   {
     mon: [
@@ -100,6 +112,85 @@ const WEEKS = [
     ],
     sat: [["Long run — 50 min / 9 km", long(50, 9)], ["Long run — 65 min / 11 km", long(65, 11)]],
   },
+  {
+    mon: [
+      ["Speed session — 2 min ×4 @10K + 4 min ×4 @HM", speed(rep(4, time(2, "@10K"), rec(60)), rep(4, time(4, "@HM"), rec(120)))],
+      ["Speed session — 2 min ×6 @10K + 6 min ×3 @FM", speed(rep(6, time(2, "@10K"), rec(60)), rep(3, time(6, "@FM"), rec(180)))],
+      [
+        "Speed session — 30s ×6 @5K + 1 min ×6 @10K",
+        speed(rep(6, time(0.5, "@5K"), rec(60)), rep(6, time(1, "@10K"), rec(120))),
+        "Better to do a mile test before starting the program.",
+      ],
+    ],
+    wed: [["Easy run — 60 min", easy(60)], ["Easy run — 10 km", easyKm(10)], ["Easy run — 30 min", easy(30)]],
+    thu: [
+      ["Speed session — Hills 30s ×12", speed(rep(12, time(0.5, "hill @best"), lap("recovery", "jog down")))],
+      null,
+      ["Speed session — Hills 30s ×8", speed(rep(8, time(0.5, "hill @best"), lap("recovery", "jog down")))],
+    ],
+    sat: [
+      ["Long run — 14 km, 3 km ×2 @HM", longKm([3, "easy"], [3, "@HM"], [1, "easy"], [3, "@HM"], [4, "easy"]), "Or 1:20 easy."],
+      ["Long run — 18 km, 3 km ×3 @FM", longKm([3, "easy"], [3, "@FM"], [1, "easy"], [3, "@FM"], [1, "easy"], [3, "@FM"], [4, "easy"]), "Or 1:50 easy."],
+      ["Long run — 45 min / 6 km", long(45, 6)],
+    ],
+  },
+  {
+    mon: [
+      ["Speed session — 1 km ×6 @HM", speed(rep(6, dist(1000, "@HM"), rec(150)))],
+      ["Speed session — 1 km ×8 @FM", speed(rep(8, dist(1000, "@FM"), rec(150)))],
+      ["Speed session — 300m ×10 @5K", speed(rep(10, dist(300, "@5K"), rec(90)))],
+    ],
+    wed: [
+      ["Easy run — 10 km + strides", easyKm(10, true)],
+      ["Easy run — 12 km + strides", easyKm(12, true)],
+      ["Easy run — 30 min + strides", easy(30, true)],
+    ],
+    thu: [
+      ["Speed session — Tempo 20 min @10K", speed(time(20, "tempo @10K"))],
+      null,
+      ["Speed session — Tempo 3 min ×5 @10K", speed(rep(5, time(3, "tempo @10K"), rec(120)))],
+    ],
+    sat: [["Long run — 90 min / 15 km", long(90, 15)], ["Long run — 2:00 / 21 km", long(120, 21)], ["Long run — 50 min / 7 km", long(50, 7)]],
+  },
+  {
+    mon: [
+      [
+        "Speed session — 1 min ×5 @10K, 500m easy, 1 min ×5 @10K",
+        speed(rep(5, time(1, "@10K"), rec(60)), step("recovery", { durType: "distance", meters: 500, note: "easy" }), rep(5, time(1, "@10K"), rec(60))),
+      ],
+      null,
+      [
+        "Speed session — 1 min ×5 @mile, 500m easy, 1 min ×5 @mile",
+        speed(rep(5, time(1, "@mile"), rec(60)), step("recovery", { durType: "distance", meters: 500, note: "easy" }), rep(5, time(1, "@mile"), rec(60))),
+      ],
+    ],
+    wed: [
+      ["Easy run — 12 km + strides", easyKm(12, true)],
+      ["Easy run — 14 km + strides", easyKm(14, true)],
+      ["Easy run — 40 min + strides", easy(40, true)],
+    ],
+    thu: [
+      ["Speed session — Fartlek 4 min @HM / 1 min easy ×6", speed(rep(6, time(4, "@HM"), rec(60, "easy")))],
+      ["Speed session — Fartlek 4 min @HM / 1 min easy ×8", speed(rep(8, time(4, "@HM"), rec(60, "easy")))],
+      ["Speed session — Fartlek 2 min @5K / 2 min easy ×6", speed(rep(6, time(2, "@5K"), rec(120, "easy")))],
+    ],
+    sat: [
+      ["Long run — 13 km, 4 km ×2 @HM", longKm([2, "easy"], [4, "@HM"], [1, "easy"], [4, "@HM"], [2, "easy"])],
+      ["Long run — 15 km, 4 km ×2 @FM", longKm([4, "easy"], [4, "@FM"], [1, "easy"], [4, "@FM"], [2, "easy"])],
+      ["Long run — 55 min / 8 km", long(55, 8)],
+    ],
+  },
+  {
+    // The second recovery week, and race day.
+    mon: [
+      ["Speed session — 400m ×4 @10K + 200m ×4 @5K", speed(rep(4, dist(400, "@10K"), rec(90)), rep(4, dist(200, "@5K"), rec(60)))],
+      null,
+      ["Speed session — 400m ×4 @5K + 200m ×4 @mile", speed(rep(4, dist(400, "@5K"), rec(90)), rep(4, dist(200, "@mile"), rec(60)))],
+    ],
+    wed: [["Easy run — 45 min", easy(45)], null, ["Easy run — 30 min", easy(30)]],
+    thu: [["Easy run — 15 min + strides", easy(15, true)], null, null],
+    sat: [["Race day — Sharqiyah HM", race(HM_M)], null, ["Race day — Sharqiyah 5K", race(5000)]],
+  },
 ];
 
 /* Which standing slots each line of the sheet goes into: [weekday, morning or
@@ -115,8 +206,11 @@ const SLOTS = {
 // a Saturday can carry a community run beside the long run.
 const LIKE = { mon: /speed/i, wed: /easy/i, thu: /speed/i, sat: /long/i };
 
-const encode = ([name, blocks]) =>
-  encodeWorkout({ name, date: "", coach: "", note: "", units: "km", blocks });
+const encode = ([name, blocks, note]) =>
+  encodeWorkout({ name, date: "", coach: "", note: note || "", units: "km", blocks });
+
+// Today in Riyadh, so a run late in the evening still counts the right day.
+const TODAY = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
 
 function addDays(iso, n) {
   const d = new Date(iso + "T00:00:00Z");
@@ -154,10 +248,11 @@ async function call(p, payload, retried) {
     const monday = addDays(FIRST_MONDAY, 7 * w);
     console.log("Week " + (w + 1) + " (from " + monday + ")");
     for (const [key, where] of Object.entries(SLOTS)) {
-      const [hm, fm] = week[key];
+      const [hm, fm, k5] = week[key];
       for (const [weekday, half, offset] of where) {
         const slot = slotAt(weekday, half, LIKE[key]);
         const date = addDays(monday, offset);
+        if (date <= TODAY) continue;
         if (!slot) {
           console.log("  ? no " + half + " slot on day " + weekday + " — skipped");
           continue;
@@ -173,9 +268,12 @@ async function call(p, payload, retried) {
           payload: encode(hm),
           name_fm: fm ? fm[0] : "",
           payload_fm: fm ? encode(fm) : "",
+          name_5k: k5 ? k5[0] : "",
+          payload_5k: k5 ? encode(k5) : "",
         });
         placed.add(date + "|" + slot.id);
-        console.log("  " + date + " " + at + " [" + slot.title_en + "]  " + hm[0] + (fm ? "  |  FM: " + fm[0] : "  (same for FM)"));
+        console.log("  " + date + " " + at + " [" + slot.title_en + "]  " + hm[0] +
+          (fm ? "  |  FM: " + fm[0] : "  (same for FM)") + (k5 ? "  |  5/10k: " + k5[0] : ""));
       }
     }
   }
@@ -186,7 +284,7 @@ async function call(p, payload, retried) {
   const last = addDays(FIRST_MONDAY, 7 * WEEKS.length);
   const sessions = (await call("/api/admin/sessions", { action: "list" })).sessions || [];
   for (const x of sessions) {
-    if (x.date < FIRST_MONDAY || x.date >= last || !ours.has(x.name) || placed.has(x.date + "|" + x.schedule_id)) continue;
+    if (x.date <= TODAY || x.date >= last || !ours.has(x.name) || placed.has(x.date + "|" + x.schedule_id)) continue;
     try {
       await call("/api/admin/sessions", { action: "delete", id: x.id });
       console.log("  removed a misplaced copy: " + x.date + " " + x.name);

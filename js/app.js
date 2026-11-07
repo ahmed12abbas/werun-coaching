@@ -1126,48 +1126,65 @@ SCREENS.signup = function () {
    ways rather than three endpoints of its own.
    ------------------------------------------------------------------------- */
 
-/* Half or full marathon: which group's version of a session this phone shows.
-   One calendar and one code for both — only the workout differs — so it is a
-   way of reading the week, kept on the phone, not anything the club stores. */
+/* 5/10k, half or full marathon: which group's version of a session this phone
+   shows. One calendar and one code for all three — only the workout differs —
+   so it is a way of reading the week, kept on the phone, not anything the club
+   stores. The half plan is the session itself; the other two ride beside it as
+   name_<group> / payload_<group>, blank when the session is the same. */
 const PLAN_KEY = "werun-plan";
-function planFm() {
+function planGroup() {
   try {
-    return localStorage.getItem(PLAN_KEY) === "fm";
+    const g = localStorage.getItem(PLAN_KEY);
+    return g === "fm" || g === "5k" ? g : "hm";
   } catch (e) {
-    return false;
+    return "hm";
   }
 }
 
-/* The week as this phone's group sees it: a session with a full-marathon
-   version takes that title. Done once on the data so every list agrees, and on
-   a copy: the answer may be a cached object the other plan reads next. */
+/* The week as this phone's group sees it: a session with this group's version
+   takes that title. Done once on the data so every list agrees, and on a copy:
+   the answer may be a cached object another plan reads next. */
 function weekForPlan(data) {
-  if (!planFm()) return data;
+  const g = planGroup();
+  if (g === "hm") return data;
   const swap = (it) => {
-    if (!it.title_fm_en) return it;
-    const fm = Object.assign({}, it, { title_en: it.title_fm_en, title_ar: it.title_fm_ar });
-    if (it.desc_fm_en) Object.assign(fm, { desc_en: it.desc_fm_en, desc_ar: it.desc_fm_ar });
-    return fm;
+    if (!it["title_" + g + "_en"]) return it;
+    const mine = Object.assign({}, it, { title_en: it["title_" + g + "_en"], title_ar: it["title_" + g + "_ar"] });
+    if (it["desc_" + g + "_en"]) Object.assign(mine, { desc_en: it["desc_" + g + "_en"], desc_ar: it["desc_" + g + "_ar"] });
+    return mine;
   };
   return Object.assign({}, data, { days: (data.days || []).map((d) => Object.assign({}, d, { items: (d.items || []).map(swap) })) });
 }
 
+/* One /api/session answer as this phone's group runs it, on a copy for the
+   same reason as weekForPlan. */
+function sessionForPlan(s) {
+  const g = planGroup();
+  if (g === "hm" || !s["payload_" + g]) return s;
+  return Object.assign({}, s, { name: s["name_" + g] || s.name, payload: s["payload_" + g] },
+    s["desc_" + g + "_en"] ? { desc_en: s["desc_" + g + "_en"], desc_ar: s["desc_" + g + "_ar"] } : {});
+}
+
 function planToggle() {
-  const fm = planFm();
+  const now = planGroup();
   const pick = (want) => () => {
-    if (want === fm) return;
+    if (want === now) return;
     try {
-      localStorage.setItem(PLAN_KEY, want ? "fm" : "hm");
+      localStorage.setItem(PLAN_KEY, want);
     } catch (e) {
       return;
     }
     render();
   };
+  const btn = (g, key, cls) =>
+    el("button", { type: "button", class: cls, "aria-pressed": g === now ? "true" : "false", onclick: pick(g) }, t(key));
+  // The 5/10k group is the small one, so its button is too.
   return el(
     "div",
     { class: "seg", role: "group", "aria-label": t("aPlanLabel") },
-    el("button", { type: "button", "aria-pressed": fm ? "false" : "true", onclick: pick(false) }, t("aPlanHm")),
-    el("button", { type: "button", "aria-pressed": fm ? "true" : "false", onclick: pick(true) }, t("aPlanFm"))
+    btn("5k", "aPlan5k", "seg-small"),
+    btn("hm", "aPlanHm"),
+    btn("fm", "aPlanFm")
   );
 }
 
@@ -1752,7 +1769,7 @@ function ivEvent(date, it) {
   return API.get("/api/session?id=" + encodeURIComponent(stepsId))
     .then((data) => {
       const s = data.session;
-      const w = decodeWorkout(planFm() && s.payload_fm ? s.payload_fm : s.payload);
+      const w = decodeWorkout(sessionForPlan(s).payload);
       // Steps first: the place's map link is only text after them.
       ev.description = intervalsText(w) + (ev.description ? "\n\n" + ev.description : "");
       return ev;
@@ -2825,11 +2842,7 @@ SCREENS.session = function (args) {
 
   API.get("/api/session?id=" + encodeURIComponent(args[0] || ""))
     .then((data) => {
-      // The full-marathon group's workout, on a copy for the same reason as weekForPlan.
-      const s = planFm() && data.session.payload_fm
-        ? Object.assign({}, data.session, { name: data.session.name_fm || data.session.name, payload: data.session.payload_fm },
-          data.session.desc_fm_en ? { desc_en: data.session.desc_fm_en, desc_ar: data.session.desc_fm_ar } : {})
-        : data.session;
+      const s = sessionForPlan(data.session);
       box.textContent = "";
       box.append(checkinCard(s));
       // A session the coach opened only to hand out a code carries no
@@ -3027,14 +3040,14 @@ function fireworks() {
 function stepsPreview(r) {
   if (!r.steps_id) return Promise.resolve(null);
   return API.get("/api/session?id=" + encodeURIComponent(r.steps_id))
-    .then(({ session: s }) => {
-      const fm = planFm() && s.payload_fm;
+    .then(({ session }) => {
+      const s = sessionForPlan(session);
       return el(
         "div",
         { class: "card pad stack" },
-        el("h2", { dir: "auto" }, (fm && s.name_fm) || s.name),
+        el("h2", { dir: "auto" }, s.name),
         s.date !== r.date ? el("p", { class: "muted small" }, t("aStepsLead", { date: longDate(s.date) })) : null,
-        timeline(decodeWorkout(fm || s.payload))
+        timeline(decodeWorkout(s.payload))
       );
     })
     .catch(() => null);
