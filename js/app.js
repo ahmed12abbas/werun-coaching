@@ -1241,9 +1241,14 @@ SCREENS.home = function (args, user) {
   const today = localISO(new Date());
   const box = el(
     "div",
-    { class: "stack rise" },
+    { class: "home-box rise" },
     el("div", { class: "card pad" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })))
   );
+  // Two columns on a PC (main: greeting and sessions; side: the plan and the
+  // week's ring). On a phone both columns dissolve and `order` keeps the old
+  // single-column sequence (app.css, .home-cols).
+  const side = el("div", { class: "home-side" }, planToggle());
+  const cols = el("div", { class: "home-cols" }, el("div", { class: "home-main" }, greetingHeader(user), box), side);
   // Asked for alongside the week rather than after it, and drawn into the
   // goal card whenever it lands, so a slow watch service holds up nothing.
   const miles = loadMileage();
@@ -1262,11 +1267,11 @@ SCREENS.home = function (args, user) {
       // The browser's own append, which would write "null" for a card left out.
       box.append(...[
         next ? nextCard(next) : null,
-        goalCard(week.done, user, miles),
         going.length && !rest(going).length ? null : homeList("aMySessions", rest(going), "aNoneDown"),
         open.length && !rest(open).length ? null : homeList("aOpenSessions", rest(open), "aNoneOpen"),
       ].filter(Boolean));
-      lightCoachCode(box, data.days);
+      side.append(goalCard(week.done, user, miles));
+      lightCoachCode(cols, data.days);
       startCountdowns();
       warmSteps(week.ahead.slice(0, 2));
     })
@@ -1275,7 +1280,7 @@ SCREENS.home = function (args, user) {
       box.append(el("div", { class: "card pad" }, el("p", { class: "form-err" }, errorText(e))));
     });
 
-  return el("div", { class: "stack" }, planToggle(), greetingHeader(user), box);
+  return cols;
 };
 
 /* The steps for the next two sessions, asked for now so sw.js has them on the
@@ -2449,7 +2454,7 @@ SCREENS.week = function (args) {
       list.textContent = "";
       list.append(el("p", { class: "form-err" }, errorText(e)));
     });
-  return el("div", { class: "stack" }, planToggle(), card);
+  return el("div", { class: "stack week-screen" }, planToggle(), card);
 };
 
 function longDate(iso) {
@@ -3988,7 +3993,7 @@ const REASON_KEY = { checkin: "rCheckin", streak: "rStreak", adjust: "rAdjust", 
 SCREENS.points = function () {
   const mine = el("div", { class: "card pad stack pts-hero" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
   const board = el("div", { class: "card pad stack" }, el("h3", {}, t("aBoard")));
-  const wrap = el("div", { class: "stack rise" }, mine, board);
+  const wrap = el("div", { class: "stack rise points-cols" }, mine, board);
 
   // Both answers draw the top card: /me has the total, the board has the
   // place and who is just ahead. Each draws what it can as it lands.
