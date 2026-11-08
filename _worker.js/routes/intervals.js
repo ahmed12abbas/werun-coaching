@@ -5,7 +5,7 @@
    with a code, "home" reads this week live. The state round trip is the CSRF
    defence, exactly as for Strava.
 
-   "sync" writes the club's next four weeks onto the athlete's Intervals.icu
+   "sync" writes the club's next five weeks onto the athlete's Intervals.icu
    calendar, which passes them on to their watch. The phone builds the events
    — it already decodes a session and writes its .fit (js/model.js, js/fit.js),
    and the Worker has neither — and this only checks their shape and forwards
@@ -142,7 +142,7 @@ async function route(env, user, body) {
 /* What the phone may send: four weeks of the club's sessions and nothing
    bigger. The steps travel in the description as Intervals.icu's own workout
    text, which it turns into the watch's steps; a speed session is ~400 characters. */
-const SYNC_MAX = 80; // ten slots a week over four weeks is ~48, plus one-offs
+const SYNC_MAX = 80; // ten slots a week over five weeks is ~60, plus one-offs
 const DESC_MAX = 3000;
 const EXT_ID = /^werun-[A-Za-z0-9_-]{1,64}-\d{4}-\d{2}-\d{2}$/;
 const LOCAL_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/;

@@ -1711,16 +1711,17 @@ function disconnectLink(path) {
   return link;
 }
 
-/* The club's next four weeks onto the athlete's Intervals.icu calendar, which
+/* The club's next five weeks onto the athlete's Intervals.icu calendar, which
    hands them on to the watch they linked there. The phone builds the events
    because it is what decodes a session and writes its .fit; the Worker only
    checks their shape and forwards them. Every six hours at most, from Home —
    ponytail: so a change reaches the watch the next time the app is opened, not
    the moment the coach saves it; a server-side push would need the link
    decoder in the Worker. */
-const IV_SYNC_KEY = "werun-iv-sync-4"; // bump to resend everything once after a change to how sessions are written
+const IV_SYNC_KEY = "werun-iv-sync-5"; // bump to resend everything once after a change to how sessions are written
 const IV_SYNC_MS = 6 * 3600 * 1000;
-const IV_WEEKS = 5; // this week and four more, so "today + 28 days" is always covered
+const IV_DAYS = 35; // five weeks, so race week is on the watch before the athlete is in it
+const IV_WEEKS = 6; // this club week and five more, so "today + 35 days" is covered even on a Saturday
 
 function syncIntervals() {
   try {
@@ -1733,7 +1734,7 @@ function syncIntervals() {
   const first = localISO(weekStartOf(new Date()));
   const weeks = [];
   for (let i = 0; i < IV_WEEKS; i++) weeks.push(API.get("/api/week?start=" + addDays(first, i * 7)).then(weekForPlan));
-  const soon = ([date]) => date >= today && date <= addDays(today, 28);
+  const soon = ([date]) => date >= today && date <= addDays(today, IV_DAYS);
   Promise.all(weeks)
     .then((ws) => {
       const keep = [];
