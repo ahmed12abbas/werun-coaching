@@ -1955,14 +1955,14 @@ function themeCard() {
 
   /* A clip behind Home's Next Up card for each of the standing sessions,
      played when that session is the one Next Up shows. Not shrunk on the way
-     up the way a photo is, so the 2 MB cap (lib/photos.js, VIDEO) is said and
+     up the way a photo is, so the 5 MB cap (lib/photos.js, VIDEO) is said and
      checked here before the upload rather than after it. The whole map is
      saved each time; the slots are read once, as the card redraws on save. */
-  var VIDEO_MAX = 2 * 1024 * 1024;
+  var VIDEO_MAX = 5 * 1024 * 1024;
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var slots = null;
   function nextVideos(s) {
-    var box = el("div", {}, el("label", {}, "Next Up videos (one per weekly session, behind the Next Up card on Home; MP4 or WebM, up to 2 MB)"));
+    var box = el("div", {}, el("label", {}, "Next Up videos (one per weekly session, behind the Next Up card on Home; MP4 or WebM, up to 5 MB)"));
     var list = el("div", { class: "stack" }, el("span", { class: "muted small" }, "Loading the sessions…"));
     box.append(list);
     (slots ? Promise.resolve(slots) : api("/api/admin/schedule", { action: "list" }).then(function (d) {
@@ -1990,7 +1990,7 @@ function themeCard() {
       err.style.display = "none";
       if (!/^video\/(mp4|webm)$/.test(f.type)) { err.textContent = "Use an MP4 or WebM video."; err.style.display = ""; return; }
       if (f.size > VIDEO_MAX) {
-        err.textContent = "That video is " + (f.size / 1048576).toFixed(1) + " MB; the limit is 2 MB. A few seconds, small and without sound, is plenty.";
+        err.textContent = "That video is " + (f.size / 1048576).toFixed(1) + " MB; the limit is 5 MB. A few seconds, small and without sound, is plenty.";
         err.style.display = "";
         return;
       }

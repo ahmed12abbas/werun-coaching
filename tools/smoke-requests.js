@@ -141,8 +141,8 @@ function check(name, ok, detail) {
 
   /* ---- the Next Up video: capped, only ours, and served in pieces for iPhone ---- */
   const mp4 = (n) => "data:video/mp4;base64," + Buffer.alloc(n, 7).toString("base64");
-  r = await admin("/api/admin/settings", { action: "upload-video", data: mp4(2 * 1024 * 1024 + 1) });
-  check("a video over 2 MB is refused", r.status === 400 && r.data.error === "too-big", r);
+  r = await admin("/api/admin/settings", { action: "upload-video", data: mp4(5 * 1024 * 1024 + 1) });
+  check("a video over 5 MB is refused", r.status === 400 && r.data.error === "too-big", r);
   r = await admin("/api/admin/settings", { action: "upload-video", data: PNG });
   check("…and a photo is not a video", r.status === 400 && r.data.error === "bad-video", r);
   r = await admin("/api/admin/settings", { action: "upload", data: mp4(100) });

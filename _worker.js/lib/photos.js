@@ -17,10 +17,10 @@ import { json } from "./http.js";
 
 const PHOTO = { re: /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/, bytes: 900000 };
 /* The Next Up card's background (/admin's Theme card). Nobody shrinks a video
-   in the browser, so the cap is the whole guard: 2 MB is a few seconds of
-   small clip, which every phone holds without a stutter. js/admin-page.js
-   says the same number before it uploads. */
-export const VIDEO = { re: /^data:(video\/(?:mp4|webm));base64,([A-Za-z0-9+/=]+)$/, bytes: 2 * 1024 * 1024 };
+   in the browser, so the cap is the whole guard: 5 MB is the club's choice,
+   a short clip each phone downloads once and keeps. js/admin-page.js says
+   the same number before it uploads. */
+export const VIDEO = { re: /^data:(video\/(?:mp4|webm));base64,([A-Za-z0-9+/=]+)$/, bytes: 5 * 1024 * 1024 };
 const MAX = { count: 150 };
 
 /** Keeps the photo (or a `kind` such as VIDEO) under `prefix`, and answers with the `route` that reads it back. */
