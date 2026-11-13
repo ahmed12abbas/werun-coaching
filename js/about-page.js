@@ -139,7 +139,7 @@ btn.addEventListener("click", function () {
 var early = setTimeout(function () { show(current()); }, 1500);
 fetch("/api/about").then(function (r) { return r.ok ? r.json() : {}; })
   .then(function (d) {
-    if (d && d.doc && Array.isArray(d.doc.sections)) saved = d.doc;
+    if (d && d.doc && Array.isArray(d.doc.sections)) saved = aboutCarry(d.doc);
     live = (d && d.live) || null;
   })
   ["catch"](function () {})

@@ -1759,7 +1759,7 @@ function aboutCard() {
 
   call({}).then(function (d) {
     live = d.live || {};
-    doc = d.doc && Array.isArray(d.doc.sections) ? d.doc : JSON.parse(JSON.stringify(ABOUT_DEFAULT));
+    doc = d.doc && Array.isArray(d.doc.sections) ? aboutCarry(d.doc) : JSON.parse(JSON.stringify(ABOUT_DEFAULT));
     draw();
     say(d.doc ? "" : "This is the original page; nothing has been saved from here yet.");
   })["catch"](failed);

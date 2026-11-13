@@ -17,6 +17,25 @@
 
 function aboutPair(en, ar) { return { en: en, ar: ar }; }
 
+var ABOUT_KHOBAR = "https://www.kaminsports.sa/events/we-run-race-2026-khobar";
+
+/* The live page is an admin's copy saved before Upcoming existed, and no
+   deploy can write KV, so the shipped section is slotted in after the saved
+   copy's last events section until a save puts the Khobar race in for good.
+   The test is the race's link, so renaming the heading or moving the card
+   keeps it theirs; deleting it brings it back -- switch it off instead. */
+function aboutCarry(doc) {
+  function has(s) {
+    return !!s && Array.isArray(s.items) && s.items.some(function (it) { return !!it && it.href === ABOUT_KHOBAR; });
+  }
+  if (!doc || !Array.isArray(doc.sections) || doc.sections.some(has)) return doc;
+  var at = doc.sections.length;
+  doc.sections.forEach(function (s, i) { if (s && s.type === "events") at = i + 1; });
+  var secs = doc.sections.slice();
+  secs.splice(at, 0, JSON.parse(JSON.stringify(ABOUT_DEFAULT.sections.filter(has)[0])));
+  return Object.assign({}, doc, { sections: secs });
+}
+
 var ABOUT_DEFAULT = { sections: [
   { type: "hero", show: true, image: "assets/about/hero.webp",
     kicker: aboutPair("Who are we", "من نحن"),
@@ -141,6 +160,13 @@ var ABOUT_DEFAULT = { sections: [
         text: aboutPair("Wadi Hanifah, Riyadh · 1,100 runners, kids' race included", "وادي حنيفة، الرياض · ١١٠٠ عدّاء، ويشمل سباقاً للأطفال") },
       { day: "26", month: aboutPair("Oct", "أكتوبر"), pink: true, image: "assets/about/event-pink.webp", href: "https://www.instagram.com/werun.sa/p/DfCT4QnDYJp/", title: aboutPair("Pink Run/Walk", "Pink Run/Walk"),
         text: aboutPair("In participation with Sports Boulevard. Riyadh", "بالتعاون مع المسار الرياضي، الرياض") }
+    ] },
+
+  { type: "events", show: true,
+    title: aboutPair("Upcoming", "فعاليات قادمة"),
+    items: [
+      { day: "21", month: aboutPair("Nov", "نوفمبر"), pink: false, image: "assets/about/event-khobar.webp", href: ABOUT_KHOBAR, glow_until: "2026-11-21", title: aboutPair("WE RUN Race 2026 Khobar", "سباق WE RUN 2026 الخبر"),
+        text: aboutPair("Khobar, Eastern Province", "الخبر، المنطقة الشرقية") }
     ] },
 
   // Cropped from the deck's partner slide on its own purple, which is why
