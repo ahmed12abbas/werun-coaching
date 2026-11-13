@@ -39,6 +39,7 @@ export const DEFAULTS = {
   logo_url: "",
   intro_url: "",
   intro_swoosh: true, // the swoosh beside the logo on the intro
+  nextup_video: "", // an uploaded clip played faded behind Home's Next Up card; "" for none
   // The Pink Run/Walk page (routes/pink.js): shut until an admin has looked
   // it over and opened it, and how many people it takes.
   pink_open: false,

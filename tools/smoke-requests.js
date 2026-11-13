@@ -139,7 +139,36 @@ function check(name, ok, detail) {
   check("the console is left alone", !staff.includes("--brand:#0f8a4b"));
   check("the image is served", (await fetch(BASE + logo)).headers.get("content-type") === "image/png");
 
-  await admin("/api/admin/settings", { set: { theme_color: "", logo_url: "", intro_url: "" } });
+  /* ---- the Next Up video: capped, only ours, and served in pieces for iPhone ---- */
+  const mp4 = (n) => "data:video/mp4;base64," + Buffer.alloc(n, 7).toString("base64");
+  r = await admin("/api/admin/settings", { action: "upload-video", data: mp4(2 * 1024 * 1024 + 1) });
+  check("a video over 2 MB is refused", r.status === 400 && r.data.error === "too-big", r);
+  r = await admin("/api/admin/settings", { action: "upload-video", data: PNG });
+  check("…and a photo is not a video", r.status === 400 && r.data.error === "bad-video", r);
+  r = await admin("/api/admin/settings", { action: "upload", data: mp4(100) });
+  check("…nor a video a photo", r.status === 400 && r.data.error === "bad-image", r);
+  r = await coach.call("POST", "/api/admin/settings", { action: "upload-video", data: mp4(100) });
+  check("a leader cannot upload one", r.status === 401 || r.status === 403, r);
+  r = await admin("/api/admin/settings", { action: "upload-video", data: mp4(1000) });
+  check("a small video uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
+  const clip = r.data.url;
+  r = await admin("/api/admin/settings", { set: { nextup_video: "https://example.com/x.mp4" } });
+  check("only our own upload is the video", r.status === 400, r);
+  r = await admin("/api/admin/settings", { set: { nextup_video: clip } });
+  check("the video saves", r.status === 200 && r.data.settings.nextup_video === clip, r);
+  r = await runner.call("GET", "/api/auth/me");
+  check("…and reaches the app", r.data.club && r.data.club.nextup_video === clip, r.data && r.data.club);
+  let res = await fetch(BASE + clip, { headers: { range: "bytes=0-1" } });
+  check("a range is answered as one", res.status === 206 && res.headers.get("content-range") === "bytes 0-1/1000" &&
+    (await res.arrayBuffer()).byteLength === 2, res.status);
+  res = await fetch(BASE + clip, { headers: { range: "bytes=990-" } });
+  check("…to the end", res.status === 206 && res.headers.get("content-range") === "bytes 990-999/1000", res.status);
+  res = await fetch(BASE + clip, { headers: { range: "bytes=5000-" } });
+  check("…and past it refused", res.status === 416, res.status);
+  res = await fetch(BASE + clip);
+  check("the whole video, typed", res.status === 200 && res.headers.get("content-type") === "video/mp4", res.status);
+
+  await admin("/api/admin/settings", { set: { theme_color: "", logo_url: "", intro_url: "", nextup_video: "" } });
   const back = await (await fetch(BASE + "/app", { headers: { accept: "text/html" } })).text();
   check("cleared, the club's own again", !back.includes("data-logo") && !back.includes("--brand:#0f8a4b"));
 

@@ -2259,8 +2259,26 @@ function nextCard(x) {
         ? el("a", { class: "place next-place", href: it.map_url, target: "_blank", rel: "noopener noreferrer", title: t("aOpenMap") }, place)
         : el("span", { class: "next-place" }, place)
       : null,
-    homeActions(x)
+    homeActions(x),
+    nextVideo()
   );
+}
+
+/* The clip an admin put behind this card (/admin, Theme). Muted and looping
+   so the phone lets it play by itself; not at all for somebody who asked for
+   less motion or less data. Built by hand because muted has to be the
+   property, not the attribute, for iPhone and Chrome to autoplay it. */
+function nextVideo() {
+  const src = Auth.club.nextup_video;
+  if (!src || matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+  if (navigator.connection && navigator.connection.saveData) return null;
+  const v = document.createElement("video");
+  v.className = "next-video";
+  v.muted = v.loop = v.autoplay = v.playsInline = true;
+  v.setAttribute("aria-hidden", "true");
+  v.preload = "auto";
+  v.src = src;
+  return v;
 }
 
 function homeList(titleKey, rows, emptyKey) {

@@ -9,7 +9,7 @@ import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { coachList } from "../lib/coaches.js";
 import { resetLinkFor } from "./email.js";
-import { storePhoto, servePhoto } from "../lib/photos.js";
+import { storePhoto, servePhoto, VIDEO } from "../lib/photos.js";
 
 const BRAND_IMG = "brand-img:";
 
@@ -256,6 +256,7 @@ export async function settings(request, env) {
 
   // A logo or intro image for the theme; saved as a setting afterwards.
   if (body.action === "upload") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img");
+  if (body.action === "upload-video") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img", VIDEO);
 
   const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
@@ -268,7 +269,7 @@ export async function settings(request, env) {
     // These three go into every athlete page's markup and CSS (lib/theme.js),
     // so only a colour and only our own uploads are kept.
     if (key === "theme_color" && value && !/^#[0-9a-f]{6}$/i.test(value)) return json({ error: "bad-color" }, 400);
-    if ((key === "logo_url" || key === "intro_url") && value && !/^\/api\/brand\/img\?id=[a-f0-9]{32}$/.test(value)) {
+    if ((key === "logo_url" || key === "intro_url" || key === "nextup_video") && value && !/^\/api\/brand\/img\?id=[a-f0-9]{32}$/.test(value)) {
       return json({ error: "bad-image" }, 400);
     }
     if (value !== undefined) await setSetting(env, key, value);

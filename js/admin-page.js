@@ -1950,6 +1950,41 @@ function themeCard() {
     if (s.intro_swoosh !== false) sw.setAttribute("checked", "");
     sw.addEventListener("change", function () { save({ intro_swoosh: sw.checked }); });
     body.append(el("label", { class: "row" }, sw, " Show the swoosh beside the logo on the intro"));
+    body.append(nextVideo(s));
+  }
+
+  /* The clip behind Home's Next Up card. Not shrunk on the way up the way a
+     photo is, so the 2 MB cap (lib/photos.js, VIDEO) is said and checked
+     here before the upload rather than after it. */
+  var VIDEO_MAX = 2 * 1024 * 1024;
+  function nextVideo(s) {
+    var file = el("input", { type: "file", accept: "video/mp4,video/webm" });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      err.style.display = "none";
+      if (!/^video\/(mp4|webm)$/.test(f.type)) { err.textContent = "Use an MP4 or WebM video."; err.style.display = ""; return; }
+      if (f.size > VIDEO_MAX) {
+        err.textContent = "That video is " + (f.size / 1048576).toFixed(1) + " MB; the limit is 2 MB. A few seconds, small and without sound, is plenty.";
+        err.style.display = "";
+        return;
+      }
+      var r = new FileReader();
+      r.onload = function () {
+        api("/api/admin/settings", { action: "upload-video", data: r.result })
+          .then(function (d) { return save({ nextup_video: d.url }); })
+          ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
+      };
+      r.readAsDataURL(f);
+    });
+    var shown = s.nextup_video
+      ? el("video", { src: s.nextup_video, controls: "", playsinline: "", preload: "metadata",
+          style: "max-height:90px;max-width:160px;border-radius:10px;background:#222" })
+      : el("span", { class: "muted small" }, "None");
+    var off = s.nextup_video ? el("button", { class: "btn sm", onclick: function () { save({ nextup_video: "" }); } }, "Remove") : null;
+    return el("div", {}, el("label", {}, "Next Up video (behind the Next Up card on Home; MP4 or WebM, up to 2 MB)"),
+      el("div", { class: "row", style: "flex-wrap:wrap;align-items:center" }, shown,
+        el("label", { class: "btn sm ab-up" }, "Upload", file), off));
   }
 
   api("/api/admin/settings", {}).then(function (d) { paint(d.settings); })

@@ -108,6 +108,8 @@ async function clubFor(env) {
     // Whether the app's own code screen (js/app.js, codeLoop) must ask for
     // location before showing the code. Off by default — see lib/settings.js.
     location_required: !!(await getSetting(env, "checkin_location_required")),
+    // The clip behind Home's Next Up card (js/app.js, nextCard), "" for none.
+    nextup_video: await getSetting(env, "nextup_video"),
   };
 }
 
