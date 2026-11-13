@@ -140,16 +140,31 @@ function check(name, ok, detail) {
   check("the image is served", (await fetch(BASE + logo)).headers.get("content-type") === "image/png");
 
   /* ---- the Next Up animation: capped, a GIF or WebP, only ours, per session ---- */
-  const gif = (n) => "data:image/gif;base64," + Buffer.alloc(n, 7).toString("base64");
-  r = await admin("/api/admin/settings", { action: "upload-clip", data: gif(5 * 1024 * 1024 + 1) });
+  // Sent as the file itself, the way /admin sends it (lib/photos.js, storeClip).
+  const gif = (n) => Buffer.concat([Buffer.from("GIF89a"), Buffer.alloc(Math.max(0, n - 6), 7)]);
+  const clipUp = async (body, type, headers) => {
+    const res = await fetch(BASE + "/api/admin/settings", { method: "POST", body,
+      headers: Object.assign({ "content-type": type }, headers) });
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    return { status: res.status, data };
+  };
+  const clubPw = { "x-club-password": ADMIN };
+  r = await clipUp(gif(5 * 1024 * 1024 + 1), "image/gif", clubPw);
   check("an animation over 5 MB is refused", r.status === 400 && r.data.error === "too-big", r);
-  r = await admin("/api/admin/settings", { action: "upload-clip", data: "data:video/mp4;base64,AAAA" });
-  check("…and a video is not one (Low Power Mode will not play it)", r.status === 400 && r.data.error === "bad-clip", r);
-  r = await admin("/api/admin/settings", { action: "upload", data: gif(100) });
-  check("…nor is a GIF a photo (shrinking keeps one frame)", r.status === 400 && r.data.error === "bad-image", r);
-  r = await coach.call("POST", "/api/admin/settings", { action: "upload-clip", data: gif(100) });
+  r = await clipUp(Buffer.from("not a gif at all"), "image/gif", clubPw);
+  check("…and what is not a GIF inside is not taken for one", r.status === 400 && r.data.error === "bad-clip", r);
+  r = await clipUp(gif(100), "image/png", clubPw);
+  check("…nor anything but a GIF or WebP", r.status === 400 && r.data.error === "bad-clip", r);
+  r = await clipUp(gif(100), "image/gif", { cookie: coach.cookie });
   check("a leader cannot upload one", r.status === 401 || r.status === 403, r);
-  r = await admin("/api/admin/settings", { action: "upload-clip", data: gif(1000) });
+  r = await clipUp(gif(100), "image/gif", { "x-club-password": "wrong" });
+  check("…nor a wrong password", r.status === 401 || r.status === 403, r);
+  r = await clipUp(gif(4.9 * 1024 * 1024), "image/gif", clubPw);
+  check("a 4.9 MB GIF uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
+  r = await clipUp(Buffer.concat([Buffer.from("RIFF0000WEBP"), Buffer.alloc(50)]), "image/webp", clubPw);
+  check("…and so does an animated WebP", r.status === 200, r);
+  r = await clipUp(gif(1000), "image/gif", clubPw);
   check("a small GIF uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
   const clip = r.data.url;
   r = await admin("/api/admin/settings", { set: { nextup_gifs: { slot1: "https://example.com/x.gif" } } });

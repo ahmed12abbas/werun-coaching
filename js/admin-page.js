@@ -1999,13 +1999,20 @@ function themeCard() {
         err.style.display = "";
         return;
       }
-      var r = new FileReader();
-      r.onload = function () {
-        api("/api/admin/settings", { action: "upload-clip", data: r.result })
-          .then(function (d) { return put(d.url); })
-          ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
-      };
-      r.readAsDataURL(f);
+      // The file itself, not base64 in JSON: decoding megabytes of that runs
+      // the Worker out of CPU (lib/photos.js, storeClip).
+      var headers = { "content-type": f.type };
+      if (password) headers["x-club-password"] = password;
+      fetch("/api/admin/settings", { method: "POST", credentials: "same-origin", headers: headers, body: f })
+        .then(function (res) {
+          return res.json()["catch"](function () { return {}; }).then(function (d) {
+            if (!res.ok) throw new Error(d.error === "too-big" ? "That file is over 5 MB."
+              : d.error === "bad-clip" ? "That file is not an animated GIF or WebP."
+              : "The upload failed (" + (d.error || res.status) + "). Try again.");
+            return put(d.url);
+          });
+        })
+        ["catch"](function (e) { err.textContent = e.message; err.style.display = ""; });
     });
     var url = clips[row.id];
     var shown = url

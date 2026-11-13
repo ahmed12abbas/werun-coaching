@@ -9,7 +9,7 @@ import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { coachList } from "../lib/coaches.js";
 import { resetLinkFor } from "./email.js";
-import { storePhoto, servePhoto, CLIP } from "../lib/photos.js";
+import { storePhoto, storeClip, servePhoto } from "../lib/photos.js";
 
 const BRAND_IMG = "brand-img:";
 
@@ -250,13 +250,20 @@ async function coachesAndCandidates(env, q) {
 /* `set` carries only the keys being changed; unknown keys are ignored rather
    than stored, so a typo cannot plant a setting nothing reads. */
 export async function settings(request, env) {
+  // A Next Up GIF comes as the file itself rather than JSON (lib/photos.js,
+  // storeClip), so the club password, when that is the way in, is a header.
+  // Saved onto its session afterwards, by `set` like everything else.
+  if (/^image\//.test(request.headers.get("content-type") || "")) {
+    const no = await refuseUnlessAdmin(request, env, { password: request.headers.get("x-club-password") });
+    return no || storeClip(env, BRAND_IMG, request, "/api/brand/img");
+  }
+
   const body = await readBody(request);
   const no = await refuseUnlessAdmin(request, env, body);
   if (no) return no;
 
   // A logo or intro image for the theme; saved as a setting afterwards.
   if (body.action === "upload") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img");
-  if (body.action === "upload-clip") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img", CLIP);
 
   const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
