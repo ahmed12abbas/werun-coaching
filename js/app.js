@@ -2260,26 +2260,44 @@ function nextCard(x) {
         : el("span", { class: "next-place" }, place)
       : null,
     homeActions(x),
-    nextVideo()
+    nextVideo(it)
   );
 }
 
-/* The clip an admin put behind this card (/admin, Theme). Muted and looping
+/* The clip an admin put on this session's weekly slot (/admin, Theme), behind
+   the card while it is the one Next Up shows. Muted and looping
    so the phone lets it play by itself; not at all for somebody who asked for
    less motion or less data. Built by hand because muted has to be the
    property, not the attribute, for iPhone and Chrome to autoplay it. */
-function nextVideo() {
-  const src = Auth.club.nextup_video;
+function nextVideo(it) {
+  const src = it.schedule_id && (Auth.club.nextup_videos || {})[it.schedule_id];
   if (!src || matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
   if (navigator.connection && navigator.connection.saveData) return null;
   const v = document.createElement("video");
   v.className = "next-video";
   v.muted = v.loop = v.autoplay = v.playsInline = true;
+  v.setAttribute("muted", ""); // iPhone reads the attribute as well as the property
+  // No controls of any kind over a background: picture-in-picture and AirPlay
+  // each put a button on a video unless told not to.
+  v.setAttribute("disablepictureinpicture", "");
+  v.disableRemotePlayback = true;
   v.setAttribute("aria-hidden", "true");
   v.preload = "auto";
+  v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true });
   v.src = src;
   return v;
 }
+
+/* An iPhone in Low Power Mode will not start any video by itself, and one
+   coming back to the app has paused it. The play button it draws is hidden
+   (assets/app.css), so the clip starts on the first touch anywhere instead,
+   and again whenever the app is looked at. Calling play() on one already
+   playing does nothing. */
+function playNextVideos() {
+  document.querySelectorAll(".next-video").forEach((v) => v.play().catch(() => {}));
+}
+["touchend", "click"].forEach((ev) => document.addEventListener(ev, playNextVideos, { capture: true, passive: true }));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) playNextVideos(); });
 
 function homeList(titleKey, rows, emptyKey) {
   return el(

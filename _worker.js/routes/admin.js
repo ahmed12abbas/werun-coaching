@@ -261,7 +261,8 @@ export async function settings(request, env) {
   const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
-    const value = settingValue(DEFAULTS[key], set[key]);
+    const value = key === "nextup_videos" ? clipsIn(set[key]) : settingValue(DEFAULTS[key], set[key]);
+    if (value === null) return json({ error: "bad-video" }, 400);
     // The app puts this straight into an href, so only a web address is kept.
     if (key === "announcement_url" && value && !/^https?:\/\/\S+$/i.test(value)) {
       return json({ error: "bad-url" }, 400);
@@ -269,13 +270,25 @@ export async function settings(request, env) {
     // These three go into every athlete page's markup and CSS (lib/theme.js),
     // so only a colour and only our own uploads are kept.
     if (key === "theme_color" && value && !/^#[0-9a-f]{6}$/i.test(value)) return json({ error: "bad-color" }, 400);
-    if ((key === "logo_url" || key === "intro_url" || key === "nextup_video") && value && !/^\/api\/brand\/img\?id=[a-f0-9]{32}$/.test(value)) {
+    if ((key === "logo_url" || key === "intro_url") && value && !BRAND_URL.test(value)) {
       return json({ error: "bad-image" }, 400);
     }
     if (value !== undefined) await setSetting(env, key, value);
   }
 
   return json({ settings: await allSettings(env) });
+}
+
+/* The Next Up clips: a weekly session's id to one of our own uploads, the
+   whole map sent on every save. null if any of it is not that. */
+const BRAND_URL = /^\/api\/brand\/img\?id=[a-f0-9]{32}$/;
+function clipsIn(o) {
+  const all = Object.entries(objectIn(o));
+  if (all.length > 20) return null;
+  for (const [id, url] of all) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !BRAND_URL.test(String(url))) return null;
+  }
+  return Object.fromEntries(all);
 }
 
 /* What the page sent, made into the type the setting's default already is:

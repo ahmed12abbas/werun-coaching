@@ -152,12 +152,14 @@ function check(name, ok, detail) {
   r = await admin("/api/admin/settings", { action: "upload-video", data: mp4(1000) });
   check("a small video uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
   const clip = r.data.url;
-  r = await admin("/api/admin/settings", { set: { nextup_video: "https://example.com/x.mp4" } });
-  check("only our own upload is the video", r.status === 400, r);
-  r = await admin("/api/admin/settings", { set: { nextup_video: clip } });
-  check("the video saves", r.status === 200 && r.data.settings.nextup_video === clip, r);
+  r = await admin("/api/admin/settings", { set: { nextup_videos: { slot1: "https://example.com/x.mp4" } } });
+  check("only our own upload is a session's video", r.status === 400, r);
+  r = await admin("/api/admin/settings", { set: { nextup_videos: { "bad id!": clip } } });
+  check("…under a session id", r.status === 400, r);
+  r = await admin("/api/admin/settings", { set: { nextup_videos: { slot1: clip } } });
+  check("the video saves", r.status === 200 && r.data.settings.nextup_videos.slot1 === clip, r);
   r = await runner.call("GET", "/api/auth/me");
-  check("…and reaches the app", r.data.club && r.data.club.nextup_video === clip, r.data && r.data.club);
+  check("…and reaches the app", r.data.club && r.data.club.nextup_videos.slot1 === clip, r.data && r.data.club);
   let res = await fetch(BASE + clip, { headers: { range: "bytes=0-1" } });
   check("a range is answered as one", res.status === 206 && res.headers.get("content-range") === "bytes 0-1/1000" &&
     (await res.arrayBuffer()).byteLength === 2, res.status);
@@ -168,7 +170,7 @@ function check(name, ok, detail) {
   res = await fetch(BASE + clip);
   check("the whole video, typed", res.status === 200 && res.headers.get("content-type") === "video/mp4", res.status);
 
-  await admin("/api/admin/settings", { set: { theme_color: "", logo_url: "", intro_url: "", nextup_video: "" } });
+  await admin("/api/admin/settings", { set: { theme_color: "", logo_url: "", intro_url: "", nextup_videos: {} } });
   const back = await (await fetch(BASE + "/app", { headers: { accept: "text/html" } })).text();
   check("cleared, the club's own again", !back.includes("data-logo") && !back.includes("--brand:#0f8a4b"));
 
