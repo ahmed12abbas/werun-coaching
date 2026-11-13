@@ -1004,10 +1004,24 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 [dir="rtl"] .plan-title{font-size:17px;font-weight:700;text-transform:none}
 .plan-go{margin-inline-start:auto;font-size:24px}
 [dir="rtl"] .plan-go{transform:scaleX(-1)}
-.plan-count{margin:-8px 0 0;font-size:13px;font-weight:600;color:var(--muted)}
-/* The number is what the line is for, so it is the thing the eye lands on. */
+/* The heading and countdowns on one side, the goal race's logo on the other,
+   centred on the text block beside it rather than on the card's top edge. */
+.plan-top{display:flex;align-items:center;gap:12px}
+.plan-top-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.plan-logo{flex:none;width:auto;height:76px;margin-block:-4px;margin-inline-end:-2px;
+  animation:logoIn .7s cubic-bezier(.2,.7,.2,1) .15s backwards}
+@keyframes logoIn{from{opacity:0;transform:scale(.85) rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.plan-logo{animation:none}}
+.plan-counts{margin-top:-8px;display:grid;gap:3px}
+.plan-count{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
+/* The number is what the line is for, so it is the thing the eye lands on —
+   each race in its own colour: Sharqiyah light blue, Riyadh orange. */
 .plan-days{font-family:var(--display);font-size:1.45em;font-weight:600;line-height:0;color:var(--brand);
   font-variant-numeric:tabular-nums;padding-inline:.12em;vertical-align:-.04em}
+.plan-days.blue{color:#1AA3E0}
+.plan-days.orange{color:#F57314}
+[data-theme="dark"] .plan-days.blue{color:#5CC8F5}
+[data-theme="dark"] .plan-days.orange{color:#FF9447}
 /* Every option grows by the same amount, so the space round each word is the
    same; equal boxes would leave "5/10k" swimming and the long two cramped. */
 .plan-track{position:relative;display:flex;gap:0;padding:4px;border-radius:999px;background:var(--card);

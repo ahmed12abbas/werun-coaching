@@ -1216,29 +1216,38 @@ function planToggle() {
   const text = announceText();
   const url = text ? announceUrl() : "";
   const head = el("span", { dir: "auto" }, text || t("aPlanLabel"));
-  const left = raceCountdown();
+  const races = RACES.map(raceCountdown).filter(Boolean);
+  // The goal race's own logo beside the heading, while its countdown runs.
+  const goal = RACES.find((r) => r.logo && raceCountdown(r));
   return el("div", { class: "plan-card" },
-    url
-      ? el("a", { class: "plan-title link", href: url, target: "_blank", rel: "noopener noreferrer" }, head, el("span", { class: "plan-go", "aria-hidden": "true" }, "›"))
-      : el("div", { class: "plan-title" }, head),
-    left ? el("p", { class: "plan-count" }, left) : null,
+    el("div", { class: "plan-top" },
+      el("div", { class: "plan-top-text" },
+        url
+          ? el("a", { class: "plan-title link", href: url, target: "_blank", rel: "noopener noreferrer" }, head, el("span", { class: "plan-go", "aria-hidden": "true" }, "›"))
+          : el("div", { class: "plan-title" }, head),
+        races.length ? el("div", { class: "plan-counts" }, races.map((r) => el("p", { class: "plan-count" }, r))) : null),
+      goal ? el("img", { class: "plan-logo", src: goal.logo, alt: t(goal.name), decoding: "async" }) : null),
     track);
 }
 
-/* The race the current block builds to. One at a time, written here: when it
-   has gone the line simply goes, and the next block's race replaces it. */
-const NEXT_RACE = { date: "2026-12-12", name: "aRaceSharqiyah" };
+/* The races the plan builds to, nearest first, each its own line with its
+   number in its own colour (app.css, .plan-days.blue/.orange). Written here:
+   a race that has gone simply drops its line. */
+const RACES = [
+  { date: "2026-12-12", name: "aRaceSharqiyah", tone: "blue" },
+  { date: "2027-02-06", name: "aRaceRiyadh", tone: "orange", logo: "assets/riyadh-marathon-2027.webp" },
+];
 
-function raceCountdown() {
+function raceCountdown(r) {
   const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10); // Riyadh, UTC+3
-  const days = Math.round((Date.parse(NEXT_RACE.date) - Date.parse(today)) / 864e5);
+  const days = Math.round((Date.parse(r.date) - Date.parse(today)) / 864e5);
   if (days < 0) return "";
-  const race = t(NEXT_RACE.name);
+  const race = t(r.name);
   if (days === 0) return t("aRaceToday", { race });
   if (days === 1) return t("aRaceTomorrow", { race });
   // The number picked out of the sentence wherever each language puts it.
   const [before, after] = t("aRaceIn", { race, n: "\u0000" }).split("\u0000");
-  return [before, el("b", { class: "plan-days" }, String(days)), after];
+  return [before, el("b", { class: "plan-days " + r.tone }, String(days)), after];
 }
 
 SCREENS.home = function (args, user) {
