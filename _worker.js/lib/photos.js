@@ -16,18 +16,20 @@
 import { json } from "./http.js";
 
 const PHOTO = { re: /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/, bytes: 900000 };
-/* The Next Up card's background (/admin's Theme card). Nobody shrinks a video
-   in the browser, so the cap is the whole guard: 5 MB is the club's choice,
-   a short clip each phone downloads once and keeps. js/admin-page.js says
-   the same number before it uploads. */
-export const VIDEO = { re: /^data:(video\/(?:mp4|webm));base64,([A-Za-z0-9+/=]+)$/, bytes: 5 * 1024 * 1024 };
+/* The Next Up card's background (/admin's Theme card): an animated GIF or
+   WebP, because an iPhone in Low Power Mode will not start a video by itself
+   and a picture just plays. Shrinking it in the browser would keep only its
+   first frame, so it goes up as it is and the cap is the whole guard: 5 MB,
+   the club's choice, downloaded once per phone. js/admin-page.js says the
+   same number before it uploads. */
+export const CLIP = { re: /^data:(image\/(?:gif|webp));base64,([A-Za-z0-9+/=]+)$/, bytes: 5 * 1024 * 1024 };
 const MAX = { count: 150 };
 
-/** Keeps the photo (or a `kind` such as VIDEO) under `prefix`, and answers with the `route` that reads it back. */
+/** Keeps the photo (or a `kind` such as CLIP) under `prefix`, and answers with the `route` that reads it back. */
 export async function storePhoto(env, prefix, data, route, kind = PHOTO) {
   if (!env.STATS) return json({ error: "no-store" }, 503);
   const m = kind.re.exec(String(data || ""));
-  if (!m) return json({ error: kind === PHOTO ? "bad-image" : "bad-video" }, 400);
+  if (!m) return json({ error: kind === PHOTO ? "bad-image" : "bad-clip" }, 400);
   const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
   if (bytes.length > kind.bytes) return json({ error: "too-big" }, 400);
   const listed = await env.STATS.list({ prefix: prefix });
@@ -44,23 +46,10 @@ export async function servePhoto(request, env, prefix) {
   if (!env.STATS || !/^[a-f0-9]{32}$/.test(id)) return new Response("Not found", { status: 404 });
   const got = await env.STATS.getWithMetadata(prefix + id, "arrayBuffer");
   if (!got || !got.value) return new Response("Not found", { status: 404 });
-  const headers = {
-    "content-type": (got.metadata && got.metadata.type) || "image/webp",
-    "cache-control": "public, max-age=31536000, immutable",
-    "accept-ranges": "bytes",
-  };
-  // iPhone Safari will not play a video from a server that cannot hand back
-  // part of it, so a byte range is answered as one.
-  const size = got.value.byteLength;
-  const r = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get("range") || "");
-  if (r && (r[1] || r[2])) {
-    const start = r[1] ? +r[1] : Math.max(0, size - +r[2]);
-    const end = r[1] && r[2] ? Math.min(+r[2], size - 1) : size - 1;
-    if (start > end || start >= size) {
-      return new Response(null, { status: 416, headers: { "content-range": "bytes */" + size } });
-    }
-    headers["content-range"] = "bytes " + start + "-" + end + "/" + size;
-    return new Response(got.value.slice(start, end + 1), { status: 206, headers });
-  }
-  return new Response(got.value, { headers });
+  return new Response(got.value, {
+    headers: {
+      "content-type": (got.metadata && got.metadata.type) || "image/webp",
+      "cache-control": "public, max-age=31536000, immutable",
+    },
+  });
 }

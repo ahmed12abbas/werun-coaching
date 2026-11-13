@@ -841,21 +841,18 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .greet h1{margin:0;font-size:26px;line-height:1.15;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .greet h1 .tag{font-size:12px;padding:2px 9px 0}
 .next-card{background:var(--brand-soft);border:1.5px solid var(--brand)}
-/* The admin's clip behind the card (js/app.js, nextVideo): its own stacking
+/* The admin's animation behind the card (js/app.js, nextGif): its own stacking
    context so z-index:-1 lands above the card's colour and under the words,
    faded so they stay the thing you read. */
-.next-card:has(.next-video){position:relative;isolation:isolate;overflow:hidden}
-.next-card>.next-video{position:absolute;inset:0;z-index:-1;width:100%;height:100%;margin:0;
+.next-card:has(.next-gif){position:relative;isolation:isolate;overflow:hidden}
+.next-card>.next-gif{position:absolute;inset:0;z-index:-1;width:100%;height:100%;margin:0;
   object-fit:cover;opacity:.28;pointer-events:none}
-[data-theme="dark"] .next-card>.next-video{opacity:.22}
-/* iPhone draws a play button over a video it would not start by itself; the
-   app starts it on the next touch instead (js/app.js, playNextVideos). */
-.next-video::-webkit-media-controls,.next-video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
+[data-theme="dark"] .next-card>.next-gif{opacity:.22}
 /* A button that is not open yet says so by fading, which over a moving picture
    lets the picture through it: the same pale look, painted solid instead. */
-.next-card:has(.next-video) .btn[disabled]{opacity:1;color:var(--brand-ink);
+.next-card:has(.next-gif) .btn[disabled]{opacity:1;color:var(--brand-ink);
   background:color-mix(in srgb,var(--brand) 50%,var(--card))}
-.next-card:has(.next-video) .btn[disabled]:not(.primary){color:var(--muted);background:var(--card)}
+.next-card:has(.next-gif) .btn[disabled]:not(.primary){color:var(--muted);background:var(--card)}
 .next-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;
   font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-deep)}
 [dir="rtl"] .next-kicker{letter-spacing:0}

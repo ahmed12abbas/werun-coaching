@@ -47,9 +47,6 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-  // A video asks for itself in pieces (Next Up's clip, lib/photos.js). The
-  // cache can neither keep a piece nor hand one out, so those go straight by.
-  if (req.headers.has("range")) return;
 
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;

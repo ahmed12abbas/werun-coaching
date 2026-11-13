@@ -39,9 +39,10 @@ export const DEFAULTS = {
   logo_url: "",
   intro_url: "",
   intro_swoosh: true, // the swoosh beside the logo on the intro
-  // Clips played faded behind Home's Next Up card, one per weekly session:
-  // { schedule id: an /api/brand/img upload }. A session not in it has none.
-  nextup_videos: {},
+  // Animated GIFs/WebPs shown faded behind Home's Next Up card, one per weekly
+  // session: { schedule id: an /api/brand/img upload }. None for one not in it.
+  // (nextup_videos, the MP4s before, is left unread: Low Power Mode stops them.)
+  nextup_gifs: {},
   // The Pink Run/Walk page (routes/pink.js): shut until an admin has looked
   // it over and opened it, and how many people it takes.
   pink_open: false,

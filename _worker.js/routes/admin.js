@@ -9,7 +9,7 @@ import { nowISO, currentUser, refuseUnlessAdmin } from "../lib/auth.js";
 import { DEFAULTS, allSettings, setSetting } from "../lib/settings.js";
 import { coachList } from "../lib/coaches.js";
 import { resetLinkFor } from "./email.js";
-import { storePhoto, servePhoto, VIDEO } from "../lib/photos.js";
+import { storePhoto, servePhoto, CLIP } from "../lib/photos.js";
 
 const BRAND_IMG = "brand-img:";
 
@@ -256,13 +256,13 @@ export async function settings(request, env) {
 
   // A logo or intro image for the theme; saved as a setting afterwards.
   if (body.action === "upload") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img");
-  if (body.action === "upload-video") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img", VIDEO);
+  if (body.action === "upload-clip") return storePhoto(env, BRAND_IMG, body.data, "/api/brand/img", CLIP);
 
   const set = objectIn(body.set);
   for (const key of Object.keys(set)) {
     if (!(key in DEFAULTS)) continue;
-    const value = key === "nextup_videos" ? clipsIn(set[key]) : settingValue(DEFAULTS[key], set[key]);
-    if (value === null) return json({ error: "bad-video" }, 400);
+    const value = key === "nextup_gifs" ? clipsIn(set[key]) : settingValue(DEFAULTS[key], set[key]);
+    if (value === null) return json({ error: "bad-clip" }, 400);
     // The app puts this straight into an href, so only a web address is kept.
     if (key === "announcement_url" && value && !/^https?:\/\/\S+$/i.test(value)) {
       return json({ error: "bad-url" }, 400);
