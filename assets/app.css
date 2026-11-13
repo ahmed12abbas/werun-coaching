@@ -840,30 +840,79 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
 .greet-date{font-size:13px;color:var(--muted);font-weight:600}
 .greet h1{margin:0;font-size:26px;line-height:1.15;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .greet h1 .tag{font-size:12px;padding:2px 9px 0}
-.next-card{background:var(--brand-soft);border:1.5px solid var(--brand)}
-/* The admin's animation behind the card (js/app.js, nextGif): its own stacking
-   context so z-index:-1 lands above the card's colour and under the words,
-   faded so they stay the thing you read. */
-.next-card:has(.next-gif){position:relative;isolation:isolate;overflow:hidden}
-.next-card>.next-gif{position:absolute;inset:0;z-index:-1;width:100%;height:100%;margin:0;
-  object-fit:cover;opacity:.28;pointer-events:none}
-[data-theme="dark"] .next-card>.next-gif{opacity:.22}
-/* A button that is not open yet says so by fading, which over a moving picture
-   lets the picture through it: the same pale look, painted solid instead. */
-.next-card:has(.next-gif) .btn[disabled]{opacity:1;color:var(--brand-ink);
-  background:color-mix(in srgb,var(--brand) 50%,var(--card))}
-.next-card:has(.next-gif) .btn[disabled]:not(.primary){color:var(--muted);background:var(--card)}
+.next-card{background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 45%,transparent);
+  border-radius:20px;box-shadow:0 10px 28px -18px color-mix(in srgb,var(--brand) 80%,transparent)}
 .next-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;
   font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-deep)}
 [dir="rtl"] .next-kicker{letter-spacing:0}
 .next-kicker .countdown{text-transform:none;letter-spacing:0;font-size:13px}
-.next-title{padding:0;border:0;background:none;color:inherit;font-family:var(--display);font-size:28px;font-weight:600;
-  line-height:1.1;text-align:start;cursor:pointer;text-transform:uppercase}
+/* The display face carries a little air on its leading edge; nudged back so
+   the title's first letter stands on the same line as the kicker's, by eye. */
+.next-title{padding:0;border:0;background:none;color:inherit;font-family:var(--display);font-size:30px;font-weight:600;
+  line-height:1.05;text-align:start;cursor:pointer;text-transform:uppercase;margin-inline-start:-.03em}
 .next-title:hover{color:var(--brand)}
 .next-when{display:flex;flex-wrap:wrap;gap:6px}
-.next-chip{background:var(--card);border-radius:999px;padding:4px 11px 3px;font-size:13px;font-weight:650}
+.next-chip{background:var(--card);border-radius:999px;padding:5px 12px 4px;font-size:13px;font-weight:650;line-height:1.3}
 .next-chip.coming{color:var(--brand)}
-.next-chip.num{font-family:inherit;font-size:13px}
+/* The time is a .num for the rest of the app; here it must sit on the same
+   line as "Saturday" beside it, so it takes the chip's own height. */
+.next-chip.num{font-family:inherit;font-size:13px;line-height:1.3;letter-spacing:0;font-variant-numeric:tabular-nums}
+
+/* ---- Next Up with the admin's animation behind it (js/app.js, nextGif) ----
+   A photo card: the picture at full strength, a fade from the club's dark
+   purple up from the bottom so white words read over any frame, the kicker
+   at the top and the rest settled low so the picture's middle stays clear.
+   Its own stacking context, so the picture and the fade sit under the words. */
+.next-card.has-media{position:relative;isolation:isolate;overflow:hidden;border:0;min-height:320px;
+  display:flex;flex-direction:column;justify-content:flex-end;background:#1d1433;color:#fff;
+  box-shadow:0 18px 36px -18px color-mix(in srgb,var(--brand) 85%,#000)}
+.next-card.has-media>.next-kicker{margin-bottom:auto;color:rgba(255,255,255,.9)}
+.next-card.has-media::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,10,44,.45) 0%,rgba(20,10,44,0) 26%,rgba(20,10,44,.2) 44%,rgba(20,10,44,.88) 100%),
+    linear-gradient(90deg,color-mix(in srgb,var(--brand) 38%,transparent) 0%,transparent 65%)}
+[dir="rtl"] .next-card.has-media::before{
+  background:linear-gradient(180deg,rgba(20,10,44,.45) 0%,rgba(20,10,44,0) 26%,rgba(20,10,44,.2) 44%,rgba(20,10,44,.88) 100%),
+    linear-gradient(270deg,color-mix(in srgb,var(--brand) 38%,transparent) 0%,transparent 65%)}
+/* In: the picture fades up and settles from a slight zoom once it has
+   loaded (.on), so a slow connection shows the card, never a blank box. */
+.next-card>.next-gif{position:absolute;inset:0;z-index:-2;width:100%;height:100%;margin:0;object-fit:cover;
+  pointer-events:none;opacity:0;transform:scale(1.1);transition:opacity .9s ease,transform 1.6s cubic-bezier(.2,.7,.2,1)}
+.next-card>.next-gif.on{opacity:1;transform:none}
+.next-card.has-media .next-title{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.35)}
+.next-card.has-media .next-title:hover{color:#fff;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+/* Frosted chips: they read as glass over the picture, and stay legible over
+   a bright frame because of the fade under them. */
+.next-card.has-media .next-chip{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.24);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.next-card.has-media .next-chip.coming{background:color-mix(in srgb,var(--brand) 62%,transparent);
+  border-color:color-mix(in srgb,var(--brand) 80%,#fff)}
+.next-card.has-media .next-desc{color:rgba(255,255,255,.92)}
+.next-card.has-media .next-place,.next-card.has-media .next-place:visited{color:#fff}
+.next-card.has-media .next-place::before{background:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 70%,transparent)}
+.next-card.has-media .countdown{color:#fff}
+.next-card.has-media .countdown::before{background:#7CF3A0}
+/* The buttons stay solid over the picture: a not-yet-open Check in is the
+   club's purple dimmed, not see-through; "Can't make it" is plain white. */
+/* .hrow-do grows to fill its row in the lists; in this column it would grow
+   tall instead, so here it keeps its own height. */
+.next-card.has-media>.hrow-do{flex:none}
+.next-card.has-media .btn{border:0;box-shadow:0 6px 16px -8px rgba(0,0,0,.5)}
+.next-card.has-media .btn:not(.primary){background:#fff;color:#1d1433}
+.next-card.has-media .btn[disabled]{opacity:1;color:rgba(255,255,255,.72);
+  background:color-mix(in srgb,var(--brand) 42%,#2a1f45)}
+.next-card.has-media .tag.done{background:rgba(255,255,255,.92);color:#1d1433}
+/* In, for the words: each line a beat after the last, under the picture's fade-up. */
+.next-card>:not(.next-gif){animation:nextIn .55s cubic-bezier(.2,.7,.2,1) backwards}
+.next-card>:nth-child(2){animation-delay:.08s}
+.next-card>:nth-child(3){animation-delay:.16s}
+.next-card>:nth-child(4){animation-delay:.24s}
+.next-card>:nth-child(5){animation-delay:.32s}
+.next-card>:nth-child(6){animation-delay:.4s}
+@keyframes nextIn{from{opacity:0;transform:translateY(12px)}}
+@media (prefers-reduced-motion:reduce){
+  .next-card>:not(.next-gif){animation:none}
+  .next-card>.next-gif{transition:none;transform:none}
+}
 .next-desc{font-size:14px}
 .next-place{font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
 .next-place::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
@@ -947,28 +996,41 @@ button.loop-day:hover,button.loop-day:focus-visible{color:var(--ink,inherit)}
    of two and would otherwise put them side by side and squeeze the title. */
 /* ---- the plan card on Home and Week: the coach's line, the countdown, and
    a pill track whose highlight slides to the plan tapped ---- */
-.plan-card{background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 35%,transparent);
-  border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.plan-card{background:linear-gradient(160deg,var(--brand-soft) 0%,color-mix(in srgb,var(--brand-soft) 70%,var(--card)) 100%);
+  border:1px solid color-mix(in srgb,var(--brand) 22%,transparent);box-shadow:0 8px 24px -16px color-mix(in srgb,var(--brand) 70%,transparent);
+  border-radius:20px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px}
 .plan-title{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:21px;line-height:1.1;
   letter-spacing:.02em;text-transform:uppercase;color:var(--brand-deep);text-decoration:none}
 [dir="rtl"] .plan-title{font-size:17px;font-weight:700;text-transform:none}
 .plan-go{margin-inline-start:auto;font-size:24px}
 [dir="rtl"] .plan-go{transform:scaleX(-1)}
-.plan-count{margin:-6px 0 0;font-size:13px;font-weight:600;color:var(--muted)}
-.plan-track{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
-.plan-track button{position:relative;z-index:1;flex:1;border:0;background:none;border-radius:999px;padding:9px 6px;
-  font:inherit;font-size:14px;font-weight:650;color:var(--muted);cursor:pointer;transition:color .25s ease}
-/* The 5/10k group is the small one, so its pill is too. */
-.plan-track button[data-g="5k"]{flex:0 0 auto;padding-inline:14px}
+.plan-count{margin:-8px 0 0;font-size:13px;font-weight:600;color:var(--muted)}
+/* The number is what the line is for, so it is the thing the eye lands on. */
+.plan-days{font-family:var(--display);font-size:1.45em;font-weight:600;line-height:0;color:var(--brand);
+  font-variant-numeric:tabular-nums;padding-inline:.12em;vertical-align:-.04em}
+/* Every option grows by the same amount, so the space round each word is the
+   same; equal boxes would leave "5/10k" swimming and the long two cramped. */
+.plan-track{position:relative;display:flex;gap:0;padding:4px;border-radius:999px;background:var(--card);
+  border:1px solid color-mix(in srgb,var(--brand) 14%,var(--line));min-width:0}
+.plan-track button{position:relative;z-index:1;flex:1 1 auto;min-width:0;border:0;background:none;border-radius:999px;
+  padding:10px 10px 9px;font:inherit;font-size:13.5px;font-weight:650;line-height:1.2;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;color:var(--muted);cursor:pointer;transition:color .25s ease,transform .15s ease}
+.plan-track button:active{transform:scale(.96)}
 .plan-track button[aria-pressed="true"]{color:var(--brand-ink)}
 /* Until the thumb has been measured (or where it never can be), the pill
    itself carries the colour, so the chosen plan is never white on white. */
 .plan-track:not(.placed) button[aria-pressed="true"]{background:var(--brand)}
 .plan-thumb{position:absolute;top:4px;bottom:4px;left:0;width:var(--w,0);transform:translateX(var(--x,0));
-  border-radius:999px;background:var(--brand);box-shadow:0 2px 8px color-mix(in srgb,var(--brand) 40%,transparent)}
+  border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 88%,#fff),var(--brand));
+  box-shadow:0 4px 12px -2px color-mix(in srgb,var(--brand) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.25)}
 .plan-track:not(.placed) .plan-thumb{display:none}
 .plan-track.ready .plan-thumb{transition:transform .28s cubic-bezier(.3,.7,.2,1),width .28s cubic-bezier(.3,.7,.2,1)}
 @media (prefers-reduced-motion:reduce){.plan-track.ready .plan-thumb,.plan-track button{transition:none}}
+/* Picking a plan redraws the screen under it: what is about to change steps
+   out first (js/app.js, planToggle), and the new cards rise in as always. */
+.leaving{animation:cardOut .26s cubic-bezier(.4,0,1,1) forwards;pointer-events:none}
+@keyframes cardOut{to{opacity:0;transform:translateY(10px) scale(.98)}}
+@media (prefers-reduced-motion:reduce){.leaving{animation:none}}
 
 .ci-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 

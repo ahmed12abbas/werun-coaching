@@ -1202,6 +1202,9 @@ function planToggle() {
     now = want;
     for (const b of track.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.g === want ? "true" : "false");
     place();
+    // What the plan changes steps out while the pill slides, so the redraw
+    // reads as one set of cards leaving and the next arriving (app.css, .leaving).
+    for (const c of document.querySelectorAll("#screenBody .card:not(.plan-card)")) c.classList.add("leaving");
     setTimeout(render, 280); // the length of the slide
   };
   const btn = (g, key) =>
@@ -1233,7 +1236,9 @@ function raceCountdown() {
   const race = t(NEXT_RACE.name);
   if (days === 0) return t("aRaceToday", { race });
   if (days === 1) return t("aRaceTomorrow", { race });
-  return t("aRaceIn", { race, n: days });
+  // The number picked out of the sentence wherever each language puts it.
+  const [before, after] = t("aRaceIn", { race, n: "\u0000" }).split("\u0000");
+  return [before, el("b", { class: "plan-days" }, String(days)), after];
 }
 
 SCREENS.home = function (args, user) {
@@ -2239,9 +2244,10 @@ function nextCard(x) {
   const day = new Date(x.date + "T00:00:00");
   const place = side(it, "place");
   const what = side(it, "desc");
+  const gif = nextGif(it);
   return el(
     "div",
-    { class: "card pad stack next-card" },
+    { class: "card pad stack next-card" + (gif ? " has-media" : "") },
     el("div", { class: "next-kicker" }, el("span", {}, t("aNextUp")), countdownPill(it, x.date)),
     el("button", { class: "next-title", type: "button", onclick: () => openItem(it, x.date) }, side(it, "title")),
     el(
@@ -2260,7 +2266,7 @@ function nextCard(x) {
         : el("span", { class: "next-place" }, place)
       : null,
     homeActions(x),
-    nextGif(it)
+    gif
   );
 }
 
@@ -2273,7 +2279,11 @@ function nextGif(it) {
   const src = it.schedule_id && (Auth.club.nextup_gifs || {})[it.schedule_id];
   if (!src || matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
   if (navigator.connection && navigator.connection.saveData) return null;
-  return el("img", { class: "next-gif", src: src, alt: "", "aria-hidden": "true", decoding: "async" });
+  // Fades in once it has arrived (app.css, .next-gif.on), never as a half-drawn frame.
+  const img = el("img", { class: "next-gif", alt: "", "aria-hidden": "true", decoding: "async" });
+  img.addEventListener("load", () => requestAnimationFrame(() => img.classList.add("on")), { once: true });
+  img.src = src;
+  return img;
 }
 
 function homeList(titleKey, rows, emptyKey) {
