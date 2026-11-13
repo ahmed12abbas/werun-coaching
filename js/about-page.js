@@ -20,6 +20,7 @@ function show(lang) {
   paintTheme();
   aboutRender(page, saved || ABOUT_DEFAULT, lang, live);
   revealAll();
+  paintBg(); // the page's height just changed under it
 }
 
 /* Light and dark, the same switch as the app's (Theme in js/i18n.js): the
@@ -75,6 +76,39 @@ function revealAll() {
     }
   });
 }
+
+/* The photos behind the page (about.html, .bgs): how far down you are picks
+   one of the six and it fades in over the last. Each is fetched only when it
+   is next, so a visit that never scrolls costs two. The layer drifts up a
+   little as you go, as on the Pink page -- at most a fifth of the screen,
+   which is how much extra it is drawn below the fold. Reduced motion keeps
+   the photo changing but drops the drift and the fade. */
+var BGS = [1, 2, 3, 4, 5, 6].map(function (n) { return "assets/about/bg-" + n + ".webp"; });
+var bgLayers = BGS.map(function () {
+  var i = document.createElement("i");
+  document.getElementById("bgs").append(i);
+  return i;
+});
+var bgOn = -1, bgTicking = false;
+function paintBg() {
+  var max = root.scrollHeight - innerHeight;
+  var at = Math.min(BGS.length - 1, Math.floor(max > 0 ? scrollY / max * BGS.length : 0));
+  [at, at + 1].forEach(function (k) {
+    if (bgLayers[k] && !bgLayers[k].style.backgroundImage) bgLayers[k].style.backgroundImage = 'url("' + BGS[k] + '")';
+  });
+  if (at !== bgOn) {
+    if (bgOn >= 0) bgLayers[bgOn].classList.remove("on");
+    bgLayers[at].classList.add("on");
+    bgOn = at;
+  }
+  if (!calm) root.style.setProperty("--shift", Math.min(scrollY * 0.15, innerHeight * 0.2).toFixed(1));
+}
+window.addEventListener("scroll", function () {
+  if (bgTicking) return;
+  bgTicking = true;
+  requestAnimationFrame(function () { bgTicking = false; paintBg(); });
+}, { passive: true });
+paintBg();
 
 /* "2800+" from 0+, "17.1K" from 0.0K: the number moves, whatever follows it
    stays put. Anything that does not start with digits is left alone. */

@@ -29,6 +29,16 @@
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);
   font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
 img{max-width:100%;display:block}
+/* The club's own photos behind the page, faded so the words stay the thing
+   you read: the Pink page's drifting layer (pink.html) with six pictures in
+   it, one after another as you go down. A fixed layer rather than
+   background-attachment:fixed, which iOS Safari ignores. */
+.bgs{position:fixed;inset:0 0 -20vh;z-index:-1;pointer-events:none;
+  transform:translate3d(0,calc(var(--shift,0) * -1px),0) scale(calc(1.04 + var(--shift,0) * .0003));will-change:transform}
+.bgs i{position:absolute;inset:0;background:center / cover no-repeat;opacity:0;transition:opacity 1.2s ease}
+.bgs i.on{opacity:.22}
+:root[data-theme="dark"] .bgs i.on{opacity:.16}
+@media (prefers-reduced-motion:reduce){.bgs i{transition:none}}
 .wrap{max-width:1040px;margin:0 auto;padding:20px 18px 60px}
 /* A PC monitor gets the room: six numbers in a row, a taller banner. */
 @media (min-width:1400px){.wrap{max-width:1240px;padding-top:28px}}
@@ -272,6 +282,7 @@ footer a{color:inherit}
 </style>
 </head>
 <body>
+<div class="bgs" id="bgs" aria-hidden="true"></div>
 <div class="wrap">
   <div class="top">
     <a class="grow" href="/app.html" id="back">← WE RUN</a>
@@ -291,6 +302,6 @@ footer a{color:inherit}
 <script src="js/brand.js?v=8065255a"></script>
 <script src="js/sfx.js?v=7b9bd8c9"></script>
 <script src="js/about.js?v=b38bce8d"></script>
-<script src="js/about-page.js?v=1323d592"></script>
+<script src="js/about-page.js?v=071483fa"></script>
 </body>
 </html>
