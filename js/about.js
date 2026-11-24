@@ -19,20 +19,28 @@ function aboutPair(en, ar) { return { en: en, ar: ar }; }
 
 var ABOUT_KHOBAR = "https://www.kaminsports.sa/events/we-run-race-2026-khobar";
 
-/* The live page is an admin's copy saved before Upcoming existed, and no
-   deploy can write KV, so the shipped section is slotted in after the saved
-   copy's last events section until a save puts the Khobar race in for good.
-   The test is the race's link, so renaming the heading or moving the card
-   keeps it theirs; deleting it brings it back -- switch it off instead. */
+/* The Khobar race went up in a section of its own, "Upcoming", and the live
+   page is an admin's copy saved with it there. It has been run now, so it
+   belongs at the end of Our events with the others. No deploy can write KV,
+   so the card is moved here, on every read -- the /admin editor reads through
+   this too, so its next save makes the move for good. A copy saved before the
+   race was added at all gets the shipped card. The test is the race's link,
+   and a section left empty by the move goes with it. */
 function aboutCarry(doc) {
-  function has(s) {
-    return !!s && Array.isArray(s.items) && s.items.some(function (it) { return !!it && it.href === ABOUT_KHOBAR; });
-  }
-  if (!doc || !Array.isArray(doc.sections) || doc.sections.some(has)) return doc;
-  var at = doc.sections.length;
-  doc.sections.forEach(function (s, i) { if (s && s.type === "events") at = i + 1; });
-  var secs = doc.sections.slice();
-  secs.splice(at, 0, JSON.parse(JSON.stringify(ABOUT_DEFAULT.sections.filter(has)[0])));
+  if (!doc || !Array.isArray(doc.sections)) return doc;
+  function isK(it) { return !!it && it.href === ABOUT_KHOBAR; }
+  var card = null, emptied = null;
+  var secs = doc.sections.map(function (s) {
+    if (!s || !Array.isArray(s.items) || !s.items.some(isK)) return s;
+    card = card || s.items.filter(isK)[0];
+    var left = Object.assign({}, s, { items: s.items.filter(function (it) { return !isK(it); }) });
+    if (!left.items.length) emptied = left;
+    return left;
+  }).filter(function (s) { return s !== emptied; });
+  var home = secs.filter(function (s) { return s && s.type === "events" && Array.isArray(s.items); })[0];
+  if (!home) return doc;
+  card = card || JSON.parse(JSON.stringify(ABOUT_DEFAULT.sections.filter(function (s) { return s.type === "events"; })[0].items.filter(isK)[0]));
+  secs[secs.indexOf(home)] = Object.assign({}, home, { items: home.items.concat([card]) });
   return Object.assign({}, doc, { sections: secs });
 }
 
@@ -159,12 +167,7 @@ var ABOUT_DEFAULT = { sections: [
       { day: "10", month: aboutPair("Oct", "أكتوبر"), pink: false, image: "assets/about/event-race2026.webp", href: "https://www.kaminsports.sa/events/we-run-race-2026", title: aboutPair("WE RUN Race 2026", "سباق WE RUN 2026"),
         text: aboutPair("Wadi Hanifah, Riyadh · 1,100 runners, kids' race included", "وادي حنيفة، الرياض · ١١٠٠ عدّاء، ويشمل سباقاً للأطفال") },
       { day: "26", month: aboutPair("Oct", "أكتوبر"), pink: true, image: "assets/about/event-pink.webp", href: "https://www.instagram.com/werun.sa/p/DfCT4QnDYJp/", title: aboutPair("Pink Run/Walk", "Pink Run/Walk"),
-        text: aboutPair("In participation with Sports Boulevard. Riyadh", "بالتعاون مع المسار الرياضي، الرياض") }
-    ] },
-
-  { type: "events", show: true,
-    title: aboutPair("Upcoming", "فعاليات قادمة"),
-    items: [
+        text: aboutPair("In participation with Sports Boulevard. Riyadh", "بالتعاون مع المسار الرياضي، الرياض") },
       { day: "21", month: aboutPair("Nov", "نوفمبر"), pink: false, image: "assets/about/event-khobar.webp", href: ABOUT_KHOBAR, glow_until: "2026-11-21", title: aboutPair("WE RUN Race 2026 Khobar", "سباق WE RUN 2026 الخبر"),
         text: aboutPair("Khobar, Eastern Province", "الخبر، المنطقة الشرقية") }
     ] },
