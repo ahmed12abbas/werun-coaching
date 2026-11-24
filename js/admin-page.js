@@ -1961,14 +1961,14 @@ function themeCard() {
   /* An animated GIF or WebP behind Home's Next Up card for each of the
      standing sessions, shown when that session is the one Next Up shows. Not
      shrunk on the way up the way a photo is (that would keep one frame), so
-     the 5 MB cap (lib/photos.js, CLIP) is said and
+     the 10 MB cap (lib/photos.js, CLIP) is said and
      checked here before the upload rather than after it. The whole map is
      saved each time; the slots are read once, as the card redraws on save. */
-  var GIF_MAX = 5 * 1024 * 1024;
+  var GIF_MAX = 10 * 1024 * 1024;
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var slots = null;
   function nextGifs(s) {
-    var box = el("div", {}, el("label", {}, "Next Up animations (one per weekly session, behind the Next Up card on Home; animated GIF or WebP, up to 5 MB)"));
+    var box = el("div", {}, el("label", {}, "Next Up animations (one per weekly session, behind the Next Up card on Home; animated GIF or WebP, up to 10 MB)"));
     var list = el("div", { class: "stack" }, el("span", { class: "muted small" }, "Loading the sessions…"));
     box.append(list);
     (slots ? Promise.resolve(slots) : api("/api/admin/schedule", { action: "list" }).then(function (d) {
@@ -2000,7 +2000,7 @@ function themeCard() {
         return;
       }
       if (f.size > GIF_MAX) {
-        err.textContent = "That file is " + (f.size / 1048576).toFixed(1) + " MB; the limit is 5 MB. A few seconds at about 480 pixels wide is plenty.";
+        err.textContent = "That file is " + (f.size / 1048576).toFixed(1) + " MB; the limit is 10 MB. A few seconds at about 480 pixels wide is plenty.";
         err.style.display = "";
         return;
       }
@@ -2011,7 +2011,7 @@ function themeCard() {
       fetch("/api/admin/settings", { method: "POST", credentials: "same-origin", headers: headers, body: f })
         .then(function (res) {
           return res.json()["catch"](function () { return {}; }).then(function (d) {
-            if (!res.ok) throw new Error(d.error === "too-big" ? "That file is over 5 MB."
+            if (!res.ok) throw new Error(d.error === "too-big" ? "That file is over 10 MB."
               : d.error === "bad-clip" ? "That file is not an animated GIF or WebP."
               : "The upload failed (" + (d.error || res.status) + "). Try again.");
             return put(d.url);

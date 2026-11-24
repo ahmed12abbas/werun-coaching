@@ -19,10 +19,10 @@ const PHOTO = { re: /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/
 /* The Next Up card's background (/admin's Theme card): an animated GIF or
    WebP, because an iPhone in Low Power Mode will not start a video by itself
    and a picture just plays. Shrinking it in the browser would keep only its
-   first frame, so it goes up as it is and the cap is the whole guard: 5 MB,
+   first frame, so it goes up as it is and the cap is the whole guard: 10 MB,
    the club's choice, downloaded once per phone. js/admin-page.js says the
    same number before it uploads. */
-const CLIP = { types: ["image/gif", "image/webp"], bytes: 5 * 1024 * 1024 };
+const CLIP = { types: ["image/gif", "image/webp"], bytes: 10 * 1024 * 1024 };
 const MAX = { count: 150 };
 
 /** Keeps the photo under `prefix`, and answers with the `route` that reads it back. */

@@ -150,8 +150,8 @@ function check(name, ok, detail) {
     return { status: res.status, data };
   };
   const clubPw = { "x-club-password": ADMIN };
-  r = await clipUp(gif(5 * 1024 * 1024 + 1), "image/gif", clubPw);
-  check("an animation over 5 MB is refused", r.status === 400 && r.data.error === "too-big", r);
+  r = await clipUp(gif(10 * 1024 * 1024 + 1), "image/gif", clubPw);
+  check("an animation over 10 MB is refused", r.status === 400 && r.data.error === "too-big", r);
   r = await clipUp(Buffer.from("not a gif at all"), "image/gif", clubPw);
   check("…and what is not a GIF inside is not taken for one", r.status === 400 && r.data.error === "bad-clip", r);
   r = await clipUp(gif(100), "image/png", clubPw);
@@ -160,8 +160,8 @@ function check(name, ok, detail) {
   check("a leader cannot upload one", r.status === 401 || r.status === 403, r);
   r = await clipUp(gif(100), "image/gif", { "x-club-password": "wrong" });
   check("…nor a wrong password", r.status === 401 || r.status === 403, r);
-  r = await clipUp(gif(4.9 * 1024 * 1024), "image/gif", clubPw);
-  check("a 4.9 MB GIF uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
+  r = await clipUp(gif(9.9 * 1024 * 1024), "image/gif", clubPw);
+  check("a 9.9 MB GIF uploads", r.status === 200 && /^\/api\/brand\/img\?id=/.test(r.data.url), r);
   r = await clipUp(Buffer.concat([Buffer.from("RIFF0000WEBP"), Buffer.alloc(50)]), "image/webp", clubPw);
   check("…and so does an animated WebP", r.status === 200, r);
   r = await clipUp(gif(1000), "image/gif", clubPw);
