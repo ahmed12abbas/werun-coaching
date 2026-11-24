@@ -42,6 +42,7 @@
      GET  /api/members/search   — a runner by name, as the board shows them (logged in)
      GET  /api/feed             — the club's posts and the live tip   (logged in)
      GET  /api/feed/img?id=     — a photo uploaded for a post
+     GET  /api/post?id=         — one published post, for a shared link (no login)
      POST /api/comments         — the thread under a post or article (logged in)
      GET  /api/store            — what is for sale, and my orders     (logged in)
      GET  /api/store/order?id=  — one of my orders                    (logged in)
@@ -128,7 +129,7 @@ import { members, settings, coaches, brandImg } from "./routes/admin.js";
 import { adminSessions, adminQr } from "./routes/schedule.js";
 import { checkin } from "./routes/checkin.js";
 import { pointsMe, pointsBoard, boardVisibility, memberSearch } from "./routes/points.js";
-import { feed, adminPosts, feedImg } from "./routes/feed.js";
+import { feed, adminPosts, feedImg, onePost } from "./routes/feed.js";
 import { verifySend, verify, resetRequest, reset } from "./routes/email.js";
 import { adminExport } from "./routes/export.js";
 import { store, checkout, order } from "./routes/store.js";
@@ -209,6 +210,7 @@ const GET = {
   "/api/members/search": memberSearch,
   "/api/feed": feed,
   "/api/feed/img": feedImg,
+  "/api/post": onePost,
   "/api/store": store,
   "/api/store/order": order,
   "/api/push/next": pushNext,

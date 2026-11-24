@@ -185,8 +185,8 @@ function goHomeFresh() {
 /* Where a route sends somebody instead of drawing, or null to draw it. */
 function redirectFor(r, user) {
   if (!user) {
-    // A shared article is read as it is (sharedTip); the login is at its foot.
-    if (r.name === "feed" && /^tip:/.test(r.args[0] || "")) return null;
+    // A shared article or post is read as it is (sharedItem); the login is at its foot.
+    if (r.name === "feed" && /^(tip|post):/.test(r.args[0] || "")) return null;
     // A code scanned or a post shared to a stranger: keep it, then ask who they are.
     if (r.name === "c" || (r.name === "feed" && r.args.length)) {
       stashCheckin(r);
@@ -3626,7 +3626,7 @@ SCREENS.order = function (args) {
    back to the other rather than to nothing — a notice in Arabic only is
    still a notice, and hiding it from an English reader helps nobody. */
 SCREENS.feed = function (args, user) {
-  if (!user) return sharedTip(args[0].slice(4));
+  if (!user) return sharedItem(args[0]);
   const list = el("div", { class: "stack" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
 
   API.get("/api/feed")
@@ -3709,8 +3709,11 @@ function published(iso) {
    web address, and this looks again on the way out because it lands in an href. */
 function postTitle(p) {
   const title = side(p, "title");
-  const ok = /^https?:/i.test(p.link_url || "");
-  return el("h2", {}, ok ? el("a", { class: "post-link", href: p.link_url, target: "_blank", rel: "noopener noreferrer" }, title) : title);
+  // The reader's own language's link, else the other's — the rule side() keeps
+  // for the words. link_url is the English one; it was the only one before 0039.
+  const href = (I18N.lang === "ar" ? p.link_url_ar || p.link_url : p.link_url || p.link_url_ar) || "";
+  const ok = /^https?:/i.test(href);
+  return el("h2", { dir: "auto" }, ok ? el("a", { class: "post-link", href: href, target: "_blank", rel: "noopener noreferrer" }, title) : title);
 }
 
 /* A long post shows its first few lines and a "Read more"; a short one shows
@@ -3905,8 +3908,8 @@ function openComments(target, title, redrawBar) {
 /* The phone's own share sheet where there is one, the clipboard where there
    is not. The link and nothing else: iOS glues any `text` onto the url, so
    "Copy" handed over a paragraph that a browser's address bar searched for
-   rather than opened. Whoever is not logged in meets a login first and is
-   then taken to the card (redirectFor keeps the route). */
+   rather than opened. Whoever is not logged in reads it as it is
+   (sharedItem), with the login at its foot. */
 async function sharePost(target, words) {
   const url = location.origin + location.pathname + "#/feed/" + target;
   if (navigator.share) {
@@ -3959,24 +3962,29 @@ function tipCard(tip) {
   );
 }
 
-/* A tip shared to somebody not logged in. The article in full — it is what
-   they tapped for — laid out like the club's Instagram posts its followers
-   already know: the club up top, the photo, the counts, the words. Liking,
-   comments and the rest of the news are a login away, and the route is kept
-   so the login comes straight back to this card in the real feed. */
-function sharedTip(id) {
+/* A tip or a post shared to somebody not logged in. The item in full — it is
+   what they tapped for — laid out like the club's Instagram posts its
+   followers already know: the club up top, the photo, the counts, the words.
+   Liking, comments and the rest of the news are a login away, and the route
+   is kept so the login comes straight back to this card in the real feed. */
+function sharedItem(target) {
   const box = el("div", { class: "stack rise" }, el("div", { class: "row", style: "justify-content:center" }, el("span", { class: "spin" })));
-  const target = "tip:" + id;
+  const isPost = /^post:/.test(target);
+  const id = target.slice(target.indexOf(":") + 1);
   const toLogin = (to) => () => {
     stashCheckin(parseRoute());
     go(to || "login");
   };
 
-  API.get("/api/tips?id=" + encodeURIComponent(id))
+  API.get((isPost ? "/api/post?id=" : "/api/tips?id=") + encodeURIComponent(id))
     .then((d) => {
       box.textContent = "";
-      const tip = d.article;
-      const s = tip ? tipInLang(tip) : {};
+      // A post and a tip, in the one shape this card draws.
+      const p = d.post;
+      const tip = isPost
+        ? p && { photo: p.photo_url, created: p.published_at, title: postTitle(p) }
+        : d.article;
+      const s = !tip ? {} : isPost ? { title: side(p, "title"), body: side(p, "body") } : tipInLang(tip);
       if (!s.title && !s.body) {
         box.append(el("div", { class: "card pad" }, el("p", { class: "empty" }, t("aSharedGone"))), joinCard(toLogin));
         return;
@@ -3988,7 +3996,7 @@ function sharedTip(id) {
         el("article", { class: "card ig" },
           el("header", { class: "ig-head" },
             el("img", { class: "ig-av", src: document.documentElement.getAttribute("data-logo") || "assets/logo.png", alt: "" }),
-            el("div", { class: "ig-who" }, el("b", {}, "WE RUN"), el("span", { class: "cloud-kicker" }, t("aCoachTip")))),
+            el("div", { class: "ig-who" }, el("b", {}, "WE RUN"), el("span", { class: "cloud-kicker" }, t(isPost ? "navFeed2" : "aCoachTip")))),
           tip.photo ? el("img", { class: "ig-photo", src: tip.photo, alt: "" }) : null,
           el("div", { class: "ig-acts" },
             el("button", { class: "ig-act", type: "button", "aria-label": "💜", onclick: toLogin(), html: FEED_ICON.heart }),
@@ -3996,9 +4004,10 @@ function sharedTip(id) {
             el("button", { class: "ig-act", type: "button", "aria-label": t("aShare"), onclick: () => sharePost(target, { title: s.title }), html: FEED_ICON.share })),
           el("div", { class: "ig-text stack" },
             d.likes ? el("b", {}, t("aSharedLikes", { n: d.likes })) : null,
-            s.title ? el("h2", { dir: "auto" }, s.title) : null,
+            // A post's title carries its link; a tip's has none.
+            s.title ? tip.title || el("h2", { dir: "auto" }, s.title) : null,
             el("div", { class: "post-body", dir: "auto" }, written(s.body)),
-            el("div", {}, el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))),
+            isPost ? null : el("div", {}, el("a", { class: "sign", href: TIP_SIGN.url, target: "_blank", rel: "noopener noreferrer" }, tipSignName(I18N.lang))),
             d.comments ? el("button", { class: "linkish muted ig-more", type: "button", onclick: toLogin() }, t("aSharedComments", { n: d.comments })) : null,
             el("div", {}, published(tip.created || tip.updated)))),
         joinCard(toLogin)

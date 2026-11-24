@@ -1289,6 +1289,7 @@ function feedCard() {
     var pin = el("input", { type: "checkbox" });
     var popup = el("input", { type: "checkbox" });
     var linkUrl = el("input", { type: "text", maxlength: 500, placeholder: "https://…" });
+    var linkAr = el("input", { type: "text", maxlength: 500, placeholder: "https://…", dir: "ltr" });
     var when = el("input", { type: "datetime-local" });
     var err = el("p", { class: "err", style: "display:none" });
 
@@ -1334,6 +1335,7 @@ function feedCard() {
       if (editing.pinned) pin.setAttribute("checked", "");
       if (editing.popup) popup.setAttribute("checked", "");
       linkUrl.value = editing.link_url || "";
+      linkAr.value = editing.link_url_ar || "";
       if (editing.published_at) {
         // datetime-local wants the coach's own clock, not UTC.
         var d = new Date(editing.published_at);
@@ -1352,6 +1354,7 @@ function feedCard() {
           pinned: pin.checked,
           popup: popup.checked,
           link_url: linkUrl.value.trim() || null,
+          link_url_ar: linkAr.value.trim() || null,
           photo_url: photoUrl || null
         }
       };
@@ -1373,9 +1376,11 @@ function feedCard() {
       el("div", { class: "ar" }, el("label", {}, "Title (العربية)"), titleAr,
         el("div", { style: "margin-top:10px" }, el("label", {}, "Body (العربية)"), bodyAr))));
 
-    editor.append(el("div", { style: "margin-top:12px" },
-      el("label", {}, "Title link (optional)"), linkUrl,
-      el("div", { class: "set-note" }, "https://… — when set, the post's title in the app is tappable and opens this.")));
+    editor.append(el("div", { class: "two", style: "margin-top:12px" },
+      el("div", {}, el("label", {}, "Title link, English (optional)"), linkUrl),
+      el("div", {}, el("label", {}, "Title link, Arabic (optional)"), linkAr)));
+    editor.append(el("div", { class: "set-note" },
+      "https://… — when set, the post's title in the app is tappable and opens it. Each reader gets their language's link; leave one empty and they get the other."));
 
     editor.append(el("div", { class: "row", style: "margin-top:12px" },
       el("div", { style: "flex:0 0 auto" },
@@ -1427,7 +1432,7 @@ function feedCard() {
         el("button", { class: "btn sm", onclick: function () { editing = p; form(); openNews(); } }, "Edit"),
         out ? el("button", { class: "btn sm", onclick: function () {
           post({ action: "save", post: { id: p.id, title_en: p.title_en, title_ar: p.title_ar,
-            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, popup: p.popup, link_url: p.link_url,
+            body_en: p.body_en, body_ar: p.body_ar, pinned: p.pinned, popup: p.popup, link_url: p.link_url, link_url_ar: p.link_url_ar,
             photo_url: p.photo_url, publish: false } })
             .then(paint)["catch"](function (e) { extra.append(el("p", { class: "err" }, e.message)); });
         } }, "Take it down") : null,

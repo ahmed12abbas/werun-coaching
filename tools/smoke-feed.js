@@ -239,11 +239,21 @@ function check(name, ok, detail) {
   check("a title link must be a web address", r.status === 400 && r.data.error === "bad-url", r);
   r = await coach.call("POST", "/api/admin/posts", {
     action: "save",
-    post: { title_en: "Linked", title_ar: "رابط", link_url: "https://example.com/entry", publish: true },
+    post: { title_en: "Linked", title_ar: "رابط", link_url: "https://example.com/entry", link_url_ar: "https://example.com/ar", publish: true },
   });
   const linked = r.data.posts.find((p) => p.title_en === "Linked");
   r = await athlete.call("GET", "/api/feed");
   check("a web address is kept and reaches the feed", (r.data.posts || []).some((p) => p.id === linked.id && p.link_url === "https://example.com/entry"), r.data.posts);
+  check("and so is the Arabic one, beside it", (r.data.posts || []).some((p) => p.id === linked.id && p.link_url_ar === "https://example.com/ar"), r.data.posts);
+
+  // A shared post opens for somebody not logged in, like a shared tip; a draft does not.
+  r = await anon.call("GET", "/api/post?id=" + linked.id);
+  check("a published post reads without a login", r.status === 200 && r.data.post && r.data.post.title_ar === "رابط", r);
+  r = await coach.call("POST", "/api/admin/posts", { action: "save", post: { title_en: "Draft" } });
+  const unpub = r.data.posts.find((p) => p.title_en === "Draft");
+  r = await anon.call("GET", "/api/post?id=" + unpub.id);
+  check("a draft does not", r.status === 200 && r.data.post === null, r.data);
+  await coach.call("POST", "/api/admin/posts", { action: "delete", id: unpub.id });
   await coach.call("POST", "/api/admin/posts", { action: "delete", id: linked.id });
 
   /* Maintenance: athletes held, coach working, nobody locked out. */

@@ -34,14 +34,15 @@ const cleanBody = (s) =>
     .slice(0, MAX.body);
 
 /* Which of the newer columns exist yet: photo_url is 0027, popup is 0030,
-   link_url is 0031. */
+   link_url is 0031, link_url_ar is 0039. */
 async function postColumns(env) {
-  const [photo, popup, link] = await Promise.all([
+  const [photo, popup, link, linkAr] = await Promise.all([
     hasColumn(env, "posts", "photo_url"),
     hasColumn(env, "posts", "popup"),
     hasColumn(env, "posts", "link_url"),
+    hasColumn(env, "posts", "link_url_ar"),
   ]);
-  return { photo: photo, popup: popup, link: link };
+  return { photo: photo, popup: popup, link: link, linkAr: linkAr };
 }
 
 /* The address a title links to: a web address or nothing. It lands in an href,
@@ -69,6 +70,7 @@ const publicPost = (p, has) => ({
   photo_url: has.photo ? p.photo_url || null : null,
   popup: has.popup ? !!p.popup : false,
   link_url: has.link ? p.link_url || null : null,
+  link_url_ar: has.linkAr ? p.link_url_ar || null : null,
 });
 
 /* ---------- GET /api/feed -------------------------------------------------- */
@@ -126,6 +128,28 @@ export const feed = withMember(async (request, env, user) => {
   });
 });
 
+/* ---------- GET /api/post?id= ---------------------------------------------- */
+
+/*
+ * One post, for a shared news link opened by somebody not logged in — the
+ * post's twin of /api/tips?id=. Published and not in the future, the same rule
+ * targetExists() keeps, so a draft stays unreadable however its id was come by.
+ * Counts only: who reacted and what they wrote stay behind the login.
+ */
+export async function onePost(request, env) {
+  if (!env.DB) return json({ post: null });
+  const id = String(new URL(request.url).searchParams.get("id") || "").slice(0, 64);
+  const has = await postColumns(env);
+  const row = await env.DB.prepare("SELECT * FROM posts WHERE id = ? AND published_at IS NOT NULL AND published_at <= ?")
+    .bind(id, nowISO())
+    .first();
+  if (!row) return json({ post: null });
+  const target = "post:" + row.id;
+  const [faces, said] = await Promise.all([reactionsFor(env, { id: "" }, [target]), commentCounts(env, [target])]);
+  const likes = Object.values(faces.counts[target] || {}).reduce((a, b) => a + b, 0);
+  return json({ post: publicPost(row, has), likes: likes, comments: said[target] || 0 });
+}
+
 /* ---------- POST /api/admin/posts ------------------------------------------ */
 
 async function listAll(env) {
@@ -154,7 +178,8 @@ function readPost(post, has) {
   const publishedAt = publishedAtFrom(post);
   if (publishedAt === undefined) return { error: "bad-time" };
   const link = cleanLink(post.link_url);
-  if (link === undefined) return { error: "bad-url" };
+  const linkAr = cleanLink(post.link_url_ar);
+  if (link === undefined || linkAr === undefined) return { error: "bad-url" };
   return {
     title_en: title_en,
     title_ar: title_ar,
@@ -165,6 +190,7 @@ function readPost(post, has) {
     photo_url: has.photo && post.photo_url ? String(post.photo_url).slice(0, 200) : null,
     popup: has.popup && post.popup ? 1 : 0,
     link_url: has.link ? link : null,
+    link_url_ar: has.linkAr ? linkAr : null,
   };
 }
 
@@ -174,11 +200,12 @@ async function updatePost(env, id, f, has) {
   // Unpublishing is deliberate: the editor sends publish:false with no date,
   // and that takes it off the feed rather than leaving it up.
   const cols = "title_en = ?, title_ar = ?, body_en = ?, body_ar = ?, pinned = ?, published_at = ?, updated_at = ?" +
-    (has.photo ? ", photo_url = ?" : "") + (has.popup ? ", popup = ?" : "") + (has.link ? ", link_url = ?" : "");
+    (has.photo ? ", photo_url = ?" : "") + (has.popup ? ", popup = ?" : "") + (has.link ? ", link_url = ?" : "") + (has.linkAr ? ", link_url_ar = ?" : "");
   const vals = [f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, nowISO()];
   if (has.photo) vals.push(f.photo_url);
   if (has.popup) vals.push(f.popup);
   if (has.link) vals.push(f.link_url);
+  if (has.linkAr) vals.push(f.link_url_ar);
   vals.push(id);
   await env.DB.prepare("UPDATE posts SET " + cols + " WHERE id = ?").bind(...vals).run();
   return null;
@@ -189,12 +216,13 @@ async function insertPost(env, f, has) {
   if (((n && n.n) || 0) >= MAX.posts) return json({ error: "too-many" }, 400);
   const now = nowISO();
   const cols = "id, title_en, title_ar, body_en, body_ar, pinned, published_at, created_at, updated_at" +
-    (has.photo ? ", photo_url" : "") + (has.popup ? ", popup" : "") + (has.link ? ", link_url" : "");
-  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (has.photo ? ", ?" : "") + (has.popup ? ", ?" : "") + (has.link ? ", ?" : "");
+    (has.photo ? ", photo_url" : "") + (has.popup ? ", popup" : "") + (has.link ? ", link_url" : "") + (has.linkAr ? ", link_url_ar" : "");
+  const marks = "?, ?, ?, ?, ?, ?, ?, ?, ?" + (has.photo ? ", ?" : "") + (has.popup ? ", ?" : "") + (has.link ? ", ?" : "") + (has.linkAr ? ", ?" : "");
   const vals = [uid(), f.title_en, f.title_ar, f.body_en, f.body_ar, f.pinned, f.published_at, now, now];
   if (has.photo) vals.push(f.photo_url);
   if (has.popup) vals.push(f.popup);
   if (has.link) vals.push(f.link_url);
+  if (has.linkAr) vals.push(f.link_url_ar);
   await env.DB.prepare("INSERT INTO posts (" + cols + ") VALUES (" + marks + ")").bind(...vals).run();
   return null;
 }
